@@ -35,6 +35,8 @@ Flood-exposure scoring is a later map, not this one.
   Sedona 1.9.1, geotools-wrapper `1.9.1-33.5` (NOT -33.1), slim Sedona Dockerfile at
   `~/quakestream/stack/docker/sedona.Dockerfile`.
 - Ponytail rules apply: stdlib first, fewest files, one runnable check per slice.
+- Raster playbook (2026-08-15): `research/raster-playbook.md`, also in the vault. Read
+  before tickets 08 and 09; its Build-first section maps onto 09 and 10.
 - Reality check 2026-08-15: `reality-check-2026-08-15.md`. Stream for capture and
   live enrichment, batch for the insight; the backfill route is decided before the
   streaming route. Session research spend to date ~$235; build phase is cheaper.
