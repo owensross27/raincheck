@@ -43,6 +43,7 @@ Flood-exposure scoring is a later map, not this one.
 
 ## Decisions so far
 
+- [04 Topic schema and spatial keys](issues/04-topic-schema-spatial-keys.md) — resolved 2026-08-15: decoded JSON only on the wire (zstd), TU stays per-stop flat rows, keys vehicle_id/trip_id with 6 partitions fixed at creation, delete retention 48h no compaction, H3 res 8 canonical, taxi zones a Gold-time overlay, no alerts topic yet; raw-pb preservation and alerts cadence handed to ticket 05.
 - [03 Zarr to Spark/Sedona bridge](issues/03-zarr-spark-sedona-bridge.md) — resolved 2026-08-15: Sedona reads no Zarr; bridge is xarray .sel() -> DataFrame (NYC fits in one AORC chunk); stream-static join, static side uncached; Havasu/Raster Inference are WherobotsDB-only; Java 11 not 17, and no JVM on this Mac yet.
 - [02 Precipitation store selection](issues/02-precip-store-selection.md) — resolved 2026-08-15: AORC for 2020-2025 history (~366 GETs / ~25 MB for all of NYC, but frozen at 2025), MRMS GRIB2 for 2026 + nowcast (2-min cadence), ERA5 ruled out for point work (~95 GB per point series).
 - [01 Scaffold + smoke slice](issues/01-scaffold-smoke-slice.md) — resolved 2026-08-15: all rails proven; vp=1,822/tu=59,900 round-trip offsets exact; AORC Ida peak 84.2 mm/h vs ~80 mm gauge; pytest 7/7. Kafka left running (48h retention).
