@@ -32,6 +32,7 @@ known storm. The flood-exposure score rides these same rails as a later phase.
 - [Occupancy is partial] — `occupancy_status` on 41% of vehicles, skewed to empty; rates must be over reporting vehicles only.
 - [History must be self-captured] — no live archive exists since 2024-09-06; every day unpolled is unrecoverable.
 - [Climate Zarr stores verified live] — AORC `s3://noaa-nws-aorc-v1-1-1km/{year}.zarr` (1km hourly, APCP_surface, anon) and ERA5 ARCO `gs://gcp-public-data-arco-era5` both listable 2026-08-15.
+- [03 Zarr to Spark/Sedona bridge](issues/03-zarr-spark-sedona-bridge.md) — resolved 2026-08-15: Sedona reads no Zarr; bridge is xarray .sel() -> DataFrame (NYC fits in one AORC chunk); stream-static join, static side uncached; Havasu/Raster Inference are WherobotsDB-only; Java 11 not 17, and no JVM on this Mac yet.
 - [02 Precipitation store selection](issues/02-precip-store-selection.md) — resolved 2026-08-15: AORC for 2020-2025 history (~366 GETs / ~25 MB for all of NYC, but frozen at 2025), MRMS GRIB2 for 2026 + nowcast (2-min cadence), ERA5 ruled out for point work (~95 GB per point series).
 - [01 Scaffold + smoke slice](issues/01-scaffold-smoke-slice.md) — resolved 2026-08-15: all rails proven; vp=1,822/tu=59,900 round-trip offsets exact; AORC Ida peak 84.2 mm/h vs ~80 mm gauge; pytest 7/7. Kafka left running (48h retention).
 
