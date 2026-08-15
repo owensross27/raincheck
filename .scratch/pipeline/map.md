@@ -4,11 +4,13 @@ Label: `wayfinder:map`
 
 ## Destination
 
-A running local test-env pipeline that answers "does rain slow the buses, and where":
-MTA bus GTFS-RT streaming into Kafka, a Spark 3.5.3 + Sedona 1.9.1 job enriching
-positions with spatial keys and computed delay, joined against NYC hourly precipitation
-read from cloud Zarr (AORC 1km), landing in Parquet with a validation check against a
-known storm. The flood-exposure score rides these same rails as a later phase.
+A build-ready spec for the pipeline that answers "does rain slow the buses, and
+where": MTA bus GTFS-RT into Kafka, Spark 3.5.3 + Sedona 1.9.1 enrichment (spatial
+keys, computed delay), joined to NYC hourly precipitation from cloud Zarr (AORC 1 km)
+plus MRMS for 2026, landing in GeoParquet, validated against a known storm, with the
+7-year nycbuspositions backfill on the same schema. The map is done when nothing is
+left to decide before `/to-spec` collapses it and `/to-tickets` slices the build.
+Flood-exposure scoring is a later map, not this one.
 
 ## Notes
 
@@ -17,26 +19,28 @@ known storm. The flood-exposure score rides these same rails as a later phase.
   `/Users/ross/vault/nyc-bus-flood-pipeline-research-2026-08-11.md`,
   `/Users/ross/vault/nyc-flood-history-elevation-2026-08-12.md`. Consult before
   re-deriving anything about MTA feeds, NYC datasets, or datums.
-- Execution override: this effort carries execution on the map. Task tickets build
-  the test env directly; safety boundary is local-only (Docker Compose, no cloud
-  writes, no daemons installed without a HITL yes).
+- Plan, don't do. Ticket 01 was executed in-map on 2026-08-15 at Ross's explicit
+  request ("start executing on it safely in test env"); its measurements unblocked
+  04/06/08 and the code stays. From here the map holds decisions only; build work
+  goes through `/to-spec` -> `/to-tickets` -> `/implement` in separate sessions.
+  Safety boundary for anything downstream: local-only, no cloud writes, no daemons
+  without a HITL yes.
+- Settled facts (not tickets, sourced from the vault docs above): bus feeds are
+  keyless at `gtfsrt.prod.obanyc.com`; delay is computed vs dated static GTFS
+  (0/37,697 arrivals carry `delay`); `occupancy_status` covers 41% of vehicles,
+  skewed to empty; no public archive since 2024-09-06 but `s3.amazonaws.com/
+  nycbuspositions` is readable 2017-07-14 to 2024-09; AORC and ERA5 ARCO Zarr are
+  live and anonymous.
 - Reuse from `~/quakestream` (same stack, proven): Kafka 3.9 KRaft, Spark 3.5.3,
   Sedona 1.9.1, geotools-wrapper `1.9.1-33.5` (NOT -33.1), slim Sedona Dockerfile at
   `~/quakestream/stack/docker/sedona.Dockerfile`.
 - Ponytail rules apply: stdlib first, fewest files, one runnable check per slice.
 - Reality check 2026-08-15: `reality-check-2026-08-15.md`. Stream for capture and
-  live enrichment, batch for the insight; backfill (ticket 10) builds before the
-  streaming job (07). Session research spend to date ~$235; build phase is cheaper.
+  live enrichment, batch for the insight; the backfill route is decided before the
+  streaming route. Session research spend to date ~$235; build phase is cheaper.
 
 ## Decisions so far
 
-- [Bus feed endpoints] — keyless `gtfsrt.prod.obanyc.com/{vehiclePositions,tripUpdates,alerts}`; SIRI not needed. Detail: `/Users/ross/vault/nyc-mta-bus-feeds-reference.md`.
-- [Delay is computed, not published] — 0/37,697 arrival events carry `delay`; compute vs dated static GTFS (`rrgtfsfeeds.s3.amazonaws.com/gtfs_{bx,b,m,q,si,busco}.zip`, archive per service date).
-- [Occupancy is partial] — `occupancy_status` on 41% of vehicles, skewed to empty; rates must be over reporting vehicles only.
-- [History must be self-captured] — no live archive exists since 2024-09-06; every day unpolled is unrecoverable.
-- [Climate Zarr stores verified live] — AORC `s3://noaa-nws-aorc-v1-1-1km/{year}.zarr` (1km hourly, APCP_surface, anon) and ERA5 ARCO `gs://gcp-public-data-arco-era5` both listable 2026-08-15.
-- [nycbuspositions backfill is readable] — the dead archive serves 2017-07-14 to 2024-09 daily CSV.xz (~20 MB/day) with positions + occupancy; 7 years of history x AORC 2017-2024 means the rain-vs-speed answer needs no waiting. Ticket 10.
-- [Storage direction] — GeoParquet 1.1 with Sedona auto bbox covering, EPSG:4326 canonical, one-time ST_Transform of EPSG:2263 city layers, joins on precomputed (h3, hour); Iceberg deferred. Ticket 09 to confirm.
 - [03 Zarr to Spark/Sedona bridge](issues/03-zarr-spark-sedona-bridge.md) — resolved 2026-08-15: Sedona reads no Zarr; bridge is xarray .sel() -> DataFrame (NYC fits in one AORC chunk); stream-static join, static side uncached; Havasu/Raster Inference are WherobotsDB-only; Java 11 not 17, and no JVM on this Mac yet.
 - [02 Precipitation store selection](issues/02-precip-store-selection.md) — resolved 2026-08-15: AORC for 2020-2025 history (~366 GETs / ~25 MB for all of NYC, but frozen at 2025), MRMS GRIB2 for 2026 + nowcast (2-min cadence), ERA5 ruled out for point work (~95 GB per point series).
 - [01 Scaffold + smoke slice](issues/01-scaffold-smoke-slice.md) — resolved 2026-08-15: all rails proven; vp=1,822/tu=59,900 round-trip offsets exact; AORC Ida peak 84.2 mm/h vs ~80 mm gauge; pytest 7/7. Kafka left running (48h retention).
@@ -48,7 +52,7 @@ known storm. The flood-exposure score rides these same rails as a later phase.
   via `elevation.its.ny.gov` getSamples, labels from NFIP/311/alerts). Sharpens after
   the bus slice proves the rails.
 - Occupancy/bunching analytics: bimodal occupancy as bunching signature.
-- Serving/visualization: map dashboard, H3 lateness heatmap. After enrich job exists.
+- Serving/visualization: map dashboard, H3 lateness heatmap. After the execution model (07) is decided.
 - Backfill semantics: joining pre-archive dates (bus segment speeds monthly datasets)
   against AORC hourly history.
 - Promotion beyond laptop: EKS pattern exists in quakestream; out of the fog only if
