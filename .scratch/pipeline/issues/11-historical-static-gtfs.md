@@ -40,3 +40,26 @@ Consequence for [06 Delay metric design](06-delay-metric-design.md): schedule-ba
 delay is implementable for the backfill, at the price of a Transitland signup and
 about 60-70 zips per borough. Whether the backfill computes schedule delay or only
 observed metrics (speed, headway) is a 06/10 decision, not a data-availability wall.
+
+## Comments
+
+### 2026-08-16 — corrections from the ticket 13 source sweep (measured)
+
+- Wayback is not "one snapshot per borough, 2014-2016". CDX for
+  `web.mta.info/developers/data/nyct/bus/google_transit_*.zip` (and `busco/`) holds
+  9-12 distinct captures per feed: 2016-04, SI 2018-07, 2020-04, 2021-03, 2021-04,
+  2021-10, 2022-07, 2022-11/12, 2023-05, 2023-08, 2023-10, 2024-02. 25 of them are
+  byte-identical to Transitland versions (CDX digest = base32 SHA-1 = Transitland
+  `sha1`), all 2021 plus SI 2018-07-13; the 2020-04 and 2022-2024 captures match no
+  Transitland sha1 and are unverified (Wayback 503 all day). Free coverage: 4-7% of
+  window days per feed, neither storm-day pick, nothing in 2017-2019 except SI.
+- Transitland's version list is continuous but its calendars are not: no version
+  covers Bronx/Queens/busco 2019-01-06..2019-11-14 (313 d) or
+  Brooklyn/Manhattan/SI 2019-06-30..2019-09-20 (83 d), plus 2018-07-01..02,
+  2020-09-06..07, 2021-01-03..22. In-window version count is 423 (busco 116), not
+  ~65 per feed.
+- Everything else probed is dead or current-only: MobilityData `mdb-latest` (one
+  rolling snapshot, 2026-06-04), Transitland v1 datastore, transitfeeds' S3 bucket,
+  GitHub, Zenodo/figshare; archive.org item search was down. data.ny.gov "MTA Bus
+  Schedules: 2021+" would cover 2021-2024 at timepoint grain but its `schedule_time`
+  is published date-only. Full table: `research/13-historic-gtfs-sources.md`.

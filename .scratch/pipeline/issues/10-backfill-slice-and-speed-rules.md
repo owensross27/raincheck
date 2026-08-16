@@ -62,3 +62,20 @@ built in-db from the AORC slice (`RS_MakeEmptyRaster` + `RS_AddBandFromArray`, t
 pings H3'd in 1.1 s; a backfill day is the same order. Session settings, `setuptools`
 (pyspark's pandas bridge on Python 3.12) and `TZ=UTC` traps are in
 `research/07-execution-model.md` section 0/1.
+
+## Comments
+
+### 2026-08-16 — facts from the ticket 13 source sweep, for the grilling
+
+- The `nycbuspositions` bucket also holds `<date>-bus-alerts.csv.xz` (1,429 files)
+  and `<date>-bus-messages.csv.xz` (1,409) alongside positions/trip-updates, and a
+  `stats/` prefix with TransitCenter's own monthly `speed/<YYYY-MM>-speed.tsv.gz` (26
+  months, 2015-2019) and `bunching/` (11 months): a free independent benchmark for
+  the speed rules on the same VP data. Owner: Bus-Data-NYC / Neil Freeman.
+- Pick resolution for the slice: the trip_id pick code names the zip (12's v2 rule);
+  Ida day = C1 (`4b8dec91`), 2023-09-29 = D3 (`61d83dfe`); both are grant-only
+  (not in Wayback). Transitland calendars have a 2019 hole (313 d Bronx/Queens/busco,
+  83 d Brooklyn/Manhattan/SI): if a control month lands there, `pick_gap=true`.
+- data.ny.gov "MTA Bus Schedules: <year>" (2021+) gives the MTA's own bundle-in-effect
+  date ranges per day for free (SODA, no key), usable as `ref/bundles` if wanted;
+  its schedule times are stripped, so it is not a schedule source unless MTA fixes it.

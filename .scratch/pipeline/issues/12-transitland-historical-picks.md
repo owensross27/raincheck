@@ -148,3 +148,25 @@ Endpoint shape, tier table, resolver rule and credential decision are in the
 - Rate limit IS published now: `X-RateLimit-Limit-Minute: 600` on every endpoint
   (600/min burst on top of the 10k/month Free quota). The bulk pull is not
   rate-bound.
+
+### 2026-08-16 — resolver correction from the ticket 13 source sweep (measured)
+
+The `<pick>` token in every trip_id is the MTA bundle name: letter A/B/C/D = Jan/Apr/
+Jul/Sep pick, digit = year mod 10 (`C1` = 2021Jul, `D3` = 2023Sep, `C6` = today; MTA
+Bus Company ids carry it too, `31325137-LGPC1-LG_C1-Weekday-10`). On 2021-09-01 the
+archive's VP rows are 1,040,872 `C1` (+271,000 busco C1), and data.ny.gov's "MTA Bus
+Schedules: 2021" says bundle 2021Jul was in effect 2021-06-27..2021-09-04. The rule
+above picks `c244b822` (fetched 2021-08-31) for that day, but its `files[]` rows
+(trips 58,954 / stop_times 2,543,006 / calendar 41 / calendar_dates 832) are identical
+to `5b7f197c` (fetched 2021-09-02, cal 2021-09-04..): it is the 2021Sep pick published
+early, whose calendar.txt happens to start 2021-08-04. The C1 zip is `4b8dec91`
+(fetched 2021-06-25, cal 2021-06-26..2021-09-04, trips 45,571). For 2023-09-29 the
+rule's `61d83dfe` is D3 and correct.
+
+**Resolver v2 (supersedes the fetched_at rule):** the pick code read off the day's
+VP trip_ids selects the zip: among versions with fetched_at < D+1 whose trips.txt
+carries that code, take the greatest fetched_at (mid-pick revisions supersede).
+Self-checking, since an exact trip_id join is ~0% on the wrong zip and ~98% on the
+right one. `pick_id` = zip sha1 unchanged (09); ticket 13's proof script now targets
+`4b8dec91` by default. Transitland calendars also leave a 2019 hole (see 11's
+comment). Evidence: `research/13-historic-gtfs-sources.md`.

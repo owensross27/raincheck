@@ -83,3 +83,19 @@ reference):
    record: backfill without schedule delay (speed/headway only per 06 — `segment_s`
    and `headway_obs_s` carry the rain headline; `delay_s`/`segment_excess_s` become
    live-era-only) rather than an Enterprise quote, unless the quote is trivial.
+
+### 2026-08-16 — Ross submitted the form; source sweep run in the meantime
+
+Form submitted by Ross 2026-08-16 (HITL step done; grant still 401 as of the last
+probe). While waiting, a sweep of alternative sources for the bytes ran (8 probes +
+inline measurements): `research/13-historic-gtfs-sources.md`. Gist: nothing public
+holds the whole window; Wayback holds 25 byte-identical versions (2021, SI 2018) plus
+~35 unverified 2020/2022-2024 captures; data.ny.gov's "MTA Bus Schedules" 2021+ has
+the schedule at timepoint grain but with `schedule_time` stripped to dates (worth an
+email to opendata@mtahq.org); everything else is dead or current-only. Two map-level
+corrections came out of it and are recorded on 11 and 12: the trip_id pick code is
+the MTA bundle and selects the zip (12's fetched_at rule chose the 2021Sep pick for
+the Ida day; the C1 zip is `4b8dec91`), and Transitland calendars have a 2019 hole.
+The proof script now targets `4b8dec91` by default and accepts a sha1 argument; the
+grant sizing is 423 in-window versions (busco 116), still under 500 but with less
+headroom than the form text's ~390.
