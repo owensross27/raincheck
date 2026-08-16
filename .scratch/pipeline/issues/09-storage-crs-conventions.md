@@ -110,3 +110,17 @@ ingest; `coord_sha256` = sha256 of the GRIB grid tuple). (3) Gold: no precip
 columns; analyses join `silver/precip_cell_hourly` on (src, cell, hour_end_utc) at
 read, the way Gold joins `ref/cells`. Also: the Bronze AORC Zarr slice is the
 fidelity copy; the trailing windows are SQL over `precip_hourly`, not xarray.
+
+2026-08-16, from [07 Enrichment execution model](07-enrichment-execution-model.md): one
+in-place addition to the Roots block of `research/09-storage-schemas.md`, inside what
+you handed to 07: `data/live/` (the streaming job's thin tables `vp` / `tu` in your
+`date=/hour=` layout, append-only, 48 h retention, plus `precip_cell/valid_ts=`, 7 d)
+and the decoded MRMS Bronze copy under `data/archive/precip/mrms/date=/hour=HH.parquet`.
+Batch idempotence is `mode("overwrite").partitionBy()` under
+`spark.sql.sources.partitionOverwriteMode=dynamic` (added to the session settings);
+one-file-per-partition and partition immutability hold for every Silver table
+including `src=mrms` (month rebuilt from Bronze, never appended). Also: Spark writes a
+timestamp partition key as `2026-08-16 20%3A00%3A00`, which DuckDB reads as VARCHAR - so
+partition keys are strings; and `TZ=UTC` must be set process-wide (JVM default TZ is
+America/New_York; PySpark `collect()` returns driver-local datetimes even with the
+session TZ at UTC).

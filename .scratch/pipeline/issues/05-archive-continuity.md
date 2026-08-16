@@ -101,3 +101,16 @@ census-complete decoder + census test, alerts kind, static-GTFS conditional GET,
 10-min sorted part files, byte budget with loud stop. Process topology (one poller
 feeding Kafka and Bronze vs the two independent pollers that exist) is a spec detail;
 cadence is per feed either way. Fog line "promotion beyond laptop" sharpened on the map.
+
+## Comments
+
+2026-08-16, from [07 Enrichment execution model](07-enrichment-execution-model.md): Ross
+approved two more scheduled LaunchAgents beyond the archiver's: `raincheck.precip_live`
+on `StartInterval` 300 s (runs for seconds; RadarOnly `:00` -> `live/precip_cell`) and
+`make daily` on `StartCalendarInterval` 06:00 America/New_York (builds every missing
+closed service_date - launchd replays a run missed in sleep but coalesces several into
+one). Neither goes inside the archiver's 30 s poll loop: a CONUS GRIB2 decode there
+would stall VP capture and miss Snapshots. Live tables (`data/live/`, 48 h retention)
+and Silver count against the 10 GB loud-stop budget, not Bronze alone. Recommended spec
+shape for topology: the archiver publishes to Kafka as a side effect (single poller);
+today the archiver and `producer.py` both poll VP every 30 s.

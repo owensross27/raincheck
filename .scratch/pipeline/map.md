@@ -47,6 +47,7 @@ Flood-exposure scoring is a later map, not this one.
 
 ## Decisions so far
 
+- [07 Enrichment execution model](issues/07-enrichment-execution-model.md) — resolved 2026-08-16: Spark 3.5.3 + Sedona 1.9.1 run natively from the repo venv on the brew `openjdk@17` already installed (Spark 3.5 supports Java 17; 03 corrected), one `session()` factory (3 g, `local[6]`, UTC, `partitionOverwriteMode=dynamic`), Kafka the only container, quakestream's slim image = promotion path; one `enrich.py` of pure DataFrame functions called by batch `make` targets (idempotent by dynamic partition overwrite) and by the streaming job's `foreachBatch` (stateless subset only; passages/delay batch-only), Sedona only where a spatial primitive is needed, Spark writes every derived table (destination + Sedona proof), DuckDB reads; streaming = one app, two Kafka queries appending `coalesce(1)` micro-batches to `data/live/<topic>/date=/hour=` with 48 h retention, no exactly-once (latest-per-key reads), `failOnDataLoss=false`, `maxOffsetsPerTrigger=250000`, on demand not a daemon; live precip via a 300 s `StartInterval` LaunchAgent (`precip_live`, RadarOnly `:00` -> `live/precip_cell/valid_ts=` string key, 7 d), Pass2 daily into a decoded MRMS Bronze copy + month rebuild, `make daily` builds every missing day (launchd coalesces) with a 06:00 America/New_York calendar agent as a build item; both agents and the Docker VM -> 4 GB approved. Asset `research/07-execution-model.md`.
 - [08 Weather join design](issues/08-weather-join-design.md) — resolved 2026-08-16: precip attaches at Cell-hour grain via `silver/precip_cell_hourly (src, cell, hour_end_utc)`, batch per (src, month) on a dense spine, joined at read with `src` pinned (no precip columns on `events` or Gold; `RS_Values` off the feature path, run once on the two storm days as the aggregation check); `src=aorc` for the whole backfill, `src=mrms` = Pass2 from 2026-08-14 through a second `cell_pixel` set, never regridded onto AORC and never pooled with it (MRMS proven hour-ending by lag-0 r 0.97-0.999; the header cannot show it); `hour_end_utc = ceil_hour(arrival_ts)`; stored `mm_1h/1h_prev/3h/6h/24h`, `n_hours_24h`, `t2m_c` (rain not snow), models use disjoint lags and the leakage-free headline; wet/dry/frozen/onset are Gold parameters with a sweep; footprint = the crosswalk's Pixels (closes a 09 hole); ADR-0002; four glossary terms. Spec `research/08-weather-join-features.md`, evidence `research/08-weather-join-evidence.md`.
 - [09 Storage and CRS conventions](issues/09-storage-crs-conventions.md) — resolved 2026-08-16: Silver `events` is batch-rebuilt plain Parquet per closed `service_date`, sorted (cell, arrival_ts), one absolute timestamp per row (~30 B/row; 7-year backfill ~56 GB on the external SSD, 10's slice ~2.6 GB); GeoParquet 1.1 (SRID 4326, crs omitted) only on geometry tables; precip at native Pixel grain per `src` with `ref/grids` frozen from AORC's real coordinate arrays and an area-weighted `cell_pixel` (nearest-Pixel refuted: largest Pixel covers p50 53% of a Cell); schedule tables per `pick_id` = zip sha1; EPSG:4326 canonical, 2263 layers transformed once with a Times Square axis test, geodesic-only distances, TIMESTAMP_MICROS UTC; Iceberg deferred. Schemas: `research/09-storage-schemas.md`.
 - [12 Transitland key and dated-pick download check](issues/12-transitland-historical-picks.md) — resolved 2026-08-16: free key in gitignored `.env` (`TRANSITLAND_API_KEY`) lists all 93 Brooklyn versions in one call (67 in the backfill window, 10k REST/month); resolver = greatest `fetched_at` < D+1 whose calendar covers D, keyed by `sha1` (2021-09-01 -> `c244b822`, trips 58,954 / stop_times 2.54M rows per `files[]`); historic download is 401 on Free and Pro, so the bytes need the free Hobbyist/Academic grant (500 downloads), split out as ticket 13; trip_id scheme unchanged 2021 -> 2026.
@@ -71,13 +72,16 @@ Flood-exposure scoring is a later map, not this one.
   feature); the AORC-vs-MRMS overlap comparison and the 2026 src re-key once
   `2026.zarr` lands (~2027).
 - Occupancy analytics: bimodal occupancy at a stop as a bunching signature (the bunched flag itself is defined by 06; the occupancy side is still fog).
-- Serving/visualization: map dashboard, H3 lateness heatmap. After the execution model (07) is decided.
 - Backfill semantics: joining pre-archive dates (bus segment speeds monthly datasets)
   against AORC hourly history.
 - Promotion beyond laptop: EKS pattern exists in quakestream; out of the fog only if
   the local pipeline earns it. Includes an always-on capture box (Oracle Always-Free
   ARM / Hetzner / Pi) plus object storage for Bronze — the only route to 2026 storm
-  continuity, since the Mac sleeps on lid close (05); needs the cloud-writes yes.
+  continuity, since the Mac sleeps on lid close (05); needs the cloud-writes yes. The
+  daemonized streaming job and the slim Sedona image (07) live there too; single-poller
+  process topology (archiver publishing to Kafka) is spec's, not fog.
+- Kafka output topic (`raincheck.bus.enriched`): one `writeStream.format("kafka")` line
+  when a consumer exists (07); nothing consumes it today.
 
 ## Out of scope
 

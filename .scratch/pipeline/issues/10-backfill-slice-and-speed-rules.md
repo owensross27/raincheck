@@ -50,3 +50,15 @@ aggregation choice is measured; and any per-Cell hotspot claim must survive a
 rerun with `cell_pixel` weights aggregated to ~4 km blocks (adjacent AORC Pixels
 correlate at 0.996-0.998). Fixture: Central Park's Cell `882a100895fffff` reads
 84.28 mm for the hour ending 2021-09-02T02:00Z.
+
+2026-08-16, from [07 Enrichment execution model](07-enrichment-execution-model.md): the
+engine is Spark 3.5.3 + Sedona 1.9.1 running natively on the brew `openjdk@17` (no
+Docker for Spark); the archive loader lands rows through the same `events DATE=` job
+as live (`enrich.py` functions: `passages`, `with_delay`, `with_segments`,
+`with_headways`), idempotent per `service_date=` partition by dynamic overwrite;
+`ST_DistanceSpheroid` for any distance feeding a speed. Playbook Product 3's raster is
+built in-db from the AORC slice (`RS_MakeEmptyRaster` + `RS_AddBandFromArray`, then
+`RS_Values` at the stop) - no GeoTIFF. Sizing: session 8.9 s warm, ~0.7 GB RSS, 1.93M
+pings H3'd in 1.1 s; a backfill day is the same order. Session settings, `setuptools`
+(pyspark's pandas bridge on Python 3.12) and `TZ=UTC` traps are in
+`research/07-execution-model.md` section 0/1.

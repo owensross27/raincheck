@@ -108,3 +108,20 @@ Build items for `/to-spec`: MRMS ingest (Pass2 :00 files -> `precip_hourly
 src=mrms` with the row flip, negatives -> NULL, `grids` row with its sha256),
 `cell_pixel` for `grid_id='mrms'`, `t2m_k` on the AORC ingest, the per-(src, month)
 `precip_cell_hourly` job with tests 1-8, `ceil_hour`.
+
+## Comments
+
+2026-08-16, from [07 Enrichment execution model](07-enrichment-execution-model.md):
+engine for section 5's SQL is Spark 3.5 (DuckDB reads only). Measured: `generate_series`
+is not a Spark 3.5 table-valued function, so the dense spine is
+`explode(sequence(:month_start - INTERVAL 24 HOUR, :month_end, INTERVAL 1 HOUR))` on
+Spark; `FILTER (WHERE)`, `INTERVAL 24 HOUR` and the inline window specs parse as written.
+The note under section 5 of `research/08-weather-join-features.md` is corrected in place
+(one line); the Spark-vs-DuckDB run of the two spine texts is a one-off evidence script,
+not a job step. Live table decided: `live/precip_cell/valid_ts=<YYYY-MM-DDTHH>` string
+key, RadarOnly `:00` only, 7 d retention, written by a 300 s LaunchAgent job; the
+stream joins the scalar latest complete Hour <= batch time. `src=mrms` in live mode:
+Pass2 lands daily in a decoded Bronze copy `data/archive/precip/mrms/date=/hour=HH`
+(footprint only, ~1.2 MB/day - your rule forbade GRIB2 bytes, not a decoded copy) and
+the month partition is rebuilt from it as one file; a uniqueness check on
+`precip_hourly (src, i, j, hour_end_utc)` per partition is added.

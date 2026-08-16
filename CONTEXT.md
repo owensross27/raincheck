@@ -117,6 +117,14 @@ neither and sit out of the contrast; frozen hours are counted apart. The cutoffs
 are analysis parameters, always swept.
 _Avoid_: rainy, raining, precipitating
 
+**Live table**:
+A thin Hive-Parquet table under `data/live/` written by the streaming job or the
+live-precip job: raw rows plus stateless enrichment (Cell, Zone, latest complete
+Hour of rain), append-only, read latest-per-key, kept 48 h (7 days for precip). Never
+Silver: no Passages, no Delay, no window functions; the durable record is Bronze and
+the batch-rebuilt Silver.
+_Avoid_: real-time table, streaming sink, cache
+
 **Bronze / Silver / Gold**:
 Capture-fidelity Parquet from the archiver plus raw static zips and the AORC slice /
 derived tables (Passage events, Pixel-grain precip, Cell-hour precip features,

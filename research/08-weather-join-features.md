@@ -246,7 +246,7 @@ are stored as `mm` NULL rows, never dropped.
 Unchanged by 08: no precip columns. Analyses join `precip_cell_hourly` on (src,
 cell, hour_end_utc) with `src` pinned.
 
-## 5. Build sketch (one job per (src, month); parses on Spark 3.5 and DuckDB)
+## 5. Build sketch (one job per (src, month); DuckDB text - on Spark 3.5 the spine is `explode(sequence(...))`, see the note below)
 
 ```sql
 -- :month_start = first Hour of the month (YYYY-MM-01T00:00:00Z),
@@ -288,7 +288,11 @@ stored) for src=aorc, NULL for src=mrms - the only change to 09's Pixel table
 besides the two clarifications above. Window specs are written inline because
 Spark 3.5's grammar does not accept `OVER (w ROWS ...)` on a named window (DuckDB
 does). `sum(FLOAT)` promotes to DOUBLE on both engines, so 24-term sums never
-accumulate in float32. Engine choice is 07's.
+accumulate in float32. Engine choice is 07's - resolved 2026-08-16: Spark 3.5 writes
+it, DuckDB reads. Measured by 07: `generate_series` is not a Spark 3.5 table-valued
+function, so the `hours` CTE on Spark is `SELECT explode(sequence(:month_start -
+INTERVAL 24 HOUR, :month_end, INTERVAL 1 HOUR)) AS hour_end_utc`; `FILTER (WHERE)`,
+`INTERVAL 24 HOUR` and the inline window specs parse as written on both engines.
 
 ## 6. Tests (one runnable check per slice)
 

@@ -8,15 +8,21 @@ GeoParquet 1.1 writer omits `crs` (= OGC:CRS84).
 ## Roots
 
 ```
-data/archive/   Bronze  (05: vp|tu|alerts/date=/hour=/part-MM.parquet UTC; static/<feed>/<date>.zip; precip/aorc/<year>.zarr NYC slice)
+data/archive/   Bronze  (05: vp|tu|alerts/date=/hour=/part-MM.parquet UTC; static/<feed>/<date>.zip; precip/aorc/<year>.zarr NYC slice; 07: precip/mrms/date=/hour=HH.parquet decoded Pass2, footprint only)
 data/ref/       small lookups, rebuilt whole, GeoParquet where a geometry is the payload
 data/silver/    derived tables, Hive-partitioned, one file per partition, batch-written
 data/gold/      aggregates, plain Parquet, partition month=YYYY-MM
+data/live/      07: the streaming job's thin tables vp|tu/date=/hour=/ (append-only, coalesce(1) per micro-batch, 48 h retention, dedupe at read) and precip_cell/valid_ts=YYYY-MM-DDTHH/ (string key, latest fetched_at wins, 7 d); never Silver
+data/checkpoints/  07: one Structured Streaming checkpoint per query
 ```
 
 Readers open a dataset root, never a `part-*.parquet` (partition columns live in
-the path). Every DuckDB session runs `SET TimeZone='UTC'`; Spark runs with
-`spark.sql.session.timeZone=UTC` and `spark.sql.parquet.outputTimestampType=TIMESTAMP_MICROS`.
+the path); DuckDB globs `**/*.parquet` or the root (never `**/*`: Spark's `.crc`
+sidecars). Partition keys are strings (a timestamp key is written URL-encoded and read
+back as VARCHAR). Every DuckDB session runs `SET TimeZone='UTC'`; Spark runs with
+`spark.sql.session.timeZone=UTC`, `spark.sql.parquet.outputTimestampType=TIMESTAMP_MICROS`
+and `spark.sql.sources.partitionOverwriteMode=dynamic` (07: batch idempotence is
+`mode("overwrite").partitionBy()`), with `TZ=UTC` in the process environment.
 
 ## Ref
 
