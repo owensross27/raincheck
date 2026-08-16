@@ -27,7 +27,8 @@ Flood-exposure scoring is a later map, not this one.
   without a HITL yes.
 - Settled facts (not tickets, sourced from the vault docs above): bus feeds are
   keyless at `gtfsrt.prod.obanyc.com`; delay is computed vs dated static GTFS
-  (0/37,697 arrivals carry `delay`); `occupancy_status` covers 41% of vehicles,
+  (0/37,697 arrivals carry `delay`; trip-level `trip_update.delay` is populated,
+  semantics per 06); `occupancy_status` covers 41% of vehicles,
   skewed to empty; no public archive since 2024-09-06 but `s3.amazonaws.com/
   nycbuspositions` is readable 2017-07-14 to 2024-09; AORC and ERA5 ARCO Zarr are
   live and anonymous.
@@ -43,6 +44,7 @@ Flood-exposure scoring is a later map, not this one.
 
 ## Decisions so far
 
+- [05 Archive continuity](issues/05-archive-continuity.md) — resolved 2026-08-16: live capture is opportunistic (backfill holds the evidence), LaunchAgent + `caffeinate -s` with no power-setting changes (explicit yes), VP 30s deduped on header.timestamp / TU 120s / alerts 300s / static GTFS daily conditional GET; no raw pb, decoder census-complete with a census test (feed populates trip-level `trip_update.delay`, handed to 06); Bronze Hive UTC 10-min sorted part files, never auto-deleted, 10 GB budget with loud stop until an external SSD; always-on box and object storage stay in the fog.
 - [06 Delay metric design](issues/06-delay-metric-design.md) — resolved 2026-08-16: arrival truth is the VP passage (stop_id is the next stop, measured; flip midpoint, envelope on stop_sequence, keyed by vehicle), TU is the prediction stream with churn features and a flagged fallback; delay_s vs the dated static pick using the feed's start_date and the noon-minus-12h rule; late > 300 s / early < -60 s at Gold; segment_excess_s is the local rain response variable; headway columns everywhere, family flag at 10-min scheduled headway headlines EWT/bunching; backfill computes schedule metrics from Transitland picks; Silver event grain (start_date, trip_id, stop_sequence, vehicle_id) fixed. Evidence in `research/06-delay-metric-evidence.md`.
 - [11 Historical static GTFS for the backfill window](issues/11-historical-static-gtfs.md) — resolved 2026-08-16: Transitland v2 holds dated versions of all six MTA bus feeds continuously from 2016-02 (Brooklyn: 93 versions), free API key needed to download; Mobility Database starts 2025-12, transitfeeds/Wayback is pre-2017 only. Schedule delay in the backfill is a choice, not a wall.
 - [04 Topic schema and spatial keys](issues/04-topic-schema-spatial-keys.md) — resolved 2026-08-15: decoded JSON only on the wire (zstd), TU stays per-stop flat rows, keys vehicle_id/trip_id with 6 partitions fixed at creation, delete retention 48h no compaction, H3 res 8 canonical, taxi zones a Gold-time overlay, no alerts topic yet; raw-pb preservation and alerts cadence handed to ticket 05.
@@ -61,7 +63,9 @@ Flood-exposure scoring is a later map, not this one.
 - Backfill semantics: joining pre-archive dates (bus segment speeds monthly datasets)
   against AORC hourly history.
 - Promotion beyond laptop: EKS pattern exists in quakestream; out of the fog only if
-  the local pipeline earns it.
+  the local pipeline earns it. Includes an always-on capture box (Oracle Always-Free
+  ARM / Hetzner / Pi) plus object storage for Bronze — the only route to 2026 storm
+  continuity, since the Mac sleeps on lid close (05); needs the cloud-writes yes.
 
 ## Out of scope
 
