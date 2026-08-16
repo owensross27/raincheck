@@ -136,3 +136,15 @@ Measured with the key:
 
 Endpoint shape, tier table, resolver rule and credential decision are in the
 2026-08-16 comment above and stand as written.
+
+### 2026-08-16 — corrections from ticket 13
+
+- Trip_id scheme is `<depot>_<pick>-<service>[-<modifier>...]-<start>_<route>_<run>`,
+  not a fixed five-token form: the service segment is the `service_id` tail and
+  carries optional modifiers (`-SDon` on 13,090/46,115 = 28% of current Brooklyn
+  trips, e.g. `EN_C6-Weekday-SDon-028500_SBS82_901`; rare `-BM`). The live VP feed
+  carries the same strings (vault sample `EN_C6-Weekday-SDon-135000_B82_643`), so the
+  string join is unaffected; any parser splits on the 6-digit start token.
+- Rate limit IS published now: `X-RateLimit-Limit-Minute: 600` on every endpoint
+  (600/min burst on top of the 10k/month Free quota). The bulk pull is not
+  rate-bound.
