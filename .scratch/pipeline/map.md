@@ -69,9 +69,6 @@ Flood-exposure scoring is a later map, not this one.
 
 ## Not yet specified
 
-- Flood phase: per-entrance exposure score joined to the same precip spine (elevation
-  via `elevation.its.ny.gov` getSamples, labels from NFIP/311/alerts). Sharpens after
-  the bus slice proves the rails.
 - Live-era precipitation extras (after 08): a phase source for `src=mrms` Cell-hours
   (MRMS `PrecipFlag` at Cell grain vs a city-wide ASOS temperature) so `t2m_c` is
   not NULL before winter 2026-27; sub-hourly features from the 2-min/15-min MRMS
@@ -97,18 +94,25 @@ Flood-exposure scoring is a later map, not this one.
 
 ## Out of scope
 
-- Subway flood signal (Ross 2026-08-16: "eventually it would be cool to combine"): a
-  second map after this one reaches spec — destination = per-station flood exposure /
-  impact from MTA service alerts (~1,900 station-named flood alerts 2012-2026, vault
-  08-12), FloodNet, MRMS and hourly ridership, with train delays as a feature not
-  the detector, joined to the bus spine at Gold on the same precip Cell-hours. Capture
-  already runs (ticket 15); groundwork research assets `research/subway-rt-archives.md`
-  (subwaydata.nyc per-trip/per-station arrival CSVs daily from 2021-04-01 cover both
-  storms; gtfsrt.io Parquet from 2026-03-01; nothing public before 2021-04) and
-  `research/subway-flood-labels.md` (99 distinct post-2020 subway flood events, station
-  named, Ida and 2023-09-29 fully covered) seed its charting. Beyond this destination
-  because it needs its own delay/passage semantics (no positions on subway VPs) and
-  its own labels.
+- **The flood map (second effort; Ross 2026-08-16: "isn't the goal to map past flood
+  events, then use weather to detect specific areas and stations that could flood").**
+  Destination draft: (1) a mapped history of NYC flood events at point/segment/station
+  grain from the ranked sources in `~/vault/nyc-flood-history-elevation-2026-08-12.md`
+  (NFIP claims, 311 unioned 2010-2026, USGS high-water marks, MTA flood alerts — 99
+  distinct station-named subway events post-2020 per `research/subway-flood-labels.md`
+  — CO-OPS exceedances, Sandy zone, FloodNet 2020+); (2) an exposure/likelihood score
+  per subway entrance / station, bus stop and street segment from precipitation
+  (AORC history and MRMS nowcast on the same Cell-hour spine as this map, 08),
+  elevation (DoITT DEM, LiDAR stairwell class), tide/surge (Battery), DEP stormwater
+  categories, distance to CSO; (3) a real-time detector that flags areas and stations
+  under an active rain event (MRMS + FloodNet + NWS + CO-OPS), with bus slowdowns
+  (this map) and train delays (ticket 15 capture, subwaydata.nyc history) as impact
+  signals, not the detector. Out of this map because it needs its own labels, its own
+  units and its own validation; it reuses this map's rails wholesale (Kafka capture,
+  precip spine, Cell grain, Silver conventions) and combines with the bus Gold at
+  Cell-hour. Chart it with `/wayfinder` (chart mode) once this map reaches spec, or in
+  parallel now that its groundwork research exists (`research/subway-rt-archives.md`,
+  `research/subway-flood-labels.md`, the two vault docs).
 - Alerting channels of any kind (standing rule from quakestream).
 - Production deployment, public hosting of MTA-derived feeds (WMATA-style license
   issues do not apply to MTA, but re-serving raw feeds is not the goal).
