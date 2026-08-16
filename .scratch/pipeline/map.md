@@ -25,13 +25,19 @@ Flood-exposure scoring is a later map, not this one.
   goes through `/to-spec` -> `/to-tickets` -> `/implement` in separate sessions.
   Safety boundary for anything downstream: local-only, no cloud writes, no daemons
   without a HITL yes.
+  Second exception, ticket 15 (2026-08-16, "trust you do all of this"): the 05
+  archiver now runs as the LaunchAgent `com.raincheck.archiver` capturing bus VP/TU/
+  alerts, the eight subway feeds + subway alerts, and the seven static zips daily
+  into `data/archive/` (10 GB loud stop). It is the only capture process; stop with
+  `launchctl bootout gui/$(id -u)/com.raincheck.archiver`.
 - Settled facts (not tickets, sourced from the vault docs above): bus feeds are
   keyless at `gtfsrt.prod.obanyc.com`; delay is computed vs dated static GTFS
   (0/37,697 arrivals carry `delay`; trip-level `trip_update.delay` is populated,
   semantics per 06); `occupancy_status` covers 41% of vehicles,
-  skewed to empty; no public archive since 2024-09-06 but `s3.amazonaws.com/
-  nycbuspositions` is readable 2017-07-14 to 2024-09; AORC and ERA5 ARCO Zarr are
-  live and anonymous.
+  skewed to empty; `s3.amazonaws.com/nycbuspositions` is readable 2017-07-14 to
+  2024-09-06 and gtfsrt.io holds keyless Parquet of bus VP/TU/alerts and all subway TU
+  + alerts from 2026-03-01 (gap 2024-09-06..2026-02-28; corrected 2026-08-16); AORC
+  and ERA5 ARCO Zarr are live and anonymous.
 - Reuse from `~/quakestream` (same stack, proven): Kafka 3.9 KRaft, Spark 3.5.3,
   Sedona 1.9.1, geotools-wrapper `1.9.1-33.5` (NOT -33.1), slim Sedona Dockerfile at
   `~/quakestream/stack/docker/sedona.Dockerfile`.
@@ -47,6 +53,7 @@ Flood-exposure scoring is a later map, not this one.
 
 ## Decisions so far
 
+- [15 Subway capture in the archiver](issues/15-subway-capture.md) — resolved 2026-08-16 (executed in-map): eight keyless subway feeds at 60 s (TU + VP, NYCT extension vendored: train_id 100%, scheduled_track 100%, actual_track near-term only, VPs carry stop_id + current_stop_sequence and never a position) plus subway alerts and bus alerts at 300 s, all in the 05 archiver deployed as `com.raincheck.archiver` (10-min sorted parts, header.timestamp dedupe, seven static zips daily incl. subway, 10 GB loud stop); measured ~0.53 GB/day total of which subway ~20%; Kafka topics for subway and any subway Silver stay build items; the subway flood signal itself is a second map (Out of scope).
 - [07 Enrichment execution model](issues/07-enrichment-execution-model.md) — resolved 2026-08-16: Spark 3.5.3 + Sedona 1.9.1 run natively from the repo venv on the brew `openjdk@17` already installed (Spark 3.5 supports Java 17; 03 corrected), one `session()` factory (3 g, `local[6]`, UTC, `partitionOverwriteMode=dynamic`), Kafka the only container, quakestream's slim image = promotion path; one `enrich.py` of pure DataFrame functions called by batch `make` targets (idempotent by dynamic partition overwrite) and by the streaming job's `foreachBatch` (stateless subset only; passages/delay batch-only), Sedona only where a spatial primitive is needed, Spark writes every derived table (destination + Sedona proof), DuckDB reads; streaming = one app, two Kafka queries appending `coalesce(1)` micro-batches to `data/live/<topic>/date=/hour=` with 48 h retention, no exactly-once (latest-per-key reads), `failOnDataLoss=false`, `maxOffsetsPerTrigger=250000`, on demand not a daemon; live precip via a 300 s `StartInterval` LaunchAgent (`precip_live`, RadarOnly `:00` -> `live/precip_cell/valid_ts=` string key, 7 d), Pass2 daily into a decoded MRMS Bronze copy + month rebuild, `make daily` builds every missing day (launchd coalesces) with a 06:00 America/New_York calendar agent as a build item; both agents and the Docker VM -> 4 GB approved. Asset `research/07-execution-model.md`.
 - [08 Weather join design](issues/08-weather-join-design.md) — resolved 2026-08-16: precip attaches at Cell-hour grain via `silver/precip_cell_hourly (src, cell, hour_end_utc)`, batch per (src, month) on a dense spine, joined at read with `src` pinned (no precip columns on `events` or Gold; `RS_Values` off the feature path, run once on the two storm days as the aggregation check); `src=aorc` for the whole backfill, `src=mrms` = Pass2 from 2026-08-14 through a second `cell_pixel` set, never regridded onto AORC and never pooled with it (MRMS proven hour-ending by lag-0 r 0.97-0.999; the header cannot show it); `hour_end_utc = ceil_hour(arrival_ts)`; stored `mm_1h/1h_prev/3h/6h/24h`, `n_hours_24h`, `t2m_c` (rain not snow), models use disjoint lags and the leakage-free headline; wet/dry/frozen/onset are Gold parameters with a sweep; footprint = the crosswalk's Pixels (closes a 09 hole); ADR-0002; four glossary terms. Spec `research/08-weather-join-features.md`, evidence `research/08-weather-join-evidence.md`.
 - [09 Storage and CRS conventions](issues/09-storage-crs-conventions.md) — resolved 2026-08-16: Silver `events` is batch-rebuilt plain Parquet per closed `service_date`, sorted (cell, arrival_ts), one absolute timestamp per row (~30 B/row; 7-year backfill ~56 GB on the external SSD, 10's slice ~2.6 GB); GeoParquet 1.1 (SRID 4326, crs omitted) only on geometry tables; precip at native Pixel grain per `src` with `ref/grids` frozen from AORC's real coordinate arrays and an area-weighted `cell_pixel` (nearest-Pixel refuted: largest Pixel covers p50 53% of a Cell); schedule tables per `pick_id` = zip sha1; EPSG:4326 canonical, 2263 layers transformed once with a Times Square axis test, geodesic-only distances, TIMESTAMP_MICROS UTC; Iceberg deferred. Schemas: `research/09-storage-schemas.md`.
@@ -90,6 +97,18 @@ Flood-exposure scoring is a later map, not this one.
 
 ## Out of scope
 
+- Subway flood signal (Ross 2026-08-16: "eventually it would be cool to combine"): a
+  second map after this one reaches spec — destination = per-station flood exposure /
+  impact from MTA service alerts (~1,900 station-named flood alerts 2012-2026, vault
+  08-12), FloodNet, MRMS and hourly ridership, with train delays as a feature not
+  the detector, joined to the bus spine at Gold on the same precip Cell-hours. Capture
+  already runs (ticket 15); groundwork research assets `research/subway-rt-archives.md`
+  (subwaydata.nyc per-trip/per-station arrival CSVs daily from 2021-04-01 cover both
+  storms; gtfsrt.io Parquet from 2026-03-01; nothing public before 2021-04) and
+  `research/subway-flood-labels.md` (99 distinct post-2020 subway flood events, station
+  named, Ida and 2023-09-29 fully covered) seed its charting. Beyond this destination
+  because it needs its own delay/passage semantics (no positions on subway VPs) and
+  its own labels.
 - Alerting channels of any kind (standing rule from quakestream).
 - Production deployment, public hosting of MTA-derived feeds (WMATA-style license
   issues do not apply to MTA, but re-serving raw feeds is not the goal).

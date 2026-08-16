@@ -114,3 +114,26 @@ would stall VP capture and miss Snapshots. Live tables (`data/live/`, 48 h reten
 and Silver count against the 10 GB loud-stop budget, not Bronze alone. Recommended spec
 shape for topology: the archiver publishes to Kafka as a side effect (single poller);
 today the archiver and `producer.py` both poll VP every 30 s.
+
+### 2026-08-16 — deployed by ticket 15 (in-map execution)
+
+The archiver decided here is running as `com.raincheck.archiver` (see
+[15 Subway capture in the archiver](15-subway-capture.md)): items 1-6 as decided,
+plus the subway feeds and the subway static zip (item 5 had excluded it). Two
+deviations recorded: (a) same-window restart appends to the existing part rather
+than writing a new immutable part; (b) the seven static zips are fetched at daemon
+start and every 24 h, not on a calendar. The ticket-01 smoke loop that had been left
+running in a terminal since 08-15 was stopped; its files were moved into the
+`hour=HH/part-00.parquet` layout.
+Correction (2026-08-16, ticket 15 census): `cause`/`effect` are never set on either
+alerts feed (bus 0/78, subway 0/195; the earlier "cause/effect set" read the proto
+defaults UNKNOWN_*). Columns are kept, typed string. Subway alert informed entities
+carry `stop_id` on 1,996/2,005 (station level) and route_id on all; alerts carry
+several `active_period`s (993 across 195 alerts) of which the decoder keeps the first.
+Correction (2026-08-16, subway groundwork research): gtfsrt.io (JarvusInnovations
+gtfs-realtime-archiver, keyless Parquet on GCS `parquet.gtfsrt.io`) has archived the
+MTA bus VP (31 GB), TU (183 GB) and alerts, all eight subway TU feeds and subway
+alerts since **2026-03-01**. "Nothing public archives this feed since 2024-09-06" is
+therefore 2024-09-06..2026-02-28; our capture stays the independent copy and the
+only one with bus data as decoded 10-min parts, and it is the only subway VP archive
+(gtfsrt.io keeps no subway vehicle_positions). `research/subway-rt-archives.md`.

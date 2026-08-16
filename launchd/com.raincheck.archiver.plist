@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- ticket 05: opportunistic capture, caffeinate -s (no sleep on AC), no power-setting changes.
+       install: cp launchd/com.raincheck.archiver.plist ~/Library/LaunchAgents/ &&
+                launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.raincheck.archiver.plist
+       stop:    launchctl bootout gui/$(id -u)/com.raincheck.archiver
+       status:  launchctl print gui/$(id -u)/com.raincheck.archiver | grep -E "state|pid|last exit"
+       log:     tail -f data/logs/archiver.log -->
+  <key>Label</key><string>com.raincheck.archiver</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/caffeinate</string><string>-s</string>
+    <string>/Users/ross/raincheck/.venv/bin/python</string><string>-m</string><string>raincheck.archiver</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/ross/raincheck</string>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
+  <key>ThrottleInterval</key><integer>60</integer>
+  <!-- ponytail: no log rotation (~90 KB/day of "wrote" lines); optional root step:
+       echo "/Users/ross/raincheck/data/logs/archiver.log 644 7 10240 * J" | sudo tee /etc/newsyslog.d/raincheck.conf -->
+  <key>StandardOutPath</key><string>/Users/ross/raincheck/data/logs/archiver.log</string>
+  <key>StandardErrorPath</key><string>/Users/ross/raincheck/data/logs/archiver.log</string>
+</dict>
+</plist>
