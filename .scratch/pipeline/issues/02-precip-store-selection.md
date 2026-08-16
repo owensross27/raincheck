@@ -40,3 +40,14 @@ Resolved 2026-08-15 by research subagent (full report with live-probed numbers:
 
 Consequence for ticket 08: the weather join is AORC-Zarr for history and
 MRMS-GRIB2 for live, two readers, one canonical grid to resample onto (AORC's).
+
+## Comments
+
+2026-08-16, from [08 Weather join design](08-weather-join-design.md): correction
+to the closing line. MRMS is not resampled onto the AORC grid; each grid gets its
+own area-weighted `cell_pixel` crosswalk and the two meet at Cell grain (both are
+conservative remaps of a depth field, so regridding first would compose two maps
+where one suffices). Also measured: MRMS hourly stamps are hour-ending like AORC
+(lag-0 r 0.97-0.999 on two storms; the GRIB header is PDT 0 "instant" and cannot
+show it), Pass2 sits at 0.86-0.92 of AORC on both storms while RadarOnly swings
+0.59-1.02, and AORC ends 2025-12-31T23:00Z with no 2026.zarr. ADR-0002.

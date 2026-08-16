@@ -92,8 +92,34 @@ grain; a Cell overlaps several Pixels (mean 4.7 for AORC), so Cell-grain precip 
 an area-weighted mean through the `cell_pixel` crosswalk, never a nearest lookup.
 _Avoid_: cell (when the raster unit is meant), grid cell, AORC cell
 
+**Hour**:
+The hour-ending UTC label H covering (H-1h, H]. Every precipitation value in the
+project is an Hour total, and a Passage belongs to the Hour containing its
+arrival; an arrival exactly on the hour stays in that Hour.
+_Avoid_: timestamp, hour-beginning, wall-clock hour
+
+**Precip source**:
+Which store a Cell-hour's rain came from: AORC for the years it publishes (all of
+the archive), MRMS for the live era. Pinned by every reader and never pooled in one
+fit; the MRMS era replicates the AORC-era result rather than extending its sample.
+_Avoid_: dataset, product, feed (when the rain side is meant)
+
+**Trailing window**:
+Precipitation summed over the N Hours ending at and including an Hour (1, 3, 6,
+24). Models take the differences between windows, never the nested sums.
+_Avoid_: rolling, lookback, lag window
+
+**Wet hour / Dry hour**:
+Labels a Cell-hour takes for the wet-versus-dry contrast: dry when the Hour and
+the one before each hold less than 0.1 mm; wet when the Hour holds at least 1.0 mm
+of rain, not snow (2 m air temperature above 2 C). Hours between the two are
+neither and sit out of the contrast; frozen hours are counted apart. The cutoffs
+are analysis parameters, always swept.
+_Avoid_: rainy, raining, precipitating
+
 **Bronze / Silver / Gold**:
 Capture-fidelity Parquet from the archiver plus raw static zips and the AORC slice /
-derived tables (Passage events, Pixel-grain precip, per-Pick schedule tables) as
-Hive-partitioned Parquet, batch-rebuilt, GeoParquet only where a geometry is the
-payload / (cell, hour, route) aggregates. Layout in `research/09-storage-schemas.md`.
+derived tables (Passage events, Pixel-grain precip, Cell-hour precip features,
+per-Pick schedule tables) as Hive-partitioned Parquet, batch-rebuilt, GeoParquet
+only where a geometry is the payload / (cell, hour, route) aggregates. Layout in
+`research/09-storage-schemas.md`.

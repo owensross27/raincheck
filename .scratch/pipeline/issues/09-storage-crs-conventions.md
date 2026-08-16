@@ -93,3 +93,20 @@ identified by sha1, new term Pixel; 04 gets the 1:1 correction comment; the ~56 
 Silver backfill joins Bronze on the external-SSD list (05). Build items for
 `/to-spec`: `ref/grids` + `cell_pixel` builder with its two tests, the axis-order
 test, the events view file, Spark/DuckDB session settings.
+
+## Comments
+
+2026-08-16, from [08 Weather join design](08-weather-join-design.md): three
+in-place edits to `research/09-storage-schemas.md`, all inside what 09 handed to
+08. (1) `precip_hourly`: the stored footprint per src is the crosswalk's Pixel set
+(`SELECT DISTINCT i, j FROM cell_pixel WHERE grid_id = :src`, AORC 4,868 Pixels /
+117K rows/day), not the bare 78 x 60 bbox: measured, 153 rim Cells carried weight
+on Pixels outside the 4,680 slice (lost weight p50 0.21, max 0.93), a hole between
+"crosswalk padded by one Pixel" and the bbox sizing; negative sentinels are stored
+as `mm` NULL rows, never dropped; the AORC ingest also carries `t2m_k FLOAT32`
+(`TMP_2maboveground`) for the rain-vs-snow rule. (2) `grids` gains the `mrms` row
+(origin -129.995, 20.005; step 0.01; 7000 x 3500; centre; source rows flipped at
+ingest; `coord_sha256` = sha256 of the GRIB grid tuple). (3) Gold: no precip
+columns; analyses join `silver/precip_cell_hourly` on (src, cell, hour_end_utc) at
+read, the way Gold joins `ref/cells`. Also: the Bronze AORC Zarr slice is the
+fidelity copy; the trailing windows are SQL over `precip_hourly`, not xarray.

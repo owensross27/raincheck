@@ -22,7 +22,7 @@ the path). Every DuckDB session runs `SET TimeZone='UTC'`; Spark runs with
 
 | table | columns | notes |
 |---|---|---|
-| `grids` | grid_id STRING pk, source_url STRING, origin_lon DOUBLE, origin_lat DOUBLE, step_deg DOUBLE, nx INT32, ny INT32, registration STRING ('center'), coord_sha256 STRING, frozen_at TS | one row per precip grid (`aorc` now, `mrms` when 08 lands). AORC measured 2026-08-16: origin (-130.0, 20.0), step 0.008333 (float32-truncated, not 1/120), shape 8401 x 4201, no bounds variable -> CF center registration, edges at center +/- step/2. Coordinates come from the stored arrays, never `arange`. |
+| `grids` | grid_id STRING pk, source_url STRING, origin_lon DOUBLE, origin_lat DOUBLE, step_deg DOUBLE, nx INT32, ny INT32, registration STRING ('center'), coord_sha256 STRING, frozen_at TS | one row per precip grid; origin = the SW Pixel centre, i east, j north for every grid. AORC measured 2026-08-16: origin (-130.0, 20.0), step 0.008333 (float32-truncated, not 1/120), shape 8401 x 4201, no bounds variable -> CF center registration, edges at center +/- step/2. Coordinates come from the stored arrays, never `arange`. MRMS (08, measured from GRIB2 headers): origin (-129.995, 20.005), step 0.01, 7000 x 3500, centre; source rows run north-to-south so ingest stores `j = 3499 - row` and converts lon from 0-360; `coord_sha256` = sha256 of the grid tuple read from the file (Ni, Nj, first/last lat/lon, increments, jScansPositively). `grid_id` equals `precip_hourly.src` by invariant. |
 | `cells` | cell INT64 pk, geometry POLYGON (GeoParquet, DOUBLE bbox), centroid_lon DOUBLE, centroid_lat DOUBLE | H3 res 8 over the NYC bbox (-74.30..-73.65, 40.45..40.95): 4,113 rows. Serving-time geometry for every cell-keyed table. |
 | `zones` | zone_id INT16 pk, borough STRING, zone_name STRING, geometry POLYGON | TLC taxi zones, EPSG:2263 -> 4326 once at ingest, axis-order test on Times Square. |
 | `cell_zone` | cell INT64 pk, zone_id INT16, borough STRING | hex-centroid point-in-polygon (04). |
@@ -87,13 +87,16 @@ Grain (src, i, j, hour_end_utc) unique; consumers pin exactly one `src`.
 | column | type | notes |
 |---|---|---|
 | i, j | INT16 | Pixel indices into `grids[src]` (lon index, lat index) |
-| hour_end_utc | TS | hour-ENDING (AORC verified; MRMS to confirm, 08) |
-| mm | FLOAT32 | depth in the hour |
+| hour_end_utc | TS | hour-ENDING (AORC verified; MRMS verified by 08, lag-0 correlation) |
+| mm | FLOAT32 | depth in the hour; NULL for a negative sentinel (row stored, never dropped) |
+| t2m_k | FLOAT32 | AORC `TMP_2maboveground` (Kelvin) for src=aorc; NULL for src=mrms (08) |
 
-AORC over the bbox: 78 x 60 = 4,680 Pixels, 112K rows/day, ~41M rows/yr. Cell-grain
-precip (via `cell_pixel`, area-weighted mean = conservative remap of a depth field)
-is a view or a sibling table 08 specifies; the native grain stays so `RS_Values` at
-the bus position (playbook Product 3) remains buildable.
+Footprint per src = the crosswalk's Pixel set (`SELECT DISTINCT i, j FROM cell_pixel
+WHERE grid_id = :src`), not the bbox: AORC 4,868 Pixels, 117K rows/day, ~43M
+rows/yr (08; the bare 78 x 60 bbox left 153 rim Cells short of weight). Cell-grain
+precip is the sibling `precip_cell_hourly` in `research/08-weather-join-features.md`
+(area-weighted mean = conservative remap of a depth field); the native grain stays
+so `RS_Values` at the bus position (playbook Product 3) remains buildable.
 
 ### Schedule tables (from Bronze static zips; one partition per Pick)
 
@@ -117,7 +120,7 @@ Grains fixed here; metric columns are 06's and 08's:
 
 | table | grain | metric columns (owned by) |
 |---|---|---|
-| `cell_hour_route` | cell INT64, hour_end_utc TS, route_id STRING, direction_id INT8 | n_events, late_share, early_share, mean_segment_excess_s, ewt_s, bunched_share, wait_ok_share, coverage (06); precip features (08) |
+| `cell_hour_route` | cell INT64, hour_end_utc TS, route_id STRING, direction_id INT8 | n_events, late_share, early_share, mean_segment_excess_s, ewt_s, bunched_share, wait_ok_share, coverage (06); no precip columns: joined at read from `silver/precip_cell_hourly` on (src, cell, hour_end_utc) with `src` pinned (08) |
 | `cell_hourofweek_baseline` | cell INT64, hour_of_week INT16 (America/New_York; the two DST transition hours per year dropped) | dry-baseline speed/excess, n_dry, n_wet (10 / playbook) |
 
 ## Conventions

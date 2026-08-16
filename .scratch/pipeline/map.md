@@ -37,13 +37,17 @@ Flood-exposure scoring is a later map, not this one.
   `~/quakestream/stack/docker/sedona.Dockerfile`.
 - Ponytail rules apply: stdlib first, fewest files, one runnable check per slice.
 - Raster playbook (2026-08-15): `research/raster-playbook.md`, also in the vault. Read
-  before tickets 08 and 09; its Build-first section maps onto 09 and 10.
+  before ticket 10; its Build-first section maps onto 09 and 10. Two of its rules
+  were overturned by 08 with evidence: MRMS is not regridded onto AORC (the
+  crosswalk is the conservative remap), and the MRMS hour-ending item is closed by
+  measurement, not `wgrib2` (the header is PDT 0 "instant"). See ADR-0002.
 - Reality check 2026-08-15: `reality-check-2026-08-15.md`. Stream for capture and
   live enrichment, batch for the insight; the backfill route is decided before the
   streaming route. Session research spend to date ~$235; build phase is cheaper.
 
 ## Decisions so far
 
+- [08 Weather join design](issues/08-weather-join-design.md) — resolved 2026-08-16: precip attaches at Cell-hour grain via `silver/precip_cell_hourly (src, cell, hour_end_utc)`, batch per (src, month) on a dense spine, joined at read with `src` pinned (no precip columns on `events` or Gold; `RS_Values` off the feature path, run once on the two storm days as the aggregation check); `src=aorc` for the whole backfill, `src=mrms` = Pass2 from 2026-08-14 through a second `cell_pixel` set, never regridded onto AORC and never pooled with it (MRMS proven hour-ending by lag-0 r 0.97-0.999; the header cannot show it); `hour_end_utc = ceil_hour(arrival_ts)`; stored `mm_1h/1h_prev/3h/6h/24h`, `n_hours_24h`, `t2m_c` (rain not snow), models use disjoint lags and the leakage-free headline; wet/dry/frozen/onset are Gold parameters with a sweep; footprint = the crosswalk's Pixels (closes a 09 hole); ADR-0002; four glossary terms. Spec `research/08-weather-join-features.md`, evidence `research/08-weather-join-evidence.md`.
 - [09 Storage and CRS conventions](issues/09-storage-crs-conventions.md) — resolved 2026-08-16: Silver `events` is batch-rebuilt plain Parquet per closed `service_date`, sorted (cell, arrival_ts), one absolute timestamp per row (~30 B/row; 7-year backfill ~56 GB on the external SSD, 10's slice ~2.6 GB); GeoParquet 1.1 (SRID 4326, crs omitted) only on geometry tables; precip at native Pixel grain per `src` with `ref/grids` frozen from AORC's real coordinate arrays and an area-weighted `cell_pixel` (nearest-Pixel refuted: largest Pixel covers p50 53% of a Cell); schedule tables per `pick_id` = zip sha1; EPSG:4326 canonical, 2263 layers transformed once with a Times Square axis test, geodesic-only distances, TIMESTAMP_MICROS UTC; Iceberg deferred. Schemas: `research/09-storage-schemas.md`.
 - [12 Transitland key and dated-pick download check](issues/12-transitland-historical-picks.md) — resolved 2026-08-16: free key in gitignored `.env` (`TRANSITLAND_API_KEY`) lists all 93 Brooklyn versions in one call (67 in the backfill window, 10k REST/month); resolver = greatest `fetched_at` < D+1 whose calendar covers D, keyed by `sha1` (2021-09-01 -> `c244b822`, trips 58,954 / stop_times 2.54M rows per `files[]`); historic download is 401 on Free and Pro, so the bytes need the free Hobbyist/Academic grant (500 downloads), split out as ticket 13; trip_id scheme unchanged 2021 -> 2026.
 - [05 Archive continuity](issues/05-archive-continuity.md) — resolved 2026-08-16: live capture is opportunistic (backfill holds the evidence), LaunchAgent + `caffeinate -s` with no power-setting changes (explicit yes), VP 30s deduped on header.timestamp / TU 120s / alerts 300s / static GTFS daily conditional GET; no raw pb, decoder census-complete with a census test (feed populates trip-level `trip_update.delay`, handed to 06); Bronze Hive UTC 10-min sorted part files, never auto-deleted, 10 GB budget with loud stop until an external SSD; always-on box and object storage stay in the fog.
@@ -60,6 +64,12 @@ Flood-exposure scoring is a later map, not this one.
 - Flood phase: per-entrance exposure score joined to the same precip spine (elevation
   via `elevation.its.ny.gov` getSamples, labels from NFIP/311/alerts). Sharpens after
   the bus slice proves the rails.
+- Live-era precipitation extras (after 08): a phase source for `src=mrms` Cell-hours
+  (MRMS `PrecipFlag` at Cell grain vs a city-wide ASOS temperature) so `t2m_c` is
+  not NULL before winter 2026-27; sub-hourly features from the 2-min/15-min MRMS
+  products for the live table only (`mm_60min`/`window_end_utc`, a distinct
+  feature); the AORC-vs-MRMS overlap comparison and the 2026 src re-key once
+  `2026.zarr` lands (~2027).
 - Occupancy analytics: bimodal occupancy at a stop as a bunching signature (the bunched flag itself is defined by 06; the occupancy side is still fog).
 - Serving/visualization: map dashboard, H3 lateness heatmap. After the execution model (07) is decided.
 - Backfill semantics: joining pre-archive dates (bus segment speeds monthly datasets)

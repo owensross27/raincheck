@@ -1,7 +1,7 @@
 # 08 Weather join design
 
 Type: grilling
-Status: open
+Status: resolved
 Blocked by: 02, 03
 
 ## Question
@@ -43,3 +43,68 @@ or sibling table through `cell_pixel`) or `RS_Values` at the bus position; the M
 bridge (own crosswalk vs conservative regrid onto the AORC grid) and its hour-ending
 check; the trailing windows. Bronze keeps the AORC NYC slice as local Zarr for the
 xarray rolling sums.
+
+## Answer
+
+Resolved 2026-08-16 by grilling; measured first (MRMS GRIB2 forensics on two
+storms, Cell-vs-Pixel on three storm hours, wet-hour and phase census, AORC epoch),
+verified against primary docs, then two adversarial reviews (hydromet lens, data
+lens) reversed nine parts of the first draft before the round. All four
+recommendations accepted as-is. The feature spec is the asset
+[research/08-weather-join-features.md](../../../research/08-weather-join-features.md);
+the numbers are in [research/08-weather-join-evidence.md](../../../research/08-weather-join-evidence.md);
+this Answer is the index.
+
+1. **Key, grain, landing.** Precip attaches at Cell-hour grain via a sibling table
+   `silver/precip_cell_hourly (src, cell, hour_end_utc)`, built per (src, month)
+   from `precip_hourly` x `cell_pixel` on a dense hourly spine (24 h lookback read
+   from the input, so months build in any order). No precip columns on Silver
+   `events` or on Gold: consumers join at read with `src` pinned. `RS_Values` at the
+   bus position is off the feature path (a Pixel is ~1% off the Cell mean; the Cell
+   wins on cross-grid comparability and one code path) but is run once on the two
+   storm days (Product 3, ticket 10) to report the Cell-mean vs stop-Pixel slope
+   difference. Stored `precip_hourly` footprint = the crosswalk's Pixel set (4,868
+   for AORC), not the bbox: 153 rim Cells otherwise carried weight on Pixels with no
+   rows (hole left by 09, closed here).
+2. **Sources and epochs.** `src=aorc` for the whole 2017-2024 backfill (AORC ends
+   2025-12-31T23:00Z, no 2026.zarr); `src=mrms` = `MultiSensor_QPE_01H_Pass2`
+   (0.86-0.92 of AORC on both storms; RadarOnly swings 0.59-1.02), ingested from
+   2026-08-14T00:00Z. Srcs are never pooled in one fit (`src` is collinear with era
+   and with congestion pricing); the MRMS era is an out-of-sample replication read
+   against the expected scale ratio. MRMS is hour-ending (proven by lag-0
+   correlation r 0.97-0.999; the GRIB header cannot show it), reaches Cells through
+   a second `cell_pixel` set, and is NOT regridded onto the AORC grid (overturns
+   02's closing line and the playbook's xesmf rule; ADR-0002). Any negative
+   sentinel -> a stored NULL row; no raw GRIB2 in Bronze (NODD is the archive).
+   07's live table reads RadarOnly at its :00 stamps (a true Hour, ~5 min behind);
+   the 2-min files are a distinct rolling feature. Overlap comparison deferred to
+   2026 when 2026.zarr lands (a 2023 full-year MRMS ingest was judged YAGNI).
+3. **Time alignment and features.** `hour_end_utc = ceil_hour(arrival_ts)`; lag
+   rule per grain (Gold: mm_1h + mm_1h_prev is a valid two-term lag; event grain
+   carries minute-of-hour or the trailing-60-min estimate); the headline causal
+   estimate is leakage-free (`mm_1h_prev` + longer lags). Stored: `mm_1h,
+   mm_1h_prev, mm_3h, mm_6h, mm_24h, n_hours_24h, t2m_c` (AORC 2 m temperature via
+   the same crosswalk; NULL in the MRMS era until a live-era phase source is
+   chosen). Models consume disjoint lags by subtraction (nested sums have VIF up to
+   12.5). One null rule: Cell-hour NULL unless non-null weight sums to 1; mm_3h/6h
+   NULL if any frame hour is NULL; mm_24h gated by `n_hours_24h`. Gold parameter
+   defaults with a three-cutoff sweep: dry = mm_1h < 0.1 AND mm_1h_prev < 0.1; wet =
+   mm_1h >= 1.0 AND t2m_c > 2; frozen counted separately; the 0.1-1.0 band excluded
+   from the binary contrast; onset vs sustained from existing columns. No
+   sub-hourly features, no API (flood map), both with named limitations, plus the
+   effective-resolution caveat (adjacent AORC Pixels r 0.996-0.998: hotspot claims
+   must survive a ~4 km-aggregated rerun).
+4. **Recorded.** CONTEXT.md gains Hour, Wet hour / Dry hour, Precip source,
+   Trailing window; ADR-0002 records the two measurement-established MRMS
+   conventions.
+
+Consequences: comments on 02 (regrid overturned), 09 (Gold precip columns dropped,
+footprint rule, `t2m_k` on `precip_hourly`, MRMS `grids` row, Zarr slice is the
+fidelity copy), 07 (live-table constraints, engine, SQL parses on both), 10
+(defaults, Product 3 slope report, coarsened rerun); `research/09-storage-schemas.md`
+updated in place for those three lines. Fog: live-era precip-type source before
+winter 2026-27; sub-hourly live features; the 2026 overlap year and AORC re-key.
+Build items for `/to-spec`: MRMS ingest (Pass2 :00 files -> `precip_hourly
+src=mrms` with the row flip, negatives -> NULL, `grids` row with its sha256),
+`cell_pixel` for `grid_id='mrms'`, `t2m_k` on the AORC ingest, the per-(src, month)
+`precip_cell_hourly` job with tests 1-8, `ceil_hour`.

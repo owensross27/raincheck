@@ -34,3 +34,19 @@ per-Pick tables (`trips`, `trip_stops`, `service_days`, `shapes`) partitioned by
 `pick_id` = zip sha1 (12's resolver). Speed rules: geodesic only
 (`pyproj.Geod` / `ST_DistanceSpheroid`), never haversine; dt bounds and outlier
 cutoffs remain yours.
+
+2026-08-16, from [08 Weather join design](08-weather-join-design.md): precip for
+the slice comes from `silver/precip_cell_hourly` (src=aorc; spec
+`research/08-weather-join-features.md`), joined at read on (src, cell,
+hour_end_utc) with `hour_end_utc = ceil_hour(arrival_ts)`. The dry-baseline uses
+08's Gold defaults: dry = `mm_1h < 0.1 AND mm_1h_prev < 0.1`, wet = `mm_1h >= 1.0
+AND t2m_c > 2` (rain, not snow), frozen counted separately, the 0.1-1.0 band
+excluded from the binary contrast, onset vs sustained from `mm_6h - mm_1h`; each
+with a three-cutoff sweep. Storm windows for the Ida / 2023-09-29 composites are
+(t0, t1) parameters over `mm_1h`. Two things 08 asks of this slice: playbook
+Product 3 (`RS_Values` at the stop on the two storm days) also reports the
+rain-vs-`segment_excess_s` slope both ways (Cell mean vs stop Pixel) so the
+aggregation choice is measured; and any per-Cell hotspot claim must survive a
+rerun with `cell_pixel` weights aggregated to ~4 km blocks (adjacent AORC Pixels
+correlate at 0.996-0.998). Fixture: Central Park's Cell `882a100895fffff` reads
+84.28 mm for the hour ending 2021-09-02T02:00Z.
