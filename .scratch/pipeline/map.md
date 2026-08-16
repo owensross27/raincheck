@@ -43,6 +43,8 @@ Flood-exposure scoring is a later map, not this one.
 
 ## Decisions so far
 
+- [06 Delay metric design](issues/06-delay-metric-design.md) — resolved 2026-08-16: arrival truth is the VP passage (stop_id is the next stop, measured; flip midpoint, envelope on stop_sequence, keyed by vehicle), TU is the prediction stream with churn features and a flagged fallback; delay_s vs the dated static pick using the feed's start_date and the noon-minus-12h rule; late > 300 s / early < -60 s at Gold; segment_excess_s is the local rain response variable; headway columns everywhere, family flag at 10-min scheduled headway headlines EWT/bunching; backfill computes schedule metrics from Transitland picks; Silver event grain (start_date, trip_id, stop_sequence, vehicle_id) fixed. Evidence in `research/06-delay-metric-evidence.md`.
+- [11 Historical static GTFS for the backfill window](issues/11-historical-static-gtfs.md) — resolved 2026-08-16: Transitland v2 holds dated versions of all six MTA bus feeds continuously from 2016-02 (Brooklyn: 93 versions), free API key needed to download; Mobility Database starts 2025-12, transitfeeds/Wayback is pre-2017 only. Schedule delay in the backfill is a choice, not a wall.
 - [04 Topic schema and spatial keys](issues/04-topic-schema-spatial-keys.md) — resolved 2026-08-15: decoded JSON only on the wire (zstd), TU stays per-stop flat rows, keys vehicle_id/trip_id with 6 partitions fixed at creation, delete retention 48h no compaction, H3 res 8 canonical, taxi zones a Gold-time overlay, no alerts topic yet; raw-pb preservation and alerts cadence handed to ticket 05.
 - [03 Zarr to Spark/Sedona bridge](issues/03-zarr-spark-sedona-bridge.md) — resolved 2026-08-15: Sedona reads no Zarr; bridge is xarray .sel() -> DataFrame (NYC fits in one AORC chunk); stream-static join, static side uncached; Havasu/Raster Inference are WherobotsDB-only; Java 11 not 17, and no JVM on this Mac yet.
 - [02 Precipitation store selection](issues/02-precip-store-selection.md) — resolved 2026-08-15: AORC for 2020-2025 history (~366 GETs / ~25 MB for all of NYC, but frozen at 2025), MRMS GRIB2 for 2026 + nowcast (2-min cadence), ERA5 ruled out for point work (~95 GB per point series).
@@ -54,7 +56,7 @@ Flood-exposure scoring is a later map, not this one.
 - Flood phase: per-entrance exposure score joined to the same precip spine (elevation
   via `elevation.its.ny.gov` getSamples, labels from NFIP/311/alerts). Sharpens after
   the bus slice proves the rails.
-- Occupancy/bunching analytics: bimodal occupancy as bunching signature.
+- Occupancy analytics: bimodal occupancy at a stop as a bunching signature (the bunched flag itself is defined by 06; the occupancy side is still fog).
 - Serving/visualization: map dashboard, H3 lateness heatmap. After the execution model (07) is decided.
 - Backfill semantics: joining pre-archive dates (bus segment speeds monthly datasets)
   against AORC hourly history.

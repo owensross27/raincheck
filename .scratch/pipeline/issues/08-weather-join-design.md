@@ -22,3 +22,13 @@ one place Sedona rasters belong is RS_Values point extraction, distributed.
 Six 15-minute open items are listed at the end of the playbook (MRMS hour-ending
 convention, Atlas 14 units, 2017 NVA figure, InSAR units/sign, pysheds HAND
 signature, 2010 land cover pixel size).
+
+## Comments
+
+2026-08-16, from [06 Delay metric design](06-delay-metric-design.md): the bus side
+of the join is now fixed. Event = one arrival (passage) per (start_date, trip_id,
+stop_sequence, vehicle_id) with the stop's Cell and `arrival_ts`; the response
+variable for rain is `segment_excess_s` (actual minus scheduled stop-to-stop time,
+local to the segment ending at that stop), not the cumulative `delay_s`. Natural
+join key is (Cell of the stop, hour of arrival_ts); trailing-window precip attaches
+to the arrival hour. Headway/EWT lives at (cell, hour, route) in Gold.
