@@ -54,3 +54,11 @@ raw-pb-preservation and alerts-cadence questions (comment added there). The
 config deltas vs the smoke slice (6 partitions, zstd) are build work for
 `/to-spec`, not applied in-map. Glossary terms (Cell, Zone, Ping, Stop row)
 captured in `CONTEXT.md` at the repo root.
+
+## Comments
+
+2026-08-16, from [09 Storage and CRS conventions](09-storage-crs-conventions.md): correction to answer #5. "H3 res 8 ~1:1 with AORC's 1 km
+cell" holds for areas (0.741 vs 0.651 km2) but not for the tessellations: measured
+on AORC's real coordinate arrays, a Cell overlaps a mean 4.7 Pixels and its largest
+Pixel covers only p50 53% (p10 36%) of it. Res 8 stays the key; precip reaches a
+Cell through the area-weighted `cell_pixel` crosswalk, never a nearest lookup.

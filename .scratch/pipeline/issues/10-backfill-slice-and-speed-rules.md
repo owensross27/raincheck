@@ -25,3 +25,12 @@ identical to today). Schedule metrics for 2017-2024 come from Transitland picks
 (ticket 11 resolved; ticket 12 gets the key and proves one download). Ping-to-ping
 speed rules remain this ticket's. Measured on 2021-09-01: 1,311,872 unique pings,
 906,790 passages, 13.6% of pings on the previous service day.
+
+2026-08-16, from [09 Storage and CRS conventions](09-storage-crs-conventions.md): 09 is resolved, so this ticket is unblocked. Archive rows land
+in Silver `events` (schema in `research/09-storage-schemas.md`), batch-written per
+`service_date`, ~24 B/row in the backfill era: the 120-day slice is ~2.6 GB and fits
+the internal disk, the full 7 years ~56 GB (external SSD). Schedule metrics need the
+per-Pick tables (`trips`, `trip_stops`, `service_days`, `shapes`) partitioned by
+`pick_id` = zip sha1 (12's resolver). Speed rules: geodesic only
+(`pyproj.Geod` / `ST_DistanceSpheroid`), never haversine; dt bounds and outlier
+cutoffs remain yours.

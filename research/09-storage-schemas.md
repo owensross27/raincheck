@@ -1,0 +1,141 @@
+# 09 Storage layout and table schemas
+
+Asset of ticket [09 Storage and CRS conventions](../.scratch/pipeline/issues/09-storage-crs-conventions.md).
+Types are Parquet logical types. `TS` = TIMESTAMP(us, UTC). All lon/lat are
+EPSG:4326 x=lon, y=lat. Every geometry column carries SRID 4326 so Sedona's
+GeoParquet 1.1 writer omits `crs` (= OGC:CRS84).
+
+## Roots
+
+```
+data/archive/   Bronze  (05: vp|tu|alerts/date=/hour=/part-MM.parquet UTC; static/<feed>/<date>.zip; precip/aorc/<year>.zarr NYC slice)
+data/ref/       small lookups, rebuilt whole, GeoParquet where a geometry is the payload
+data/silver/    derived tables, Hive-partitioned, one file per partition, batch-written
+data/gold/      aggregates, plain Parquet, partition month=YYYY-MM
+```
+
+Readers open a dataset root, never a `part-*.parquet` (partition columns live in
+the path). Every DuckDB session runs `SET TimeZone='UTC'`; Spark runs with
+`spark.sql.session.timeZone=UTC` and `spark.sql.parquet.outputTimestampType=TIMESTAMP_MICROS`.
+
+## Ref
+
+| table | columns | notes |
+|---|---|---|
+| `grids` | grid_id STRING pk, source_url STRING, origin_lon DOUBLE, origin_lat DOUBLE, step_deg DOUBLE, nx INT32, ny INT32, registration STRING ('center'), coord_sha256 STRING, frozen_at TS | one row per precip grid (`aorc` now, `mrms` when 08 lands). AORC measured 2026-08-16: origin (-130.0, 20.0), step 0.008333 (float32-truncated, not 1/120), shape 8401 x 4201, no bounds variable -> CF center registration, edges at center +/- step/2. Coordinates come from the stored arrays, never `arange`. |
+| `cells` | cell INT64 pk, geometry POLYGON (GeoParquet, DOUBLE bbox), centroid_lon DOUBLE, centroid_lat DOUBLE | H3 res 8 over the NYC bbox (-74.30..-73.65, 40.45..40.95): 4,113 rows. Serving-time geometry for every cell-keyed table. |
+| `zones` | zone_id INT16 pk, borough STRING, zone_name STRING, geometry POLYGON | TLC taxi zones, EPSG:2263 -> 4326 once at ingest, axis-order test on Times Square. |
+| `cell_zone` | cell INT64 pk, zone_id INT16, borough STRING | hex-centroid point-in-polygon (04). |
+| `cell_pixel` | grid_id STRING, cell INT64, i INT16, j INT16, weight DOUBLE; pk (grid_id, cell, i, j) | area share of the Pixel inside the Cell, computed in EPSG:32618; built over the bbox padded by one Pixel; test asserts sum(weight) = 1 +/- 1e-9 per (grid_id, cell). AORC: ~19.5K rows, mean 4.7 Pixels per Cell, largest share p50 0.53. |
+| `picks` | pick_id STRING pk (sha1 of the zip bytes; equals Transitland's `sha1`), feed STRING, published TS (MTA Last-Modified or Transitland fetched_at), feed_version STRING, earliest_calendar_date DATE, latest_calendar_date DATE, source STRING ('mta' or 'transitland'), path STRING | resolver rule per ticket 12; `pick_gap` is a flag on the event, not here. |
+
+## Silver
+
+### `events` (one row per Passage; grain per 06)
+
+Partition `service_date=YYYY-MM-DD` (the feed's start_date). Plain Parquet, zstd,
+sorted by (cell, arrival_ts), row groups 128K rows, one file per partition.
+Batch-only: written once from Bronze when the service day is closed (D+1 06:00
+America/New_York), rerun replaces the directory; never appended to. Same table for
+2017-2024 backfill and live.
+
+| column | type | notes |
+|---|---|---|
+| service_date | DATE | partition column, in the path |
+| trip_id, vehicle_id, route_id, stop_id | STRING | as the feed gives them |
+| stop_sequence | INT16 | |
+| direction_id | INT8 | |
+| trip_type | STRING | local / sbs / express |
+| stop_lon, stop_lat | DOUBLE | denormalized from `stops` |
+| cell | INT64 | H3 res 8 of the stop; hex string at any JSON boundary |
+| arrival_ts | TS | the one absolute timestamp on the row (Passage midpoint) |
+| censor_width_s | INT16 | full ping gap; pass_lo_ts / pass_hi_ts = arrival_ts -/+ width/2 |
+| arrival_src | STRING | vp_passage / tu_last / interpolated |
+| interpolated | BOOL | |
+| interp_k | INT8 | |
+| is_first, is_last | BOOL | |
+| pick_id | STRING | -> ref/picks; null with pick_gap when no pick covers the date |
+| pick_gap | BOOL | |
+| delay_s | INT32 | null when no static match; sched_ts = arrival_ts - delay_s |
+| segment_s, sched_segment_s, segment_excess_s | INT32 | |
+| headway_obs_s, headway_sched_s | INT32 | |
+| wait_ok, bunched | BOOL | |
+| family | STRING | headway / schedule |
+| schedule_relationship | STRING | |
+| pred_last_off_s | INT32 | pred_last_ts = arrival_ts + off; null pre-2024-09 |
+| pred_first_horizon_s, pred_range_s, pred_err_10min_s | INT32 | null pre-2024-09 |
+| pred_n_changes | INT16 | |
+| n_vehicles_on_trip | INT8 | |
+
+06's names `pass_lo_ts`, `pass_hi_ts`, `sched_ts`, `pred_last_ts`, `censor_halfwidth_s`
+are exposed by a one-file view (`silver/events_view.sql`) over the physical columns.
+
+Read rules: a UTC time window must scan `service_date BETWEEN date(t0)-1 AND date(t1)`
+(service days run to ~28:00; 13.6% of a day's Pings belong to the previous
+service date). Route-over-time queries are Gold's; Silver's sort gives them no
+pruning.
+
+Measured (synthetic realistic cardinalities, zstd, cell sort, N=1M): ~30 B/row live,
+~24 B/row backfill era. Live ~40 MB/day, ~15 GB/yr; 7-year backfill ~56 GB (external
+SSD, with Bronze); ticket 10's 120-day slice ~2.6 GB (fits internal disk).
+
+### `precip_hourly`
+
+Partition `src=aorc|mrms` / `month=YYYY-MM`. Plain Parquet, sorted (i, j, hour_end_utc).
+Grain (src, i, j, hour_end_utc) unique; consumers pin exactly one `src`.
+
+| column | type | notes |
+|---|---|---|
+| i, j | INT16 | Pixel indices into `grids[src]` (lon index, lat index) |
+| hour_end_utc | TS | hour-ENDING (AORC verified; MRMS to confirm, 08) |
+| mm | FLOAT32 | depth in the hour |
+
+AORC over the bbox: 78 x 60 = 4,680 Pixels, 112K rows/day, ~41M rows/yr. Cell-grain
+precip (via `cell_pixel`, area-weighted mean = conservative remap of a depth field)
+is a view or a sibling table 08 specifies; the native grain stays so `RS_Values` at
+the bus position (playbook Product 3) remains buildable.
+
+### Schedule tables (from Bronze static zips; one partition per Pick)
+
+Partition `pick_id=<sha1>` on each. Loaded only for picks a slice needs.
+
+| table | columns |
+|---|---|
+| `stops` | stop_id STRING, stop_name STRING, lon DOUBLE, lat DOUBLE, cell INT64, geometry POINT (GeoParquet) |
+| `trips` | trip_id STRING, route_id STRING, direction_id INT8, service_id STRING, shape_id STRING, trip_type STRING |
+| `trip_stops` | trip_id STRING, stop_sequence INT16, stop_id STRING, arrival_s INT32, departure_s INT32, shape_dist_m FLOAT32 (cumulative geodesic along the shape, computed at ingest); sorted (trip_id, stop_sequence) |
+| `service_days` | service_id STRING, service_date DATE (calendar x calendar_dates flattened) |
+| `shapes` | shape_id STRING, geometry LINESTRING (GeoParquet), length_m FLOAT32 |
+
+Sizing: stop_times.txt is ~124 MB uncompressed per pick (ticket 12); ~15 MB Parquet
+per pick, ~6 GB if all ~390 historical picks are ever loaded. No cross-pick dedupe.
+
+## Gold
+
+Plain Parquet, partition `month=YYYY-MM`, no geometry (join `ref/cells` at serving).
+Grains fixed here; metric columns are 06's and 08's:
+
+| table | grain | metric columns (owned by) |
+|---|---|---|
+| `cell_hour_route` | cell INT64, hour_end_utc TS, route_id STRING, direction_id INT8 | n_events, late_share, early_share, mean_segment_excess_s, ewt_s, bunched_share, wait_ok_share, coverage (06); precip features (08) |
+| `cell_hourofweek_baseline` | cell INT64, hour_of_week INT16 (America/New_York; the two DST transition hours per year dropped) | dry-baseline speed/excess, n_dry, n_wet (10 / playbook) |
+
+## Conventions
+
+- CRS: EPSG:4326 lon/lat stored everywhere. City layers in EPSG:2263 reprojected
+  once at ingest (`ST_Transform(geom, 'EPSG:2263', 'EPSG:4326')`, Sedona expects
+  lon/lat and normalizes authority axis order; pyproj `always_xy=True`), gated by a
+  test: Times Square (988267.1, 215436.9) ftUS -> (-73.9855, 40.7580) within 1e-4 deg
+  and not swapped. The gate is an axis-order check, not a datum claim (NAD83 vs
+  WGS84 ~1 m is ignored).
+- Distances feeding a speed or a segment: geodesic only (`ST_DistanceSpheroid`,
+  `pyproj.Geod(ellps='WGS84').inv`); haversine/`ST_DistanceSphere` is banned there
+  (heading-dependent bias -0.25%/+0.13% at NYC). Buffers/areas in EPSG:32618 (UTM 18N,
+  -309 ppm at NYC, immaterial; area ratios cancel).
+- Time: TS UTC everywhere; `service_date` DATE; precip hour-ending; local time
+  derived on read only.
+- Columns: `cell` INT64 (bit 63 is 0, exact in signed 64); `*_ts` TS; `*_s` INT32
+  seconds; ids as strings; booleans not ints; snake_case; glossary names.
+- Iceberg: not now. Silver is batch-rebuilt and partition-immutable, so there is no
+  concurrent writer and no reader-isolation need; add Iceberg when either appears
+  (or for the lakehouse demo), with WKB + explicit lon/lat/cell columns, not V3 geometry.

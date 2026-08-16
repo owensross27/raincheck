@@ -32,3 +32,14 @@ variable for rain is `segment_excess_s` (actual minus scheduled stop-to-stop tim
 local to the segment ending at that stop), not the cumulative `delay_s`. Natural
 join key is (Cell of the stop, hour of arrival_ts); trailing-window precip attaches
 to the arrival hour. Headway/EWT lives at (cell, hour, route) in Gold.
+
+2026-08-16, from [09 Storage and CRS conventions](09-storage-crs-conventions.md): precip is stored at native Pixel grain, `precip_hourly (i, j,
+hour_end_utc, mm)` partitioned `src=aorc|mrms/month=`, unique per src; `ref/grids`
+freezes each grid from its stored coordinate arrays (AORC: origin (-130.0, 20.0), step
+0.008333 float32-truncated, center registration; MRMS row is yours) and
+`ref/cell_pixel (grid_id, cell, i, j, weight)` is the area-weighted crosswalk
+(sum = 1 per cell). Yours to decide: whether the join uses Cell-grain precip (a view
+or sibling table through `cell_pixel`) or `RS_Values` at the bus position; the MRMS
+bridge (own crosswalk vs conservative regrid onto the AORC grid) and its hour-ending
+check; the trailing windows. Bronze keeps the AORC NYC slice as local Zarr for the
+xarray rolling sums.

@@ -1,7 +1,7 @@
 # 09 Storage and CRS conventions
 
 Type: grilling
-Status: open
+Status: resolved
 Blocked by: 04
 
 ## Question
@@ -23,3 +23,73 @@ stop_sequence, vehicle_id; arrival, censor bounds, arrival_src, delay_s,
 segment_excess_s, headway columns, family, static_pick_id, pred_*). 09 decides its
 physical layout (GeoParquet, sort by Cell then time, partition by date) and where
 `static_pick_id` resolves (a small picks table), not the columns.
+
+### 2026-08-16 — measured, adversarially reviewed, round posted; awaiting Ross
+
+Measured (`research/09-storage-schemas.md` carries the numbers): AORC coordinate
+arrays start (-130.0, 20.0), step 0.008333 float32-truncated, no bounds (center
+registration); over the NYC bbox 78 x 60 Pixels vs 4,113 H3 res-8 Cells; a Cell
+overlaps a mean 4.7 Pixels and its largest Pixel covers only p50 53% (p10 36%), so
+"res 8 ~1:1 with AORC" (04 #5) is true of areas, false of tessellations — nearest-
+Pixel is rejected, area weights (~19.5K rows) are cheap. Silver event rows measure
+~30 B/row live / ~24 B/row backfill once the three exactly-derivable timestamps are
+dropped (~52 B/row if stored literally); 7-year backfill ~56 GB (external SSD),
+10's 120-day slice ~2.6 GB (fits). Verified from primary docs: Sedona 1.9.1
+ST_Transform expects lon/lat and normalizes authority axis order (no lenient flag);
+GeoParquet writer omits `crs` when SRID=4326 (writes null when SRID=0); Spark 3.5
+default timestamp type INT96, session TZ local. Two opus reviews (storage lens,
+geospatial lens) reversed three parts of the starting position: Silver `events`
+must be batch-rebuilt per closed service date (window-function columns cannot be
+stream-appended; Hive Parquet has no snapshot isolation), the WKB point + bbox
+covering on `events` prunes nothing under a cell sort (degenerate point bbox), and
+precip stored only at Cell grain would decide 08's key and foreclose `RS_Values`.
+Round of four decisions posted in chat; recommendations are the schemas file.
+
+## Answer
+
+Resolved 2026-08-16 by grilling; all four recommendations accepted as-is. Typed
+schemas, partitions, sort keys and conventions are the asset
+[research/09-storage-schemas.md](../../../research/09-storage-schemas.md); this
+Answer is the index to it.
+
+1. **Silver `events` is batch-rebuilt plain Parquet.** Written once per closed
+   service date (D+1 06:00 America/New_York) from Bronze, rerun replaces the
+   `service_date=` partition, never appended to; sorted (cell, arrival_ts), 128K-row
+   groups, one file per partition; no WKB/bbox on events (a point bbox is degenerate
+   and the cell sort scatters it). GeoParquet 1.1, Sedona-written with SRID 4326 so
+   `crs` is omitted (= OGC:CRS84), DOUBLE bbox, is for the geometry tables: `cells`,
+   `zones`, `stops`, `shapes`. Same table for 2017-2024 backfill and live; the
+   streaming demo writes its own thin table (07). Iceberg deferred; real trigger is a
+   second concurrent writer or reader isolation, or the lakehouse demo.
+2. **One absolute timestamp per event row.** `arrival_ts` plus integer seconds
+   (`censor_width_s`, `delay_s`, `pred_last_off_s`); 06's `pass_lo/hi_ts`, `sched_ts`,
+   `pred_last_ts`, `censor_halfwidth_s` are a one-file view. Measured ~30 B/row live,
+   ~24 backfill (52 if stored literally): live ~15 GB/yr, 7-year backfill ~56 GB (external
+   SSD with Bronze), ticket 10's 120-day slice ~2.6 GB (fits the internal disk).
+3. **Precip at native Pixel grain; the crosswalk carries weights.** `precip_hourly
+   (i, j, hour_end_utc, mm)` partitioned `src=aorc|mrms/month=`, unique per src,
+   consumers pin one src; `ref/grids` freezes each grid from its stored coordinate
+   arrays (AORC measured: origin (-130.0, 20.0), step 0.008333 float32-truncated, shape
+   8401 x 4201, no bounds so center registration); `ref/cell_pixel (grid_id, cell, i, j,
+   weight)` area-weighted in EPSG:32618 with a sum(weight)=1 test. Nearest-Pixel is
+   refuted: a Cell overlaps a mean 4.7 Pixels and its largest covers p50 53% (04's
+   "~1:1" is true of areas, not tessellations; comment left on 04). Cell-grain precip
+   is 08's view or sibling; the native grain keeps `RS_Values` buildable.
+4. **Schedule tables and conventions.** `stops/trips/trip_stops/service_days/shapes`
+   as Silver partitioned by `pick_id=` (zip sha1, aligned with 12's resolver;
+   `pick_gap` flag on the event). CRS: EPSG:4326 lon/lat everywhere; EPSG:2263 layers
+   reprojected once at ingest with the Times Square axis-order test (988267.1, 215436.9
+   ftUS -> -73.9855, 40.7580; an axis gate, not a datum claim); geodesic-only for
+   anything feeding a speed (`ST_DistanceSpheroid` / `pyproj.Geod`; haversine banned
+   there, heading bias -0.25%/+0.13% at NYC); UTM 18N for areas. Time: TIMESTAMP_MICROS
+   UTC (Spark default is INT96 - set it), session TZ UTC in Spark and DuckDB, precip
+   hour-ending, UTC windows read `service_date BETWEEN date(t0)-1 AND date(t1)`, DST
+   transition hours dropped from hour-of-week. `cell` INT64 in storage, hex string at
+   JSON. Vertical datums stay with the flood map.
+
+Consequences: 07 and 10 unblocked (comments left); 08 inherits the Pixel-grain
+table, `cell_pixel`, and the MRMS grid question; CONTEXT.md: Silver redefined, Pick
+identified by sha1, new term Pixel; 04 gets the 1:1 correction comment; the ~56 GB
+Silver backfill joins Bronze on the external-SSD list (05). Build items for
+`/to-spec`: `ref/grids` + `cell_pixel` builder with its two tests, the axis-order
+test, the events view file, Spark/DuckDB session settings.

@@ -25,8 +25,9 @@ _Avoid_: stop time update, prediction record
 
 **Cell**:
 An H3 resolution-8 hexagon (~0.74 km2), the canonical spatial key for
-aggregation and the precip join. Finer resolutions are recomputed from stored
-lon/lat, never stored.
+aggregation and the precip join; stored as an int64 H3 index in a column named
+`cell`, a hex string at any JSON boundary. Finer resolutions are recomputed from
+stored lon/lat, never stored.
 _Avoid_: hex, bin, tile
 
 **Zone**:
@@ -78,11 +79,21 @@ midnight, so a 02:00 Ping can belong to the previous Service date.
 _Avoid_: calendar day, poll date
 
 **Pick**:
-One published version of a borough's static GTFS, identified by its
-Last-Modified date; the schedule in effect from then until the next Pick.
+One published version of a borough's static GTFS, identified by the sha1 of its
+zip (Transitland's key) and ordered by its publish date; the schedule in effect
+from then until the next Pick.
 Delay is always measured against the Pick in effect on the Service date.
 _Avoid_: schedule version, GTFS dump, feed (when the static side is meant)
 
+**Pixel**:
+One grid square of a precipitation grid (AORC 1/120 deg, MRMS 0.01 deg), addressed
+by integer indices into the frozen grid definition. Precip is stored at Pixel
+grain; a Cell overlaps several Pixels (mean 4.7 for AORC), so Cell-grain precip is
+an area-weighted mean through the `cell_pixel` crosswalk, never a nearest lookup.
+_Avoid_: cell (when the raster unit is meant), grid cell, AORC cell
+
 **Bronze / Silver / Gold**:
-Capture-fidelity Parquet from the archiver / spatially-keyed GeoParquet written
-by Sedona / (cell, hour, route) aggregates.
+Capture-fidelity Parquet from the archiver plus raw static zips and the AORC slice /
+derived tables (Passage events, Pixel-grain precip, per-Pick schedule tables) as
+Hive-partitioned Parquet, batch-rebuilt, GeoParquet only where a geometry is the
+payload / (cell, hour, route) aggregates. Layout in `research/09-storage-schemas.md`.
