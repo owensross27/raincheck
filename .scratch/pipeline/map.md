@@ -47,6 +47,10 @@ Flood-exposure scoring is a later map, not this one.
   were overturned by 08 with evidence: MRMS is not regridded onto AORC (the
   crosswalk is the conservative remap), and the MRMS hour-ending item is closed by
   measurement, not `wgrib2` (the header is PDT 0 "instant"). See ADR-0002.
+- Spec published 2026-08-17: `.scratch/pipeline/spec.md` (`ready-for-agent`), collapsed
+  from tickets 01-15 by `/to-spec`; only ticket 13 (HITL grant) remains open and its
+  outcome toggles one build step (archive-era Picks). Next: `/to-tickets` in its own
+  session.
 - Reality check 2026-08-15: `reality-check-2026-08-15.md`. Stream for capture and
   live enrichment, batch for the insight; the backfill route is decided before the
   streaming route. Session research spend to date ~$235; build phase is cheaper.
