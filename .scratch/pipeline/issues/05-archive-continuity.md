@@ -137,3 +137,14 @@ alerts since **2026-03-01**. "Nothing public archives this feed since 2024-09-06
 therefore 2024-09-06..2026-02-28; our capture stays the independent copy and the
 only one with bus data as decoded 10-min parts, and it is the only subway VP archive
 (gtfsrt.io keeps no subway vehicle_positions). `research/subway-rt-archives.md`.
+
+2026-08-16, from [10 Backfill slice and speed-derivation rules](10-backfill-slice-and-speed-rules.md): the nycbuspositions archive is
+Bus-Data-NYC's `mta-bus-archive` polling the GTFS-RT VP feed every ~120 s, 2017-07-14
+to 2024-11-04 (not 09-06), UTC-day files, `timestamp` = the vehicle's fix time (no poll
+clock exported), zero duplicate Pings. The slice lands as Bronze VP in your schema
+(`archiver.TYPES`, `fetched_at` NULL, partitions from `ts`, `part-nbp-<date>.parquet`)
+plus the xz sources under `data/archive/nycbuspositions/`, ~5 GB together - and
+`bronze_bytes()` counts everything under `data/archive/`, so the 10 GB loud stop would
+trip ~9 days into the conversion: the external SSD is now the precondition for 10, and
+`ROOT` is hardcoded (build item `RAINCHECK_ARCHIVE_ROOT` or a symlink). Note also that
+the budget covers only `data/archive/`, not all of `data/` as 07's asset says.

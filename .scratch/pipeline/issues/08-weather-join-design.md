@@ -125,3 +125,18 @@ Pass2 lands daily in a decoded Bronze copy `data/archive/precip/mrms/date=/hour=
 (footprint only, ~1.2 MB/day - your rule forbade GRIB2 bytes, not a decoded copy) and
 the month partition is rebuilt from it as one file; a uniqueness check on
 `precip_hourly (src, i, j, hour_end_utc)` per partition is added.
+
+2026-08-16, from [10 Backfill slice and speed-derivation rules](10-backfill-slice-and-speed-rules.md): three things for your spec.
+(1) The dry rule for the Speed baseline gets a recovery guard, `mm_1h < 0.1 AND
+mm_1h_prev < 0.1 AND mm_6h < 0.5` (swept): after Ida the rain ends at 07Z and 84% of
+Cells are dry by your rule from 08Z, all by 09Z, while buses run at 0.80-0.90 of normal
+through 08Z and 0.94-0.95 into the next commute - the response outlives the rain by 5+
+hours, which is also the measured reason `mm_1h_prev`/`mm_3h`/`mm_6h` matter (Ida
+ratios 0.93 -> 0.77 -> 0.73 -> 0.80 -> 0.89 -> 0.94 over 02Z-12Z). (2) Composite
+windows are taken from the rain per Cell (`mm_1h`/`mm_6h`), not off the citywide mean:
+the 2023-09-29 storm's largest Cell-hour (87 mm) is at 19Z with 3,029 Cells >= 1 mm.
+(3) Product 3 runs on Legs first (one-off script over the two storm days), stops once
+`events` exists. Facts: the 168 permanently-NULL AORC Cells carry no bus Legs; AORC has
+two real gaps in the span (all of 2024-06-18 and 2024-11-27T20Z), covered by your
+NULL-row rule; `precip_hourly`/`precip_cell_hourly src=aorc` for 2021-08..10 and
+2023-09..10 (+24 h lookback) are the slice's precip build items.

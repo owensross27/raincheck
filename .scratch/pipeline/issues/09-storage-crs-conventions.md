@@ -124,3 +124,14 @@ timestamp partition key as `2026-08-16 20%3A00%3A00`, which DuckDB reads as VARC
 partition keys are strings; and `TZ=UTC` must be set process-wide (JVM default TZ is
 America/New_York; PySpark `collect()` returns driver-local datetimes even with the
 session TZ at UTC).
+
+2026-08-16, from [10 Backfill slice and speed-derivation rules](10-backfill-slice-and-speed-rules.md): additions to
+`research/09-storage-schemas.md`, marked (10): Roots gains `data/archive/nycbuspositions/`;
+Bronze VP gets the archive note (rows converted from the xz files, `fetched_at` NULL,
+partitions from `ts`, occupancy NULL on placeholder days) and the Bronze read rule for a
+service day (`date IN (D, D+1)`); Silver gains `leg_hours (service_date=)`; Gold gains
+`cell_hour_speed (month=)` (direction-free; not columns on `cell_hour_route`, whose
+event rows are per direction) and `cell_hourofweek_baseline` becomes partitioned by
+window with the dry side only (`speed_dry`, `n_dry`, `n_legs_dry`); Ref gains
+`calendar`. Your Silver read rule (`service_date BETWEEN date(t0)-1 AND date(t1)`) is
+unchanged. Also: the archive runs to 2024-11-04.

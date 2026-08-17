@@ -8,7 +8,7 @@ GeoParquet 1.1 writer omits `crs` (= OGC:CRS84).
 ## Roots
 
 ```
-data/archive/   Bronze  (05: vp|tu|alerts/date=/hour=/part-MM.parquet UTC; static/<feed>/<date>.zip; precip/aorc/<year>.zarr NYC slice; 07: precip/mrms/date=/hour=HH.parquet decoded Pass2, footprint only)
+data/archive/   Bronze  (05: vp|tu|alerts/date=/hour=/part-MM.parquet UTC; static/<feed>/<date>.zip; precip/aorc/<year>.zarr NYC slice; 07: precip/mrms/date=/hour=HH.parquet decoded Pass2, footprint only; 10: nycbuspositions/YYYY/MM/<date>-bus-positions.csv.xz sources, and vp/date=/hour=/part-nbp-<date>.parquet converted from them)
 data/ref/       small lookups, rebuilt whole, GeoParquet where a geometry is the payload
 data/silver/    derived tables, Hive-partitioned, one file per partition, batch-written
 data/gold/      aggregates, plain Parquet, partition month=YYYY-MM
@@ -24,6 +24,16 @@ back as VARCHAR). Every DuckDB session runs `SET TimeZone='UTC'`; Spark runs wit
 and `spark.sql.sources.partitionOverwriteMode=dynamic` (07: batch idempotence is
 `mode("overwrite").partitionBy()`), with `TZ=UTC` in the process environment.
 
+Archive-era Bronze VP (10): rows converted from the nycbuspositions xz files carry
+`decode_vp`'s columns and types (`archiver.TYPES`), `start_date` as YYYYMMDD,
+`direction_id` NULL, `occupancy` NULL on a source day with one distinct value (a
+placeholder year), and **`fetched_at` NULL** - the archive exports no poll clock, so
+their `date=/hour=` come from `ts` and `fetched_at IS NULL` is the archive-era
+discriminator; a converter call rewrites exactly one `date=` partition (idempotent by
+part name). Bronze read rule for a service day: `events DATE=D` reads `date IN (D,
+D+1)` (service day D starts 04Z/05Z on D and ends ~08Z on D+1; live rows shift only
+forward). Silver's read rule below is a different thing.
+
 ## Ref
 
 | table | columns | notes |
@@ -34,6 +44,7 @@ and `spark.sql.sources.partitionOverwriteMode=dynamic` (07: batch idempotence is
 | `cell_zone` | cell INT64 pk, zone_id INT16, borough STRING | hex-centroid point-in-polygon (04). |
 | `cell_pixel` | grid_id STRING, cell INT64, i INT16, j INT16, weight DOUBLE; pk (grid_id, cell, i, j) | area share of the Pixel inside the Cell, computed in EPSG:32618; built over the bbox padded by one Pixel; test asserts sum(weight) = 1 +/- 1e-9 per (grid_id, cell). AORC: ~19.5K rows, mean 4.7 Pixels per Cell, largest share p50 0.53. |
 | `picks` | pick_id STRING pk (sha1 of the zip bytes; equals Transitland's `sha1`), feed STRING, published TS (MTA Last-Modified or Transitland fetched_at), feed_version STRING, earliest_calendar_date DATE, latest_calendar_date DATE, source STRING ('mta' or 'transitland'), path STRING | resolver rule per ticket 12; `pick_gap` is a flag on the event, not here. |
+| `calendar` | service_date DATE pk, school_in_session BOOL, holiday BOOL, unga_week BOOL | (10) NYC DOE session calendar + major holidays + UN General Assembly high-level week; one row per slice service day (124 rows for the slice), extended with the backfill. |
 
 ## Silver
 
@@ -85,6 +96,31 @@ Measured (synthetic realistic cardinalities, zstd, cell sort, N=1M): ~30 B/row l
 ~24 B/row backfill era. Live ~40 MB/day, ~15 GB/yr; 7-year backfill ~56 GB (external
 SSD, with Bronze); ticket 10's 120-day slice ~2.6 GB (fits internal disk).
 
+### `leg_hours` (10: Legs aggregated to Cell-hours, per service day)
+
+Partition `service_date=YYYY-MM-DD` (the start Ping's start_date). Written by the same
+`events DATE=` job from `enrich.legs()` under 10's rule set R2. Plain Parquet, sorted
+(cell, hour_end_utc). Grain (cell, hour_end_utc, route_id, route_class) unique per
+partition; an absolute Hour receives legs from two service days.
+
+| column | type | notes |
+|---|---|---|
+| service_date | DATE | partition column |
+| cell | INT64 | H3 res 8 of the Leg midpoint |
+| hour_end_utc | TS | `ceil_hour(t_mid)` |
+| route_id | STRING | of the start Ping |
+| route_class | STRING | express / sbs / local from route_id (10); 06's trip_type when a Pick is loaded |
+| n_legs | INT32 | Legs kept |
+| n_vehicles | INT16 | approx_count_distinct(vehicle_id) |
+| dist_m_sum | FLOAT64 | geodesic chord metres; Speed = dist_m_sum / dt_s_sum |
+| dt_s_sum | INT64 | seconds |
+| leg_speed_p50 | FLOAT32 | median Leg speed of this partition's legs (not mergeable across partitions) |
+| n_dropped_terminal | INT32 | stationary legs dropped at run ends (rain-correlated selection audit) |
+| n_dropped_dark | INT32 | legs dropped by dt > 300 s |
+
+~130K rows / ~6 MB per day; the slice ~0.7 GB, the full backfill ~13 GB. Per-Leg rows
+are not stored (fog: `silver/legs (service_date=)` if a leg-grain analysis appears).
+
 ### `precip_hourly`
 
 Partition `src=aorc|mrms` / `month=YYYY-MM`. Plain Parquet, sorted (i, j, hour_end_utc).
@@ -127,7 +163,8 @@ Grains fixed here; metric columns are 06's and 08's:
 | table | grain | metric columns (owned by) |
 |---|---|---|
 | `cell_hour_route` | cell INT64, hour_end_utc TS, route_id STRING, direction_id INT8 | n_events, late_share, early_share, mean_segment_excess_s, ewt_s, bunched_share, wait_ok_share, coverage (06); no precip columns: joined at read from `silver/precip_cell_hourly` on (src, cell, hour_end_utc) with `src` pinned (08) |
-| `cell_hourofweek_baseline` | cell INT64, hour_of_week INT16 (America/New_York; the two DST transition hours per year dropped) | dry-baseline speed/excess, n_dry, n_wet (10 / playbook) |
+| `cell_hour_speed` | cell INT64, hour_end_utc TS, route_id STRING, route_class STRING; partition month= | (10) rollup of `silver/leg_hours` by `gold MONTH=` (reads service_date month_start-1..month_end, keeps the month's Hours; sums only: n_legs, n_vehicles, dist_m_sum, dt_s_sum, n_dropped_terminal, n_dropped_dark); direction-free by construction, so not columns on `cell_hour_route` |
+| `cell_hourofweek_baseline` | cell INT64, hour_of_week INT16 (America/New_York; the two DST transition hours per year dropped); partition window= (W1, W2, later years) | (10) dry side only: speed_dry (space-mean over the bin's dry Cell-hours), n_dry, n_legs_dry; dry = 08's rule plus the recovery guard `mm_6h < 0.5`, swept; wet anomalies are scored per wet Cell-hour against the bin and aggregated per Cell at analysis time (no wet columns here: ~0.35 wet observations per bin per window); mean_segment_excess dry baseline from `events` alongside when Picks are loaded |
 
 ## Conventions
 

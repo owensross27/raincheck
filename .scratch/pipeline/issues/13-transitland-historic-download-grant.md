@@ -99,3 +99,8 @@ the Ida day; the C1 zip is `4b8dec91`), and Transitland calendars have a 2019 ho
 The proof script now targets `4b8dec91` by default and accepts a sha1 argument; the
 grant sizing is 423 in-window versions (busco 116), still under 500 but with less
 headroom than the form text's ~390.
+
+2026-08-16, from [10 Backfill slice and speed-derivation rules](10-backfill-slice-and-speed-rules.md): the slice needs four
+picks x six feeds = 24 downloads: C1 (2021Jul, in effect to 2021-09-04), D1 (2021Sep,
+from 09-05), C3 (2023Jul, to 2023-09-02), D3 (2023Sep, from 09-03). The Speed path
+needs none of them; `events` for the slice waits on these.

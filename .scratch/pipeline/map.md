@@ -35,8 +35,8 @@ Flood-exposure scoring is a later map, not this one.
   (0/37,697 arrivals carry `delay`; trip-level `trip_update.delay` is populated,
   semantics per 06); `occupancy_status` covers 41% of vehicles,
   skewed to empty; `s3.amazonaws.com/nycbuspositions` is readable 2017-07-14 to
-  2024-09-06 and gtfsrt.io holds keyless Parquet of bus VP/TU/alerts and all subway TU
-  + alerts from 2026-03-01 (gap 2024-09-06..2026-02-28; corrected 2026-08-16); AORC
+  2024-11-04 (UTC-day files; corrected 2026-08-16 by 10, was 2024-09-06) and gtfsrt.io holds keyless Parquet of bus VP/TU/alerts and all subway TU
+  + alerts from 2026-03-01 (gap 2024-11-05..2026-02-28; corrected 2026-08-16); AORC
   and ERA5 ARCO Zarr are live and anonymous.
 - Reuse from `~/quakestream` (same stack, proven): Kafka 3.9 KRaft, Spark 3.5.3,
   Sedona 1.9.1, geotools-wrapper `1.9.1-33.5` (NOT -33.1), slim Sedona Dockerfile at
@@ -53,6 +53,7 @@ Flood-exposure scoring is a later map, not this one.
 
 ## Decisions so far
 
+- [10 Backfill slice and speed-derivation rules](issues/10-backfill-slice-and-speed-rules.md) — resolved 2026-08-16: slice = two contiguous windows, service days 2021-08-16..10-15 (Ida, picks C1/D1) and 2023-09-01..10-31 (the 09-29 flood, the archive's wettest month; C3/D3), 124 UTC-day xz files, no separate control months, windows baselined and fitted separately, errors clustered by wet event; Speed = pick-free chord speed on Legs (consecutive Pings per vehicle, same trip, 0 < dt <= 300 s, <= 30 m/s, only stationary legs at run ends dropped - R2, rule-neutral across the storm contrast), Cell of the midpoint, `ceil_hour(t_mid)`, space-mean per Cell-hour; measured Ida hours 03Z/04Z at 0.77/0.73 of the week before and 0.89 six hours after the rain, 2023-09-29 at 0.90 for eight hours; a chord ratio overstates a slowdown by an unmeasured 0-10 points (headline carries a band; along-shape distance is the pick-gated upgrade); landing = xz -> Bronze VP in 05's schema (`fetched_at` NULL, `ts` partitions), `events DATE=` unchanged (pick_gap rows) plus `enrich.legs()` into Silver `leg_hours` -> Gold `cell_hour_speed` (direction-free), baseline per window with a `mm_6h < 0.5` recovery guard; tests T1-T7 (Ida reproduction <= 0.85 vs the window's dry same-hour-of-week median, MTA benchmarks report-only). Precondition: the external SSD (05's 10 GB Bronze stop trips ~9 days into the conversion). Archive corrected: runs to 2024-11-04, UTC-day files, vehicle-clock timestamps, zero duplicates. Asset `research/10-backfill-slice-and-speed.md`, evidence `research/10-backfill-evidence.md`.
 - [15 Subway capture in the archiver](issues/15-subway-capture.md) — resolved 2026-08-16 (executed in-map): eight keyless subway feeds at 60 s (TU + VP, NYCT extension vendored: train_id 100%, scheduled_track 100%, actual_track near-term only, VPs carry stop_id + current_stop_sequence and never a position) plus subway alerts and bus alerts at 300 s, all in the 05 archiver deployed as `com.raincheck.archiver` (10-min sorted parts, header.timestamp dedupe, seven static zips daily incl. subway, 10 GB loud stop); measured ~0.53 GB/day total of which subway ~20%; Kafka topics for subway and any subway Silver stay build items; the subway flood signal itself is a second map (Out of scope).
 - [07 Enrichment execution model](issues/07-enrichment-execution-model.md) — resolved 2026-08-16: Spark 3.5.3 + Sedona 1.9.1 run natively from the repo venv on the brew `openjdk@17` already installed (Spark 3.5 supports Java 17; 03 corrected), one `session()` factory (3 g, `local[6]`, UTC, `partitionOverwriteMode=dynamic`), Kafka the only container, quakestream's slim image = promotion path; one `enrich.py` of pure DataFrame functions called by batch `make` targets (idempotent by dynamic partition overwrite) and by the streaming job's `foreachBatch` (stateless subset only; passages/delay batch-only), Sedona only where a spatial primitive is needed, Spark writes every derived table (destination + Sedona proof), DuckDB reads; streaming = one app, two Kafka queries appending `coalesce(1)` micro-batches to `data/live/<topic>/date=/hour=` with 48 h retention, no exactly-once (latest-per-key reads), `failOnDataLoss=false`, `maxOffsetsPerTrigger=250000`, on demand not a daemon; live precip via a 300 s `StartInterval` LaunchAgent (`precip_live`, RadarOnly `:00` -> `live/precip_cell/valid_ts=` string key, 7 d), Pass2 daily into a decoded MRMS Bronze copy + month rebuild, `make daily` builds every missing day (launchd coalesces) with a 06:00 America/New_York calendar agent as a build item; both agents and the Docker VM -> 4 GB approved. Asset `research/07-execution-model.md`.
 - [08 Weather join design](issues/08-weather-join-design.md) — resolved 2026-08-16: precip attaches at Cell-hour grain via `silver/precip_cell_hourly (src, cell, hour_end_utc)`, batch per (src, month) on a dense spine, joined at read with `src` pinned (no precip columns on `events` or Gold; `RS_Values` off the feature path, run once on the two storm days as the aggregation check); `src=aorc` for the whole backfill, `src=mrms` = Pass2 from 2026-08-14 through a second `cell_pixel` set, never regridded onto AORC and never pooled with it (MRMS proven hour-ending by lag-0 r 0.97-0.999; the header cannot show it); `hour_end_utc = ceil_hour(arrival_ts)`; stored `mm_1h/1h_prev/3h/6h/24h`, `n_hours_24h`, `t2m_c` (rain not snow), models use disjoint lags and the leakage-free headline; wet/dry/frozen/onset are Gold parameters with a sweep; footprint = the crosswalk's Pixels (closes a 09 hole); ADR-0002; four glossary terms. Spec `research/08-weather-join-features.md`, evidence `research/08-weather-join-evidence.md`.
@@ -69,6 +70,14 @@ Flood-exposure scoring is a later map, not this one.
 
 ## Not yet specified
 
+- After 10: a per-Leg Silver table if a leg-grain analysis or second consumer appears
+  (the Cell-hour `leg_hours` rows are the sufficient statistic today); along-shape
+  path distance for Speed once Picks are loaded (`ST_LineLocatePoint` on the trip's
+  shape, replaces the chord and its 0-10 point ratio bias, fixes the level gap to MTA's
+  shape-distance speeds); r(v) measured on weekday live captures with a jitter guard so
+  the chord band narrows; the full 2,278-file backfill's runtime and the 2017-19
+  20-column variant; `RAINCHECK_ARCHIVE_ROOT` and the SSD move (with 05's box/object
+  storage line below).
 - Live-era precipitation extras (after 08): a phase source for `src=mrms` Cell-hours
   (MRMS `PrecipFlag` at Cell grain vs a city-wide ASOS temperature) so `t2m_c` is
   not NULL before winter 2026-27; sub-hourly features from the 2-min/15-min MRMS

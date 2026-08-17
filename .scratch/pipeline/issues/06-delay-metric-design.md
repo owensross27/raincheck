@@ -108,3 +108,13 @@ all three today, so the 21 hours archived so far lack them; 05 is deciding wheth
 decoder becomes census-complete. Semantics of trip-level delay (vs schedule? at which
 stop?) are yours to place. VP census confirms no `current_status`,
 `current_stop_sequence`, or `congestion_level` on any entity.
+
+## Comments
+
+2026-08-16, from [10 Backfill slice and speed-derivation rules](10-backfill-slice-and-speed-rules.md): measured on the archive, 18.5% of
+mid-trip Legs (28.4% of same-trip Legs) keep the same `stop_id` at both ends and about a
+third of stop advances are interpolated at 120 s cadence (`censor_width_s` ~120 s), so
+the archive-era rain response is the Leg's chord Speed at Cell-hour grain, with your
+`segment_excess_s` second (and Pick-gated). The `events DATE=` job writes `pick_gap =
+true` rows until the Pick lands. A DST-transition day file (2021-11-07) is a converter
+fixture for your noon-minus-12h unit test; neither slice window contains a transition.

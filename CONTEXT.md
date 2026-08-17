@@ -46,6 +46,21 @@ A Stop row's predicted arrival time. A stream of Predictions precedes every
 Passage; the last one is a cross-check on the Passage, never the arrival itself.
 _Avoid_: TU arrival, ETA
 
+**Leg**:
+The movement between two consecutive Pings of one vehicle, on the vehicle's own
+clock; the archive-era unit of speed (~120 s and ~310 m in the 2017-2024 archive,
+~30 s live). A Leg belongs to the Cell of its midpoint and the Hour holding its
+midpoint. Legs that change trip and stationary Legs at the ends of a run (before the
+first stop change, after the last) are not counted; stationary Legs mid-run are.
+_Avoid_: segment (that is between stops), hop, ping pair
+
+**Speed**:
+Space-mean chord speed of the Legs in a Cell-hour: total geodesic distance over total
+time, dwell included, in m/s. A lower bound on path speed, and a ratio of Speeds
+overstates a slowdown (the chord falls shortest of the path when buses are slow), so a
+headline ratio is shown with its band. Never a mean of per-Leg speeds.
+_Avoid_: velocity, pace, average speed (say space-mean)
+
 **Delay**:
 Seconds a Passage is late versus the scheduled arrival from the static GTFS pick
 in effect on the trip's service date; positive is late. Late means more than

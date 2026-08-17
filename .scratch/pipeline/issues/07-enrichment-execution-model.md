@@ -135,3 +135,13 @@ is not a Spark 3.5 TVF - spine is `explode(sequence())`; asset note corrected in
 items for `/to-spec` in asset section 6; Ross's own item: Docker Desktop memory -> 4 GB.
 Python traps for the build: `setuptools` (pyspark 3.5 pandas bridge on 3.12), `TZ=UTC`
 (collect() returns driver-local datetimes), `pytz` for DuckDB tz-aware reads.
+
+2026-08-16, from [10 Backfill slice and speed-derivation rules](10-backfill-slice-and-speed-rules.md): `enrich.legs()` (pure
+function, section 2 rules) is called by `events DATE=D` on its Bronze read `date IN (D,
+D+1)` and aggregated to Silver `leg_hours (service_date=)`; `gold MONTH=` rolls it up to
+Gold `cell_hour_speed (month=)`, reading service_date month_start-1..month_end and
+keeping the month's Hours before the write (your neighbouring-partition check extends
+to this job); the converter is `make nbp DATE=` (pyarrow, one xz file, schema from
+`archiver.TYPES`, idempotent by part name); `events DATE=` writes `pick_gap = true` rows
+rather than aborting; the 10 GB budget covers `data/archive/` only (asset section 3
+says all of `data/`); `RAINCHECK_ARCHIVE_ROOT` is a build item.
