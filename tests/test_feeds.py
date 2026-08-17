@@ -1,4 +1,6 @@
 """Frozen-fixture tests. Fixtures captured 2026-08-11 from gtfsrt.prod.obanyc.com."""
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -100,6 +102,23 @@ def test_flush_types_all_none_column(tmp_path, monkeypatch):
     t = pq.read_table(archiver.flush(rows, "subway_tu", 1786478400))
     assert t.schema.field("actual_track").type == "string"
     assert t.schema.field("arrival_time").type == "int64" and t.schema.field("is_assigned").type == "bool"
+
+
+def test_archive_root_and_budget_from_env(tmp_path):
+    """Spec A: RAINCHECK_ARCHIVE_ROOT is the data root (archive/ under it; default the repo's
+    data/), RAINCHECK_BRONZE_GB the absolute byte budget over that root. Fresh interpreter:
+    both are read at import."""
+    code = "from raincheck import archiver; print(archiver.ROOT, int(archiver.BUDGET_BYTES))"
+
+    def run(env: dict) -> list[str]:
+        return subprocess.run([sys.executable, "-c", code], env={**os.environ, **env},
+                              capture_output=True, text=True, check=True).stdout.split()
+
+    assert run({"RAINCHECK_ARCHIVE_ROOT": str(tmp_path), "RAINCHECK_BRONZE_GB": "2"}) == [
+        str(tmp_path / "archive"), str(2 * 10**9)]
+    repo = Path(archiver.__file__).resolve().parents[2]
+    assert run({"RAINCHECK_ARCHIVE_ROOT": "", "RAINCHECK_BRONZE_GB": ""}) == [
+        str(repo / "data" / "archive"), str(10 * 10**9)]  # unset or empty: defaults unchanged
 
 
 def test_budget_marker_exits_cleanly(tmp_path, monkeypatch):

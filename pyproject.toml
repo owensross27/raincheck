@@ -8,11 +8,20 @@ dependencies = [
     "gtfs-realtime-bindings>=1.0",
     "requests>=2.31",
     "pyarrow>=16",
-    "pandas>=2.1",
+    "pandas>=2.1,<4",  # pyspark 3.5.3's pandas bridge uses shims that Pandas4Warning says go in 4
     "xarray>=2024.6",
     "zarr>=2.18",
     "s3fs>=2024.6",
     "pytest>=8",
+    # spec A: Spark 3.5.3 + Sedona 1.9.1 in-process on the brew JDK 17; no Python h3
+    # (the only H3 oracle is DuckDB's community h3 extension, installed by the tests that need it)
+    "pyspark==3.5.3",
+    "apache-sedona==1.9.1",
+    "setuptools",  # pyspark's pandas bridge imports distutils on Python 3.12
+    "shapely",
+    "pyproj",
+    "duckdb",
+    "pytz",  # DuckDB hands back tz-aware timestamps through pytz
 ]
 
 [build-system]

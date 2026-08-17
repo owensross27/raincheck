@@ -15,6 +15,12 @@
     <string>/Users/ross/raincheck/.venv/bin/python</string><string>-m</string><string>raincheck.archiver</string>
   </array>
   <key>WorkingDirectory</key><string>/Users/ross/raincheck</string>
+  <!-- spec A, sequencing step 1 (the SSD move): move data/archive to <root>/archive, then add
+       <key>EnvironmentVariables</key><dict>
+         <key>RAINCHECK_ARCHIVE_ROOT</key><string>/Volumes/SSD/raincheck</string>
+         <key>RAINCHECK_BRONZE_GB</key><string>DRIVE-SIZED</string>
+       </dict>
+       and bootout/bootstrap. The budget is an absolute count over <root>/archive: moving does not shrink it. -->
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
   <key>ThrottleInterval</key><integer>60</integer>

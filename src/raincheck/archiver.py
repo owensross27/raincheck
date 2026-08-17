@@ -2,12 +2,16 @@
 dependency: this is the durable history capture (nothing public archives the bus feed
 since 2024-09-06, and no public subway RT archive is verified).
 
-Layout  data/archive/<kind>/date=YYYY-MM-DD/hour=HH/part-MM.parquet  (UTC, 10-min windows,
-        rows sorted by (key, fetched_at), never deleted); static/<feed>/<Last-Modified>.zip
+Layout  <root>/archive/<kind>/date=YYYY-MM-DD/hour=HH/part-MM.parquet  (UTC, 10-min windows,
+        rows sorted by (key, fetched_at), never deleted); static/<feed>/<Last-Modified>.zip.
+        <root> is RAINCHECK_ARCHIVE_ROOT (spec A; default the repo's data/, the SSD in practice).
 Kinds   vp 30 s, tu 120 s, alerts 300 s (bus); subway_tu + subway_vp 60 s (8 feeds),
         subway_alerts 300 s; each feed deduped on header.timestamp.
-Budget  RAINCHECK_BRONZE_GB (default 10): when Bronze exceeds it, write STOPPED_BUDGET,
-        say so loudly and exit 0 (launchd does not restart a clean exit).
+Budget  RAINCHECK_BRONZE_GB (default 10): an absolute count of every byte under <root>/archive
+        (live capture, static zips, precip copies, xz sources, converted parts all count), so
+        moving the root to the SSD does not shrink it - set it to a drive-sized number there.
+        When exceeded, write STOPPED_BUDGET, say so loudly and exit 0 (launchd does not
+        restart a clean exit).
 
 Smoke: python -m raincheck.archiver --once
 Loop:  python -m raincheck.archiver
@@ -25,9 +29,10 @@ import requests
 
 from raincheck.feeds import (SUBWAY_FEEDS, decode_alerts, decode_subway_tu, decode_subway_vp,
                              decode_tu, decode_vp, fetch)
+from raincheck.paths import data_root
 
-ROOT = Path(__file__).resolve().parents[2] / "data" / "archive"
-BUDGET_BYTES = float(os.environ.get("RAINCHECK_BRONZE_GB", "10")) * 1e9
+ROOT = data_root() / "archive"
+BUDGET_BYTES = float(os.environ.get("RAINCHECK_BRONZE_GB") or "10") * 1e9  # empty = default
 WINDOW = 600  # seconds per part file
 KEY = {"vp": "vehicle_id", "tu": "trip_id", "alerts": "alert_id", "subway_alerts": "alert_id",
        "subway_tu": "trip_id", "subway_vp": "trip_id"}
@@ -161,7 +166,8 @@ def main() -> None:
                 if used > BUDGET_BYTES:
                     marker.write_text(f"{used} bytes at {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}\n")
                     print(f"BRONZE OVER BUDGET: {used/1e9:.2f} GB > {BUDGET_BYTES/1e9:.0f} GB; stopping. "
-                          f"Move data/archive to the external SSD or raise RAINCHECK_BRONZE_GB, then rm {marker}",
+                          f"Point RAINCHECK_ARCHIVE_ROOT at the external SSD (the count is absolute: move "
+                          f"{ROOT} with it) or raise RAINCHECK_BRONZE_GB, then rm {marker}",
                           file=sys.stderr, flush=True)
                     return
             if args.once:
