@@ -135,3 +135,14 @@ event rows are per direction) and `cell_hourofweek_baseline` becomes partitioned
 window with the dry side only (`speed_dry`, `n_dry`, `n_legs_dry`); Ref gains
 `calendar`. Your Silver read rule (`service_date BETWEEN date(t0)-1 AND date(t1)`) is
 unchanged. Also: the archive runs to 2024-11-04.
+
+2026-08-17, from [14 Serving surface for the two showcase artifacts](14-serving-surface.md): `cell_hourofweek_baseline` needs `dist_m_sum_dry` and
+`dt_s_sum_dry` (sums, so a window's dry space-mean Speed is mergeable across the 168
+bins - `speed_dry` alone is a mean of means; 10 flagged the same for `leg_speed_p50`);
+a marked "(14)" line sits under the Gold table in `research/09-storage-schemas.md`.
+`silver/precip_cell_hourly` is an export input. `ref/cells` is the one source of Cell
+geometry for serving; DuckDB's community `h3` extension is a test oracle
+(`ST_Equals(geometry, ST_GeomFromWKB(h3_cell_to_boundary_wkb(cell)))`, all 4,113 rows;
+the extension version rides the DuckDB release). `web/files/` is derived-of-derived,
+not a data root. Your Times Square axis gate stays with `make ref`; the export checks
+zones by count, non-empty `zone_name` and `ST_IsValid` after the 0.0002 deg simplify.

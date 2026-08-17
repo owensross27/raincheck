@@ -140,3 +140,11 @@ the 2023-09-29 storm's largest Cell-hour (87 mm) is at 19Z with 3,029 Cells >= 1
 two real gaps in the span (all of 2024-06-18 and 2024-11-27T20Z), covered by your
 NULL-row rule; `precip_hourly`/`precip_cell_hourly src=aorc` for 2021-08..10 and
 2023-09..10 (+24 h lookback) are the slice's precip build items.
+
+2026-08-17, from [14 Serving surface for the two showcase artifacts](14-serving-surface.md): the live panel's rain is a RadarOnly QPE 01H threshold (`mm_1h
+>= 1` on the VP row's `precip_valid_ts` Hour, with its age printed), explicitly not
+CONTEXT's Wet hour (no temperature guard live - `t2m_k` is NULL for src=mrms); the
+insight panel's rain is AORC. Both legends name their src ("rain: MRMS RadarOnly QPE
+01H, uncalibrated, hour-ending, valid <ts>" / "rain: AORC hourly, hour-ending") so the
+two "rain"s are named as different measurements. `H_mm` and `H_lag` on the insight
+export come from `precip_cell_hourly src=aorc`.

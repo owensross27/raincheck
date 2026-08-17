@@ -212,3 +212,19 @@ the route-class regex (BXM upper case, SBS = `+`), the gaps-and-islands run, the
 `events DATE=` pick-gap write rule, T3 rebuilt on the window's own dry same-hour-of-
 week distribution and T4 report-only. Round of four decisions posted in chat;
 recommendations are the asset `research/10-backfill-slice-and-speed.md` as it stands.
+
+2026-08-17, from [14 Serving surface for the two showcase artifacts](14-serving-surface.md): your section-5 "at analysis time in DuckDB" anomalies and
+composites become `web/export.sql` - one text run by `make export` and importable by a
+notebook. The surface honours your rules and adds four things the reviewers required:
+intervals are 95% CIs clustered by wet event/day (an i.i.d. interval would launder the
+gate); the storm-hour composites carry the same interval-width gate as the window
+layers (the composite map is the hotspot claim; under a >= 20-Legs stand-in gate 78% of
+the footprint is hidden at Ida 04Z, 99% at 07Z/08Z, and the hidden set is
+storm-correlated - `n_cells_hidden` prints next to every median-Cell figure); the
+estimand string is the space-mean over the window's dry hour-of-week baseline with the
+recovery guard spelled out (your T3 median is the acceptance-test construction, not
+the page's denominator); the chord band is a numeric pair rendered as a range, and the
+page states that the 2023-09-29 band reaches ~1.0. `W_ratio_ex_preschool` (from
+`ref/calendar`) prints beside `W_ratio`. R2 reproduced from your leg cache to within
+0.001 (0.767 vs 0.768 at Ida 03Z); the baseline table needs `dist_m_sum_dry` /
+`dt_s_sum_dry` (09 comment).

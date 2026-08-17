@@ -27,7 +27,8 @@ _Avoid_: stop time update, prediction record
 An H3 resolution-8 hexagon (~0.74 km2), the canonical spatial key for
 aggregation and the precip join; stored as an int64 H3 index in a column named
 `cell`, a hex string at any JSON boundary. Finer resolutions are recomputed from
-stored lon/lat, never stored.
+stored lon/lat, never stored. Cell geometry for serving comes from `ref/cells`, never
+recomputed in a browser.
 _Avoid_: hex, bin, tile
 
 **Zone**:

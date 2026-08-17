@@ -148,3 +148,11 @@ plus the xz sources under `data/archive/nycbuspositions/`, ~5 GB together - and
 trip ~9 days into the conversion: the external SSD is now the precondition for 10, and
 `ROOT` is hardcoded (build item `RAINCHECK_ARCHIVE_ROOT` or a symlink). Note also that
 the budget covers only `data/archive/`, not all of `data/` as 07's asset says.
+
+2026-08-17, from [14 Serving surface for the two showcase artifacts](14-serving-surface.md): the live view's "MTA-reported trip delay > 5 min" layer waits on
+your census-complete decoder landing `trip_update.delay` in the TU rows (tonight's
+Bronze TU has no `delay` column); until then the page shows an explicit "unavailable -
+decoder build item" state, never an unpainted class. The Bronze fallback for the demo
+reads `data/archive/vp|tu` with a 20-min wall-clock window (two of your 10-min flush
+parts) and `date=`/`hour=` literal pruning, and stays fast after 10's slice lands in the
+same root; archive-era rows (`fetched_at IS NULL`) fall out of it by construction.

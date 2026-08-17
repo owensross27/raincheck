@@ -118,3 +118,10 @@ the archive-era rain response is the Leg's chord Speed at Cell-hour grain, with 
 `segment_excess_s` second (and Pick-gated). The `events DATE=` job writes `pick_gap =
 true` rows until the Pick lands. A DST-transition day file (2021-11-07) is a converter
 fixture for your noon-minus-12h unit test; neither slice window contains a transition.
+
+2026-08-17, from [14 Serving surface for the two showcase artifacts](14-serving-surface.md): the live page never says "late" - the layer is labelled
+"MTA-reported trip delay > 5 min" (the feed's trip-level `trip_update.delay`, which
+CONTEXT.md says is not Delay); the 300 s cut is your Delay cutoff borrowed for an
+agency-computed quantity and stays unvalidated until `events` and the live feed
+coexist. `pred_next_s` (seconds to the predicted arrival at the next stop) is on every
+live vehicle - the Prediction, never the arrival.

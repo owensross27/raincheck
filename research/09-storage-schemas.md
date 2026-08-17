@@ -166,6 +166,13 @@ Grains fixed here; metric columns are 06's and 08's:
 | `cell_hour_speed` | cell INT64, hour_end_utc TS, route_id STRING, route_class STRING; partition month= | (10) rollup of `silver/leg_hours` by `gold MONTH=` (reads service_date month_start-1..month_end, keeps the month's Hours; sums only: n_legs, n_vehicles, dist_m_sum, dt_s_sum, n_dropped_terminal, n_dropped_dark); direction-free by construction, so not columns on `cell_hour_route` |
 | `cell_hourofweek_baseline` | cell INT64, hour_of_week INT16 (America/New_York; the two DST transition hours per year dropped); partition window= (W1, W2, later years) | (10) dry side only: speed_dry (space-mean over the bin's dry Cell-hours), n_dry, n_legs_dry; dry = 08's rule plus the recovery guard `mm_6h < 0.5`, swept; wet anomalies are scored per wet Cell-hour against the bin and aggregated per Cell at analysis time (no wet columns here: ~0.35 wet observations per bin per window); mean_segment_excess dry baseline from `events` alongside when Picks are loaded |
 
+(14) `cell_hourofweek_baseline` gains `dist_m_sum_dry FLOAT64`, `dt_s_sum_dry INT64` (the
+sums behind `speed_dry`, so a window's dry space-mean Speed is mergeable across bins for
+the serving export; `speed_dry` alone is a mean of means). Serving files under
+`web/files/` (GeoJSON/JSON exported by DuckDB from Gold + `precip_cell_hourly` + ref) are
+derived-of-derived, not a data root; Cell geometry for serving comes from `ref/cells`
+only (DuckDB `h3` is a test oracle via `ST_Equals`).
+
 ## Conventions
 
 - CRS: EPSG:4326 lon/lat stored everywhere. City layers in EPSG:2263 reprojected

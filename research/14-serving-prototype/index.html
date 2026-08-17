@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>raincheck: does rain slow the buses, and where</title>
+<link href="https://unpkg.com/maplibre-gl@5.9.0/dist/maplibre-gl.css" rel="stylesheet">
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin: 0; height: 100%; background: #0b0d10; color: #e6e6e6;
+               font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  #map { position: absolute; inset: 0; }
+  .panel { position: absolute; z-index: 2; background: rgba(16,19,24,.92);
+           border: 1px solid #2a2f38; border-radius: 10px; padding: 12px 14px; }
+  #hud { top: 12px; left: 12px; width: 360px; }
+  #hud h1 { font-size: 15px; margin: 0 0 6px; }
+  #hud p, .small { margin: 0 0 8px; color: #9aa4b2; font-size: 12.5px; }
+  #hours button, #views button { background: #1b2027; color: #cfd6df; border: 1px solid #313845;
+           border-radius: 7px; padding: 4px 8px; margin: 0 4px 4px 0; cursor: pointer; font-size: 12px; }
+  #hours button.on, #views button.on { background: #2f5f8f; color: #fff; border-color: #3f7fbf; }
+  #headline { margin-top: 8px; font-size: 13px; }
+  #headline b { font-size: 20px; }
+  #legend { bottom: 12px; left: 12px; font-size: 12px; }
+  .swatches { display: flex; height: 10px; width: 240px; border-radius: 4px; overflow: hidden; margin: 6px 0 2px; }
+  .swatches span { flex: 1; }
+  .lab { display: flex; justify-content: space-between; color: #9aa4b2; }
+  #live { top: 12px; right: 12px; width: 300px; font-size: 12.5px; }
+  #tip { display: none; position: absolute; z-index: 3; pointer-events: none;
+         background: rgba(10,12,15,.95); border: 1px solid #313845; border-radius: 8px; padding: 8px 10px; font-size: 12px; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="hud" class="panel">
+  <h1>Does rain slow NYC buses, and where</h1>
+  <p>Cell = H3 res 8. Colour = space-mean chord Speed in the storm hour divided by the same
+     hour one week earlier (rule set R2; the built page divides by the window's dry
+     hour-of-week baseline and gates on a clustered 95% interval). Grey = fewer than 20 Legs
+     on an arm. <b>Per-Cell colour is a preview with wide intervals; hotspot claims wait for
+     the 7-year backfill.</b> Rain: AORC hourly, hour-ending. Prototype from four archive
+     days; the built page reads Gold.</p>
+  <div id="views">
+    <button data-v="ida" class="on">Ida 2021-09-02</button>
+    <button data-v="f23">2023-09-29 flood</button>
+  </div>
+  <div id="hours"></div>
+  <div id="headline"></div>
+</div>
+<div id="live" class="panel">
+  <b id="livetitle">Live: the fleet right now</b>
+  <div id="livemeta" class="small">loading live.geojson</div>
+  <div class="small">MTA-reported trip delay: <span id="delaystate">unavailable (decoder build item)</span> &middot;
+       rain: MRMS RadarOnly QPE 01H, uncalibrated, hour-ending &middot; <span id="rainstate">no precip table yet</span></div>
+  <label class="small"><input type="checkbox" id="livetoggle" checked> show vehicles (30 s refresh)</label>
+</div>
+<div id="legend" class="panel">
+  <div>Speed ratio, storm hour / control hour</div>
+  <div class="swatches" id="swatches"></div>
+  <div class="lab"><span>0.5 slower</span><span>1.0</span><span>1.2 faster</span></div>
+  <div class="small">chord ratio: overstates a slowdown by an unmeasured 0-10 points</div>
+</div>
+<div id="tip"></div>
+<script src="https://unpkg.com/maplibre-gl@5.9.0/dist/maplibre-gl.js"></script>
+<script>
+"use strict";
+const RAMP = ["#7f0000", "#d7301f", "#fc8d59", "#fdd49e", "#f7f7f7", "#c7dcef", "#6baed6"];
+const NONE = "#262b33";
+const HOURS = { ida: ["090201","090202","090203","090204","090205","090206","090207","090208"],
+                f23: ["092912","092913","092914","092919"] };
+let view = "ida", hour = "090203", headline = {};
+
+const map = new maplibregl.Map({
+  container: "map", center: [-73.93, 40.72], zoom: 10.2, attributionControl: false,
+  style: { version: 8, sources: {
+      zones: { type: "geojson", data: "files/zones.geojson" },
+      cells: { type: "geojson", data: "files/cells.geojson", promoteId: "cell" },
+      live:  { type: "geojson", data: "files/live.geojson" } },
+    layers: [
+      { id: "bg", type: "background", paint: { "background-color": "#0b0d10" } },
+      { id: "zones-fill", type: "fill", source: "zones", paint: { "fill-color": "#141920" } },
+      { id: "cells", type: "fill", source: "cells", paint: { "fill-color": NONE, "fill-opacity": 0.85 } },
+      { id: "cells-line", type: "line", source: "cells", paint: { "line-color": "#0b0d10", "line-width": 0.4 } },
+      { id: "zones-line", type: "line", source: "zones", paint: { "line-color": "#3a4452", "line-width": 0.8 } },
+      { id: "live", type: "circle", source: "live", paint: {
+          "circle-radius": 2.6, "circle-color": ["match", ["get", "occupancy"],
+            "FULL", "#ff5252", "STANDING_ROOM_ONLY", "#ffb74d", "FEW_SEATS_AVAILABLE", "#fff176",
+            "MANY_SEATS_AVAILABLE", "#69f0ae", "#b0bec5"], "circle-opacity": 0.9 } },
+    ] },
+});
+map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution:
+  "MTA Bus Time GTFS-RT; nycbuspositions archive; NOAA AORC; TLC taxi zones" }));
+
+function colorExpr(h) {
+  const p = "r" + h;
+  return ["case", ["!", ["has", p]], NONE,
+    ["interpolate", ["linear"], ["get", p], 0.5, RAMP[0], 0.65, RAMP[1], 0.8, RAMP[2], 0.9, RAMP[3], 1.0, RAMP[4], 1.1, RAMP[5], 1.2, RAMP[6]]];
+}
+function setHour(h) {
+  hour = h;
+  map.setPaintProperty("cells", "fill-color", colorExpr(h));
+  document.querySelectorAll("#hours button").forEach(b => {
+    const on = b.dataset.h === h; b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); });
+  const row = headline[h];
+  document.getElementById("headline").innerHTML = row ? (
+    `<div><b>${row.ratio_citywide.toFixed(2)}</b> citywide <span class="small">(${row.n_legs_storm.toLocaleString()} Legs)</span><br>` +
+    `<span class="small">${row.estimand_citywide}</span></div>` +
+    `<div style="margin-top:6px"><b>${row.ratio_median_cell?.toFixed(2) ?? "-"}</b> median Cell <span class="small">(${row.n_cells} Cells shown, ${row.n_cells_hidden} hidden under 20 Legs; hidden set is storm-correlated)</span><br>` +
+    `<span class="small">${row.estimand_median_cell}</span></div>` +
+    `<div class="small" style="margin-top:6px">hour ending ${row.hour_end_utc} vs ${row.control_hour_end_utc}. ${row.chord_band}.</div>`) : "";
+}
+function setView(v) {
+  view = v;
+  document.querySelectorAll("#views button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
+  document.getElementById("hours").innerHTML = HOURS[v].map(h =>
+    `<button data-h="${h}">${h.slice(4)}Z</button>`).join("");
+  setHour(HOURS[v][v === "ida" ? 2 : 1]);
+}
+document.getElementById("views").addEventListener("click", e => { if (e.target.dataset.v) setView(e.target.dataset.v); });
+document.getElementById("hours").addEventListener("click", e => { if (e.target.dataset.h) setHour(e.target.dataset.h); });
+document.getElementById("swatches").innerHTML = RAMP.map(c => `<span style="background:${c}"></span>`).join("");
+
+fetch("files/headline.json").then(r => r.json()).then(j => {
+  j.hours.forEach(row => { const h = row.hour_end_utc; headline[h.slice(5,7)+h.slice(8,10)+h.slice(11,13)] = row; });
+  map.once("styledata", () => setView("ida"));
+  if (map.isStyleLoaded()) setView("ida");
+});
+
+// zone name in the tooltip: point-in-polygon at hover time via queryRenderedFeatures on the zones layer
+const tip = document.getElementById("tip");
+map.on("mousemove", "cells", e => {
+  const f = e.features[0].properties;
+  const z = map.queryRenderedFeatures(e.point, { layers: ["zones-fill"] })[0]?.properties;
+  const r = f["r" + hour], n = f["n" + hour], c = f["c" + hour];
+  tip.style.display = "block"; tip.style.left = e.point.x + 14 + "px"; tip.style.top = e.point.y + 14 + "px";
+  tip.innerHTML = `<b>${z ? z.zone_name + ", " + z.borough : "outside a taxi zone"}</b><br>Cell ${f.cell}<br>` +
+    (r == null ? "fewer than 20 Legs on an arm" : `ratio ${r.toFixed(2)} (storm ${n} Legs, control ${c})`);
+});
+map.on("mouseleave", "cells", () => tip.style.display = "none");
+map.on("mousemove", "live", e => {
+  const f = e.features[0].properties;
+  tip.style.display = "block"; tip.style.left = e.point.x + 14 + "px"; tip.style.top = e.point.y + 14 + "px";
+  tip.innerHTML = `<b>${f.route_id}</b> ${f.vehicle_id}<br>occupancy ${f.occupancy ?? "not reported"}<br>` +
+    (f.pred_next_s != null ? `next stop ${f.next_stop_id} predicted in ${f.pred_next_s} s` : "no TU prediction");
+});
+map.on("mouseleave", "live", () => tip.style.display = "none");
+
+// live refresh: re-fetch the exported file every 30 s (cache-busted); meta.json carries the as-of
+async function refreshLive() {
+  try {
+    const t = Date.now();
+    const meta = await (await fetch("files/meta.json?t=" + t)).json();
+    if (!meta.error) map.getSource("live").setData("files/live.geojson?t=" + t);
+    const staleAfter = meta.source === "bronze" ? 900 : 120;  // Bronze flushes 10-min parts; the stream writes every 30 s
+    const stale = meta.error || meta.stale || (meta.vp_age_s ?? 1e9) > staleAfter;
+    document.getElementById("livetitle").textContent = stale ? "STALE: the pipeline is not writing" : "Live: the fleet right now";
+    map.setPaintProperty("live", "circle-opacity", stale ? 0.25 : 0.9);
+    document.getElementById("livemeta").textContent = meta.error ? `exporter error: ${meta.error}` :
+      `${meta.n_vehicles} vehicles in the last ${meta.window_min} min (wall clock), VP fetched ${meta.vp_fetched_at_utc} (${meta.vp_age_s} s ago), ` +
+      `${meta.n_with_prediction} with a TU next-stop prediction, ${meta.n_in_rain_cells} in Cells at >= 1 mm; source ${meta.source}` +
+      (meta.stream_progress ? `; stream batch ${meta.stream_progress.batch_id}, ${meta.stream_progress.rows} rows` : "; stream progress: n/a");
+    document.getElementById("delaystate").textContent = meta.n_with_trip_delay ? `${meta.n_with_trip_delay} vehicles` : "unavailable (decoder build item)";
+    document.getElementById("rainstate").textContent = meta.precip_valid_ts ? `valid ${meta.precip_valid_ts}` : "no precip table yet";
+  } catch (err) { document.getElementById("livetitle").textContent = "STALE: live export not running"; document.getElementById("livemeta").textContent = "meta.json missing"; }
+}
+document.getElementById("livetoggle").addEventListener("change", e =>
+  map.setLayoutProperty("live", "visibility", e.target.checked ? "visible" : "none"));
+map.once("load", () => { refreshLive(); setInterval(refreshLive, 30000); });
+new ResizeObserver(() => map.resize()).observe(document.getElementById("map"));
+</script>
+</body>
+</html>

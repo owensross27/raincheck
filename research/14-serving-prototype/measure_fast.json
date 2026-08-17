@@ -1,0 +1,65 @@
+{
+ "duckdb_version": "1.5.5",
+ "spatial": "ok",
+ "h3_ext": "POLYGON ((-73.967887 40.786545, -73.974272 40.785492, -73.97",
+ "vp_files": 36,
+ "vp_last_fetched_at": "1786939200 2026-08-17T04:00:00Z",
+ "latest_query_s": 0.25,
+ "latest_rows": 813,
+ "gdal_geojson_s": 0.01,
+ "live_geojson_bytes": 269531,
+ "live_geojson_gz": 35463,
+ "live_geojson_head": "{\n\"type\": \"FeatureCollection\",\n\"name\": \"live_gdal\",\n\"features\": [\n{ \"type\": \"Feature\", \"properties\": { \"vehicle_id\": \"MTA NYCT_307\", \"trip_id\": \"WF_C6-Sunday-13",
+ "json_geojson_s": 0.01,
+ "json_geojson_bytes": 174853,
+ "json_geojson_gz": 27793,
+ "cdn": {
+  "maplibre-gl@5.9.0 js": {
+   "raw": 954516,
+   "gz": 249989,
+   "url": "https://unpkg.com/maplibre-gl@5.9.0/dist/maplibre-gl.js"
+  },
+  "maplibre-gl@5.9.0 css": {
+   "raw": 69430,
+   "gz": 9989,
+   "url": "https://unpkg.com/maplibre-gl@5.9.0/dist/maplibre-gl.css"
+  },
+  "pmtiles@4.4.1": {
+   "raw": 19668,
+   "gz": 7755,
+   "url": "https://unpkg.com/pmtiles@4.4.1/dist/pmtiles.js"
+  },
+  "h3-js@4 umd": {
+   "raw": 216070,
+   "gz": 65550,
+   "url": "https://unpkg.com/h3-js@4.5.0/dist/h3-js.umd.js"
+  },
+  "deck.gl@9 min": {
+   "raw": 1648135,
+   "gz": 470477,
+   "url": "https://unpkg.com/deck.gl@9.3.10/dist.min.js"
+  },
+  "duckdb-wasm eh wasm": {
+   "raw": 35913747,
+   "gz": 8063914,
+   "url": "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm/dist/duckdb-eh.wasm"
+  },
+  "duckdb-wasm browser-eh worker": {
+   "raw": 773223,
+   "gz": 188242,
+   "url": "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js"
+  },
+  "duckdb-wasm browser js": {
+   "raw": 32000,
+   "gz": 8313,
+   "url": "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm/dist/duckdb-browser.mjs"
+  }
+ },
+ "http_server_range": [
+  false,
+  false
+ ],
+ "RangeHTTPServer_installed_here": false,
+ "protomaps_latest": "20260816.pmtiles",
+ "protomaps_dryrun": "2026/08/17 00:07:37 extract.go:401: fetching 7 dirs, 7 chunks, 7 requests\n2026/08/17 00:07:38 extract.go:441: Region tiles 4986, result tile entries 4323\n2026/08/17 00:07:38 extract.go:450: fetching 4323 tiles, 118 chunks, 36 requests\n2026/08/17 00:07:38 extract.go:606: Completed in 1.693299334s with 4 download threads (2553.00395418855 tiles/s).\n2026/08/17 00:07:38 extract.go:611: Extract required 46 total requests.\n2026/08/17 00:07:38 extract.go:612: Extract transferred 118 MB (overfetch 0.05) for an archive size of 112 MB\n"
+}

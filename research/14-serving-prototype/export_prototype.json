@@ -1,0 +1,62 @@
+{
+ "legs_2021-09-01": {
+  "raw": 2534393,
+  "after_trip_dt_speed": 2354820,
+  "after_terminal": 2197412,
+  "yield": 0.867,
+  "s": 0.7
+ },
+ "legs_2021-08-25": {
+  "raw": 2665811,
+  "after_trip_dt_speed": 2486215,
+  "after_terminal": 2309821,
+  "yield": 0.866,
+  "s": 0.6
+ },
+ "legs_2023-09-29": {
+  "raw": 2365999,
+  "after_trip_dt_speed": 2208049,
+  "after_terminal": 2112412,
+  "yield": 0.893,
+  "s": 0.6
+ },
+ "legs_2023-09-22": {
+  "raw": 2457458,
+  "after_trip_dt_speed": 2304808,
+  "after_terminal": 2172304,
+  "yield": 0.884,
+  "s": 0.5
+ },
+ "footprint_cells_any_day": 1391,
+ "bbox_cells": 4113,
+ "cells_geojson_footprint_bytes_gz": [
+  599329,
+  95550
+ ],
+ "cells_geojson_bbox4113_bytes_gz": [
+  1349435,
+  192061
+ ],
+ "cells_geojson_footprint_geometry_only": [
+  383141,
+  49572
+ ],
+ "cells_geojson_footprint_prec6": [
+  618798,
+  100874
+ ],
+ "props_per_cell_max": 36,
+ "cells_with_any_ratio": 828,
+ "taxi_zones_zip_bytes": 1022574,
+ "times_square_axis_check": "POINT (-73.98549990660595 40.75800005898514)",
+ "zones_export_s": 0.1,
+ "zones_geojson_bytes_gz": [
+  344734,
+  88799
+ ],
+ "zones_rows": 263,
+ "duckdb_h3_boundaries": [
+  4113,
+  0.018
+ ]
+}

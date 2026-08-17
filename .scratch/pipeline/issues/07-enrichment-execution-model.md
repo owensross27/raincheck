@@ -145,3 +145,20 @@ to this job); the converter is `make nbp DATE=` (pyarrow, one xz file, schema fr
 `archiver.TYPES`, idempotent by part name); `events DATE=` writes `pick_gap = true` rows
 rather than aborting; the 10 GB budget covers `data/archive/` only (asset section 3
 says all of `data/`); `RAINCHECK_ARCHIVE_ROOT` is a build item.
+
+## Comments
+
+2026-08-17, from [14 Serving surface for the two showcase artifacts](14-serving-surface.md): four Makefile targets ride on your list - `vendor` (MapLibre
+5.9.0 js+css into gitignored `web/vendor/`), `export` (`raincheck/export.py` running
+`web/export.sql` -> `web/files/`), `live-export [SOURCE=bronze]` (a 30 s foreground
+DuckDB loop, on demand like `make stream`), `web` (`python -m http.server` from `web/`).
+The live read pattern every live layout must satisfy: last 10 min by wall clock
+(never `max(fetched_at)`), `date IN (today, yesterday) AND hour IN (HH, HH-1)` literals,
+latest per key, VP + TU joined at read, precip already on the VP row (your
+`with_live_precip` - the exporter never re-joins it). One three-line build item in the
+streaming job: `foreachBatch` writes `data/live/_progress.json` (batch_id, end
+timestamp, rows) so the page can show the Kafka -> Spark -> Parquet rail and tell a
+dead stream from a dead exporter. `web/files/` and `web/vendor/` need explicit
+gitignore lines (the repo `data/` rule does not cover them). The GDAL GeoJSON writer is
+not used anywhere: it emits `null` for missing values (pure-SQL `json_merge_patch`
+writer instead).

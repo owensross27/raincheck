@@ -1,0 +1,1 @@
+{"as_of_utc": "2026-08-17T04:11:19Z", "source": "bronze", "window_min": 20, "error": null, "stale": false, "vp_fetched_at_utc": "2026-08-17T04:10:01Z", "vp_age_s": 78, "tu_fetched_at_utc": "2026-08-17T04:08:31Z", "n_vehicles": 847, "n_with_prediction": 750, "n_with_trip_delay": 0, "n_in_rain_cells": 0, "precip_valid_ts": null, "stream_progress": null, "export_s": 0.06}
