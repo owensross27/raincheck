@@ -237,8 +237,11 @@ if ! command -v aws >/dev/null 2>&1; then
   warn "aws CLI not on PATH - install it, then run: make coldpush && make coldcheck"
 else
   say "Listing the bucket to prove the credentials work..."
+  note "If this fails with a TLS handshake error right after account creation, the"
+  note "endpoint hostname is still propagating - wait 2-3 minutes and re-run the wizard."
   ENDPOINT=$(_existing RAINCHECK_COLD_ENDPOINT)
-  if AWS_ACCESS_KEY_ID="$RAINCHECK_COLD_KEY_ID" AWS_SECRET_ACCESS_KEY="$RAINCHECK_COLD_SECRET" \
+  # AWS_DEFAULT_REGION=auto: R2 rejects real AWS region names a stale local config may set
+  if AWS_DEFAULT_REGION=auto AWS_ACCESS_KEY_ID="$RAINCHECK_COLD_KEY_ID" AWS_SECRET_ACCESS_KEY="$RAINCHECK_COLD_SECRET" \
      aws s3 ls "s3://$RAINCHECK_COLD_BUCKET" --endpoint-url "$ENDPOINT" >/dev/null; then
     printf '  %s✓ credentials work%s - bucket reachable\n' "$GREEN" "$RESET"
     if confirm "Run the first push now (make coldpush && make coldcheck, ~3.7 GB upload)?"; then

@@ -50,7 +50,7 @@ test:
 # RAINCHECK_COLD_* come from .env; scripts/cold-storage-wizard.sh writes them.
 # Recipes are @-silenced so the expanded credentials never echo to the terminal.
 .PHONY: coldpush coldcheck
-COLD = AWS_ACCESS_KEY_ID=$(RAINCHECK_COLD_KEY_ID) AWS_SECRET_ACCESS_KEY=$(RAINCHECK_COLD_SECRET) \
+COLD = AWS_DEFAULT_REGION=auto AWS_ACCESS_KEY_ID=$(RAINCHECK_COLD_KEY_ID) AWS_SECRET_ACCESS_KEY=$(RAINCHECK_COLD_SECRET) \
 	aws s3 --endpoint-url $(RAINCHECK_COLD_ENDPOINT)
 COLD_READY = test -n "$(RAINCHECK_COLD_BUCKET)" && test -n "$(RAINCHECK_COLD_ENDPOINT)" \
 	|| { echo "cold storage unconfigured - run scripts/cold-storage-wizard.sh"; exit 1; }

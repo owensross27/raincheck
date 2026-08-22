@@ -77,3 +77,12 @@ COLD_* names avoid colliding with any global AWS identity. Wizard:
 `scripts/cold-storage-wizard.sh` (bash -n clean, committed as the repeatable setup path).
 Verified: unconfigured guard exits loudly; Makefile parses; full end-to-end push+check
 runs in wizard stage 5 once Ross creates the bucket.
+
+**Post-wizard notes (2026-08-22, from Ross's first run via the overview session):**
+1. Verify can fail with a TLS handshake error immediately after account/bucket creation —
+   the R2 endpoint hostname takes a few minutes to start serving TLS. Not a bug; wait
+   2-3 minutes and re-run. The wizard now says so at the verify step.
+2. Real bug, fixed: a stale local AWS default region (us-east-2) makes R2 reject requests
+   with InvalidRegionName (R2 accepts only `auto` and its own region codes).
+   `AWS_DEFAULT_REGION=auto` is now pinned in both the Makefile `COLD` variable (overview
+   session's fix, folded in) and the wizard's verify step.
