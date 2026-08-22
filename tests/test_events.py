@@ -1,15 +1,22 @@
 """Ticket 05 / 07-2, 10-T7 and the R2 rule tests: enrich.legs on a small fixture (a
 trip-change pair, a dark gap, a stationary pre-departure Leg, a teleport, dedup, the
 stop-flip terminal rule), then the events -> gold -> baseline jobs through seam A (a
-temp data root read back with DuckDB). Spark tests skip without a JVM."""
-from datetime import datetime, timezone
+temp data root read back with DuckDB). Ticket 07: Passages and Delay - the DST noon
+rule (2024-03-10 / 2024-11-03, plus the real 2021-11-07 fall-back fragment against the
+mini Pick), the envelope/flap/interpolation rules, the multi-vehicle trip key, the
+pick_gap path and events idempotence. Spark tests skip without a JVM."""
+import shutil
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
+from conftest import FRAG, T1, land_pick
 
 from raincheck import duck
+
+FIXTURES = Path(__file__).parent / "fixtures"
 
 T0 = int(datetime(2021, 9, 2, 2, 30, tzinfo=timezone.utc).timestamp())
 H03 = datetime(2021, 9, 2, 3, tzinfo=timezone.utc)
@@ -115,9 +122,10 @@ def write_bronze(root: Path, day: str, hour: str, rows: list[tuple]) -> None:
     from raincheck.nbp import COLUMNS
 
     cols = {c: [] for c in COLUMNS}
-    for v, trip, route, start, stop, lat, lon, ts, fetched in rows:
+    for v, trip, route, start, stop, lat, lon, ts, fetched, *rel in rows:
         vals = dict(vehicle_id=v, trip_id=trip, route_id=route, direction_id=None,
-                    start_date=start, lat=lat, lon=lon, bearing=None, stop_id=stop,
+                    start_date=start, schedule_relationship=rel[0] if rel else None,
+                    lat=lat, lon=lon, bearing=None, stop_id=stop,
                     ts=ts, occupancy=None, fetched_at=fetched)
         for c in COLUMNS:
             cols[c].append(vals[c])
@@ -156,6 +164,7 @@ def built(spark, tmp_path_factory):
     write_bronze(root, "2021-08-31", "23", aug[2:])
     events.leg_hours(root, spark, "2021-09-02")
     events.leg_hours(root, spark, "2021-08-31")
+    events.events(root, spark, "2021-09-02")  # no ref/picks at all -> pick_gap path
     gold.speed(root, spark, "2021-09")
     gold.speed(root, spark, "2021-08")
 
@@ -213,8 +222,11 @@ def test_events_idempotent_and_stray_staging(built, spark):
 
     root, _ = built
     before = read_rows(root, "silver/leg_hours")
+    before_ev = read_rows(root, "silver/events")
     events.leg_hours(root, spark, "2021-09-02")
+    events.events(root, spark, "2021-09-02")
     assert read_rows(root, "silver/leg_hours") == before  # same rows and key set
+    assert read_rows(root, "silver/events") == before_ev
     junk = root / ".staging" / "leg_hours_2021-09-02"
     junk.mkdir(parents=True, exist_ok=True)
     pq.write_table(pa.table({"cell": pa.array([1], pa.int64())}), junk / "part-00000.parquet")
@@ -284,3 +296,186 @@ def test_gates_slice_not_loaded(tmp_path, monkeypatch, capsys):
         gates.main()
     assert exc.value.code == 2  # the gates never ran - not a silent pass
     assert "slice not loaded" in capsys.readouterr().out
+
+
+# --- ticket 07: Passages and Delay ----------------------------------------------------
+
+def utc_s(*args) -> int:
+    return int(datetime(*args, tzinfo=timezone.utc).timestamp())
+
+
+def row(v, trip, route, start, stop, ts, lat=40.61, lon=-73.95, rel=None):
+    return (v, trip, route, start, stop, lat, lon, ts, None, rel)
+
+
+@pytest.fixture(scope="module")
+def pick_built(spark, tmp_path_factory):
+    """A temp root with the mini Pick loaded, the real 2021-11-07 DST fragment converted,
+    and synthetic Bronze days for the noon-rule pair, the envelope rules and the pick_gap
+    path; events run for each service day."""
+    from raincheck import events, nbp, schedule
+
+    root = tmp_path_factory.mktemp("passages")
+    pick_id = land_pick(root)
+    schedule.load(root, spark, pick_id)
+
+    src = root / "archive" / "nycbuspositions" / "2021" / "11" / "2021-11-07-bus-positions.csv.xz"
+    src.parent.mkdir(parents=True)
+    shutil.copy(FIXTURES / "nbp-2021-11-07-fragment.csv.xz", src)
+    nbp.convert(root, "2021-11-07")
+
+    # the DST pair (spec F): same UTC wall times on the spring-forward and fall-back
+    # Sundays; FRAG's stop 304943 is scheduled 06:50:00 local
+    for day8 in ("20240310", "20241103"):
+        d = f"{day8[:4]}-{day8[4:6]}-{day8[6:]}"
+        write_bronze(root, d, "10", [
+            row("vd", FRAG, "Q59", day8, "304943", utc_s(int(day8[:4]), int(day8[4:6]), int(day8[6:]), 10, 52)),
+            row("vd", FRAG, "Q59", day8, "503476", utc_s(int(day8[:4]), int(day8[4:6]), int(day8[6:]), 10, 54))])
+    # envelope day (a Tuesday, WKD): S1 S2 [flap S1] S3 S5 - passage of 1, 2, 3 and an
+    # interpolated 4; a second vehicle serves the same trip (multi-vehicle key)
+    t0 = utc_s(2024, 3, 12, 12, 0)
+    write_bronze(root, "2024-03-12", "12",
+                 [row("va", T1, "B41", "20240312", "S1", t0),
+                  row("va", T1, "B41", "20240312", "S2", t0 + 60),
+                  row("va", T1, "B41", "20240312", "S1", t0 + 120),
+                  row("va", T1, "B41", "20240312", "S3", t0 + 180),
+                  row("va", T1, "B41", "20240312", "S5", t0 + 240),
+                  row("vb", T1, "B41", "20240312", "S1", t0),
+                  row("vb", T1, "B41", "20240312", "S2", t0 + 90),
+                  # CANCELED filtered before construction; an ADDED trip (absent from the
+                  # static by definition) flows through the observed path flagged verbatim
+                  row("vc", T1, "B41", "20240312", "S1", t0, rel="CANCELED"),
+                  row("vc", T1, "B41", "20240312", "S2", t0 + 60, rel="CANCELED"),
+                  row("vd2", "MV_C1-Weekday-099999_B41_999", "B41", "20240312", "S1", t0, rel="ADDED"),
+                  row("vd2", "MV_C1-Weekday-099999_B41_999", "B41", "20240312", "S2", t0 + 60, rel="ADDED")])
+    # pick_gap day (2021-09-02: no service in the mini Pick): flips A->B->A->C; the
+    # second passage of A is a flap artifact and is dropped by the first-occurrence rule
+    t1 = utc_s(2021, 9, 2, 12, 0)
+    write_bronze(root, "2021-09-02", "12",
+                 [row("vg", "GAP_TRIP", "B99", "20210902", s, t1 + k * 60, lat=40.61 + k * 3e-4)
+                  for k, s in enumerate(["A", "B", "A", "C"])])
+    for day in ("2021-11-07", "2024-03-10", "2024-11-03", "2024-03-12", "2021-09-02"):
+        events.events(root, spark, day)
+    return root, pick_id
+
+
+def ev_rows(root, day, cols="*", where="TRUE"):
+    con = duck.connect()
+    return con.execute(
+        f"SELECT {cols} FROM read_parquet('{root}/silver/events/**/*.parquet', "
+        f"hive_partitioning = true, hive_types_autocast = false) "
+        f"WHERE service_date = '{day}' AND {where}").fetchall()
+
+
+def test_dst_fallback_fragment(pick_built):
+    """The real 2021-11-07 archive fragment: trip GA_D1-Sunday-039500_Q59_902 flips
+    304943 -> 503476 at 11:37:42Z / 12:09:14Z; scheduled 06:50:00 local = 11:50:00Z
+    under the noon rule (noon EST after the fall-back)."""
+    root, pick_id = pick_built
+    ((arr, delay, censor, first, gap, pid, src, seq),) = ev_rows(
+        root, "2021-11-07", "arrival_ts, delay_s, censor_width_s, is_first, pick_gap, "
+        "pick_id, arrival_src, stop_sequence",
+        f"trip_id = '{FRAG}' AND vehicle_id = 'MTA NYCT_4571'")
+    assert arr == datetime(2021, 11, 7, 11, 53, 28, tzinfo=timezone.utc)
+    assert delay == 208 and censor == 1892 and seq == 1
+    assert first and not gap and pid == pick_id and src == "vp_passage"
+    # unmatched trips on a covered date: rows kept, no pick_id, pick_gap stays false
+    n_unmatched = ev_rows(root, "2021-11-07", "count(*)", "pick_id IS NULL")[0][0]
+    assert n_unmatched > 0
+    assert ev_rows(root, "2021-11-07", "count(*)", "pick_gap")[0][0] == 0
+
+
+def test_noon_rule_dst_pair(pick_built):
+    """06's required unit test: identical UTC arrivals on 2024-03-10 (spring forward)
+    and 2024-11-03 (fall back) differ by exactly the DST hour in delay_s."""
+    root, _ = pick_built
+    (spring,) = ev_rows(root, "2024-03-10", "delay_s", f"trip_id = '{FRAG}'")
+    (fall,) = ev_rows(root, "2024-11-03", "delay_s", f"trip_id = '{FRAG}'")
+    assert spring[0] == 180        # sched 10:50:00Z (noon EDT 16:00Z - 12 h + 24600 s)
+    assert fall[0] == 180 - 3600   # sched 11:50:00Z (noon EST 17:00Z - 12 h + 24600 s)
+
+
+def test_envelope_flap_interpolation_and_key(pick_built):
+    root, _ = pick_built
+    got = ev_rows(root, "2024-03-12", "stop_sequence, stop_id, arrival_ts, censor_width_s, "
+                  "interpolated, interp_k, arrival_src, segment_s, sched_segment_s, "
+                  "segment_excess_s, n_vehicles_on_trip",
+                  "vehicle_id = 'va' ORDER BY stop_sequence")
+    t0 = datetime(2024, 3, 12, 12, 0, tzinfo=timezone.utc)
+    assert [(r[0], r[1]) for r in got] == [(1, "S1"), (2, "S2"), (3, "S3"), (4, "S4")]
+    arr = {r[0]: r[2] for r in got}
+    assert arr[1] == t0 + timedelta(seconds=30)
+    assert arr[3] == t0 + timedelta(seconds=210)
+    assert arr[4] == t0 + timedelta(seconds=225)  # halfway by shape distance
+    interp = {r[0]: (r[4], r[5], r[6]) for r in got}
+    assert interp[3] == (False, None, "vp_passage")
+    assert interp[4] == (True, 2, "interpolated")
+    assert [r[7] for r in got] == [None, 120, 60, 15]          # segment_s
+    assert [r[8] for r in got] == [None, 300, 300, 300]        # sched_segment_s
+    assert [r[9] for r in got] == [None, -180, -240, -285]     # segment_excess_s
+    assert all(r[10] == 2 for r in got)                        # both vehicles counted
+    # multi-vehicle key: vb yields its own Passage of S1; the key set is unique
+    assert ev_rows(root, "2024-03-12", "count(*)", "vehicle_id = 'vb'")[0][0] == 1
+    n, uniq = ev_rows(root, "2024-03-12", "count(*), count(DISTINCT (trip_id, "
+                      "stop_sequence, vehicle_id))")[0]
+    assert n == uniq
+
+
+def test_canceled_filtered_added_flagged(pick_built):
+    root, _ = pick_built
+    assert ev_rows(root, "2024-03-12", "count(*)", "vehicle_id = 'vc'")[0][0] == 0
+    ((rel, gap, pid),) = ev_rows(root, "2024-03-12",
+                                 "schedule_relationship, pick_gap, pick_id",
+                                 "vehicle_id = 'vd2'")
+    assert rel == "ADDED" and not gap and pid is None
+
+
+def test_pick_gap_day(pick_built):
+    root, _ = pick_built
+    got = ev_rows(root, "2021-09-02", "stop_sequence, stop_id, pick_gap, pick_id, delay_s, "
+                  "sched_segment_s, segment_s, cell", "TRUE ORDER BY stop_sequence")
+    assert [(r[0], r[1]) for r in got] == [(1, "A"), (2, "B")]  # A's flap repeat dropped
+    assert all(r[2] and r[3] is None and r[4] is None and r[5] is None for r in got)
+    assert got[1][6] == 60 and all(r[7] for r in got)  # observed segment; midpoint Cell
+    with open(root / "silver" / "events_view.sql") as f:
+        assert "pass_lo_ts" in f.read()
+
+
+def test_events_cells_in_ref(pick_built):
+    """08-T7: every distinct events.cell is a ref cell (the fixture id list)."""
+    root, _ = pick_built
+    con = duck.connect()
+    (n,) = con.execute(
+        f"SELECT count(*) FROM (SELECT DISTINCT cell FROM read_parquet("
+        f"'{root}/silver/events/**/*.parquet', hive_partitioning = true, "
+        f"hive_types_autocast = false) WHERE cell IS NOT NULL) e "
+        f"ANTI JOIN read_parquet('{FIXTURES}/ref-cells-ids.parquet') r USING (cell)").fetchone()
+    assert n == 0
+
+
+def test_baseline_prints_and_matched_idempotence(pick_built, spark, capsys):
+    """The coverage / Passage-vs-Prediction regression bounds are printed on the fixture
+    day, and a rerun of a matched day writes identical rows."""
+    from raincheck import events
+
+    root, _ = pick_built
+    before = ev_rows(root, "2021-11-07", "*")
+    events.events(root, spark, "2021-11-07")
+    assert ev_rows(root, "2021-11-07", "*") == before
+    out = capsys.readouterr().out
+    assert "coverage baseline" in out and "[regression bound" in out
+    assert "agreement n/a" in out  # the archive fragment has no TU rows
+
+
+def test_dst_noon_rule_pure(spark):
+    """sched_ts on literals: the two 2024 DST transition days against a plain EST day."""
+    from raincheck.enrich import sched_ts
+    from pyspark.sql import functions as F
+
+    df = spark.createDataFrame(
+        [("20240310",), ("20241103",), ("20240115",)], "start_date string")
+    got = {r.start_date: r.s for r in
+           df.select("start_date", sched_ts(F.col("start_date"), F.lit(28800)).alias("s")).collect()}
+    assert got["20240310"] == datetime(2024, 3, 10, 12, 0)   # 08:00 EDT
+    assert got["20241103"] == datetime(2024, 11, 3, 13, 0)   # 08:00 EST
+    assert got["20240115"] == datetime(2024, 1, 15, 13, 0)   # 08:00 EST

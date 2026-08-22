@@ -29,8 +29,9 @@ from raincheck.paths import data_root
 
 URL = "https://s3.amazonaws.com/nycbuspositions/{y}/{m}/{day}-bus-positions.csv.xz"
 # decode_vp's key order; the census test asserts schema equality with the archiver's parts
-COLUMNS = ("vehicle_id", "trip_id", "route_id", "direction_id", "start_date", "lat", "lon",
-           "bearing", "stop_id", "ts", "occupancy", "fetched_at")
+COLUMNS = ("vehicle_id", "trip_id", "route_id", "direction_id", "start_date",
+           "schedule_relationship", "lat", "lon", "bearing", "stop_id", "ts",
+           "occupancy", "fetched_at")
 
 
 def source(root: Path, day: str) -> Path:
@@ -76,6 +77,7 @@ def convert(root: Path, day: str) -> None:
         "route_id": raw.column("route_id"),
         "direction_id": pa.nulls(len(raw), pa.int64()),
         "start_date": pc.replace_substring(raw.column("trip_start_date"), pattern="-", replacement=""),
+        "schedule_relationship": pa.nulls(len(raw), pa.string()),  # not exported by the archive
         "lat": raw.column("latitude"),
         "lon": raw.column("longitude"),
         "bearing": raw.column("bearing"),

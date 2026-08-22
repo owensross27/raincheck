@@ -93,10 +93,12 @@ def headroom_gate(root: Path, keep_xz: bool) -> None:
     todo_files = sum(1 for d in FILE_DAYS
                      if not any((root / "archive" / "vp").glob(f"date=*/hour=*/part-nbp-{d}.parquet")))
     todo_events = sum(1 for d in SERVICE_DAYS
-                      if not (root / "silver" / "leg_hours" / f"service_date={d}"
-                              / "part-00000.parquet").exists())  # same check as build_events
-    # measured: ~12 MB Bronze + ~10 MB xz per file, ~6 MB leg_hours per day; 0.5 GB margin
-    need = todo_files * (0.022 if keep_xz else 0.012) + todo_events * 0.006 + 0.5
+                      if not all((root / "silver" / t / f"service_date={d}"
+                                  / "part-00000.parquet").exists()
+                                 for t in ("leg_hours", "events")))  # same check as build_events
+    # measured: ~12 MB Bronze + ~10 MB xz per file, ~6 MB leg_hours + ~12 MB events per
+    # day (07: the Ida day wrote 12.1 MB); 0.5 GB margin
+    need = todo_files * (0.022 if keep_xz else 0.012) + todo_events * 0.018 + 0.5
     free = shutil.disk_usage(root).free / 1e9
     if free < need:
         sys.exit(f"slice: {free:.1f} GB free at {root} < {need:.1f} GB peak footprint - "
@@ -127,12 +129,17 @@ def build_events(root: Path, spark, force: bool) -> None:
 
     for d in SERVICE_DAYS:
         day = d.isoformat()
-        out = root / "silver" / "leg_hours" / f"service_date={day}" / "part-00000.parquet"
-        if out.exists() and not force:
+        part = "part-00000.parquet"
+        lh = root / "silver" / "leg_hours" / f"service_date={day}" / part
+        ev = root / "silver" / "events" / f"service_date={day}" / part
+        if lh.exists() and ev.exists() and not force:
             print(f"slice events {day}: cached", flush=True)
             continue
         t0 = time.monotonic()
-        events.leg_hours(root, spark, day)
+        if force or not lh.exists():
+            events.leg_hours(root, spark, day)
+        if force or not ev.exists():  # 07: Passages/Delay (pick_gap rows until 16's picks)
+            events.events(root, spark, day)
         print(f"slice events {day}: {time.monotonic() - t0:.0f}s", flush=True)
 
 

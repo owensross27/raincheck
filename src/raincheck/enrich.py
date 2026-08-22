@@ -18,6 +18,16 @@ def route_class(route_id: Column) -> Column:
             .otherwise("local"))
 
 
+def sched_ts(start_date: Column, arrival_s: Column) -> Column:
+    """DST-safe GTFS noon rule (spec F / 06): local noon of start_date (YYYYMMDD string)
+    in America/New_York minus 12 h plus the Pick's arrival seconds. Anchoring at noon,
+    never midnight, is what survives the 23/25-hour DST days."""
+    noon = F.to_utc_timestamp(
+        F.to_timestamp(F.concat(start_date, F.lit(" 12:00:00")), "yyyyMMdd HH:mm:ss"),
+        "America/New_York")
+    return noon + F.make_dt_interval(secs=(arrival_s - F.lit(43200)).cast("double"))
+
+
 def legs(vp: DataFrame) -> DataFrame:
     """Rule set R2 (spec G) over Bronze VP Pings: one row per candidate Leg with
     `dropped` NULL (kept), 'dark' (dt_s > 300) or 'terminal' (stationary run-end,
@@ -64,3 +74,119 @@ def legs(vp: DataFrame) -> DataFrame:
                     ceil_hour(F.col("mid_ts")).alias("hour_end_utc"),
                     "dist_m", "dt_s", dropped.alias("dropped"),
                     "mid_lon", "mid_lat"))  # for 10-T5's RS_Values probe; aggregates ignore them
+
+
+# --- Passages (ticket 07 / ADR-0001, spec F) -------------------------------------------
+
+PASSAGE_KEY = ["vehicle_id", "trip_id", "start_date"]
+
+
+def _dedupe(vp: DataFrame) -> DataFrame:
+    """Ping identity for Passages is (vehicle_id, ts, stop_id, lat, lon) (06)."""
+    # ponytail: the time axis is ts ordered by (ts, fetched_at); a live frozen-ts
+    # republish collapses to a zero-width bracket instead of walking the fetched_at
+    # axis - upgrade when live-era events land (archive fetched_at is NULL throughout)
+    return vp.dropDuplicates(["vehicle_id", "ts", "stop_id", "lat", "lon"])
+
+
+def passages_matched(vp: DataFrame, sched: DataFrame) -> DataFrame:
+    """Passages for Pings whose trip_id matches a Pick trip active on the service day:
+    monotone envelope of static stop_sequence (backward flaps absorbed), every forward
+    advance is a Passage of the previous envelope stop at the flip midpoint. A multi-stop
+    advance crossed all its intermediate stops inside the same ping gap, so they are
+    interpolated within that gap - from the anchor midpoint toward the gap's end -
+    proportional to cumulative shape distance (linear in stop index when distances are
+    missing or flat). `sched` grain (trip_id, stop_sequence) with stop_id/shape_dist_m.
+    Output: PASSAGE_KEY, route_id, stop_sequence, arr (epoch s, double), censor_width_s,
+    interpolated, interp_k, arrival_src, mid_lat/mid_lon (NULL here)."""
+    w = Window.partitionBy(*PASSAGE_KEY).orderBy(
+        "ts", F.col("fetched_at").asc_nulls_first(), "stop_id")  # stop_id: deterministic ties
+    # a stop repeated within a trip (loop) keeps its smallest stop_sequence
+    seq_map = sched.groupBy("trip_id", "stop_id").agg(
+        F.min("stop_sequence").cast("int").alias("seq"))
+    p = (_dedupe(vp).select(*PASSAGE_KEY, "route_id", "schedule_relationship",
+                            "ts", "fetched_at", "stop_id")
+         .join(seq_map, ["trip_id", "stop_id"], "left")
+         .withColumn("env", F.max("seq").over(w))
+         .withColumn("env_prev", F.lag("env").over(w))
+         .withColumn("lo", F.lag("ts").over(w)))
+    anchors = (p.where(F.col("env_prev").isNotNull() & (F.col("env") > F.col("env_prev")))
+               .select(*PASSAGE_KEY, "route_id", "schedule_relationship",
+                       F.col("env_prev").alias("seq_lo"), F.col("env").alias("seq_hi"),
+                       F.col("ts").cast("double").alias("hi"),
+                       ((F.col("lo") + F.col("ts")) / 2).alias("arr"),
+                       (F.col("ts") - F.col("lo")).cast("long").alias("censor_width_s")))
+    direct = anchors.select(
+        *PASSAGE_KEY, "route_id", "schedule_relationship",
+        F.col("seq_lo").alias("stop_sequence"), "arr", "censor_width_s",
+        F.lit(False).alias("interpolated"), F.lit(None).cast("int").alias("interp_k"),
+        F.lit("vp_passage").alias("arrival_src"))
+    dist = sched.select(F.col("trip_id").alias("d_trip"), F.col("stop_sequence").alias("d_seq"),
+                        F.col("shape_dist_m").alias("d"))
+    gaps = anchors.where(F.col("seq_hi") > F.col("seq_lo") + 1)
+    interp = (gaps
+              .join(dist.select(F.col("d_trip"), F.col("d_seq"), F.col("d").alias("d_lo")),
+                    (gaps.trip_id == F.col("d_trip")) & (gaps.seq_lo == F.col("d_seq")),
+                    "left").drop("d_trip", "d_seq")
+              .join(dist.select(F.col("d_trip"), F.col("d_seq"), F.col("d").alias("d_hi")),
+                    (gaps.trip_id == F.col("d_trip")) & (gaps.seq_hi == F.col("d_seq")),
+                    "left").drop("d_trip", "d_seq")
+              .withColumn("seq_i", F.explode(F.sequence(F.col("seq_lo") + 1,
+                                                        F.col("seq_hi") - 1))))
+    # inner: a seq inside the advance that the static does not schedule (non-contiguous
+    # stop_sequence) yields no row rather than a stop-less event
+    # shape distances must be strictly inside (d_lo, d_hi): a NULL (stop missing from the
+    # shape) or a value clamped onto an endpoint (loop-stop cummax in schedule.py) falls
+    # back to linear-in-stop-index rather than collapsing onto the anchor midpoint
+    usable = (F.col("d_i").isNotNull() & (F.col("d_hi") > F.col("d_lo")) &
+              (F.col("d_i") > F.col("d_lo")) & (F.col("d_i") < F.col("d_hi")))
+    interp = (interp
+              .join(dist.select(F.col("d_trip"), F.col("d_seq"), F.col("d").alias("d_i")),
+                    (interp.trip_id == F.col("d_trip")) & (interp.seq_i == F.col("d_seq")),
+                    "inner").drop("d_trip", "d_seq")
+              .withColumn("frac", F.when(
+                  usable, (F.col("d_i") - F.col("d_lo")) / (F.col("d_hi") - F.col("d_lo")))
+                  .otherwise((F.col("seq_i") - F.col("seq_lo")).cast("double")
+                             / (F.col("seq_hi") - F.col("seq_lo"))))
+              .select(*PASSAGE_KEY, "route_id", "schedule_relationship",
+                      F.col("seq_i").alias("stop_sequence"),
+                      # ms rounding: float32 shape distances would smear exact fractions
+                      F.round(F.col("arr") + F.col("frac") * (F.col("hi") - F.col("arr")),
+                              3).alias("arr"),
+                      "censor_width_s", F.lit(True).alias("interpolated"),
+                      (F.col("seq_hi") - F.col("seq_lo")).cast("int").alias("interp_k"),
+                      F.lit("interpolated").alias("arrival_src")))
+    return direct.unionByName(interp)
+
+
+def passages_observed(vp: DataFrame) -> DataFrame:
+    """Passages for Pings with no static match (a pick_gap date, or a trip absent from
+    the Pick): every observed stop_id change is a Passage of the previous stop_id at the
+    flip midpoint. No static ordering exists, so stop_sequence is the observed flip
+    ordinal, repeats of a stop_id are dropped (absorbs A-B-A flap artifacts; loop trips
+    lose their second visit), nothing is interpolated and the position midpoint rides
+    along for the Cell. Replaced wholesale when a Pick lands (ticket 16)."""
+    w = Window.partitionBy(*PASSAGE_KEY).orderBy(
+        "ts", F.col("fetched_at").asc_nulls_first(), "stop_id")  # stop_id: deterministic ties
+    p = (_dedupe(vp).where(F.col("trip_id").isNotNull() & F.col("stop_id").isNotNull())
+         .select(*PASSAGE_KEY, "route_id", "schedule_relationship",
+                 "ts", "fetched_at", "stop_id", "lat", "lon")
+         .withColumn("prev_stop", F.lag("stop_id").over(w))
+         .withColumn("lo", F.lag("ts").over(w))
+         .withColumn("lo_lat", F.lag("lat").over(w))
+         .withColumn("lo_lon", F.lag("lon").over(w)))
+    flips = (p.where(F.col("prev_stop").isNotNull() & (F.col("stop_id") != F.col("prev_stop")))
+             .withColumn("rn", F.row_number().over(
+                 Window.partitionBy(*PASSAGE_KEY, "prev_stop").orderBy("lo")))
+             .where(F.col("rn") == 1))
+    return (flips
+            .withColumn("stop_sequence", F.row_number().over(
+                Window.partitionBy(*PASSAGE_KEY).orderBy("lo")))
+            .select(*PASSAGE_KEY, "route_id", "schedule_relationship", "stop_sequence",
+                    F.col("prev_stop").alias("stop_id"),
+                    ((F.col("lo") + F.col("ts")) / 2).alias("arr"),
+                    (F.col("ts") - F.col("lo")).cast("long").alias("censor_width_s"),
+                    F.lit(False).alias("interpolated"), F.lit(None).cast("int").alias("interp_k"),
+                    F.lit("vp_passage").alias("arrival_src"),
+                    ((F.col("lo_lat") + F.col("lat")) / 2).alias("mid_lat"),
+                    ((F.col("lo_lon") + F.col("lon")) / 2).alias("mid_lon")))

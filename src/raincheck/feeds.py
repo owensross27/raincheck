@@ -18,6 +18,7 @@ FEEDS = {
 
 OCCUPANCY = gtfs_realtime_pb2.VehiclePosition.OccupancyStatus
 STATUS = gtfs_realtime_pb2.VehiclePosition.VehicleStopStatus
+TRIP_REL = gtfs_realtime_pb2.TripDescriptor.ScheduleRelationship
 CAUSE, EFFECT = gtfs_realtime_pb2.Alert.Cause, gtfs_realtime_pb2.Alert.Effect
 DIRECTION = nyct.NyctTripDescriptor.Direction
 
@@ -47,6 +48,9 @@ def decode_vp(feed) -> list[dict]:
             "route_id": v.trip.route_id or None,
             "direction_id": v.trip.direction_id if v.trip.HasField("direction_id") else None,
             "start_date": v.trip.start_date or None,
+            # 07: verbatim per spec F - events filters CANCELED, flags ADDED/DUPLICATED
+            "schedule_relationship": TRIP_REL.Name(v.trip.schedule_relationship)
+            if v.trip.HasField("schedule_relationship") else None,
             "lat": v.position.latitude,
             "lon": v.position.longitude,
             "bearing": v.position.bearing if v.position.HasField("bearing") else None,

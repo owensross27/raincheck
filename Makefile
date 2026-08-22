@@ -8,7 +8,7 @@ export TZ := UTC
 export RAINCHECK_ARCHIVE_ROOT RAINCHECK_BRONZE_GB
 PY := .venv/bin/python
 
-.PHONY: warm ref nbp precip-hourly precip-cell events gold baseline gates slice test
+.PHONY: warm ref nbp precip-hourly precip-cell schedule events gold baseline gates slice test
 
 warm:  ## start one session through the factory: warms the Ivy cache once (~240 MB), proves the stack
 	$(PY) -c "from raincheck.spark import session; s = session(); print('spark', s.version); s.stop()"
@@ -25,7 +25,10 @@ precip-hourly:  ## Pixel-grain precip for one month (make precip-hourly SRC=aorc
 precip-cell:  ## Cell-grain precip for one month (make precip-cell SRC=aorc MONTH=YYYY-MM)
 	$(PY) -m raincheck.precip cell $(SRC) $(MONTH)
 
-events:  ## derive Legs (R2) and write silver/leg_hours for one service day (make events DATE=YYYY-MM-DD)
+schedule:  ## load one registered Pick's schedule tables (make schedule PICK=<pick_id sha1>)
+	$(PY) -m raincheck.schedule $(PICK)
+
+events:  ## Legs (R2) -> silver/leg_hours and Passages/Delay -> silver/events for one service day (make events DATE=YYYY-MM-DD)
 	$(PY) -m raincheck.events $(DATE)
 
 gold:  ## roll leg_hours into gold/cell_hour_speed for one month (make gold MONTH=YYYY-MM)
