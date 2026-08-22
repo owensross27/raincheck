@@ -8,7 +8,7 @@ export TZ := UTC
 export RAINCHECK_ARCHIVE_ROOT RAINCHECK_BRONZE_GB
 PY := .venv/bin/python
 
-.PHONY: warm ref nbp test
+.PHONY: warm ref nbp precip-hourly precip-cell test
 
 warm:  ## start one session through the factory: warms the Ivy cache once (~240 MB), proves the stack
 	$(PY) -c "from raincheck.spark import session; s = session(); print('spark', s.version); s.stop()"
@@ -18,6 +18,12 @@ ref:  ## build every ref/ lookup table (ticket 02)
 
 nbp:  ## convert one nycbuspositions UTC day to Bronze VP (make nbp DATE=YYYY-MM-DD)
 	$(PY) -m raincheck.nbp $(DATE)
+
+precip-hourly:  ## Pixel-grain precip for one month (make precip-hourly SRC=aorc MONTH=YYYY-MM)
+	$(PY) -m raincheck.precip hourly $(SRC) $(MONTH)
+
+precip-cell:  ## Cell-grain precip for one month (make precip-cell SRC=aorc MONTH=YYYY-MM)
+	$(PY) -m raincheck.precip cell $(SRC) $(MONTH)
 
 test:
 	$(PY) -m pytest -q
