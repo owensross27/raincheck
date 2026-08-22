@@ -31,8 +31,8 @@ schedule:  ## load one registered Pick's schedule tables (make schedule PICK=<pi
 events:  ## Legs (R2) -> silver/leg_hours and Passages/Delay -> silver/events for one service day (make events DATE=YYYY-MM-DD)
 	$(PY) -m raincheck.events $(DATE)
 
-gold:  ## roll leg_hours into gold/cell_hour_speed for one month (make gold MONTH=YYYY-MM)
-	$(PY) -m raincheck.gold speed $(MONTH)
+gold:  ## roll leg_hours -> gold/cell_hour_speed and events -> gold/cell_hour_route for one month (make gold MONTH=YYYY-MM)
+	$(PY) -m raincheck.gold month $(MONTH)
 
 baseline:  ## dry hour-of-week Speed baseline for one window (make baseline WINDOW=w1|w2)
 	$(PY) -m raincheck.gold baseline $(WINDOW)
@@ -45,3 +45,23 @@ slice:  ## the whole two-window slice: convert 124 files (T1 each), events x122,
 
 test:
 	$(PY) -m pytest -q
+
+# --- ticket 18: Bronze cold storage (Cloudflare R2 via aws s3 sync) ---------------
+# RAINCHECK_COLD_* come from .env; scripts/cold-storage-wizard.sh writes them.
+# Recipes are @-silenced so the expanded credentials never echo to the terminal.
+.PHONY: coldpush coldcheck
+COLD = AWS_ACCESS_KEY_ID=$(RAINCHECK_COLD_KEY_ID) AWS_SECRET_ACCESS_KEY=$(RAINCHECK_COLD_SECRET) \
+	aws s3 --endpoint-url $(RAINCHECK_COLD_ENDPOINT)
+COLD_READY = test -n "$(RAINCHECK_COLD_BUCKET)" && test -n "$(RAINCHECK_COLD_ENDPOINT)" \
+	|| { echo "cold storage unconfigured - run scripts/cold-storage-wizard.sh"; exit 1; }
+
+coldpush:  ## one-way push of <root>/archive to the R2 bucket; idempotent, never deletes remote
+	@$(COLD_READY)
+	@echo "coldpush: $${RAINCHECK_ARCHIVE_ROOT:-data}/archive -> s3://$(RAINCHECK_COLD_BUCKET)/archive"
+	@$(COLD) sync "$${RAINCHECK_ARCHIVE_ROOT:-data}/archive" "s3://$(RAINCHECK_COLD_BUCKET)/archive" --no-progress
+
+coldcheck:  ## loud gap check: every local Bronze file present remotely with matching size
+	@$(COLD_READY)
+	@out=$$($(COLD) sync "$${RAINCHECK_ARCHIVE_ROOT:-data}/archive" "s3://$(RAINCHECK_COLD_BUCKET)/archive" --size-only --dryrun); \
+	if [ -n "$$out" ]; then printf '%s\n' "$$out"; echo "coldcheck: GAP - files above are missing or size-mismatched remotely"; exit 1; \
+	else echo "coldcheck: OK - local Bronze fully present remotely"; fi
