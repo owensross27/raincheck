@@ -8,10 +8,13 @@ export TZ := UTC
 export RAINCHECK_ARCHIVE_ROOT RAINCHECK_BRONZE_GB
 PY := .venv/bin/python
 
-.PHONY: warm test
+.PHONY: warm ref test
 
 warm:  ## start one session through the factory: warms the Ivy cache once (~240 MB), proves the stack
 	$(PY) -c "from raincheck.spark import session; s = session(); print('spark', s.version); s.stop()"
+
+ref:  ## build every ref/ lookup table (ticket 02)
+	$(PY) -m raincheck.ref
 
 test:
 	$(PY) -m pytest -q
