@@ -280,5 +280,7 @@ def test_gates_slice_not_loaded(tmp_path, monkeypatch, capsys):
     from raincheck import gates
 
     monkeypatch.setenv("RAINCHECK_ARCHIVE_ROOT", str(tmp_path))
-    gates.main()
+    with pytest.raises(SystemExit) as exc:
+        gates.main()
+    assert exc.value.code == 2  # the gates never ran - not a silent pass
     assert "slice not loaded" in capsys.readouterr().out

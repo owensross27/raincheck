@@ -123,7 +123,7 @@ def main() -> None:
     if missing:
         print(f"slice not loaded: {', '.join(missing)} empty under {root} - "
               f"run make nbp/events/gold (and precip) first")
-        return
+        sys.exit(2)  # distinct from a gate failure; the gates never ran
     con = duck.connect()
     ok, controls = t3(con, root)
     ok &= t6(con, root, controls)

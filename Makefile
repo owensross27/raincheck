@@ -8,7 +8,7 @@ export TZ := UTC
 export RAINCHECK_ARCHIVE_ROOT RAINCHECK_BRONZE_GB
 PY := .venv/bin/python
 
-.PHONY: warm ref nbp precip-hourly precip-cell events gold baseline gates test
+.PHONY: warm ref nbp precip-hourly precip-cell events gold baseline gates slice test
 
 warm:  ## start one session through the factory: warms the Ivy cache once (~240 MB), proves the stack
 	$(PY) -c "from raincheck.spark import session; s = session(); print('spark', s.version); s.stop()"
@@ -36,6 +36,9 @@ baseline:  ## dry hour-of-week Speed baseline for one window (make baseline WIND
 
 gates:  ## tier-2 slice acceptance gates: 10-T3, 10-T6 wired; T4/T5 report-only slots
 	$(PY) -m raincheck.gates
+
+slice:  ## the whole two-window slice: convert 124 files (T1 each), events x122, gold, baselines, gates
+	$(PY) -m raincheck.slice
 
 test:
 	$(PY) -m pytest -q

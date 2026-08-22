@@ -3,9 +3,17 @@
 **What to build:** The two-window slice is converted, enriched and rolled up end to end on this Mac, and the
 project's one gated acceptance test passes: the loader and rules alone reproduce the Ida
 slowdown. Also produces the report-only benchmarks against MTA's published speeds and the
-Product 3 raster comparison. Precondition (operator): external SSD mounted, the data root
-pointing at it, and the archiver's byte budget set to a drive-sized number before the first
-conversion. Spec: E, G, I, M steps 1-3; Testing tier 2.
+Product 3 raster comparison.
+
+**Precondition changed 2026-08-22 (Ross; ticket 18 scope change):** there is no external
+SSD and will not be one — the SSD/RAINCHECK_ARCHIVE_ROOT precondition is dead. Replacement:
+**disk headroom verified + cold storage landed** (either arm suffices to start the load).
+Low-disk rules for the slice runner: process day-by-day; delete each nycbuspositions xz
+immediately after its Bronze day converts and its T1 passes (re-downloadable; deletion
+strictly follows a green T1, so a converted day with no xz counts as verified on resume);
+keep only Silver/Gold plus Bronze not yet pushed to ticket 18's bucket; the driver refuses
+to start without headroom for the remaining peak footprint. `--keep-xz` retains sources
+for the bucket push. Spec: E, G, I, M step 3; Testing tier 2.
 
 **Blocked by:** 03, 05
 

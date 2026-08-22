@@ -62,4 +62,5 @@ def legs(vp: DataFrame) -> DataFrame:
                     route_class(F.col("route_id")).alias("route_class"),
                     F.expr("ST_H3CellIDs(ST_Point(mid_lon, mid_lat), 8, false)[0]").alias("cell"),
                     ceil_hour(F.col("mid_ts")).alias("hour_end_utc"),
-                    "dist_m", "dt_s", dropped.alias("dropped")))
+                    "dist_m", "dt_s", dropped.alias("dropped"),
+                    "mid_lon", "mid_lat"))  # for 10-T5's RS_Values probe; aggregates ignore them
