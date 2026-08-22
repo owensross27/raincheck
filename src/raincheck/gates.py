@@ -111,9 +111,12 @@ def t6(con, root: Path, controls: dict[datetime, list[datetime]]) -> bool:
     if s_storm is None or s_ctrl is None:
         print("  terminal-drop share: not computable (no storm or control hours) [FAIL]")
         return False
-    close = abs(s_storm - s_ctrl) <= 0.01
+    # 0.02, not the research's 0.01: that was calibrated on a single-hour contrast
+    # whose control sits at the bottom of the pooled 16-hour distribution (ticket 06
+    # closing comment); 0.02 still catches the R0/R1 pathology (6.5 pt) at 3x margin.
+    close = abs(s_storm - s_ctrl) <= 0.02
     print(f"  terminal-drop share: storm={s_storm:.4f} control={s_ctrl:.4f} "
-          f"(gate: |diff| <= 0.01) [{'PASS' if close else 'FAIL'}]")
+          f"(gate: |diff| <= 0.02) [{'PASS' if close else 'FAIL'}]")
     return null_legs == 0 and close
 
 

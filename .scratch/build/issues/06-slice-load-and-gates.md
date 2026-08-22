@@ -17,11 +17,11 @@ for the bucket push. Spec: E, G, I, M step 3; Testing tier 2.
 
 **Blocked by:** 03, 05
 
-**Status:** loaded — one open call (T6 terminal gate threshold), see closing comment
+**Status:** resolved — all gates green (T6 terminal threshold widened to 0.02 per Ross, 2026-08-22)
 
 - [x] all 124 archive files converted (2021-08-16..10-16, 2023-09-01..11-01) with 10-T1 green on each; `events DATE=` run for the 122 service days; `gold MONTH=` for the five months; `baseline WINDOW=` for W1 and W2
 - [x] 10-T3 passes: for each Ida hour ending 2021-09-02T03Z and 04Z, the citywide space-mean chord Speed divided by the median of the same citywide same-hour-of-week value over the other eight weeks of W1 (each control hour < 0.1 mm citywide in precip_cell_hourly src=aorc) is <= 0.85 with n_legs >= 15,000; the denominator is computed from cell_hour_speed, never from the baseline table; 02Z and the 2023 hours are printed, not gated
-- [ ] 10-T6 printed: ~1,146 footprint Cells per day, 0 Legs in AORC-NULL Cells, n_dropped_terminal share within 0.01 storm vs control in the T3 hours
+- [x] 10-T6 printed: ~1,146 footprint Cells per day, 0 Legs in AORC-NULL Cells, n_dropped_terminal share within 0.02 storm vs control in the T3 hours (threshold widened from 0.01 — Ross's call after the diagnosis below; spec I's 0.01 should be updated by the wayfinder)
 - [x] 10-T4 report written: W2 route x day-of-week x hour vs Socrata 58t6-89vi (trip-weighted recombination) and both windows route x month x day_type vs cudb-vcni (sum(miles)/sum(hours)); ratio distribution and Spearman rank agreement with the known biases named; no gate set
 - [x] 10-T5 one-off script over the two storm days: RS_Values at the Leg midpoint vs the Cell mean, rain-vs-Speed slope both ways, reported into the 08 evidence notes
 - [x] runtime and disk of the slice recorded (conversion minutes per file, Bronze/Silver/Gold bytes) in the ticket's closing comment
