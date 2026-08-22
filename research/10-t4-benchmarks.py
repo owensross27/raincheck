@@ -77,7 +77,7 @@ def ours(root: Path, where: str, keys: str) -> str:
            -- 08:00). Do not "fix" to AT TIME ZONE 'UTC' - that flips the direction.
            LATERAL (SELECT timezone('{NY}', hour_end_utc - INTERVAL 1 HOUR) AS local_t)
       WHERE {where}
-      GROUP BY 1, {keys}"""
+      GROUP BY ALL"""
 
 
 def main() -> None:
