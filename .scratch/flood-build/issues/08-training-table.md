@@ -15,3 +15,14 @@ step is a read, not a judgment call. Spec: Exposure score (features, era rules);
 - [ ] barred-features assertion: no FloodNet-derived, grade_ok/epoch-delta, alert-derived, borough, asset-count or impact columns exist in the matrix
 - [ ] leakage checks as tests: no feature reads information after Window open (antecedent frozen at open; trailing density strictly before)
 - [ ] DuckDB contract tests: grain uniqueness, positives match gold/flood_labels, era tags, version stamps chaining on label/features/precip identities
+
+## Inherit from flood-03's build (2026-08-23, recorded by the orchestrator)
+
+Two measured facts that change this ticket's design:
+1. SEVEN complexes have entrances but ZERO grade_ok entrances (9 Av, 18 Av, 20 Av,
+   Avenue U, 86 St, Sutter Av, Dyckman St). A read-side GROUP BY over grade_ok children
+   returns NOTHING for them while gold/flood_exposure mandates no NULL scores — apply
+   the ring15_med fallback BEFORE the aggregate, not after.
+2. 60 bus stops have no elevation and no ring fallback: MTA Bus Company stops in Nassau
+   County, outside the NYC DEM footprint entirely. This ticket owes them an explicit
+   policy (exclude-with-count, or a stated out-of-footprint class — never silent NULLs).
