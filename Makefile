@@ -96,3 +96,8 @@ gapverify:  ## sanity: filled hours vs adjacent archiver hours (rows, key covera
 .PHONY: precip-live
 precip-live:  ## one live RadarOnly tick -> live/precip_cell (the 300 s LaunchAgent runs this)
 	$(PY) -m raincheck.precip_live
+
+# --- ticket 12: the streaming job (on demand, foreground, not a daemon) --------------
+.PHONY: stream
+stream:  ## Kafka -> live/vp + live/tu until Ctrl-C (make stream FRESH=1 discards the checkpoints)
+	FRESH=$(FRESH) $(PY) -m raincheck.stream

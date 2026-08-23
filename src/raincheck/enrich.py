@@ -1,5 +1,10 @@
 """Pure DataFrame helpers shared by batch jobs, the streaming job and tests (spec A).
-DataFrame API only, no temp views, no I/O. Grows with tickets 05+."""
+DataFrame API only, no temp views, no I/O except the one `spark.read` inside
+`with_live_precip` (research 07 section 2). Grows with tickets 05+."""
+import sys
+from datetime import datetime
+from pathlib import Path
+
 from pyspark.sql import Column, DataFrame, Window, functions as F
 
 
@@ -74,6 +79,64 @@ def legs(vp: DataFrame) -> DataFrame:
                     ceil_hour(F.col("mid_ts")).alias("hour_end_utc"),
                     "dist_m", "dt_s", dropped.alias("dropped"),
                     "mid_lon", "mid_lat"))  # for 10-T5's RS_Values probe; aggregates ignore them
+
+
+# --- Row-point enrichment for the live tables (ticket 12, spec J) -----------------------
+# Stateless, per row, and the streaming job's only enrichment: the live tables are the raw
+# rows plus these three. `legs` cells the *midpoint* of a Leg - a different grain, not a
+# second implementation of this one.
+
+def with_cell(df: DataFrame) -> DataFrame:
+    """Cell (H3 res 8, INT64 per 09) of the row's own (lon, lat)."""
+    return df.withColumn("cell", F.expr("ST_H3CellIDs(ST_Point(lon, lat), 8, false)[0]"))
+
+
+def with_zone(df: DataFrame, cell_zone: DataFrame) -> DataFrame:
+    """Taxi Zone of the row's Cell from `ref/cell_zone` (4,113 rows, one per Cell, so the
+    broadcast left join is 1:1). A Cell outside every zone carries NULL zone_id/borough -
+    ref/cell_zone already stores it that way."""
+    return df.join(F.broadcast(cell_zone.select("cell", "zone_id", "borough")), "cell", "left")
+
+
+def _no_precip(df: DataFrame) -> DataFrame:
+    return (df.withColumn("mm_1h", F.lit(None).cast("float"))
+              .withColumn("precip_valid_ts", F.lit(None).cast("timestamp")))
+
+
+def with_live_precip(df: DataFrame, root: Path, batch_ts: datetime) -> DataFrame:
+    """The latest complete precip Hour at `batch_ts`, broadcast-joined on cell (spec J).
+
+    `valid_ts` is hour-ending (ADR-0002) and a STRING partition key, so the newest Hour at
+    or before the batch clock is a lexicographic max: a Ping at 20:40 carries the Hour
+    ending 20:00. Every row in a batch carries the same `precip_valid_ts` - that is what
+    "the latest complete Hour" means, and the reader sees the age.
+
+    The read is INSIDE the caller's foreachBatch on purpose: a DataFrame built once from a
+    path keeps its file index and never sees a newly written Hour (measured, research 07 section 0).
+    Latest `fetched_at` wins per (cell, valid_ts) before the join - both because that is
+    the table's read rule and because it keeps the join 1:1. An absent, empty or unreadable
+    table NULLs mm_1h / precip_valid_ts and never fails the batch (spec J).
+    """
+    table = Path(root) / "live" / "precip_cell"
+    if not table.exists():
+        return _no_precip(df)
+    try:
+        live = df.sparkSession.read.parquet(str(table))
+        (valid_ts,) = live.where(F.col("valid_ts") <= F.lit(batch_ts.strftime("%Y-%m-%dT%H"))) \
+                          .agg(F.max("valid_ts")).first()
+    except Exception as exc:  # a torn part or a schema surprise is a NULL batch, never a dead query
+        print(f"with_live_precip: {table} unreadable ({exc}) - mm_1h NULL this batch",
+              file=sys.stderr, flush=True)
+        return _no_precip(df)
+    if valid_ts is None:  # the table holds only Hours later than this batch
+        return _no_precip(df)
+    latest = (live.where(F.col("valid_ts") == F.lit(valid_ts))
+              .withColumn("rn", F.row_number().over(
+                  Window.partitionBy("cell").orderBy(F.col("fetched_at").desc())))
+              .where(F.col("rn") == 1)
+              .select("cell", "mm_1h"))
+    return (df.join(F.broadcast(latest), "cell", "left")
+            .withColumn("precip_valid_ts", F.to_timestamp(F.lit(valid_ts), "yyyy-MM-dd'T'HH")))
 
 
 # --- Passages (ticket 07 / ADR-0001, spec F) -------------------------------------------

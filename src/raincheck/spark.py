@@ -50,6 +50,10 @@ def session(ui: bool = False) -> SparkSession:
         .config("spark.driver.extraJavaOptions", "-Duser.timezone=UTC")
         .config("spark.driver.memory", "3g")
         .config("spark.sql.shuffle.partitions", "16")
+        # 07/12: the streaming job runs two queries in one app - FIFO lets a 62k-row TU
+        # batch starve VP. Read at SparkContext start, so it belongs here, not on the query;
+        # with one job in flight (every batch target) it is FIFO anyway.
+        .config("spark.scheduler.mode", "FAIR")
         .config("spark.ui.enabled", str(ui).lower())
     )
     return SedonaContext.create(builder.getOrCreate())
