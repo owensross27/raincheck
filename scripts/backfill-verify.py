@@ -20,7 +20,18 @@ from datetime import date, timedelta
 FEEDS = ("vp", "tu", "alerts")
 # Hours gtfsrt.io itself never stored, confirmed by probing the source for zero snapshots.
 # Same rule as gapfill.DEAD: add ONLY after probing, never to quiet a fill that failed.
-DEAD = {("vp", "2026-04-27"): {"04"}}
+# Every entry below was produced by scripts/backfill-probe.py, which prints a paste-ready
+# line and exits 1 only when real dead hours exist - use it rather than adding by hand.
+DEAD = {
+    # gtfsrt.io outage near 03:50-05:00Z; tu and alerts kept 8 and 4 snapshots in h04 and
+    # so are deliberately absent here.
+    ("vp", "2026-04-27"): {"04"},
+    # A sparse alerts day: 490 snapshots unevenly spread, several hours holding 1-2 and
+    # seven holding none. alerts is event-driven at a 300 s cadence, so a quiet day can
+    # legitimately leave whole hours unstored - expect more of these in alerts, and probe
+    # each one rather than assuming.
+    ("alerts", "2026-05-28"): {"04", "05", "06", "08", "09", "11", "13"},
+}
 
 
 def days(lo: str, hi: str):
