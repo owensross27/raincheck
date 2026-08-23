@@ -17,6 +17,7 @@ KINDS = ("vp", "tu", "alerts")
 
 def prune(root: Path, lo: str, hi: str, pending: set[str]) -> tuple[int, int, int]:
     freed = pruned = stuck = 0
+    drained: list[Path] = []          # hour-dirs this pass emptied, safe to remove
     for kind in KINDS:
         for d in sorted((root / kind).glob("date=*")):
             if not (lo <= d.name.split("=", 1)[1] <= hi):
@@ -58,19 +59,21 @@ def prune(root: Path, lo: str, hi: str, pending: set[str]) -> tuple[int, int, in
                 # uploads it and then it can go.
                 if held == 0 and str(marker.relative_to(root)) not in pending:
                     marker.unlink(missing_ok=True)
+                    drained.append(hour)
                 elif held == 0:
                     stuck += 1
-    # Tidy only inside the chunk range: walking the whole archive can rmdir an hour-dir
-    # the live archiver just created and is about to write into.
-    for kind in KINDS:
-        for d in sorted((root / kind).glob("date=*"), reverse=True):
-            if not (lo <= d.name.split("=", 1)[1] <= hi):
-                continue
-            for sub in sorted(d.glob("hour=*"), reverse=True):
-                if not any(sub.iterdir()):
-                    sub.rmdir()
-            if not any(d.iterdir()):
-                d.rmdir()
+    # Tidy ONLY hour-dirs this pass emptied itself. Sweeping for any empty hour-dir races
+    # the filler: fill_day does mkdir(parents=True) and then writes the part, so an
+    # hour-dir that is empty right now may be one a fill created microseconds ago and is
+    # about to write into - removing it makes that write fail. An hour we just pruned
+    # cannot be in that state, because it held a marker, which only appears once its day
+    # is complete.
+    for hour in sorted(drained, reverse=True):
+        if hour.is_dir() and not any(hour.iterdir()):
+            hour.rmdir()
+        parent = hour.parent
+        if parent.is_dir() and not any(parent.iterdir()):
+            parent.rmdir()
     return pruned, freed, stuck
 
 
@@ -98,8 +101,15 @@ def demo() -> None:
         mixed_ok = part("tu", "2026-04-13", "00", name="part-a.parquet")
         mixed_pend = part("tu", "2026-04-13", "00", name="part-b.parquet")
 
+        # fill_day does mkdir(parents=True) then writes; this is that window, in range
+        fresh = root / "tu" / "date=2026-04-18" / "hour=23"
+        fresh.mkdir(parents=True)
+
         pending = {str(pend.relative_to(root)), str(mixed_pend.relative_to(root))}
         pruned, freed, stuck = prune(root, "2026-04-01", "2026-04-30", pending)
+
+        assert fresh.is_dir(), \
+            "FILL-RACE BUG: removed an empty hour-dir a fill had just created"
 
         assert not in_range.exists(), "marker+verified file should have been pruned"
         assert no_marker.exists(), "GATE 2 FAILED: pruned an unmarked (mid-write) part"
