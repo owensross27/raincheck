@@ -94,12 +94,12 @@ function renderHeadline() {
   const r = currentRow();
   if (!r) { $("headline").innerHTML = ""; return; }
   const bandLo = Math.min(r.band[0], r.band[1]), bandHi = Math.max(r.band[0], r.band[1]);
-  // spec L requires the panel to state that the 2023-09-29 band reaches ~1.0. It is a
+  // spec L requires the panel to state that the 2023-09-29 band reaches ~1.0. That is a
   // property of the STORM, not of the selected Hour: band() collapses to a point whenever
   // both arms sit in one chord class, so an hour-local test would hide the statement on
-  // most hours of exactly the storm it is required for.
-  // ...over the Hours that MEASURE a slowdown: an Hour whose measured ratio is already
-  // above 1.0 has a band reaching 1.0 trivially and says nothing about chord bias.
+  // most hours of exactly the storm it is required for. It is therefore taken over the
+  // Hours that MEASURE a slowdown - an Hour whose measured ratio is already above 1.0 has
+  // a band reaching 1.0 trivially and says nothing about chord bias.
   const slow = head.rows.filter(x => x.layer === r.layer && x.value < 0.98);
   const layerHi = slow.length ? Math.max(...slow.map(x => Math.max(x.band[0], x.band[1]))) : 0;
   const bandNear1 = layerHi >= 0.98 && r.value < 1.0;
