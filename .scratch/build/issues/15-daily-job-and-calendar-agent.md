@@ -97,12 +97,13 @@ it when the run fires before 04:00 local (yesterday's tail is still out on the r
 ~03:00). MRMS months stay UTC — that boundary is real and now commented at the call site.
 Four parametrized cases pin it, including both DST regimes.
 
-### Flagged, not fixed (needs the archiver's owner)
+### Flagged, now fixed
 
 `archiver.flush` writes each 10-min part straight to its final path
 (`pq.write_table(table, out)`, no tmp + rename), while the daily build now reads *today's*
 Bronze every morning — service day D reads `date=D` and `date=D+1`. A read that lands
 mid-write sees a torn footer. Small window, real, and pre-existing (the slice reads live
 partitions too); the fix is the two-line pattern `precip.hourly_mrms` already uses
-(`out.with_name(out.name + ".tmp")` then `.replace(out)`). Not touched here: the archiver
-is another ticket's module and is running under launchd right now.
+(`out.with_name(out.name + ".tmp")` then `.replace(out)`). Fixed 2026-08-23 in
+`src/raincheck/archiver.py` with exactly that pattern; `tests/test_archiver.py` pins it
+(fails if flush writes into the final path), and the running daemon was kickstarted.
