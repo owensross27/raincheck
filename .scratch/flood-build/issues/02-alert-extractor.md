@@ -302,12 +302,18 @@ longer matches the data).
 
 ### Debt beyond what is recorded above
 
-1. **The stations fixture is a frozen snapshot with no drift check.** It is currently
-   byte-for-byte the live registry (verified: 496 rows identical), but nothing asserts
-   that. A `ref/assets` rebuild that renames or adds a station leaves the tests passing
-   against the old registry — and `load_aliases()`, the production path, would then
-   disagree with every measurement here. Ticket 01's key-stability contract is the natural
-   place to hang a cross-check; there is none today.
+1. ~~**The stations fixture is a frozen snapshot with no drift check.**~~ **Closed
+   2026-08-23 (elated-bun session).** `test_flood_alerts_stations_fixture_matches_the_live_registry`
+   now hangs off ticket 01's key-stability contract in `tests/test_assets.py`: it diffs the
+   fixture's 496 rows against `load_aliases()` — the production path — on the real
+   `ref/assets`, and fails saying that re-cutting the fixture is not enough, the
+   measurements above need re-validating too. Verified able to fail on three mutated copies
+   of the real registry: renaming `Utica Av`, and renaming one of the two rows named
+   `149 St-Hostos`, both report the drifted rows; renaming *both* `149 St-Hostos` rows trips
+   the `FORMER_NAMES` guard first, and its `KeyError` is converted to the same message.
+   **Caveat:** it skips where no built `ref/assets` exists (fresh clone,
+   worktree, CI) — the same seam as the JVM and vendored-file skips. It guards the machine
+   that rebuilds the registry, which is the only machine that can drift it.
 2. **`measure()` and `load_aliases()` are untested.** Everything asserted here is the pure
    functions on fixtures; the DuckDB read of the archive and the read of `ref/assets` have
    no coverage. `load_aliases()` failing would be loud (the FORMER_NAMES guard raises), but
