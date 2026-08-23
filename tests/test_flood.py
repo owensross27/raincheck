@@ -431,12 +431,61 @@ def test_the_tide_trigger_needs_two_consecutive_readings(flood_root):
     assert fs._coops_year(flood_root, "8518750", 2015, ASOF) == []
 
 
+def test_the_tide_rule_rejects_a_single_spike_and_a_gap():
+    """Two CONSECUTIVE readings is the whole point of the rule: one reading is a spike, and
+    two exceedances separated by an outage are two spikes. A run must be adjacent in time."""
+    at = lambda h, v: (datetime(2012, 10, 29, h, tzinfo=timezone.utc), v)
+    minor = fs.NWS_MINOR_STND_FT["8518750"]
+    assert fs.exceedance_days([at(1, 12.0), at(2, 9.0)], minor) == set()
+    assert fs.exceedance_days([at(1, 12.0), at(2, 11.0)], minor) == {date(2012, 10, 29)}
+    assert fs.exceedance_days([at(1, 12.0), at(6, 12.0)], minor) == set()   # across a gap
+    # and the frozen rule is TWO: one reading must not be enough
+    assert fs.COOPS_CONSECUTIVE == 2
+    assert fs.exceedance_days([at(1, 12.0), at(2, 9.0)], minor, consecutive=1) == {
+        date(2012, 10, 29)}
+    # at or above, never above
+    assert fs.exceedance_days([at(1, minor), at(2, minor)], minor) == {date(2012, 10, 29)}
+
+
+def test_the_311_trigger_is_at_or_above_the_threshold(flood_root):
+    """'at or above the frozen p99' — the boundary day itself is an event-day."""
+    series = fo.daily_311(fo.rows_311(flood_root, ASOF)["erm2-nwe9"])
+    day, count = max(series.items(), key=lambda kv: kv[1])
+    assert day in fs.days_311(flood_root, ASOF, {"76ig-c548": 99, "erm2-nwe9": count})
+    assert day not in fs.days_311(flood_root, ASOF,
+                                  {"76ig-c548": 99, "erm2-nwe9": count + 1})
+
+
+def test_the_alert_coverage_floor_is_the_label_era_not_the_dataset_era():
+    """The archives open 2012-10-02 but the flood signal is effectively 2016+. Marking the
+    sparse years covered would mint false negatives in ticket 05's anti-join."""
+    assert fo.ALERT_LABELS_FROM == date(2016, 1, 1)
+    assert not fs.covered("alert", date(2013, 6, 1), date(2013, 6, 1))
+    assert fs.covered("alert", date(2016, 6, 1), date(2016, 6, 1))
+
+
 def test_coverage_flags_follow_the_frozen_calendars(events):
     for day_start, day_end, c311, calert, cnet in one(
             events, "SELECT day_start, day_end, cov_311, cov_alert, cov_floodnet FROM t"):
         assert c311 == fs.covered("311", day_start, day_end)
         assert calert == fs.covered("alert", day_start, day_end)
         assert cnet == fs.covered("floodnet", day_start, day_end)
+
+
+def test_a_dark_or_lagging_source_is_written_as_uncovered(events, flood_root):
+    """Coverage=missing, never an implicit non-event. Storm Events LAGS (the real source
+    has published through 2026-05-29 while the spine runs to today), and the fixture's
+    tide series is one station-year, so both flags must actually vary rather than being
+    hardcoded true."""
+    _, through = fs.storm_rows(flood_root, ASOF)
+    for day_end, cov_storm in one(events, "SELECT day_end, cov_storm FROM t"):
+        assert cov_storm == (day_end <= through)
+    _, seen = fs.days_tide(flood_root, ASOF)
+    for day_start, n_days, cov_tide in one(
+            events, "SELECT day_start, n_days, cov_tide FROM t"):
+        assert cov_tide == all(day_start + timedelta(n) in seen for n in range(n_days))
+    # the fixture must exercise BOTH values of each flag, or it is asserting nothing
+    assert {c for (c,) in one(events, "SELECT DISTINCT cov_tide FROM t")} == {True, False}
 
 
 def test_the_spine_version_moves_with_the_thresholds(events):
@@ -462,7 +511,8 @@ def test_storm_rows_read_both_cz_types(flood_root):
     """CZ_FIPS is a county code under CZ_TYPE='C' and an unrelated NWS zone number under
     'Z', and every NYC coastal-flood row is zone-coded — a county filter alone drops all
     of them, Sandy included."""
-    rows = fs.storm_rows(flood_root, ASOF)
+    rows, through = fs.storm_rows(flood_root, ASOF)
+    assert through is not None and through >= date(2023, 9, 29)
     kinds = {(r["EVENT_TYPE"], r["CZ_TYPE"]) for r in rows}
     assert ("Coastal Flood", "Z") in kinds
     assert any(t == "C" for _, t in kinds)

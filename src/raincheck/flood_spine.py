@@ -46,8 +46,10 @@ TS = pa.timestamp("us", tz="UTC")
 # ---- frozen 311 triggers ----------------------------------------------------------
 # Nearest-rank p99 of the daily counts over days with >= 1 report, measured 2026-08-23 on
 # the FOUR-literal union per era-dataset. The legacy-two measurement biased erm2 low
-# (84 vs 85) because the 2023-09 renames carry a third of the modern record; 76ig is
-# unchanged at 97 because the renamed literals never appear before 2020.
+# (84 vs 85): the renames are 1,445 of erm2's 23,512 rows (6.1%), but 11.9% of the
+# 2023-09-28-onward overlap era where both spellings run, and they are concentrated on the
+# big days — 2023-09-29 included. 76ig is unchanged at 97 because the renamed literals
+# never appear before 2020.
 P99_311 = {"76ig-c548": 97, "erm2-nwe9": 85}
 P99_MEASURED_ON = date(2026, 8, 23)
 
@@ -74,8 +76,9 @@ COOPS = "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter"
 NWS_MINOR_STND_FT = {"8518750": 10.49, "8516945": 22.89}  # Battery, Kings Point
 COOPS_CONSECUTIVE = 2  # readings at or above the threshold before a day triggers
 COOPS_FROM = 2010
-# Jamaica Bay / the Rockaways have no gauge: a documented blind spot, not a quiet zero.
-COOPS_BLIND = "Jamaica Bay / Rockaway (no CO-OPS gauge; FloodNet partially covers 2020-11+)"
+# Jamaica Bay and the Rockaways have NO CO-OPS gauge: a documented blind spot, not a
+# quiet zero. A Coastal Flood row in Storm Events still classes those days coastal, and
+# FloodNet partially covers the area from 2020-11.
 
 # ---- frozen class rules -----------------------------------------------------------
 # Central Park daily maxima (GHCN-Daily, tenths of a degree C). The reclass needs a
@@ -93,7 +96,11 @@ PLUVIAL, COASTAL, MIXED, SNOWMELT, UNCLASSIFIED = (
 # ---- per-source coverage calendars (code, not per-row flags) ----------------------
 COVERAGE = {
     "311": (fo.COVERAGE_311, None, ()),
-    "alert": (fo.COVERAGE_ALERT[0], None,
+    # the datasets open 2012-10-02, but the spec's calendar is "alerts effectively
+    # 2016+" and the measurement agrees: the extractor mints 1 observation in 2015 and
+    # 10 in 2016 against ~15/year after. Coverage is the conservative floor, because a
+    # day wrongly marked covered mints FALSE NEGATIVES in ticket 05's anti-join.
+    "alert": (fo.ALERT_LABELS_FROM, None,
               ((fo.COVERAGE_ALERT[1] + timedelta(days=1), fo.COVERAGE_ALERT[2]
                 - timedelta(days=1)), fo.ALERT_DARK)),
     "floodnet": (fo.COVERAGE_FLOODNET, None, ()),
@@ -222,20 +229,29 @@ def days_alert(root: Path, asof: date = fo.ASOF) -> set[date]:
 
 # ---- (c) NOAA Storm Events --------------------------------------------------------
 
-def storm_rows(root: Path, asof: date = fo.ASOF) -> list[dict]:
-    """Five-borough flood rows from the bulk details CSVs, one snapshot per year.
+def storm_rows(root: Path, asof: date = fo.ASOF) -> tuple[list[dict], date | None]:
+    """(five-borough flood rows, the last day the source has published).
+
+    Storm Events lags: the 2026 file stops at 2026-05-29 while the spine runs to today, so
+    the horizon is returned and written as cov_storm. Without it a lagging month is
+    indistinguishable from a month with no floods — the same silence the empty-snapshot
+    guard exists to refuse elsewhere.
 
     The published file names carry a version and a creation date that both change under
     NCEI's feet, so the year's file is resolved from the live listing and its real name is
     kept in the snapshot. Only the NY rows are stored: the national CSV is ~50 MB a year
     and the archive root is on a byte budget."""
-    out = []
+    out: list[dict] = []
+    through: date | None = None
     for year in range(STORM_FROM, asof.year + 1):
         path = root / "archive" / "flood" / f"stormevents_{year}_{asof}.csv"
         if not path.exists():
             src = _ncei_file(year)
             if src is None:
-                print(f"stormevents: no details file published for {year}", flush=True)
+                if year < asof.year:  # a past year MUST be published; a hole is not a skip
+                    raise RuntimeError(f"stormevents: no details file for {year} in "
+                                       f"{NCEI_CSV} — the trigger would go quiet, not empty")
+                print(f"stormevents: {year} not published yet", flush=True)
                 continue
             print(f"downloading {NCEI_CSV}{src}", flush=True)
             with urllib.request.urlopen(NCEI_CSV + src, timeout=600) as r:
@@ -252,9 +268,12 @@ def storm_rows(root: Path, asof: date = fo.ASOF) -> list[dict]:
             print(f"stormevents {year}: {len(rows)} {STORM_STATE} rows from {src}",
                   flush=True)
         with path.open(newline="") as fh:
-            out += [r for r in csv.DictReader(fh) if r.get("EVENT_TYPE") in STORM_TYPES
-                    and _is_nyc(r)]
-    return out
+            for r in csv.DictReader(fh):
+                for d in _storm_span(r):  # the horizon is the whole state's last row
+                    through = d if through is None or d > through else through
+                if r.get("EVENT_TYPE") in STORM_TYPES and _is_nyc(r):
+                    out.append(r)
+    return out, through
 
 
 def _ncei_file(year: int) -> str | None:
@@ -283,7 +302,15 @@ def storm_days(rows: list[dict]) -> tuple[set[date], set[date], set[date], dict[
 
 
 def _storm_span(r: dict) -> list[date]:
-    """Every NY day the row covers. Storm Events stamps are already local to the event.
+    """Every NY day the row covers.
+
+    The stamps are NY WALL CLOCK, despite every NYC row carrying CZ_TIMEZONE='EST-5'.
+    That field is a zone label, not the applied offset, and reading it as a fixed -5 would
+    shift summer rows an hour — one NY day for anything stamped in hour 23. Measured the
+    same way FloodNet's clock was, over the 68 NYC county flash/flood rows inside the built
+    AORC months: citywide mean mm_1h at the implied hour peaks at 24.84 reading the stamps
+    as NY wall time and falls to 18.13 reading them as EST-5, with a clean single peak.
+
     A stamp this cannot parse is fatal, never an empty span: a silent format change would
     zero the whole trigger and look like a quiet decade."""
     fmt = "%d-%b-%y %H:%M:%S"
@@ -305,16 +332,29 @@ def days_tide(root: Path, asof: date = fo.ASOF) -> tuple[set[date], set[date]]:
     """
     hit, seen = set(), set()
     for station, threshold in NWS_MINOR_STND_FT.items():
-        run, prev = 0, None
-        for year in range(COOPS_FROM, asof.year + 1):
-            for stamp, feet in _coops_year(root, station, year, asof):
-                seen.add(stamp.date())
-                adjacent = prev is not None and stamp - prev <= timedelta(hours=1)
-                run = (run + 1 if adjacent else 1) if feet >= threshold else 0
-                prev = stamp
-                if run >= COOPS_CONSECUTIVE:
-                    hit.add(stamp.date())
+        series = [r for year in range(COOPS_FROM, asof.year + 1)
+                  for r in _coops_year(root, station, year, asof)]
+        seen |= {stamp.date() for stamp, _ in series}
+        hit |= exceedance_days(series, threshold)
     return hit, seen
+
+
+def exceedance_days(series: list[tuple[datetime, float]], threshold: float,
+                    consecutive: int = COOPS_CONSECUTIVE) -> set[date]:
+    """The days a run of `consecutive` readings sits at or above the threshold.
+
+    Pure, so the rule itself is testable: one spike is not a flood, and two exceedances
+    an outage apart are two spikes. `series` must be one station's readings in time order.
+    """
+    hit: set[date] = set()
+    run, prev = 0, None
+    for stamp, feet in series:
+        adjacent = prev is not None and stamp - prev <= timedelta(hours=1)
+        run = (run + 1 if adjacent else 1) if feet >= threshold else 0
+        prev = stamp
+        if run >= consecutive:
+            hit.add(stamp.date())
+    return hit
 
 
 def _coops_year(root: Path, station: str, year: int,
@@ -372,7 +412,7 @@ SCHEMA = pa.schema([
     ("by_311", pa.bool_()), ("by_alert", pa.bool_()), ("by_storm", pa.bool_()),
     ("by_tide", pa.bool_()), ("event_class", pa.string()), ("flood_cause", pa.string()),
     ("cov_311", pa.bool_()), ("cov_alert", pa.bool_()), ("cov_floodnet", pa.bool_()),
-    ("cov_tide", pa.bool_()), ("spine_version", pa.string())])
+    ("cov_tide", pa.bool_()), ("cov_storm", pa.bool_()), ("spine_version", pa.string())])
 
 
 def spine_version(asof: date, thresholds: dict[str, int]) -> str:
@@ -394,12 +434,13 @@ def build(root: Path, asof: date = fo.ASOF,
           thresholds: dict[str, int] | None = None) -> list[dict]:
     thresholds = thresholds or P99_311
     measured = remeasure_311(root, asof)
-    if thresholds is P99_311 and measured != P99_311:
+    if thresholds == P99_311 and measured != P99_311:
         raise RuntimeError(
             f"the frozen 311 p99 pins no longer reproduce: {P99_311} frozen "
             f"{P99_MEASURED_ON}, {measured} on the {asof} snapshot — re-freeze them "
             f"deliberately (every event boundary and every label moves with them)")
-    storm_all, storm_pluvial, storm_coastal, causes = storm_days(storm_rows(root, asof))
+    storm, storm_through = storm_rows(root, asof)
+    storm_all, storm_pluvial, storm_coastal, causes = storm_days(storm)
     tide, tide_seen = days_tide(root, asof)
     trigger_days = {"311": days_311(root, asof, thresholds), "alert": days_alert(root, asof),
                     "storm": storm_all, "storm_pluvial": storm_pluvial,
@@ -411,7 +452,9 @@ def build(root: Path, asof: date = fo.ASOF,
     for e in events:
         e["cov_tide"] = all(
             (e["day_start"] + timedelta(n)) in tide_seen for n in range(e["n_days"]))
+        e["cov_storm"] = storm_through is not None and e["day_end"] <= storm_through
         e["spine_version"] = version
+    print(f"storm events published through {storm_through}", flush=True)
     out = root / "silver" / "flood_events" / "part-00000.parquet"
     out.parent.mkdir(parents=True, exist_ok=True)
     pq.write_table(pa.Table.from_pylist(events, schema=SCHEMA), out, compression="zstd")
@@ -423,10 +466,49 @@ def build(root: Path, asof: date = fo.ASOF,
     return events
 
 
+def canary(asof: date = fo.ASOF) -> dict[str, str]:
+    """The spine's own frozen endpoints must answer, or the build fails.
+
+    flood_obs canaries the Socrata sources; these three are the spine's alone. The tide
+    thresholds are the sharp end here: NWS_MINOR_STND_FT is a frozen pair of numbers that
+    every coastal event-day is cut on, and NOAA republishes flood stages — so the canary
+    asserts the published values still EQUAL the frozen ones rather than merely answering.
+    """
+    live = {}
+    for station, frozen in NWS_MINOR_STND_FT.items():
+        url = (f"https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations/"
+               f"{station}/floodlevels.json")
+        with urllib.request.urlopen(url, timeout=120) as r:
+            published = json.loads(r.read()).get("nws_minor")
+        if published != frozen:
+            raise RuntimeError(f"CO-OPS {station}: nws_minor is {published}, frozen as "
+                               f"{frozen} — every coastal event-day is cut on this number")
+        live[f"coops:{station}"] = f"nws_minor {published} ft STND"
+    year = asof.year if _ncei_file(asof.year) else asof.year - 1
+    name = _ncei_file(year)
+    if name is None:
+        raise RuntimeError(f"stormevents: {NCEI_CSV} lists no details file for {year}")
+    live["stormevents"] = name
+    with urllib.request.urlopen(GHCN.format(station=GHCN_STATION), timeout=120) as r:
+        header = r.readline().decode()
+    if "TMAX" not in header:
+        raise RuntimeError(f"GHCN {GHCN_STATION}: no TMAX column — the snowmelt reclass "
+                           f"has no temperature to read")
+    live["ghcn"] = GHCN_STATION
+    return live
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--asof", default=fo.ASOF.isoformat())
+    ap.add_argument("--skip-canary", action="store_true",
+                    help="rebuild from the snapshots alone; the endpoints may be long gone")
     a = ap.parse_args()
+    if a.skip_canary:
+        print("flood_spine: endpoint canary SKIPPED", flush=True)
+    else:
+        for k, v in sorted(canary(date.fromisoformat(a.asof)).items()):
+            print(f"canary {k}: {v}", flush=True)
     build(data_root(), date.fromisoformat(a.asof))
 
 
