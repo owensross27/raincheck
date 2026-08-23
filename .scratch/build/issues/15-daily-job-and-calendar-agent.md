@@ -11,3 +11,12 @@ it so a day missed during sleep rebuilds itself. Spec: K.
 - [ ] `daily` lists service_date= partitions under silver/events against Bronze-present dates (bounded, last 14 days) and runs `events DATE=` for each gap, then precip-hourly and precip-cell for src=mrms on the current month, then drops live date=/hour= dirs older than 48 h by name; running it twice does nothing the second time
 - [ ] the StartCalendarInterval 06:00 America/New_York plist is installed (10:00Z clears Pass2's tail for the last service-day hour in both DST regimes) and a real run is verified in the log
 - [ ] a test seeds two closed days and one built day under a temp root and asserts exactly the two gaps are built and the neighbour is untouched
+
+## Scheduling note from ticket 20 (2026-08-23)
+
+Order matters in the daily job: run `make gapfill` BEFORE `make gapcheck`. The newest
+1-2 days legitimately fail gapcheck until gtfsrt.io publishes them (their lag) and the
+fill lands — that exit 1 is actionable, not noise, and must not be allowlisted.
+`gapfill.DEAD` (the dead-hour allowlist, 6efddaa) already keeps permanently-dead hours
+from paging forever; entries are hand-added only, after probing gtfsrt.io shows zero
+snapshots — never to quiet a failed fill.
