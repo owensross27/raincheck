@@ -1,0 +1,387 @@
+{
+ "forensics": {
+  "verdicts": [
+   {
+    "claim": "Citywide 2023-09-29: 163,339 stop_time rows vs 239,921 baseline (-32%), 6,814 trips vs 8,894 (-23%)",
+    "verdict": "CONFIRMED",
+    "evidence": "Reproduced to the digit via DuckDB read_csv on both local CSVs: st 163,339 / 239,921 (ratio 0.6808 = -31.9%), tr 6,814 / 8,894 (0.7661 = -23.4%). File sizes 986,128 B / 1,386,812 B also match the quoted 0.99 / 1.39 MB."
+   },
+   {
+    "claim": "Per-complex arrivals ratio: citywide median 0.692, p10 0.505",
+    "verdict": "CONFIRMED",
+    "evidence": "Independently recomputed (strip N/S suffix -> gtfs_stop_id -> complex_id, coalesce(arrival_time,departure_time) non-null, COUNT(*) per complex): median 0.6915, p10 0.5047, mean 0.7081, min 0.2452 (Park Pl), max 1.3981 (Roosevelt Island)."
+   },
+   {
+    "claim": "445 complexes with >= 20 baseline arrivals",
+    "verdict": "REFUTED",
+    "evidence": "The filter is inert and the number is not a filtered count. Measured min baseline arrivals per complex = 80; p1 = 158; p5 = 172. All 445 complexes pass, and 445 is exactly ref/assets' total complex count (06). The join hits complexes_hit=445 on BOTH days, so the '>=20' gate excludes nothing while reading as a quality screen. The only case it could bite (a complex dark on the baseline day) yields base=0, which the ratio already NULLs."
+   },
+   {
+    "claim": "Flagged stations land in the deep tail: Newkirk Plaza 0.395 (p5), Botanic Garden/Franklin Av 0.492 (p8), Canal St (325) 0.497 (p8)",
+    "verdict": "CONFIRMED",
+    "evidence": "Exact: cid 47 Newkirk Plaza 0.3948, rank 24/445 = p5.17; cid 626 Botanic Garden/Franklin Av-Medgar Evers (one complex, naming correct) 0.4918, rank 36/445 = p7.87; cid 325 Canal St (1) 0.4971, rank 39/445 = p8.31. All three reproduce."
+   },
+   {
+    "claim": "The 02-extractor's flagged stations for 2023-09-29 land in the deep tail [as a set]",
+    "verdict": "REFUTED",
+    "evidence": "events_stations.json first_day=2023-09-29 yields SEVEN complexes: 79, 47, 626, 325, 225, 623, 169. The draft reports three and silently drops four \u2014 and the dropped ones are the misses. Measured ranks/445: 79 (86 St) 7, 47 24, 626 36, 325 39, then 225 (47-50 Sts-Rockefeller Ctr) 161 = p36.0, 623 (Canal St N/Q/R/W/6/J/Z) 178 = p40.0, 169 (Canal St A/C/E) 284 = p63.6. Score is 4/7 below p10 and 3/7 above p35, median flagged percentile p8.8 \u2014 not 'p5-p8'. Worst: the Canal St alert named three complexes (169/325/623); one lands at p8, the other two at p40 and p64, i.e. the same physical corner scores p8 or p64 depending on which platform-complex the free text matched."
+   },
+   {
+    "claim": "The ten deepest drops independently rediscover the reported flooded corridor \u2014 the entire Nostrand Av 2/5 line plus the Franklin Av shuttle",
+    "verdict": "REFUTED",
+    "evidence": "Measured ranks 1-10: Park Pl (141, Franklin Shuttle) 0.245; Prospect Park (42, B/Q/S) 0.361; 7 Av (41, B/Q Brighton) 0.366; President St 0.380; Church Av (356) 0.381; Flatbush Av 0.381; 86 St (79, Sea Beach N) 0.381; Sterling St 0.382; Winthrop St 0.382; Newkirk Av 0.382. Botanic Garden is NOT in the ten deepest \u2014 it is rank 36. Two of the ten (7 Av rank 3, 86 St rank 7) are absent from the draft's enumeration, and ranks 11-15 add Bay Pkwy, Avenue U, Kings Hwy, Beverly Rd, 8 Av. Grouping the bottom 40 by line: Sea Beach 8, Broadway-Brighton 8, Nostrand 7, Astoria 6, Broadway-7Av 4, Broadway 3, Franklin Shuttle 2. The Sea Beach N corridor (8 stations in the bottom 40, 5 in the top 15) is never mentioned."
+   },
+   {
+    "claim": "...with no flood data as input [the tail is an independent station-level discovery]",
+    "verdict": "AMEND",
+    "evidence": "The tail is dominated by route-level service decisions, not station-level signal. Citywide arrival ratios by route: W 0.181, FS 0.240, B 0.249, 5 0.421, N 0.490, 3 0.509, H 0.513, G 0.524, Q 0.538 ... 7 1.010, GS 0.998, A 0.990, SI 0.986. Dividing each complex's actual ratio by the ratio predicted from its baseline route mix alone: Park Pl (the #1 deepest, cited as evidence) residual 1.020 = p57 \u2014 its collapse is exactly the systemwide FS cut, zero station-specific content; Prospect Park residual 0.956 = p25. Newkirk Plaza falls from p5.2 to p18.2 once the B/Q cut is removed. Only Nostrand (residual ~0.70) and Sea Beach (~0.75) survive as local signal. Resolution is line-segment, not station: Sterling St / Winthrop St / Newkirk Av are all 203/531 EXACTLY, Church Av / Flatbush Av both 203/533, Newkirk Plaza / Church Av(44) both 214/542. AMEND not REFUTE because the signal is real: a line-block permutation null still gives P(median flagged percentile <= 0.088) ~ 1e-4. But the draft must state the effective sample is ~4 service decisions in the tail, not 10 complexes, and 08's own fan-out/spatial-blocking lesson applies here unimported."
+   },
+   {
+    "claim": "The day-file service-day span runs ~04:00-04:00 local (verified at build)",
+    "verdict": "REFUTED",
+    "evidence": "Measured directly. trips.start_time min/max: 2023-09-29 00:00 -> 2023-09-30 00:00 local; 2023-09-22 00:00 -> 2023-09-23 00:00 local. The file for date D holds trips whose LOCAL start_time falls on calendar day D, midnight to midnight. Arrivals therefore span [D 00:00, D+1 ~06:00] \u2014 coalesce(arr,dep) min/max: 09-29 00:01:00 -> 09-30 05:52:41; 09-22 file 09-21 09:31 (2 stale rows) then 09-22 00:00 -> 09-23 06:16. Not 04:00-04:00, and not 24 h."
+   },
+   {
+    "claim": "[storage] rows carry hour_end_utc + service_date, one day-file per service_date",
+    "verdict": "REFUTED",
+    "evidence": "Direct consequence of the measured span: local hours 00:00-05:59 of any date are split across TWO day-files. Baseline day, hours 00-05: own-day file supplies 8,011 arrivals, the previous date's file supplies 17,991 (69.2%). Restricted to hours 00-03 the own-day file supplies 1,029 of 16,718 = 6.2%. So a complex-hour arrivals table built one-file-per-service_date undercounts local 00:00-03:59 by ~94%; if instead both files are ingested without a dedupe key, those hours double-count. The draft's asserted 04:00-04:00 span is precisely what would have made this invisible. Fix is cheap (union file D-1 with file D, dedupe on trip_uid+stop_id) but it is not in the design, and it changes the file-count arithmetic in D4."
+   },
+   {
+    "claim": "Complex-hour is a workable grain for service_ratio",
+    "verdict": "AMEND",
+    "evidence": "The p5/p8 evidence the draft cites is DAY-grain; the shipped metric is HOUR-grain and was never sized. Measured baseline complex-hour cells: 04:00 mean 4.3/cell with 88 cells at n<=2; 03:00 only 11 cells exist, all n=1; overnight (after the D-1 union fix) per-complex-hour counts run 4-9. A K=4 median of {4,5,6,6} is a very coarse denominator \u2014 one missed train moves the ratio 20%. Hour grain does add real power where counts are large (measured cid 47 at 17:00 = 3/33 = 0.091 vs its 0.395 day ratio; cid 79 at 17:00 and 18:00 = 1/14 = 0.071), so keep it \u2014 but the design needs a minimum-count rule and must state that overnight hours are effectively unusable."
+   },
+   {
+    "claim": "Platform-strip join: stop_id minus N/S suffix -> gtfs_stop_id -> complex_id",
+    "verdict": "CONFIRMED",
+    "evidence": "Clean at complex grain, and the failures are correct failures. 24 parent stop_ids unmatched on the storm day (1,187 rows = 0.73%), 21 on baseline (1,642 = 0.68%); complexes_hit = 445/445 both days. Every unmatched id is a NON-REVENUE timing/relay point, verified by its trip neighbours: R60 sits between R11 (Lex/59) and R09 (Queensboro Plaza) = 60 St tunnel; R65 between R27 and R28 = Montague tunnel; H19 between H04N and H04S = the Broad Channel relay for the Rockaway shuttle; X22 between M18 (Delancey/Essex) and D21 = Chrystie St connection; M07, N12, B24, A29, A58, A62, D23, F10, F17, A39, D60, J18, G25, R10, R70, B05, M17, H05/H17/H18 all likewise sit between two mapped revenue stops. Zero SIR stops fail (SIR fully mapped, 21 complexes). All shuttles map (GS/FS/SS/H revenue stops present). The design still owes a coverage assertion \u2014 these rows must be dropped by an INNER join, never bucketed as an unknown complex."
+   },
+   {
+    "claim": "[implicit] arrivals = COUNT of stop_times rows, no dedupe needed",
+    "verdict": "AMEND",
+    "evidence": "Small but real and unspecified: duplicate (trip_uid, stop_id) keys exist \u2014 19 groups / 38 rows on the storm day, 23 groups / 46 rows on baseline, all at M08S (Myrtle-Wyckoff), same trip and stop with times 16-100 s apart. Also 19/23 duplicate (trip_uid, parent) groups, so the dedupe must be at parent grain if the metric is per-complex. trips.trip_uid is unique on both days (6,814 / 8,894). Magnitude 0.02%, but with no stated dedupe key the build is nondeterministic against a source that can change this."
+   },
+   {
+    "claim": "Arrival = stop_times row with non-null coalesce(arrival_time, departure_time)",
+    "verdict": "AMEND",
+    "evidence": "Coalesce is necessary \u2014 measured: 44.6% of first-stops have NULL arrival_time (origin terminal, storm day 3,034/6,806) and 49.5% of last-stops have NULL departure_time (3,362/6,795); mid-stops are ~0.08% null. Without coalesce you lose ~6,400 storm rows (3.9%). But the definition admits unconfirmed rows and the contamination DOUBLES on the storm day: rows whose recorded time is >10 min after last_observed = 23,028 of 163,309 (14.10%) on the storm day vs 15,046 of 239,919 (6.27%) on baseline; >30 min = 7.40% vs 3.82%; time later than marked_past = 22.3% vs 11.4%. Rows marked past with no time at all: 30 storm vs 2 baseline. Requiring marked_past NOT NULL costs almost nothing (163,111 vs 163,309) so it is not the fix; the honest statement is that on a disrupted day ~1 arrival in 7 is a feed estimate rather than a confirmed observation, which biases arrivals UP on the storm day and makes the ratio conservative. The draft states neither the definition's exposure nor its direction."
+   },
+   {
+    "claim": "Baseline = median over the K=4 prior same-weekdays excluding union-event days (mirrors the bus cell_hourofweek_baseline convention)",
+    "verdict": "REFUTED",
+    "evidence": "It mirrors it on none of four axes. Read src/raincheck/gold.py:126-153: the bus baseline is (a) window-symmetric over the whole ~2-month slice window, not K=4 trailing; (b) n up to 9 same-hour-of-week observations (measured median n_dry 8 for w1, 7 for w2, max 9); (c) a ratio of sums, sum(dist_m_sum)/sum(dt_s_sum), not a median; (d) gated on FORCING \u2014 mm_1h<0.1 AND mm_1h_prev<0.1 AND mm_6h<0.5 from precip_cell_hourly src=aorc \u2014 not on the label set. (d) is the consequential one: gating the subway baseline on 01's union-event days makes the impact metric a function of the label design, so 08's outer replication of the 311 threshold {p98,p99,p99.5} would move the impact baselines too and the 'independent' validation is not invariant to the thing it validates. The forcing gate is free here (join the complex's Cell to precip_cell_hourly, same predicate) and is label-independent."
+   },
+   {
+    "claim": "Single baseline day 2023-09-22 is a clean Friday reference",
+    "verdict": "REFUTED",
+    "evidence": "It is contaminated by planned work on at least two branches, visible as ratio > 1. Measured top of the distribution: Roosevelt Island 1.398 (151/108), 21 St-Queensbridge 1.343 (145/108) \u2014 the 63rd St / F pair; and the entire A-Lefferts branch, Aqueduct-N Conduit 1.152, Aqueduct Racetrack 1.150, Rockaway Blvd 1.120, 88 St 1.115, 80 St 1.115, Grant Av 1.112, 104 St 1.088, 111 St 1.069, Ozone Park-Lefferts 1.064. Those stations had MORE service during the storm than on the 'baseline' Friday. So the 0.692 median, the p5/p8 ranks and every number in the draft's Measured section were computed against a contaminated denominator. K=4 median is the right fix \u2014 but it is proposed, not demonstrated, and the evidence offered for the metric predates the fix."
+   },
+   {
+    "claim": "D1: one metric only for v1 \u2014 headway/gap statistics are the recorded upgrade, not built (the ratio already separates flagged stations at p5-p8)",
+    "verdict": "REFUTED",
+    "evidence": "The stated premise is false (separation is p1.6/p5/p8/p8/p36/p40/p64, above) and the redundancy claim is false too. I computed the same-day gap statistics (consecutive arrivals per complex+platform, 06:00-21:59 local): Spearman(count-ratio, max-gap-ratio) = -0.71, so ~50% of rank variance is NOT shared. Median-headway ratio moves flagged 623 from p40 (count) to p18.4, and ranks 47 at p4.9 and 79 at p9.9. Citywide medians: max-gap ratio 2.50, median-headway ratio 1.271. The real argument against gap stats is one the draft does not make: max-gap ratio is unstable at high-frequency hubs (34 St-Penn 513s -> 14,880s = 29.0x, Nevins St 28.3x, Chambers St 25.6x, 96 St 23.9x all outrank the flooded corridor) because the denominator is small \u2014 median headway is the stable form. Ponytail supports one metric; it does not support justifying it with a measurement that says otherwise."
+   },
+   {
+    "claim": "D2: Bus tables need nothing new \u2014 cell_hour_speed + cell_hourofweek_baseline exist for 2021-08..10 and 2023-09..10, the two reference storms are fully covered",
+    "verdict": "CONFIRMED",
+    "evidence": "Verified on the local tables: cell_hour_speed covers 2021-08-16..2021-10-16 (64 days), 2023-09-01..2023-10-31 (61 days), 2026-08-20..21; 2021-09-01 (104,431 rows / 1,178 cells), 2021-09-02 (100,728 / 1,175) and 2023-09-29 (105,615 / 1,162) are all present, and cell_hourofweek_baseline w1/w2 cover the matching windows. Schemas are as the draft describes (dist_m_sum/dt_s_sum; speed_dry/n_dry)."
+   },
+   {
+    "claim": "D2: the bus ratio (cell_hour_speed / speed_dry) is a usable impact/validation signal at the event-window grain",
+    "verdict": "REFUTED",
+    "evidence": "Measured, never measured in the draft. Citywide median cell-hour ratio by day: 2021-08-22 1.049, 2021-09-01 1.019, 2021-09-02 0.998, 2023-09-29 0.994 \u2014 against non-event controls 2021-09-09 1.012, 2023-09-22 1.007, 2023-09-15 0.999. The two HIGHEST values in the set belong to trigger days (2021-08-22 and 2021-09-01 are both in the (a)-trigger list), and the 2023-09-29 storm day is indistinguishable from an ordinary Friday. The draft's validation view is explicitly window-grain ('during the window vs the citywide same-window distribution'), and 01's window is NY-midnight +-3h \u2014 i.e. exactly the grain where the bus signal vanishes. It only exists hourly and only on one storm: Ida peak hours 09-01 23:00 median 0.876 / p10 0.433 and 09-02 00:00 median 0.871 / p10 0.462, whereas 2023-09-29's worst hour is 09:00 at median 0.930 / p10 0.679 (~7%). Sign is not monotone either \u2014 09-02 07:00-09:00 runs 1.031-1.066, buses faster than dry baseline the morning after Ida. Also unhandled: 106 of 24,529 storm cell-hours have NULL speed_dry and 172 have n_dry<3, with no absent-key rule (08 wrote one; this draft did not)."
+   },
+   {
+    "claim": "D2/scope: bus impact limited to months where cell_hour_speed exists",
+    "verdict": "AMEND",
+    "evidence": "True but unquantified, and the bolded 'Bus tables need nothing new' reads as adequacy. Measured against the frozen (a)-trigger list (57 days): exactly 4 have bus coverage \u2014 2021-08-22, 2021-09-01, 2021-09-02, 2023-09-29. That is 7%. 2021-10-26 misses by 10 days (coverage ends 2021-10-16). Every pre-2021 event and all of 2022, 2024-2026 have no bus impact at all. State the 4/57 in the validation tables the same way the draft states pre-2021-04 subway absence."
+   },
+   {
+    "claim": "D3: silver/impact_subway_hourly partitioned by src, NEVER pooled \u2014 mirrors pipeline-08's src discipline",
+    "verdict": "AMEND",
+    "evidence": "Correct in spirit and correctly characterized for precip (silver/precip_cell_hourly does carry a src partition column beside month), but applied asymmetrically. gold/cell_hour_speed has NO src column \u2014 its only partition is month \u2014 and the draft reuses it 'verbatim' while ticket 10 is told to compute the same bus ratio live from a different source. The subway table gets the never-pool guard; the bus half, which will mix the pipeline-03 archive-derived Bronze with live capture, gets none. Either carry src on the bus impact read too, or state that bus impact is single-src and that live bus comparisons are cross-src by construction."
+   },
+   {
+    "claim": "D4: backfill ~250-350 day-files, ~400 MB, disk ~2.5 GB against ~9 GB free",
+    "verdict": "AMEND",
+    "evidence": "Right order of magnitude, wrong derivation and a stale constant. Enumerating the union of criterion (a) (21 days >= 2021-04-01) and criterion (b) station-labeled alert days (20 days) gives 35 event days; with K=4 baseline same-weekdays and event days excluded from baselines, the file count is 170 under the draft's implicit one-file-per-day mapping, 312 with the D-1 union the measured span requires, and 446 with D-1/D/D+1 to cover 01's midnight-3h window open (~535 MB). The quoted 250-350 sits between the naive and the correct figure by coincidence, and criteria (c)/(d) are still unenumerated so the true union is larger. Separately: 'against ~9 GB free' is copied from .scratch/build/issues/18 line 18 ('~9 GB free on the Mac as of today') \u2014 measured today, df reports 43 GiB available on /Users/ross/raincheck. The YAGNI argument for not mirroring 1,963 days stands on its own; the disk argument does not, and re-quoting an unremeasured constant is what the frozen-constants rule exists to catch."
+   },
+   {
+    "claim": "D5: the live counterpart computes the SAME service_ratio and bus ratio with the same baseline convention",
+    "verdict": "AMEND",
+    "evidence": "Holds for subway (arrivals are arrivals; the src=capture own-baseline rule with a NULL until K=4 accrues is the right call). Does not hold for bus: the existing speed_dry baseline's dry gate is evaluated on precip_cell_hourly src=aorc (gold.py:131 filters src=='aorc'), while live hours are src=mrms, which pipeline-08 measured 8-14% low. The same literal predicate mm_1h<0.1 classifies systematically MORE hours as dry on MRMS, so 'the same baseline convention' silently changes the denominator's composition across the offline/live boundary \u2014 the same class of hazard 08 handled explicitly with its rank-only/uncalibrated clause. Say so, or pin the bus dry gate to one src and declare live bus impact rank-only."
+   },
+   {
+    "claim": "D6: circularity guard \u2014 alert-labeled units reported separately from 311/FloodNet-labeled units",
+    "verdict": "AMEND",
+    "evidence": "Necessary and correctly motivated, but it plugs one channel of three. (i) Baseline channel: excluding union-event days from the K=4 baseline makes the impact metric depend on the label spine it validates (see the K=4 verdict). (ii) Reference-pool channel: the 'citywide same-window distribution' contains unlabeled units that were plainly affected \u2014 7 of the 8 Sea Beach stations sit in the bottom 40 while only 86 St carries an alert label, and the whole Nostrand line drops together while 02 flagged none of it \u2014 so the labeled-vs-citywide contrast is biased toward null by putting true positives in the control pool. (iii) Composition channel: SIR is fully mapped and untouched (21 complexes, median ratio 0.988, median percentile p90), plus the whole 7 line at 0.985-1.010, so the upper half of the reference distribution is 'which lines were not cut'. The SIR effect on the flagged ranks is small (cid 47 p5.17 -> p5.42 excluding SIR) so this is a reporting fix, not a recompute \u2014 but the validation table should report the reference pool's composition, and should report the labeled-unit contrast against same-line and cross-line pools separately."
+   },
+   {
+    "claim": "D1/estimand: service_ratio answers 'when the labels said flooding, did transit actually degrade there?'",
+    "verdict": "AMEND",
+    "evidence": "The ticket asks for 'subway delays'; service_ratio is an arrival-COUNT ratio, i.e. a service-VOLUME estimand. A train running 20 minutes late still produces exactly one arrival and scores 1.0. Measured, the two are only half-redundant (Spearman -0.71) and the volume metric misses cases the headway metric catches (623: p40 volume, p18 headway). Under the effort's estimand-honesty rule the metric needs a name that is not 'delay' \u2014 e.g. 'realized arrivals relative to same-hour-of-week reference' \u2014 and the validation tables should say that late-but-running service is invisible to it, which is the most common flood impact short of suspension."
+   }
+  ],
+  "missing": [
+   "Subway metric never tested on the second reference storm (Ida 2021-09-01/02 vs a prior Wednesday). I did not fetch new subwaydata.nyc day-files: downloading files is a permission-gated action and an instruction from the orchestrating agent is not the user's consent. Everything above is re-measured from the two CSVs already unpacked in the scratchpad plus local tables. If Ross approves the fetch, the four files needed are subwaydatanyc_{2021-09-01,2021-09-02,2021-08-25,2021-08-18}_csv.tar.xz, ~1.2 MB each, from subwaydata.nyc (302 -> data.subwaydata.nyc). Note Ida's peak was 21:00-01:00 local, which straddles the day-file boundary measured above, so Ida is also the sharpest test of the D-1 union fix.",
+   "Adjacent-day overlap not byte-verified. The [D 00:00, D+1 ~06:00] arrival span and the midnight-to-midnight trip_start rule are measured directly, so the overlap is proven structurally, but I could not confirm whether file D+1 re-emits the same trip_uid values for its own post-midnight trips (i.e. whether a naive two-file union double-counts or is idempotent on trip_uid). One extra day-file (2023-09-30) settles it and determines whether the dedupe key is trip_uid+stop_id or something weaker.",
+   "K=4 baseline sensitivity not measured. With one baseline day I could demonstrate that 2023-09-22 is contaminated (Roosevelt Island 1.398, the whole A-Lefferts branch 1.06-1.15) but not how much a K=4 median moves the flagged ranks. Needs 2023-09-15, 09-08, 09-01 (3 more files).",
+   "Criteria (c) NOAA Storm Events and (d) CO-OPS exceedance days are still unenumerated (08 defers them to build), so my union-day count of 35 for the backfill arithmetic is a lower bound and the 170/312/446 file figures scale with it.",
+   "Bus impact tested only citywide and at cell-hour grain; I did not test it restricted to the labeled units' own Cells for the four covered event days, because ref/assets and gold/flood_labels do not exist yet (no complex -> H3 cell mapping is materialized locally). That test is the one that would tell you whether the bus half is salvageable at unit grain despite the citywide null."
+  ]
+ },
+ "pony": {
+  "verdicts": [
+   {
+    "claim": "DP1 \u2014 subway metric = service_ratio (arrivals / K=4 same-weekday median) at complex-hour grain",
+    "verdict": "AMEND",
+    "evidence": "The ratio itself reproduces exactly: I recomputed from the two CSVs (445 complexes, all with nb>=20) and got median 0.692, p10 0.505, Newkirk Plaza 0.395, Botanic Garden 0.492, Canal St(325) 0.497 \u2014 the draft's numbers to the digit. But three parts of the sentence are unsupported. (a) K=4 is unmeasured: only one baseline day exists in the probe (2023-09-22), so every number quoted is K=1. (b) The grain is wrong: the draft's own evidence is a DAILY ratio; at hour grain the denominator degenerates overnight \u2014 measured on the baseline Friday, 4.6% of complex-hours have <=3 arrivals and by local hour the D-file holds only 129/124/68/11 of 445 complexes at 00/01/02/03. A median over four such bins is a tiny integer. (c) The window is undefined and the answer moves with it: full-day Newkirk Plaza = 0.395, hours 06-22 = 0.347 (12% swing). AMEND: state the metric at complex-DAY (or explicit event-window) grain, name the hour set, and cite K=1 as what was measured."
+   },
+   {
+    "claim": "DP1 \u2014 the K=4 prior-same-weekday median baseline 'mirrors the bus cell_hourofweek_baseline convention'",
+    "verdict": "REFUTED",
+    "evidence": "/Users/ross/raincheck/src/raincheck/gold.py:126-152 is the convention, and it differs on all four axes: (1) it is a ratio of SUMS (sum(dist_m_sum)/sum(dt_s_sum)), not a median; (2) it bins by hour_of_week 0-167 pooled over a multi-month WINDOW (ref.py:47 \u2014 w1 2021-08-16..10-15, w2 2023-09-01..10-31), not a rolling K prior same-weekdays; (3) it excludes by a DRY precip filter (mm_1h<0.1 AND mm_1h_prev<0.1 AND mm_6h<0.5) joined from precip_cell_hourly src=aorc, not by event-day exclusion; (4) it explicitly drops the two DST transition hours, which the draft has no rule for. Effective K is also different: measured median n_dry = 8 (w1) / 7 (w2) per bin, twice the draft's K=4. This is a NEW convention wearing the old one's name. Either reuse hour_of_week-over-a-window verbatim (which changes the fetch set \u2014 see DP4) or say plainly that subway uses a different baseline and why."
+   },
+   {
+    "claim": "DP1 \u2014 headway/gap statistics are a 'recorded upgrade, not built' because 'the ratio already separates flagged stations at p5-p8'",
+    "verdict": "AMEND",
+    "evidence": "Measured both metrics on the same rows (hours 06-22, max inter-arrival gap per complex x route x direction, >=10 baseline arrivals, ratio storm/baseline, max over route-dirs). Of the 7 alert-labeled complexes for 2023-09-29, arrivals flags 4 at pr<=0.16; gap flags exactly one that arrivals misses \u2014 623 Canal St (Broadway), arrivals pr 0.412 but gap 42,748s vs 2,090s = 20.4x, gap pr 0.052. Combined 5/7 vs 4/7. So cutting gap costs one recovery out of seven on the one event measured, from data already in hand (same CSV, one LAG window function) \u2014 not a re-fetch, so not a false economy in the fetch sense. It becomes one only because DP3 materializes a table: adding a column later is a schema migration + version bump. Also note naive max-gap needs a part-day-route guard \u2014 its own top-10 is the Astoria W-train artifact (44,898s gaps at Astoria Blvd/30 Av/36 Av/Broadway, arr_pr 0.05-0.06). AMEND: if the table ships, carry the gap columns now; if it doesn't (see DP3), cutting is free."
+   },
+   {
+    "claim": "The destination's 'subway delays' is answered by service_ratio",
+    "verdict": "AMEND",
+    "evidence": "Estimand honesty gap. service_ratio measures service VOLUME (arrivals realized vs typical); a train 20 minutes late still counts as an arrival. True schedule adherence is not computable from these files: stop_times carries only trip_uid, stop_id, track, arrival_time, departure_time, last_observed, marked_past \u2014 no scheduled time \u2014 and there is no subway static GTFS in the repo for the 2021-2026 history (data/silver/stops and trip_stops are bus: numeric stop_ids, street names). Subway static zips only start with ticket 15's daily capture (2026-08-16+), so the delay-vs-schedule metric is available live and never historically. The draft never names this. AMEND: name the estimand (e.g. service_realized_ratio) and state that historical 'delay' in the schedule-adherence sense has no local source, rather than letting service_ratio silently stand in for the map destination's phrase."
+   },
+   {
+    "claim": "DP2 \u2014 bus impact ratio = (sum dist_m_sum / sum dt_s_sum per cell-hour) / speed_dry, reusing cell_hour_speed and cell_hourofweek_baseline verbatim",
+    "verdict": "CONFIRMED",
+    "evidence": "Matches gold.py exactly: speed() groups (cell, hour_end_utc, route_id, route_class) summing dist_m_sum/dt_s_sum; baseline() computes speed_dry as sum(dist_m_sum)/sum(dt_s_sum) per (cell, hour_of_week). The numerator/denominator are the same construction, so the ratio is well-formed and needs no new bus table. Only nit: the grain is (cell, hour_end_utc, route_id, route_class), not the draft's '(cell, hour_end_utc, route_id)'."
+   },
+   {
+    "claim": "DP2 \u2014 'Bus tables need nothing new' (including for DP5's live counterpart)",
+    "verdict": "REFUTED",
+    "evidence": "cell_hourofweek_baseline has exactly two partitions, window=w1 and window=w2 (measured: 178,826 / 177,301 rows). There is no 2026 window. cell_hour_speed does have month=2026-08 (100,441 rows, 2026-08-20 07:00 .. 2026-08-21 05:00), so the live numerator exists and the live DENOMINATOR does not. 10's bus impact panel therefore either has no baseline or silently borrows w2 (2023) \u2014 a cross-era baseline, exactly the sin the draft forbids on the subway side ('never a cross-src baseline'). A w3/2026 baseline window is a new build item this ticket must name."
+   },
+   {
+    "claim": "DP2/DP4 \u2014 'bus impact limited to months where cell_hour_speed exists', with 'the two reference storms fully covered'",
+    "verdict": "REFUTED",
+    "evidence": "The reference-storm half is true (Ida 2021-09-01/02 inside w1; 2023-09-29 inside w2). The criterion is wrong twice. It is the BASELINE WINDOW that binds, not the month: of the 115 union (a)U(b) event days, only 6 fall inside w1/w2 \u2014 2021-08-22, 2021-09-01, 2021-09-02, 2023-09-11, 2023-09-18, 2023-09-29. That is 5.2%, i.e. ~3 merged events out of 30+. And the month criterion misleads on a real case: 2021-10-26 is an (a)-trigger day and month=2021-10 exists, but its rows stop at 2021-10-16 05:00, so there is neither speed nor baseline. The validation table's bus column is NULL for ~95% of event days and the draft never gives the number."
+   },
+   {
+    "claim": "DP3 \u2014 silver/impact_subway_hourly ships as a materialized Silver table (src-partitioned)",
+    "verdict": "REFUTED",
+    "evidence": "Ponytail rung 1: it has no consumer. The draft names two readers \u2014 validation views (which it itself declares build assets) and 10's display (which it itself says computes live from src=capture). So the src=subwaydata partition serves build assets only, and 08's stated precedent ('Validation outputs = build assets, not Gold \u2014 no consumer; promoted when one asks') applies one level down too. There is no performance case: I timed the full-day aggregate straight from raw CSV at 0.14 s (12,777 stop-hour rows); the whole 312-day corpus is ~44 s of GROUP BY. The output is ~9,221 complex-hours/day x ~312 days = ~2.9M rows to persist so a 44-second query need not run. Ticket 15 also explicitly deferred 'any subway Silver' as a build item \u2014 this reopens it by the back door. Make it a view/build asset over the snapshot; the durable artifact is the snapshot, not the aggregate. (The validation-views-as-build-assets half of DP3 is right and should stay.)"
+   },
+   {
+    "claim": "DP4 \u2014 event-scoped backfill is '~250-350 day-files, ~400 MB'",
+    "verdict": "REFUTED",
+    "evidence": "Not derivable from the stated rule, and wrong in both directions. I enumerated it: union (a)U(b) = 115 days ((a) 57 trigger days from trigger_days.json, (b) 71 alert-labeled first_days from events_stations.json); 35 are >=2021-04-01, merging to 30 events / 35 window-days. Applying the draft's literal rule (window days + K=4 prior same-weekdays per window day, event-days excluded, deduped) gives 170 files / ~195 MB. Applying the boundary-correct rule (see the service-day verdict: each window and each baseline day also needs its predecessor file) gives 312 files / ~359 MB. And (c)/(d) spine days are still unenumerated, so both numbers are floors. The quoted range brackets neither figure honestly."
+   },
+   {
+    "claim": "DP4 \u2014 the day-file service span is '~04:00-04:00 local', verified at build",
+    "verdict": "REFUTED",
+    "evidence": "Measured now, and it fails on the two files the draft says it measured. File 2023-09-29 spans 2023-09-29 00:01 to 2023-09-30 05:52 local; file 2023-09-22 spans 2023-09-21 09:31 to 2023-09-23 06:16. The files are keyed on trip START date at local midnight, so calendar-day D's overnight hours are split: file D holds only ~940 rows in hours 00-03 of D, while file D-1's tail holds 13,699 rows for those same hours. Per-complex it is brutal \u2014 at local hour 03 file D contains 11 of 445 complexes. Consequence: any event window that opens at NY-midnight minus 3h (01's rule) reads 21:00-00:00 from file D0-1, and Ida's flood peak (2021-09-01 evening into 09-02) sits exactly on that seam. The fetch rule must be window days + 1 leading day (and the same for baseline days), plus a dedupe on (trip_uid, stop_id) across adjacent files, which the draft has no rule for."
+   },
+   {
+    "claim": "DP4 \u2014 event-scoped is simpler than a full mirror ('NOT the full 1,963-day mirror; YAGNI')",
+    "verdict": "REFUTED",
+    "evidence": "Counted honestly, event-scoped has 7 moving parts: (1) it is BLOCKED on the union-spine enumeration, which 08 lists as an unbuilt build item; (2) K=4 baseline-day selection per event; (3) event-day exclusion, which needs the FULL spine including pre-2021 days; (4) dedupe across overlapping event windows; (5) leading/trailing boundary files (above); (6) the hash-URL manifest; (7) re-fetch whenever the spine moves \u2014 and 08 resolved the 311 threshold {p98,p99,p99.5} as an OUTER replication that redefines the event universe, so p98 mints new event days and forces a new fetch pass inside this same design. A mirror has 3: date range, manifest, fetch-if-missing \u2014 and is immune to (1),(3),(7). The price of the mirror is 1,963 - 312 = 1,651 files = ~1.9 GB. That is the whole trade, and the draft's disk premise for refusing it is stale: `df` reports 43 GB available on the volume, not '~9 GB' (that figure comes from ticket 18's note dated before the Bronze push to R2). Either keep event-scoped and drop the 'simpler' claim (it buys 1.9 GB with 4 extra couplings and a re-fetch), or take the mirror. Do not claim both."
+   },
+   {
+    "claim": "DP4 \u2014 snapshot to data/archive/subway/subwaydata/date=YYYY-MM-DD/",
+    "verdict": "REFUTED",
+    "evidence": "This path is inside the archiver's budgeted tree and can kill the running capture. src/raincheck/archiver.py:35 sets BUDGET_BYTES over ROOT = data_root()/'archive' \u2014 'an absolute count of every byte under <root>/archive' (line 10), default 10 GB, and on exceed it writes STOPPED_BUDGET and exits (lines 105-170). data/archive is at 3.7 GB today and ticket 15 measured ~0.53 GB/day, so it trips on its own in roughly 12 days. Adding the backfill there adds 359 MB compressed \u2014 or 3.6 GB if the CSVs are stored unpacked (measured: 0.99 MB tar.xz expands to 11.7 MB of CSV, ~11.8x), which would trip the budget almost immediately and stop com.raincheck.archiver (running, PID 8070) \u2014 the very daemon DP5 depends on for src=capture. Put the snapshot outside data/archive, or raise RAINCHECK_BRONZE_GB deliberately and say so. Related unstated decision: the snapshot FORMAT. DuckDB cannot read inside .tar.xz, so 'store the tarball' means unpacking on every read; measured, zstd Parquet at raw stop_times grain is 1.28 MB/day \u2014 same order as the 0.99 MB tarball and directly queryable. That is the right snapshot artifact, and it also makes DP3's table redundant."
+   },
+   {
+    "claim": "DP5 \u2014 live counterpart computes the SAME service_ratio from ticket-15 TU capture (src=capture), specified in this ticket",
+    "verdict": "REFUTED",
+    "evidence": "Out of scope for 09 and technically wrong as written. Scope: capture began 2026-08-16; K=4 prior same-weekdays per complex cannot exist before ~2026-09-13, so every src=capture row the draft specifies is a NULL ratio today (the draft concedes this itself). Nothing is validated, displayed, or testable now \u2014 10 owns the panel and owns staleness. Technically: 'the same definitions' is not achievable from TU. subwaydata.nyc's arrival_time is a third party's reconstruction from the feed stream; raincheck's own resolved convention (pipeline ticket 06) is that 'arrival truth is the VP passage (stop_id is the next stop, measured)... TU is the prediction stream with churn features and a flagged fallback.' Ticket 15 captured subway VP precisely because it carries stop_id + current_stop_sequence, and data/archive/subway_vp exists. So the draft picks the prediction stream over the arrival-truth stream the map claims to reuse 'wholesale, no re-deciding', and quietly makes arrival reconstruction \u2014 a whole subsystem \u2014 read as one clause. Reduce DP5 to an obligation posted on 10: name the estimand, name the src bar, and let 10 decide the reconstruction (VP passage per pipeline-06) when there is data to reconstruct."
+   },
+   {
+    "claim": "DP6 \u2014 circularity guard: alert-labeled vs non-alert-labeled impact reported separately",
+    "verdict": "AMEND",
+    "evidence": "Right mechanism, wrong threat, and cheap to fix. It costs one column and two rows, so it is not over-engineered \u2014 but it guards the small confound (a suspension alert both names a station and zeroes its arrivals) while leaving the dominant one unguarded: arrivals collapse for planned work (GO), signal failures, police activity and snow, none of which are flooding, and the metric cannot attribute. 01's spine includes Dec-Mar snowmelt-reclassed days that 08 excludes from the fit; nothing excludes them here. The measured null is not small \u2014 citywide median service_ratio on a storm day is 0.692, i.e. the typical unflooded complex already lost 31% of its arrivals. Cheap fix, no new data: run the same statistic on the K baseline days against THEIR own baselines to publish the placebo distribution of 'deep drop, no flood', and state that attribution is not claimed."
+   },
+   {
+    "claim": "The validation view's statistic ('percentile rank of each labeled unit') is sound at complex grain",
+    "verdict": "REFUTED",
+    "evidence": "Measured spatial fan-out makes the units near-perfectly correlated. The 14 deepest drops on 2023-09-29 are three line clusters, not 14 draws: Nostrand (President St, Sterling St, Winthrop St, Church Av, Beverly Rd, Newkirk Av, Flatbush Av) at 0.380-0.384, spread 0.004; Sea Beach (86 St, Bay Pkwy, Avenue U, Kings Hwy) at 0.381-0.384, spread 0.003; Broadway-Brighton (Prospect Park 0.361, 7 Av 0.366) plus Franklin Shuttle Park Pl 0.245. Service is suspended along a SEGMENT, so every station on it gets the same number and the effective sample is the number of affected line-segments (~3-4), not stations (~14). 06 and 08 already resolved this exact problem for labels (event-clustering for inference, location-blocked splits, the measured 1.69-2.07 fan-out) and 09 leaves the analogous rule unstated. The percentile-rank statistic needs a line-segment clustering rule or an explicit effective-n caveat."
+   },
+   {
+    "claim": "'The ten deepest drops independently rediscover the reported flooded corridor... with no flood data as input'",
+    "verdict": "AMEND",
+    "evidence": "Selective on the load-bearing claim. 02's extractor labels SEVEN complexes for 2023-09-29 (169, 225, 325, 47, 623, 626, 79 \u2014 from events_stations.json), not the three the draft names. Full set with percentile rank of the arrivals ratio: 79 86 St 0.381/pr 0.014, 47 Newkirk Plaza 0.395/0.052, 626 Botanic Garden 0.492/0.079, 325 Canal St 0.497/0.083, 225 47-50 Sts-Rockefeller Ctr 0.614/0.360, 623 Canal St 0.636/0.399, 169 Canal St 0.765/0.637. Median pr 0.083 and median ratio 0.497 vs citywide 0.692 \u2014 so the set-level discrimination is real and worth keeping. But 3 of 7 (43%) sit at pr >= 0.36 and one is ABOVE the citywide median. Honest headline: median labeled percentile rank 0.083, POD@p10 = 4/7. Also, the draft's own top-10 narrative silently omits the four Sea Beach stations that tie the Nostrand cluster at the same ratio; one of them (79) is alert-labeled from a system_wide=true alert, so 'rediscovers the flooded corridor' is doing more interpretive work than the numbers support."
+   },
+   {
+    "claim": "Measured-today section: 163,339 vs 239,921 stop_times rows (-32%), 6,814 vs 8,894 trips (-23%), file sizes 0.99/1.39 MB, schema and join path",
+    "verdict": "CONFIRMED",
+    "evidence": "Reproduced: wc -l gives 163,340 / 239,922 lines and 6,815 / 8,895 (headers included) \u2014 exactly the stated row counts; -31.9% and -23.4%. File sizes 986,128 B and 1,386,812 B = 0.99/1.39 decimal MB. Schema matches the draft's column list verbatim. The rtrim(stop_id,'NS') -> gtfs_stop_id -> complex_id join works and yields 445 complexes on both days (matching 06's 445). One unstated cost: the join drops 1,187/163,309 (0.7%) storm rows and 1,642/239,919 baseline rows with no station match \u2014 small, but asymmetric across days and unhandled."
+   },
+   {
+    "claim": "DP4 \u2014 'pre-2021-04 events: subway impact honestly ABSENT (stated in every validation table)'",
+    "verdict": "AMEND",
+    "evidence": "The discipline is right; the magnitude is missing and it is the headline of this ticket. Counted: of the 115 union (a)U(b) event days, 35 (30%) have subway coverage and 6 (5.2%) have bus coverage; 80 of 115 (70%) have NEITHER. Of the 71 days carrying at least one alert-labeled complex \u2014 the days with station labels to validate against \u2014 only 20 are >=2021-04-01, so 51 of 71 (72%) of the station-labeled days have no subway source at all. 'Absent' should carry these three numbers, since they determine whether the impact signal can validate anything beyond a handful of events."
+   }
+  ],
+  "missing": [
+   "Snapshot format and location: tar.xz vs unpacked CSV vs Parquet (measured 0.99 MB / 11.7 MB / 1.28 MB per day \u2014 an 11.8x swing), and a path outside the archiver's budgeted data/archive tree.",
+   "Dedupe rule for arrivals appearing in two adjacent day files (measured overlap: file D-1's tail and file D's head both cover hours 00-05 of day D) \u2014 key on (trip_uid, stop_id)?",
+   "Which hours of the event window enter the ratio. Measured swing: Newkirk Plaza 0.395 full-day vs 0.347 for hours 06-22.",
+   "NULL / zero-denominator policy when a complex-hour bin has zero baseline arrivals (measured 0.9% of complex-hours have <=1 arrival, concentrated 00:00-04:00).",
+   "DST transition hours \u2014 gold.py drops them from the bus baseline explicitly; the subway baseline has no rule.",
+   "Snowmelt-reclassed event days: 08 excludes them from the fit; nothing excludes them from impact validation, where snow crushes arrivals for non-flood reasons.",
+   "Planned-work / GO exclusion, or an explicit placebo distribution from the baseline days, so 'service dropped' is not read as 'flooding'.",
+   "A clustering or effective-n rule for the validation statistic given line-segment fan-out (06/08 resolved the analogue for labels; 09 does not).",
+   "w3 / 2026 baseline window for cell_hourofweek_baseline \u2014 without it 10's live bus ratio has no denominator.",
+   "What the 08 p98/p99.5 outer replication does to the fetched day set under an event-scoped backfill (it redefines the event universe, so it forces a second fetch pass).",
+   "Station-name ambiguity check on complex 79 ('86 St' resolves to five NYC complexes; 02 picked Sea Beach from a system_wide=true alert) \u2014 a label misattribution propagates straight into the impact validation.",
+   "Publication constraint: research/subway-rt-archives.md records the subwaydata.nyc data license as NOT FOUND (local use only, no rehosting). Whether derived per-complex numbers may appear in the spec/map artifacts is undecided.",
+   "Route-level vs complex-level attribution: the metric aggregates all routes at a complex, so a complex served by an unaffected route dilutes toward 1 (Canal St 169, pr 0.637, is the measured instance).",
+   "1,187 storm rows/day (0.7%) that fail the stop_id -> station join: which stops, and whether the loss is asymmetric between storm and baseline days."
+  ]
+ },
+ "rails": {
+  "verdicts": [
+   {
+    "claim": "D1/headline: 'The 02-extractor's flagged stations for 2023-09-29 land in the deep tail: Newkirk Plaza 0.395 (p5), Botanic Garden/Franklin Av 0.492 (p8), Canal St (325) 0.497 (p8).'",
+    "verdict": "AMEND",
+    "evidence": "Selective reporting. /Users/ross/raincheck/research/flood-02-station-prototype/events_stations.json flags SEVEN complexes for first_day=2023-09-29 (626 Botanic Garden, 79 86 St, 47 Newkirk Plaza, and 169/325/623 all three Canal St from one alert, plus 225 47-50 Sts-Rockefeller Ctr). I recomputed the ratio over both probe CSVs (citywide median 0.6915, N=445, reproduces the draft): 626=0.492 p7.9, 79=0.381 p1.3, 47=0.395 p5.2, 325=0.497 p8.3, 225=0.614 p36.0, 623=0.636 p39.8, 169=0.765 p63.6 \u2014 ABOVE the citywide median. 4/7 in the bottom decile, 3/7 mid-pack. The draft reports the three lowest of seven and omits that one alert named three Canal St complexes spanning 0.497-0.765. AMEND: report all seven with percentile ranks, or the discrimination claim rests on a chosen subset."
+   },
+   {
+    "claim": "D1/headline: 'The ten deepest drops independently rediscover the reported flooded corridor ... with no flood data as input.'",
+    "verdict": "REFUTED",
+    "evidence": "Measured ten deepest (445 complexes, >=20 baseline arrivals): 141 Park Pl 0.245 (Franklin shuttle, base=155), 42 Prospect Park 0.361, 41 7 Av 0.366, 353 President St 0.380, 356 Church Av 0.381, 359 Flatbush Av 0.381, 79 86 St 0.381, 354 Sterling St 0.382, 355 Winthrop St 0.382, 358 Newkirk Av 0.382. Exactly 1/10 (86 St) is an 02-flagged complex for that event. Botanic Garden/Franklin Av (626, 0.492) is NOT in the ten deepest \u2014 it ranks ~36th of 445. 358 Newkirk Av-Little Haiti was flagged for 2023-09-18, a DIFFERENT event. And 76 Bay Pkwy 0.382 / 78 Avenue U 0.383 (N, Sea Beach, unflagged) sit immediately beside flagged 86 St 0.381 on the same line. 'Rediscovers the corridor' is an eyeball match against news reports, not against the label set the design must validate."
+   },
+   {
+    "claim": "D1: complex-hour grain with a '>=20 baseline arrivals' eligibility filter.",
+    "verdict": "AMEND",
+    "evidence": "The filter is vacuous at the grain it was measured on and decisive at the grain it ships on. Day grain: all 445 complexes present in both files and all 445 clear >=20 (measured len(eligible)==len(baseline)==445), so the stated filter removes nothing. Hour grain (the designed grain), 2023-09-22: 9,221 populated complex-hours of 10,680 possible (86%); min 1, p10 6, median 18, p90 43. 52.8% of complex-hours fall below the >=20 bar, 7.1% below 5, 2.4% at <=2; 1,459 complex-hours (13.7%) have zero baseline arrivals, so service_ratio is 0/0. The p5-p8 separation is a DAY-grain result. The hour-grain estimator is unmeasured, and at baseline_med<=2 the ratio quantizes to {0, 0.5, 1.0, 1.5}."
+   },
+   {
+    "claim": "D1: 'baseline = median over the K=4 prior same-weekdays excluding union-event days (mirrors the bus cell_hourofweek_baseline convention).'",
+    "verdict": "AMEND",
+    "evidence": "Three unspecified pieces. (a) No rule for K<4 after event-day exclusion \u2014 no backward extension, no minimum, and no n_baseline_days column on the table, so a consumer cannot tell a K=4 ratio from a K=1 one. (b) No exclusion for planned service changes (GOs), which are the dominant source of arrival-count variation at a complex \u2014 and the exclusion is already available in-repo: 02's extractor explicitly filters 'flood-mitigation/planned-work rows' out of the same alerts feed. (c) K=4 reaches 28 days back; pipeline-10 (/Users/ross/raincheck/.scratch/pipeline/issues/10-backfill-slice-and-speed-rules.md:42) measured calendar confounds inside exactly this span ('school start 09-13-2021 / 09-07-2023, Labor Day'). For the 2023-09-29 event the 4th baseline day is 2023-09-01 \u2014 pre-school-start and pre-Labor-Day. The bus baseline has a documented guard; the subway baseline gets none. Also unaddressed: DST days are 23/25 h (pipeline-09 drops DST hours from hour-of-week; a same-weekday baseline has no equivalent rule)."
+   },
+   {
+    "claim": "D2: 'Bus tables need nothing new ... gold/cell_hour_speed + gold/cell_hourofweek_baseline (speed_dry) exist for 2021-08..10 and 2023-09..10 \u2014 the two reference storms are fully covered.'",
+    "verdict": "REFUTED",
+    "evidence": "The baseline is not era-general. /Users/ross/raincheck/data/gold/cell_hourofweek_baseline is partitioned by window=w1|w2 (measured: w1 178,826 rows/1,345 cells, w2 177,301 rows/1,330 cells) and pipeline-10 states 'the two windows are baselined and fitted separately (2021 vs 2023 regimes) and each is the other's [control]'. There is no all-era or live baseline. So bus impact exists for exactly the two baselined WINDOWS, not for 'months where cell_hour_speed exists' \u2014 the draft's backfill sentence is wrong. Decisive for D5: cell_hour_speed already has month=2026-08 (measured 100,441 rows, 2026-08-20 07:00 to 2026-08-21 05:00 local) with NO matching baseline partition, so the live bus impact ratio has no denominator today. Building a per-window baseline (with pipeline-10's mm_6h<0.5 recovery guard and the 08 dry rule) is a real build item that 'no new bus tables, no re-decisions' hides."
+   },
+   {
+    "claim": "D2: 'Impact ratio = (sum dist_m_sum / sum dt_s_sum over routes per cell-hour) / speed_dry from the existing baseline.'",
+    "verdict": "AMEND",
+    "evidence": "Correct within one cell-hour \u2014 I verified speed_dry IS already the merged space-mean: over 356,127 baseline rows, mean |speed_dry - dist_m_sum_dry/dt_s_sum_dry| = 0.0 exactly. Two amendments. (1) The validation view computes a 'bus speed ratio during the window' spanning many hours; averaging per-hour ratios across a window is precisely the mean-of-means error pipeline-14 fixed on pipeline-09 ('speed_dry alone is a mean of means'), so the window statistic must merge dist_m_sum/dt_s_sum on the storm side against summed dist_m_sum_dry/dt_s_sum_dry over the matching hour_of_week bins. The draft does not say. (2) Measured grain of cell_hour_speed is (cell, hour_end_utc, route_id, route_class) \u2014 route_class is local/express/sbs (measured 8,171,341/3,089,938/796,552 rows); the draft's stated grain omits it."
+   },
+   {
+    "claim": "D2: the bus ratio measures flood impact at a unit.",
+    "verdict": "AMEND",
+    "evidence": "Estimand honesty gap. pipeline-10 added the mm_6h<0.5 recovery guard because 'post-Ida hours are dry by 08's rule while buses run 0.80-0.90' \u2014 i.e. a CITYWIDE post-storm bus depression of 0.80-0.90 exists with no local flooding at all, the same magnitude the draft would read as impact. The citywide-percentile framing absorbs this only if it is stated and the comparison window is matched; the draft names neither the recovery effect nor the guard. State it, and require the citywide same-window distribution to be the only reference (never an absolute ratio threshold)."
+   },
+   {
+    "claim": "D3: 'silver/impact_subway_hourly (src, service_date, complex_id, hour_end_utc, arrivals, baseline_med, service_ratio) \u2014 plain Parquet, partitioned by src.'",
+    "verdict": "REFUTED",
+    "evidence": "Violates the pipeline-09 conventions the map says are reused wholesale. Every Silver/Gold table in this repo carries a TIME partition under any src partition: precip_hourly is 'src=aorc|mrms/month=' (pipeline-08), silver/events and silver/leg_hours are 'service_date=' (measured on disk: 123 part files), gold/cell_hour_speed is 'month=' (6 partitions on disk). pipeline-09's rules are one file per partition, partition immutability, and rerun-replaces-the-partition under mode('overwrite').partitionBy() with dynamic partitionOverwriteMode. src= alone puts ~350 event-days x ~9,200 populated complex-hours/day = ~3.2M rows in ONE file per src and makes a single-day rebuild rewrite the whole src. Needs src=/month= (or src=/service_date=) plus a stated sort key (the sibling convention is sort by cell/key then time)."
+   },
+   {
+    "claim": "D3: 'Timestamps stay unix-UTC; rows carry hour_end_utc + service_date.'",
+    "verdict": "AMEND",
+    "evidence": "pipeline-09 decision 4 mandates TIMESTAMP_MICROS UTC in storage (Spark's INT96 default must be overridden) with session TZ UTC. Measured on every sibling table: gold/cell_hour_speed.hour_end_utc and silver/leg_hours.hour_end_utc are timestamp[us, tz=UTC]. 'Unix-UTC' is the CSV's format; the table must convert. service_date's type is never stated \u2014 siblings use it as a DATE partition key, and pipeline-09's 07 comment warns Spark URL-encodes timestamp partition keys ('2026-08-16 20%3A00%3A00', read as VARCHAR by DuckDB), so it must be a plain DATE, not a timestamp."
+   },
+   {
+    "claim": "D3: the new Silver table needs no reproducibility gate.",
+    "verdict": "AMEND",
+    "evidence": "Not stated, and every peer ticket states it. 06: 'byte-identical build off pinned pick_ids + snapshotted Socrata pulls' with a rebuild key-diff; 07: chained features_version; 08: 'single sorted part, rebuilt whole, byte-identical gate' plus score_version = sha1 over its inputs. impact_subway_hourly has no impact_version, no frozen_at, no sorted-single-part rule, no byte-identical gate \u2014 and it is built from mutable third-party day-files fetched over 302 redirects, which is exactly the case that needs one. Add impact_version = sha1(src, day-file sha256 set, K, baseline exclusion set, assets_version)."
+   },
+   {
+    "claim": "D3: 'Event-impact validation views = build assets, not Gold (08's precedent).'",
+    "verdict": "CONFIRMED",
+    "evidence": "08's Outputs section says exactly this: 'Validation outputs (per-event POD/FP, sweep tables, ...) = build assets linked from the ticket, not Gold (no consumer; promoted when one asks)'. Correct precedent, correctly applied. Keep."
+   },
+   {
+    "claim": "D3: the validation view = 'median ratio at labeled units, citywide median, percentile rank of each labeled unit' \u2014 respects 08's conventions.",
+    "verdict": "REFUTED",
+    "evidence": "It reproduces the exact degeneracy 08 abolished. 08 killed per-event CSI because 61% of station-labeled alert events carry exactly ONE positive (measured {1:43, 2:11, 3:7, 4:4, 5+:6}) and replaced it with per-event POD + raw FP count plus an event-cluster bootstrap CI (frozen B=1000, percentile intervals) on the POOLED statistic. A 'median ratio at labeled units' over a set of size 1 is that unit's ratio; there is no pooled statistic and no CI anywhere in the draft. Measured on 2023-09-29 \u2014 an atypically RICH event with 7 labeled complexes \u2014 the 08-shaped statistic is: bottom-decile POD = 4/7, with ~40 unlabeled complexes also in the bottom decile (10% of 445 = 44.5, minus the 4 hits). That POD/FP pair is what 08 requires and what the draft's three summary statistics cannot produce."
+   },
+   {
+    "claim": "D4/facts: 'the day-file service-day span is verified at build (files appear to run ~04:00-04:00 local).'",
+    "verdict": "REFUTED",
+    "evidence": "Guessed, and the guess's consequences are not worked through. Measured spans (coalesce(arrival_time, departure_time), America/New_York): file 2023-09-29 = 2023-09-29 00:01:00 to 2023-09-30 05:52:41; file 2023-09-22 = 2023-09-21 09:31:50 to 2023-09-23 06:16:12. Hourly profile proves it is a SERVICE day, not a calendar day: on the nominal date, hours 00/01/02/03 hold 341/409/159/29 rows, while the D+1 tail of the SAME file holds 3,912/3,299/3,127/3,361 at hours 00/01/02/03. So calendar hours 00:00-03:59 of day D live in file D-1. Consequences the draft misses: (a) 01's window opens at NY-midnight-3h = 21:00 on D0-1, so file(D0-1) is mandatory and the draft's 'window days + K=4 baseline same-weekdays' list omits it \u2014 every event window loses its first ~7 hours; (b) the same off-by-one applies to every baseline day; (c) service_date must be the SERVICE day, not the file's nominal date, or the hour join silently drops 4 h/day; (d) adjacent files overlap (measured 15,703 rows dated 09-30 inside the 09-29 file), so a naive multi-file load double-counts. This is the most load-bearing semantic in the ticket and it is deferred to build with a wrong value."
+   },
+   {
+    "claim": "D4: 'estimated ~250-350 day-files, ~400 MB'.",
+    "verdict": "AMEND",
+    "evidence": "Unbounded by construction and inconsistent with the draft's own fetch list. Using the only enumerable criteria today ((a) trigger days from the probe's trigger_days.json + (b) station-labeled alert events >= 2021-04-01): 21 (a)-days + 20 (b)-days = 35 distinct days = 30 merged events. Fetch list without the service-day spill (the draft's implied list) = 170 day-files = 202 MB at the measured 1.19 MB mean; WITH the mandatory D-1 file = 312 files = 371 MB. The draft's 250-350/400 MB only matches the with-spill figure it does not include. And 08 states criteria (c) Storm Events and (d) CO-OPS are '(c)/(d) enumerated at build' \u2014 so the event count, and therefore the fetch count, has no upper bound stated. Recompute after the spine is enumerated, and state the fetch-count formula (window days + D-1, x K weekdays + their D-1), not a point estimate."
+   },
+   {
+    "claim": "D4: 'NOT the full 1,963-day mirror (disk: ~2.5 GB against ~9 GB free; YAGNI).'",
+    "verdict": "AMEND",
+    "evidence": "Decision right, evidence false. `df -h` today: /dev/disk3s5 on /System/Volumes/Data has 43Gi available, not ~9 GB \u2014 the ~9 GB figure is ticket-18's stale note (/Users/ross/raincheck/.scratch/build/issues/18-bronze-cold-storage.md:18). The full mirror measures ~2.3 GB (1,963 x 1.19 MB), trivially affordable against 43 GiB. Keep event-scoped, but on the real grounds: YAGNI plus 1,963 HTTP round-trips through 302 hash redirects. Delete the disk argument or it will be re-litigated the moment someone runs df."
+   },
+   {
+    "claim": "D4: 'snapshot to data/archive/subway/subwaydata/date=YYYY-MM-DD/ ... local use only, no rehosting.'",
+    "verdict": "REFUTED",
+    "evidence": "The chosen path silently violates the local-only rule and collides with two live mechanisms. (1) Makefile:61 \u2014 `coldpush` runs `aws s3 sync \"$${RAINCHECK_ARCHIVE_ROOT:-data}/archive\" \"s3://$(RAINCHECK_COLD_BUCKET)/archive\"` recursively. Anything under <root>/archive is in the push scope by construction (ticket 18 says so verbatim of the xz files). So ~400 MB of third-party bytes whose data license is NOT FOUND would be uploaded to R2 automatically \u2014 outside ticket-18's authorization, which is scoped to 'the irreplaceable capture' in a private bucket. (2) src/raincheck/archiver.py:35 \u2014 BUDGET_BYTES counts 'every byte under <root>/archive' (default 10 GB), so the backfill charges itself to the live capture's budget and hastens STOPPED_BUDGET. (3) data/archive/subway/ is ALREADY occupied by 06's Socrata stations snapshot (measured: data/archive/subway/i9wp-a4ja_2026-08-22.json). Put the snapshot outside <root>/archive (e.g. data/ext/subwaydata/) or add an explicit coldpush exclude and a budget exclusion, and say which."
+   },
+   {
+    "claim": "D4/license: 'data license NOT FOUND \u2014 local use only, no rehosting' is a sufficient record.",
+    "verdict": "AMEND",
+    "evidence": "It records the constraint in the ticket only; the map's own convention is to record license status per source in the Decisions line. Precedents on /Users/ross/raincheck/.scratch/flood/map.md: 03 records 'data license is a custom NYU/CUNY non-commercial agreement'; 04 records 'DEC CSO outfalls confirm fetch-and-use is fine (Query,Extract capability), only rehosting is barred'. research/subway-rt-archives.md:73 and its Unverified list are the source: 'License/terms of the data itself not found (only the software... is open source)'. What the map must record: (i) a Decisions entry naming subwaydata.nyc license NOT FOUND, fetch-and-use local-only, no rehosting AND no cloud copy; (ii) silver/impact_subway_hourly flagged non-publishable (aggregates displayable on pipeline-14's LOCAL page only \u2014 the map's Out of scope already bars 'Public hosting / re-serving of MTA-derived data'); (iii) the snapshot path excluded from coldpush; (iv) a revisit trigger if a license is later published."
+   },
+   {
+    "claim": "D4/fetch: '302 hash URLs ... store the resolved URL in a manifest', fetch-only-when-missing.",
+    "verdict": "AMEND",
+    "evidence": "Wrong integrity primitive for this repo's snapshot convention. 06 pins snapshots by content ('byte-identical build off pinned pick_ids + snapshotted Socrata pulls'); pipeline-09 identifies a Pick by 'zip sha1' in ref/picks; 07 pins request constants; 08's score_version includes a 'stormwater snapshot date' and a 'precip identity (src + grid sha256 + partition-set hash)'. The vendor's URL hash is the vendor's, not ours, and gives no check that the bytes we hold are the bytes we built from. The manifest must carry sha256 of each tar.xz + fetched_at + the resolved URL, and impact_version must include the sorted sha256 set \u2014 otherwise a silent upstream re-issue is undetectable and 'fetch-only-when-missing' makes it permanent."
+   },
+   {
+    "claim": "D5: 'capture rows computed from ticket-15 TU stop-time events with the same definitions.'",
+    "verdict": "REFUTED",
+    "evidence": "Not achievable by construction; the two srcs measure different things, and the src partition is necessary but not sufficient. Ticket 15's measured census (/Users/ross/raincheck/.scratch/pipeline/issues/15-subway-capture.md:38): subway_tu has 'no stop_sequence, delay, schedule_relationship or vehicle on TUs'; its arrival_time/departure_time are per-poll TripUpdate PREDICTIONS (arrival 98%, departure 95% present), refreshed every 60 s and deduped on header.timestamp. subwaydata.nyc stop_times are REALIZED arrivals carrying marked_past and last_observed \u2014 I measured marked_past set on 163,141 of 163,339 storm rows (99.9%) \u2014 fields produced by an inference pass over the snapshot sequence that does not exist in the capture. Realizing an arrival from raw TUs requires stop-time-update-disappearance inference at the poll cadence, i.e. a new build item with its own error characteristics. 'The same definitions' is false; the draft carries no measurement that a capture-derived arrivals count is even on the same LEVEL as subwaydata's. State the inference rule as a build item, and require a level-comparison measurement on overlapping days before any cross-src display."
+   },
+   {
+    "claim": "D5: 'baselines for src=capture accumulate as capture days accrue; until K=4 same-weekdays exist per complex, the ratio is NULL.'",
+    "verdict": "REFUTED",
+    "evidence": "Arithmetically blocked by the capture's own budget. Measured now: archiver running (launchctl: com.raincheck.archiver, pid 8070), capture from 2026-08-16 23:10 to 2026-08-22 20:10 = 6.3 days; du of data/archive = 3.7 GB (vp 2.7G, tu 756M, subway_tu 205M, subway_vp 16M, subway_alerts 12M, alerts 12M) = ~0.59 GB/day against archiver.py's BUDGET_BYTES default of 10 GB => STOPPED_BUDGET around 2026-09-02. K=4 same-weekdays from a 2026-08-16 start first yields a non-NULL ratio on 2026-09-13 at the earliest \u2014 11 days AFTER the hard stop. No prune exists (ticket 18 killed the SSD and says 'Local data/ holds only the active working set' without adding one), and the draft's own ~400 MB backfill under the same root accelerates the stop. D5 needs either RAINCHECK_BRONZE_GB raised / a local prune landed (a real build item, and the budget-raise is a HITL-adjacent change), or an honest statement that the live subway panel is dark until then."
+   },
+   {
+    "claim": "D5: 'Display only; staleness and thresholds are 10's.'",
+    "verdict": "AMEND",
+    "evidence": "10 is handed a display obligation without the facts needed to discharge it, and one decision is pre-empted. (a) Latency is never stated: research/subway-rt-archives.md:67 records subwaydata.nyc is 'updated every morning at around 7am with data from the previous day' => src=subwaydata carries 7-31 h lag and is unusable live, leaving src=capture as the only live path. 10 cannot write a staleness rule without this. (b) No unit-grain reconciliation: bus impact is cell-hour, subway impact is complex-hour, and 08's score units are complex / bus_stop / cell \u2014 a bus_stop unit has no impact number of its own and the draft never states the cell fallback or the cross-kind display rule (08 forbids two kinds in one legend). (c) No hour-alignment rule (last CLOSED hour_end_utc under pipeline-08's ceil_hour). (d) The NULL-until-K=4 rule IS a display/staleness decision, made here while asserting staleness belongs to 10 \u2014 post it as an obligation on 10 rather than asserting it."
+   },
+   {
+    "claim": "D6: 'Circularity guard ... the validation tables report impact for 311/FloodNet-labeled units separately from alert-labeled units.'",
+    "verdict": "AMEND",
+    "evidence": "Necessary but aimed at the wrong mechanism. The dominant confound I measured is not label provenance, it is that a suspended segment zeroes arrivals at EVERY complex on it equally: President St 202/532, Church Av 203/533, Flatbush Av 203/533, Sterling St 203/531, Winthrop St 203/531, Newkirk Av 203/531 \u2014 six complexes, identical counts, identical ratio 0.380-0.382. Within a cut segment the metric has zero spatial resolution, so it cannot distinguish a labeled complex from its unlabeled neighbours for ANY label source (86 St 0.381 flagged sits between Bay Pkwy 0.382 and Avenue U 0.383, both unflagged, same N line). Since 08's independent validation set is the 155 alert-sourced COMPLEX-event pairs, this is fatal to complex-grain validation as designed. Add a same-line neighbour control (labeled complex vs its adjacent same-route complexes in the same hour) as the primary statistic; keep the label-source split as a second cut."
+   },
+   {
+    "claim": "Destination clause: impact signals 'are never detector inputs and never model features (destination + 01)' \u2014 binding, restated.",
+    "verdict": "REFUTED",
+    "evidence": "Asserted here, enforced nowhere. The only artifact that can bind it is 08's feature list, and 08's 'Barred (inherited)' names exactly three things \u2014 'FloodNet-derived anything; grade_ok/epoch deltas; alert-derived features' \u2014 and does NOT name transit impact. Compare the mechanism that works: 01 wrote the FloodNet bar into its Source-roles section ('FloodNet is TRUTH and therefore no FloodNet-derived feature may enter 08's model') and 08 carried it forward verbatim; 10 carries it again as item (5). This draft posts NO comment or amendment on 08 or 10. 08's score_version sha1 happens to omit impact, but that is an accident of enumeration, not a bar. AMEND: add impact_subway_hourly/service_ratio and the bus cell-hour speed ratio to 08's 'Barred (inherited)' list by comment, and add a display-only clause to 10 beside its item (5)."
+   },
+   {
+    "claim": "Process: the draft's decisions are complete as written.",
+    "verdict": "AMEND",
+    "evidence": "No obligations are propagated. Every other resolution in this effort ends by writing comments on the tickets it constrains \u2014 01 -> 02 and 08; 06 -> 01, 07, 08; 07 -> 08; 08 -> 01 and 10 (all visible as dated AMENDED/obligation comments in /Users/ross/raincheck/.scratch/flood/issues/). This draft's six decisions end inside 09. At minimum it owes: a bar comment on 08, a display-interface comment on 10 (latency, unit-grain reconciliation, hour alignment, NULL-until-K=4), a map Decisions entry carrying the license gap, and a note on ticket 18 / the archiver budget for the D5 collision."
+   },
+   {
+    "claim": "Coverage: 'pre-2021-04 events: subway impact honestly ABSENT (stated in every validation table); bus impact limited to months where cell_hour_speed exists.'",
+    "verdict": "AMEND",
+    "evidence": "Two problems. (1) The bus half is wrong (see the window=w1|w2 verdict) and the subway half is a display sentence, not a calendar \u2014 08 gates its negative universe by explicit per-source coverage calendars, so impact needs its own registered calendars (subway subwaydata 2021-04-01+, subway capture 2026-08-16+, bus = the two baselined windows) with a stated rule for what an ABSENT cell does to a validation denominator (report-only vs excluded). (2) Critically, the draft never says these calendars are impact-only and must NOT touch 08's negative universe \u2014 impact is not a label source, so an absent impact value can never invalidate a negative pair. Left ambiguous, a builder can wire it in and quietly leak impact into the fit through the sample definition. State the non-interaction explicitly, the way 08 states 'NFIP absent because NFIP is absent'."
+   },
+   {
+    "claim": "Facts block: 'gold/cell_hour_speed + gold/cell_hourofweek_baseline exist for 2021-08..10 and 2023-09..10'.",
+    "verdict": "AMEND",
+    "evidence": "Incomplete. Measured partitions of data/gold/cell_hour_speed: month=2021-08, 2021-09, 2021-10, 2023-09, 2023-10, and month=2026-08 (100,441 rows, 2026-08-20 07:00 to 2026-08-21 05:00 local). The draft omits 2026-08 \u2014 the one month where the bus tables and the ticket-15 subway capture eras overlap, i.e. the only place the live counterpart of D5 could be measured today. It has no baseline partition, which is exactly the D5 gap."
+   }
+  ],
+  "missing": [
+   "Unmapped stop_ids: measured 24 distinct parent stop_ids with no row in the stations table, dropping 1,187 storm / 1,642 baseline rows (~0.7%) \u2014 top offenders on the baseline day R60 (756), R65 (353), H19 (170), X22 (102), M07 (94). The draft's join rule ('stripping the N/S suffix -> gtfs_stop_id -> complex_id') has no unmapped-row handling, no reporting obligation, and no rebuild canary. 06's registry has a key-stability contract; this join needs the same.",
+   "Feed-outage vs service-collapse: nothing in the design distinguishes 'trains did not run' from 'the MTA feed stopped reporting' during the storm \u2014 the failure mode most likely to co-occur with the events being validated. trips.num_updates / num_schedule_rewrites / marked_past are in the day file and unused. Without a rule the estimand is 'arrivals observed by subwaydata.nyc', not 'arrivals'.",
+   "Alternate service: a suspended line replaced by shuttle buses shows arrivals -> 0 while mobility is partly preserved. The metric's name ('service_ratio') and the display claim ('did transit actually degrade there') both overstate. Either narrow the estimand string or state the shuttle-bus blind spot.",
+   "Multi-complex alerts: one 2023-09-29 alert names three Canal St complexes (169/325/623) whose measured ratios span 0.497 to 0.765. The design never says whether such an alert contributes one validation row or three, or how the three are combined \u2014 and 08's complex-grain validation set is built from exactly these pairs.",
+   "No n_baseline_days / K_actual column on impact_subway_hourly, so a K=4 ratio and a K=1 ratio are indistinguishable downstream. Same for a coverage/quality flag when the service-day spill file was missing.",
+   "No statement that impact never enters label_version or score_version. 08 states absences explicitly ('NFIP absent because NFIP is absent'); this draft should state the same for impact so a future version-hash edit cannot quietly add it.",
+   "DST handling for the same-weekday baseline: pipeline-09 drops DST-transition hours from hour-of-week, but the subway baseline is same-weekday (23/25 h days) and the draft gives no rule.",
+   "No revisit trigger recorded for the headway/gap upgrade. It is called 'the recorded upgrade, not built', but the only evidence offered for deferring it (day-grain p5-p8 separation) does not survive the hour-grain check \u2014 so the upgrade needs a firing condition (e.g. fires if the hour-grain metric's bottom-decile POD against 02's flagged complexes falls below the day-grain 4/7)."
+  ]
+ }
+}

@@ -1,0 +1,346 @@
+{
+ "rails": {
+  "verdicts": [
+   {
+    "claim": "\"No queryable DSM exists. All 63 services on elevation.its.ny.gov are bare-earth DEMs (full directory enumerated).\"",
+    "verdict": "AMEND",
+    "evidence": "Conclusion holds, enumeration does not. Re-fetched /arcgis/rest/services?f=json: 63 services in the ROOT plus three folders the draft never opened \u2014 indexes (7 services), Ortho (0), Utilities (1 GPServer) = 71 total. And the 63 are not all DEMs: 9 are FeatureServer/MapServer (DEM_Extents x2, Dem_Indexes x2, In_Progress_LiDAR_Collections_in_NYS x2, LAS_Indexes x2, NYS_Statewide_Hillshade); 54 are elevation ImageServers. No DSM / Highest-Hit / first-return service appears anywhere on the host, and the 2017 service description is explicit: \"bare earth ... all vegetation and anthropogenic features removed\". Exact change: \"No DSM on the host: 71 services enumerated (63 root + 7 indexes + 1 Utilities); the 54 elevation ImageServers are all bare-earth DEM, the rest are index/extent/hillshade/GP services.\""
+   },
+   {
+    "claim": "\"No 2024 epoch for NYC. DEM_2024_Long_Island extent starts east of Queens (UTM xmin 603000 ~ lon -73.78).\"",
+    "verdict": "REFUTED",
+    "evidence": "-73.78 is INSIDE Queens (the Queens/Nassau line is ~-73.70). Measured from /Users/ross/raincheck/data/archive/subway/i9wp-a4ja_2026-08-22.json: 12 entrances sit east of -73.78 (Beach 25 St, Beach 36 St, Beach 44 St, Far Rockaway-Mott Av). getSamples against DEM_2024_Long_Island returned real values for 4 of them: Beach 25 St 3.859 / 2.689 / 3.872 m, Far Rockaway-Mott Av 7.580 m. So a 2024 epoch DOES cover part of NYC \u2014 the eastern Rockaways, the most flood-exposed segment of the system, and the one whose terrain was rebuilt post-Sandy (Beach 25 St entrance 2 reads 2.689 in 2024 vs 3.978 in 2017, a 1.29 m change). USGS_2024_1_meter over the same points: HTTP 400, confirming \"upstate\". Exact change: \"DEM_2024_Long_Island covers only the eastern Rockaways (measured 4/12 entrances east of -73.78) \u2014 too little to be a third canonical epoch; recorded as an upgrade path if 08's Rockaway residuals demand post-2017 terrain.\""
+   },
+   {
+    "claim": "\"Responses are location-keyed, not order-keyed \u2014 duplicate coords collapse (this explains the vault's 933/1000; join by rounded (x,y), never by index).\"",
+    "verdict": "REFUTED",
+    "evidence": "Refuted three ways, and the prescribed join is actively wrong. (a) Sent 12 points with one EXACT duplicate -> 12 samples, locationId 0..11, duplicate present at locationId 11 with the identical value 4.669536114. (b) Sent all 2,120 entrances (2,110 distinct coords, 9 duplicate groups / 10 extra rows) -> 2,120 samples returned, both epochs. (c) The real drop mechanism is coverage, not collapse: a MIXED batch silently omits out-of-footprint points and SKIPS their locationIds (sent 6 incl. Nassau and offshore -> got locationIds 0,2,4,5 only); an ALL-outside batch hard-400s (\"Transformation is unavailable for the current image\"). That is what produced the vault's 933/1000. Exact change: \"locationId is the within-batch input index; join on batch_offset + locationId. A missing locationId means NoData / outside footprint -> NULL elev, counted and reported. Never join by coordinate: 06 keeps the 9 shared doorways as 2-3 separate rows at identical coords (measured: 50 St 162/316; five WTC/Fulton pairs 624/628; Wall St 333 / Broad St 107 / Wall St 413 as a group of three), so a coordinate join fans one sample onto up to 3 asset_ids and erases the NoData diagnostic.\""
+   },
+   {
+    "claim": "\"getSamples works at full scale. All 2,120 entrances sampled against both epochs: 100% match, 0 NoData, ~3 s per 500-point batch, ~31 POSTs per epoch for the full 15,490-point universe.\"",
+    "verdict": "CONFIRMED",
+    "evidence": "Reproduced exactly. 2,120/2,120 returned from NYC_TopoBathymetric_2017_1_meter (5 POSTs, 6.4 s) and USGS_NYC2014_1_meter (5 POSTs, 6.6 s), 0 missing on either. 15,490/500 = 31 POSTs, 19,603/500 = 40 POSTs \u2014 arithmetic checks. Faster than claimed (~1.3 s/POST). Note this result is specific to entrances; it does NOT generalize to bus stops or cell centroids (separate verdicts)."
+   },
+   {
+    "claim": "\"Epochs agree to ~10 cm typically (median d +0.075 m, sigma 0.88 m), but 41/2,120 entrances (1.9%) disagree by > 2 m, in four structured clusters.\"",
+    "verdict": "AMEND",
+    "evidence": "Statistics reproduced to the digit: median d = +0.0752 m, population sigma = 0.8781 m, range -14.46..+6.46, |d| > 2.0 m on 41/2,120 = 1.93% (|d| > 3.0 m: 27). But \"four structured clusters\" is wrong \u2014 the 41 rows span 30 distinct stations in all five boroughs. Beyond the four named: Staten Island SIR (Grant City +2.03, New Dorp -2.16, Bay Terrace -2.20, Great Kills +2.87), Manhattan (42 St-Bryant Pk x3 up to +5.35, Canal St +2.62, Wall St +3.64, 34 St-Hudson Yards +6.46, 9 Av -5.40, Dyckman St -3.20, Broadway-Lafayette x2), Queens (61 St-Woodside x2, Briarwood -3.14, Grand Av-Newtown -2.97). Sign split 22 positive / 19 negative. The four named clusters cover 9 of 41 rows. Exact change: \"41 rows across 30 stations in all five boroughs; four recognizable mechanisms (2017 construction pit, viaduct interpolation, rock cut, el-deck) name only 9 of them \u2014 the rest is diffuse.\""
+   },
+   {
+    "claim": "\"Units are meters on both 1-m services (EPQS cross-check ratio 3.28, 6 points) ... use 3.28084, note it, move on.\"",
+    "verdict": "AMEND",
+    "evidence": "Units CONFIRMED from primary metadata rather than a ratio: the 2017 ImageServer description states \"the horizontal datum for this dataset is NAD83, the vertical datum is NAVD88, Geoid 12B, and the data is projected in New York State Plane - Long Island... Units converted to meters by NYS\" (pixelType F32, copyrightText \"NYS ITS Geospatial Services\"). Two amendments. (1) The 2014 service carries an EMPTY description and empty copyrightText \u2014 its units and vertical datum are inferred only from agreement with 2017; say so, and record that 2017 is Geoid 12B while 2014's geoid model is undocumented. (2) The constant is the wrong one for the named unit: 3.28084 is the INTERNATIONAL foot; the map's canonical unit is NAVD88 US survey ft, = 1/0.3048006096 = 3.280833333. Measured gap: 0.00003 ft at 5 m, 0.00020 ft at 30 m, 0.00082 ft at 125 m \u2014 immaterial, but zero-cost to name the right constant. Exact change: elev_ft = elev_2017_m x 3.280833333 (US survey foot, matching the map's datum-discipline line)."
+   },
+   {
+    "claim": "\"entrance_type already carries the headhouse signal: Stair 1,629, Easement-Street 164, Station House 112, Elevator 102, Easement-Passage 57, Escalator 18.\"",
+    "verdict": "AMEND",
+    "evidence": "Counts reproduce EXACTLY from the snapshot (Stair 1629, Easement - Street 164, Station House 112, Elevator 102, Easement - Passage 57, Escalator 18, Stair/Escalator 10, Ramp 10, Underpass 6, Walkway 5, Overpass 3, Stair/Ramp 3, Stair/Ramp/Walkway 1). But the label is a weak proxy, measured: of the 69 Station House rows that have non-Station-House station-mates, the median gap to the station-mate median 2017 elevation is only +0.58 m, and only 10 exceed +3 m \u2014 of which just 2 are caught by epoch_disagree. Exact change: \"entrance_type='Station House' marks a candidate, not a correction: median offset from station-mates +0.58 m, only 10/69 above +3 m. It is a covariate for 08, not a QC rule.\""
+   },
+   {
+    "claim": "\"Building footprints rejected as a proxy. Schema drifted since the vault doc (ground_elevation/height_roof now, not groundelev/heightroof).\"",
+    "verdict": "CONFIRMED",
+    "evidence": "Live check: data.cityofnewyork.us/resource/5zhs-2jue.json returns columns [base_bbl, bin, construction_year, doitt_id, feature_code, geom_source, ground_elevation, height_roof, last_edited_date, last_status_type, mappluto_bbl, objectid, shape_area, shape_length, the_geom] \u2014 the drift is real. The vault's qb5r-6dgf now 404s (\"dataset.missing\"). The rejection reasoning (building-minimum semantics, whole-foot quantization, adds nothing over entrance_type) stands unchallenged."
+   },
+   {
+    "claim": "\"Bus stops sample clean: 500-stop probe, 0 NoData, min -0.59 m (real waterfront grade, not seafloor).\"",
+    "verdict": "REFUTED",
+    "evidence": "Re-measured over the full loaded pick (4,558 stops, /Users/ross/raincheck/data/silver/stops/pick_id=c05b9aefc277ec4e766c07ea5ea9c26faa7bcbfc): 2017 returned 4,557/4,558 \u2014 ONE NoData, stop_id 308410 \"CROPSEY AV/HART PL\" at (-73.985657, 40.58137), which the 2017 topobathy clips as a bathymetric void. 2017 min is -1.80 m, not -0.59 m, so the suspect_water constant (< -1.0) fires on a real bus stop. 2014 returned 4,558/4,558. |d_epoch| > 2 m on bus stops: 4/4,557 = 0.09% (vs 1.93% on entrances); median d +0.051 m, sigma 0.140 m. Exact change: \"Bus stops sample cleanly but not perfectly: 1 NoData in 4,558 measured, min -1.80 m, 0.09% epoch_disagree. The 500-stop probe understated the range.\""
+   },
+   {
+    "claim": "\"Datum trap quantified: 103 entrances sit 'below' Battery nws_minor against the 10.49 STND number; in the correct datum (10.49 - 6.06 = 4.43 ft NAVD88) it is 3, two of which are the WTC artifacts. 100 entrances sit below 10 ft NAVD88.\"",
+    "verdict": "CONFIRMED",
+    "evidence": "Every number reproduced. Re-fetched CO-OPS mdapi: stations/8518750/floodlevels.json -> nws_minor 10.49; stations/8518750/datums.json?units=english -> STND 0.0, NAVD88 6.06, MHHW 8.34, MSL 5.86. 10.49 - 6.06 = 4.43 ft NAVD88. Against my own 2,120 2017 samples converted to ft: 103 below 10.49 ft, 3 below 4.43 ft (2 of them WTC Cortlandt), 100 below 10.0 ft NAVD88. The arithmetic and the trap are exactly as stated."
+   },
+   {
+    "claim": "DECISION 1 \u2014 \"Table shape: 19,603 rows (point assets + cell rows) ... Every cell has >= 1 member point asset by construction (06: cells in ref/assets are the cells of the point assets).\"",
+    "verdict": "REFUTED",
+    "evidence": "The cell half of the table is broken. ref/assets' 4,113 Cell rows are the H3 res-8 tessellation of the NYC BBOX (-74.30..-73.65, 40.45..40.95) copied from ref/cells \u2014 I read /Users/ross/raincheck/data/ref/cells/part-00000.parquet: 4,113 rows, and 06 itself measures \"13,370 bus stops occupy 1,035 Cells\". Point-in-polygon over 2,120 entrances + 4,558 stops of the loaded pick: only 489 cells hold any point asset. So the great majority of cell rows would carry n_assets = 0 and NULL elev_min/med/max. Centroid sampling then fails outright: of the 4,113 centroids, 2017 returned 1,127 and 2014 returned 1,359; a further 1,013 sit in batches that hard-400 (all-outside-footprint: Westchester, NJ, open ocean \u2014 verified point-by-point, e.g. cell 613229521195237375 at (-73.71477, 40.90245) fails alone as well as in a batch). Even inside the 489 asset-bearing cells, 15 centroids return nothing, and 3 would be flagged suspect_water. Exact change: cell rows = only cells holding >= 1 point asset (~1,035-1,100 with the full bus universe, not 4,113); make the centroid sample NULLABLE or drop it in favour of the member-asset aggregates alone; state the row count as computed at build (n_point_assets + n_asset_bearing_cells), not the frozen 19,603."
+   },
+   {
+    "claim": "DECISION 2 \u2014 \"grade_qc frozen constants: |d_epoch| > 2.0 m, elev < -1.0 m\", single STRING column {ok, epoch_disagree, suspect_water}.",
+    "verdict": "AMEND",
+    "evidence": "Three measured defects. (a) The two rules OVERLAP and the column is a single string with no precedence: both WTC rows satisfy both (elev -10.49 / -10.44 AND |d| 12.42 / 14.46) \u2014 2/2120 measured. (b) suspect_water has zero measured true positives on entrances: exactly 2 entrances are < -1.0 m and both are already epoch_disagree; it fires on exactly one real bus stop (-1.80 m). It is currently an all-cost, no-yield rule. (c) It has a measured blind class: at Kings Hwy the four Stair entrances read 6.74-7.24 m while two Station House rows both read 9.16 m \u2014 one flagged (d = +2.78) and one NOT (d = +0.59, grade_qc='ok') because BOTH epochs contain the same el structure. The draft calls this \"accepted residual risk\"; it is now a measured false negative, not a hypothesis. Exact change: replace the enum with two independent BOOLEAN columns epoch_disagree / suspect_water (pipeline-09: \"booleans not ints\", and an enum forces an unstated precedence); set the suspect_water constant only after the bus-stop base rate is measured (it is measurable now: 1/4,558 on the loaded pick); and write the structure-contamination class into 08 as a named obligation with the Kings Hwy example."
+   },
+   {
+    "claim": "DECISION 3 \u2014 \"rel_elev_ft materialized in-table (cell medians are computed anyway for the cell aggregates).\"",
+    "verdict": "REFUTED",
+    "evidence": "rel_elev_ft is defined as elev_ft - median(elev_ft of grade_qc='ok' point assets in same cell), which is EXACTLY elev_ft minus the same table's cell-row elev_med_ft. Materializing it stores a two-column subtraction and violates the draft's own stated rule three paragraphs later (\"This table stores measurements, not modeling choices\"). The justification is also non-sequitur: computing the median argues for storing the MEDIAN (which the cell row already does), not the difference. And it is a weak feature at this grain: over the 248 cells holding >= 3 entrances, the within-cell 2017 elevation range is p50 2.62 m, p90 9.90 m, max 53.15 m \u2014 dominated by real relief, not artifacts. Exact change: drop rel_elev_ft; keep elev_med_ft on the cell row; 08 subtracts at read. Add it back only if a consumer measures the join as a real cost."
+   },
+   {
+    "claim": "DECISION 4 \u2014 \"Canonical elevation = raw 2017 always; flags never silently repaired.\"",
+    "verdict": "CONFIRMED",
+    "evidence": "The rule survives, because no cross-epoch repair works: at WTC Cortlandt 2017 is wrong LOW (-10.49 vs 1.93 in 2014, the 2017 excavation), while at 18 Av (+6.05), 20 Av (+5.75), 62 St/New Utrecht (+5.77) and 86 St (+5.79) 2017 is wrong HIGH (the el deck) \u2014 so min() picks the pit and max() picks the el. Flag-don't-fix is the only defensible frozen rule. Two things must be written down alongside it: (i) it knowingly publishes ~22 wrong-high canonical values; (ii) the 2017 acquisition window is 2017-05-03..2017-07-26 (from the ImageServer description) \u2014 record it as a frozen constant, because 01's label era is 2010-2026 and this table has no time dimension."
+   },
+   {
+    "claim": "DECISION 5 \u2014 \"Skip DSM/footprints/class-25/InSAR/2010 with recorded upgrade paths.\"",
+    "verdict": "CONFIRMED",
+    "evidence": "The skips hold on the measurements: no DSM on the host (71 services enumerated), footprint schema drifted and semantics are building-minimum (5zhs-2jue verified live), and the vault records the Highest Hit DSM only as a 30.1 GB zip (asset 70ab3695-...) or per-tile finder.nyc.gov pulls. Two additions: fix the enumeration wording per the earlier verdict, and add the 2024 epoch to the skip list with its real reason (partial eastern-Rockaway coverage measured, not \"no coverage\")."
+   },
+   {
+    "claim": "DECISION 6 \u2014 \"Build ticket ... blocking assertions: every point asset matched in both epochs (2,120 + 13,370), every cell centroid matched, row count 19,603, asset_id unique, zero NULL elev_ft. ~40 POSTs per epoch, one-shot, no daemon.\"",
+    "verdict": "AMEND",
+    "evidence": "Ticket-not-in-map is right, the POST budget is right (15,490/500 = 31; 19,603/500 = 40), no-daemon is right. But the blocking assertions as written cannot pass, measured today: \"every point asset matched\" fails on bus stop 308410; \"every cell centroid matched\" fails on 2,986 of 4,113; \"row count 19,603\" and \"zero NULL elev_ft\" fall with them \u2014 the build would red-light on day one. Exact change: replace the four unachievable assertions with (i) asset_id unique, (ii) every point asset has a locationId-keyed response OR a counted NULL with a reported NoData rate against a frozen ceiling (measured today: 1/4,558 bus stops, 0/2,120 entrances), (iii) row count computed = n_point_assets + n_asset_bearing_cells, (iv) byte-identical rebuild. Add to Mechanics: join on batch_offset + locationId; per-batch 400 handling with retry at a smaller size (11 of 42 size-100 cell batches hard-400'd, identically at size 500); `value` arrives as a JSON STRING (\"13.109447479\") and needs an explicit float parse; and pin the request constants."
+   },
+   {
+    "claim": "\"silver/asset_features at data/silver/asset_features/ \u2014 plain Parquet per pipeline-09 Silver conventions.\"",
+    "verdict": "AMEND",
+    "evidence": "Partially compliant. /Users/ross/raincheck/research/09-storage-schemas.md defines the Silver root as \"derived tables, Hive-partitioned, one file per partition, batch-written\", and every Silver table it lists (events, leg_hours, precip_hourly, stops/trips/...) declares BOTH a partition key and a sort key. The draft declares neither. The byte-identical rebuild gate the draft adopts is meaningless without a deterministic sort. Exact change: add \"partition src_asof=YYYY-MM-DD (or: single sorted part file, declared as the ref-style exception since the table is rebuilt whole at 19.6K rows), sorted (kind, asset_id), one file per partition.\" Also: the type table gives \"DOUBLE x3, INT\" for the cell aggregates \u2014 09 types are Parquet logical types, so write INT32."
+   },
+   {
+    "claim": "\"src_asof | DATE | snapshot date\" \u2014 is DATE allowed under pipeline-09, or should it carry TIMESTAMP_MICROS?",
+    "verdict": "AMEND",
+    "evidence": "DATE is allowed and TIMESTAMP_MICROS would be wrong. 09's conventions read \"Time: TS UTC everywhere; service_date DATE; ... *_ts TS\" and ref/picks already carries earliest_calendar_date DATE / latest_calendar_date DATE \u2014 TS is reserved for instants, a snapshot date is a calendar date. Two real problems remain. (1) 06's ref/assets carries BOTH src_asof AND frozen_at; asset_features has no frozen_at, so the build clock is unrecorded and the sibling tables diverge. (2) src_asof here is the API FETCH date, which is not the as-of of the measurement \u2014 the DEM was flown 2017-05-03..2017-07-26 (per the service description) and 2014 earlier still. Exact change: keep src_asof DATE, add frozen_at TS to match 06, and record the two acquisition windows as frozen constants in the ticket."
+   },
+   {
+    "claim": "\"features_version = sha1 over sorted (asset_id, elev_2017_m, elev_2014_m), recorded like 06's assets_version.\"",
+    "verdict": "AMEND",
+    "evidence": "Not reproducible and not chained. (a) It hashes raw DOUBLEs with no stated text formatting \u2014 Spark/DuckDB/Python will not agree on a float's string form, so the sha1 is writer-dependent and the byte-identical claim does not follow. 06's assets_version dodges this because its lat/lon are 6-dp rounded. (b) It does not incorporate assets_version, so it cannot detect the case 06's key-stability contract cares about: a registry rebuild that moves a bus stop. 01's label_version was amended by 06 to gain assets_version precisely for this chaining. Exact change: sha1 over sorted (asset_id, f\"{elev_2017_m:.4f}\", f\"{elev_2014_m:.4f}\") with the formatting written into the ticket, PLUS assets_version as a term \u2014 mirroring label_version."
+   },
+   {
+    "claim": "Consistency with 06's binding decisions: sampling universe, asset_id FK, immutable ref/assets, snapshot paths, fetch-only-when-missing.",
+    "verdict": "CONFIRMED",
+    "evidence": "All adopted correctly. Universe = 15,490 point assets (2,120 entrances + 13,370 bus stops), matching 06's flag verbatim; asset_id is the FK and ref/assets stays immutable with features in a sibling Silver table, as 06 required; the snapshot pattern data/archive/elevation/<service>_<date>.json with fetch-only-when-missing mirrors 06's Socrata pattern; the designated entrance snapshot exists and verifies (/Users/ross/raincheck/data/archive/subway/i9wp-a4ja_2026-08-22.json, 2,120 rows, 0 missing coords). One gap: 06 states \"orphaning a ... silver/asset_features row is a build FAILURE\" but the draft never states the reciprocal \u2014 that asset_features must be rebuilt when assets_version changes. Add that line."
+   },
+   {
+    "claim": "\"Ring-median does not repair bad points. 15 m octagon probes ... Flag, don't fix.\"",
+    "verdict": "CONFIRMED",
+    "evidence": "Not re-run at 15 m (the draft's octagon probe is the only source), but the conclusion is independently supported by my station-mate measurement: only 18 of the 41 epoch_disagree rows deviate more than 2 m from their own station's median elevation, so a local-median repair would leave 23 of 41 untouched while corrupting the 23 where the neighbourhood genuinely differs. And within-cell relief is p50 2.62 m / p90 9.90 m / max 53.15 m over the 248 cells with >= 3 entrances, so a wider median is worse, not better. Flag-don't-fix stands."
+   },
+   {
+    "claim": "Implicit: the getSamples request is reproducible enough to support a byte-identical rebuild gate without pinning request parameters.",
+    "verdict": "AMEND",
+    "evidence": "Measured on 500 entrances against the 2017 service: the server default IS RSP_NearestNeighbor (max diff vs explicit nearest = 0.000000 m), but RSP_BilinearInterpolation differs by p50 0.005 m, p90 0.018 m, max 0.342 m. A 0.34 m swing is a third of the 1.0 m suspect_water constant. The gate depends on a server default that is not part of the contract. Exact change: pin the request constants in the ticket \u2014 geometryType=esriGeometryMultipoint, spatialReference wkid 4326, returnFirstValueOnly=true, interpolation=RSP_NearestNeighbor, batch 500 \u2014 and treat them as frozen constants alongside the QC thresholds."
+   }
+  ],
+  "missing": [
+   "NoData / error contract for getSamples. The draft has no rule for what happens when the API returns fewer samples than points, or 400s. Measured behaviour that must be written down: locationId is the within-batch input index; a mixed batch silently omits out-of-footprint points and skips their locationIds; an all-outside batch returns HTTP 400 (\"Transformation is unavailable for the current image\") and loses every point in it, identically at batch size 500 and 100.",
+   "Parsing rule: getSamples returns `value` as a JSON STRING (\"13.109447479\"), not a number. No cast is specified anywhere in the build mechanics.",
+   "Frozen request constants. interpolation, returnFirstValueOnly, batch size and wkid are unrecorded; bilinear vs nearest differs by up to 0.342 m (measured), so the byte-identical rebuild gate is resting on an unpinned server default.",
+   "Partition key and sort key for silver/asset_features. Pipeline-09 defines Silver as Hive-partitioned, one file per partition, and every Silver table in research/09-storage-schemas.md declares both. Neither is declared here, and the byte-identical gate needs the sort.",
+   "`frozen_at` column. 06's ref/assets carries src_asof AND frozen_at; the sibling asset_features carries only src_asof, so the build clock is unrecorded.",
+   "DEM acquisition windows as frozen constants. The 2017 service description gives 2017-05-03..2017-07-26; the 2014 service documents nothing. src_asof (the fetch date) is not the as-of of the measurement.",
+   "Temporal-validity obligation handed to 08. 01's label era is 2010-2026; this table holds one time-invariant 2017 terrain snapshot. WTC Cortlandt is the measured demonstration (2017 reads a construction pit at -10.49 m; 2014 reads 1.93 m). Post-2017 grade changes (Hudson Yards, Second Av Subway, Rockaway rebuild \u2014 the 2024 LI DEM shows a 1.29 m change at one Beach 25 St entrance) are unmodelled. 06 handed three named biases to 08; 07 hands none.",
+   "A named runnable check. 06 named tests/test_ref.py; 07 names blocking assertions but no test file and no fixture (a frozen handful of coords with expected values would catch a silent units/datum/interpolation change).",
+   "Licence / terms-of-use finding for the NYS ImageServer. copyrightText is \"NYS ITS Geospatial Services\" and nothing else is recorded. Tickets 03, 04 and 05 all recorded explicit licence/capability findings; 07 records none, and the map's \"no public re-serving of MTA-derived data\" rule has no elevation analogue stated.",
+   "Semantics of a cell row whose centroid is water or outside the footprint. Measured: 2,986 of 4,113 centroids return nothing from the 2017 service, and 40 of the 1,127 that do are < -1.0 m. The draft asserts zero NULLs and every centroid matched.",
+   "Bus-stop base rates for the frozen constants. The draft defers them (\"bus-stop count measured at build\") but they are measurable now on the loaded pick: 4/4,557 epoch_disagree (0.09%), 1/4,558 NoData, 1 suspect_water at -1.80 m. Freezing a constant before its base rate is known is the thing the effort's own frozen-constants rule is meant to prevent.",
+   "What 08 does with a NULL elev_ft. The draft asserts none exist; measured, they do (bus stop 308410).",
+   "Vertical-datum provenance for the 2014 service. Empty description, empty copyrightText; NAVD88 and metres are inferred purely from agreement with 2017. The geoid-model difference (2017 is Geoid 12B; 2014 unstated) is not recorded, even as immaterial.",
+   "Handling of the 9 shared-doorway coordinate groups (10 extra rows; one group of three: Wall St 333 / Broad St 107 / Wall St 413). Under a correct locationId join they simply receive identical elevations \u2014 right, but unstated, and the draft's prescribed coordinate join makes them ambiguous."
+  ]
+ },
+ "pony": {
+  "verdicts": [
+   {
+    "claim": "DP1 \u2014 Table shape: 19,603 rows = 15,490 point assets + 4,113 cell rows.",
+    "verdict": "AMEND",
+    "evidence": "The 4,113 cell rows are not asset cells \u2014 they are the entire bbox grid. Measured: /Users/ross/raincheck/data/ref/cells holds exactly 4,113 rows (count(*) = count(distinct cell) = 4113), built by ST_H3CellIDs over a rectangle in /Users/ross/raincheck/src/raincheck/ref.py:115-125; centroid extent -74.29993..-73.65001 lon, 40.45018..40.94991 lat (~3,050 km2 vs NYC's 778 km2 of land). /Users/ross/raincheck/data/ref/cell_zone: 3,043 of 4,113 cell centroids fall in NO taxi zone (borough NULL); only 1,060 in a NYC borough plus 10 EWR (Newark). 06 measured 13,370 bus stops occupying 1,035 Cells; entrances add at most ~289 more (distinct 0.01-deg buckets over the 2,120 rows in data/archive/subway/i9wp-a4ja_2026-08-22.json). EXACT CHANGE: sample cell centroids only for cells that contain >=1 point asset (or whose centroid lands in a taxi zone) \u2014 roughly 1,100-1,300 rows, total ~16,600-16,800, not 19,603; POST budget drops from ~40 to ~33 per epoch. Also drop the denormalized `kind` (recoverable by the same join to ref/assets that every consumer already makes); keep `cell` only because the precip spine joins on it."
+   },
+   {
+    "claim": "\"Every cell has >= 1 member point asset by construction (06: cells in ref/assets are the cells of the point assets).\"",
+    "verdict": "REFUTED",
+    "evidence": "ref/cells is an H3 tiling of a bbox polygon, not a set derived from assets (src/raincheck/ref.py:116-124: ST_H3CellIDs(ST_PolygonFromEnvelope(BBOX), 8, false)). 06's assertion is the reverse containment \u2014 'every asset cell in ref/cells' \u2014 which does not imply every cell holds an asset. With 1,035 bus-stop cells (06, measured) plus <=289 entrance cells, at least ~2,800 of the 4,113 cell rows have zero member point assets, so elev_min/med/max_ft and n_assets are NULL/0 for ~70% of cell rows and the cell median that rel_elev_ft subtracts does not exist for them."
+   },
+   {
+    "claim": "Cell rows carry elev_min_ft / elev_med_ft / elev_max_ft / n_assets aggregated over member ok point assets.",
+    "verdict": "REFUTED",
+    "evidence": "(a) No named consumer: ticket 08 (/Users/ross/raincheck/.scratch/flood/issues/08-exposure-score-design.md) asks only for 'elevation terms from 07'; 01's gold/flood_labels carries no elevation column. Nothing downstream is specified to read elev_med_ft. (b) Self-contradiction: draft line 60 refuses complex-level aggregates because 'whether min or median is a modeling call that belongs to 08', then materializes min AND med AND max at cell grain \u2014 the same modeling call, three times. (c) A GROUP BY over the same table is one line in 08 and cannot go stale when grade thresholds change; the stored copy can. (d) They are NULL for ~2,800+ rows (see above). EXACT CHANGE: delete all four columns."
+   },
+   {
+    "claim": "DP2 \u2014 grade_qc frozen constants |d_epoch| > 2.0 m and elev_2017_m < -1.0 m, stored as STRING {ok, epoch_disagree, suspect_water}.",
+    "verdict": "AMEND",
+    "evidence": "The constants are right-sized; the container is not. A STRING enum holds one value, but the two conditions overlap on exactly the rows the draft leads with: the WTC Cortlandt pit reads elev_2017_m = -10.5 m (suspect_water) AND |d_epoch| >> 2.0 (epoch_disagree), and the draft itself notes 'two of which are the WTC artifacts' among the 3 sub-threshold entrances. Precedence is unspecified, so the flag silently loses information on its own headline case. EXACT CHANGE: replace with one BOOLEAN `grade_ok` = NOT (abs(elev_2017_m - elev_2014_m) > 2.0 OR elev_2017_m < -1.0); the reason is always recoverable from the two epoch columns in the same row, and 08's decision is binary (use the value, or fall back). Also drop the phrase 'frozen constants, not tuned' \u2014 2.0 m is ~2.3 sigma of the measured delta (sigma 0.88 m) and was chosen after seeing the four clusters; say so and stamp frozen_at, as 01 does for the 97/84 thresholds."
+   },
+   {
+    "claim": "The 2.0 m threshold 'catches all four measured failure clusters, 41/2,120 entrances; bus-stop count measured at build'.",
+    "verdict": "AMEND",
+    "evidence": "The constant is frozen on 2,120 entrances = 13.7% of the 15,490-point universe, and the bus-stop probe measured only NoData and the minimum value (500 stops = 3.7% of 13,370). Bus stops sit on sidewalks under elevated structures \u2014 the same geometry that produced the Bensonhurst +6 m cluster \u2014 so the flagged fraction could be materially higher than 1.9% and turn 08's fallback path into the default. EXACT CHANGE: report |d_epoch| quantiles and the >2.0 m rate for the existing 500-stop probe (both epochs, points already identified) in this draft before freezing; if the rate exceeds a few percent, the flag design, not the threshold, is what needs revisiting."
+   },
+   {
+    "claim": "DP3 \u2014 rel_elev_ft materialized in-table, justified because 'cell medians are computed anyway for the cell aggregates'.",
+    "verdict": "REFUTED",
+    "evidence": "(a) The justification is circular with a column that should not exist \u2014 kill the aggregates and nothing is 'computed anyway'. (b) It contradicts the draft's own stated rule three lines later: 'This table stores measurements, not modeling choices.' The neighborhood definition (H3 res 8, ~0.74 km2, pooling entrances and bus stops) is a modeling choice, and one 08 is already obliged to sweep \u2014 01/08 require the {50,100,200} m attachment sweep run inside the fold; a hard-coded cell-median baseline pre-empts the same question for elevation. (c) It is degenerate where it matters: any cell with one ok member yields rel_elev_ft = 0.0 by construction, a fake zero indistinguishable from a real one. (d) Dropping it costs nothing and forces no re-fetch \u2014 it is `elev_ft - median(elev_ft) OVER (PARTITION BY cell)` filtered to grade_ok, one window function in 08 over columns this table already stores. EXACT CHANGE: delete the column; record the definition as an 08 obligation instead."
+   },
+   {
+    "claim": "Column d_epoch_m DOUBLE = elev_2017_m - elev_2014_m.",
+    "verdict": "REFUTED",
+    "evidence": "Pure same-row subtraction of two stored columns. It buys no query the consumer cannot write, and it adds an invariant (d_epoch_m == a - b) that a rebuild can violate silently. Delete it; the QC boolean already exposes the only decision anyone makes from it."
+   },
+   {
+    "claim": "DP4 \u2014 Canonical elevation = raw 2017 sample always; flags never silently repaired; the read-side fallback belongs to 08.",
+    "verdict": "CONFIRMED",
+    "evidence": "This is the cheapest correct call and it is backed by measurement: the draft's own ring-median probe shows repair does not work (WTC's entire 15 m octagon sits in the pit, ring median -10.38 m; Grand Central and 174-175 Sts rings straddle two real terrain levels). Storing a repaired value would launder a modeling choice into Silver and destroy the audit trail for 41 known-bad points. Keeping the raw value plus a flag also keeps the fallback sweepable in 08's fold."
+   },
+   {
+    "claim": "DP5 \u2014 Skip DSM-minus-DEM, building-footprint ground_elevation, LiDAR class-25, InSAR, and the 2010 epoch, with upgrade paths recorded.",
+    "verdict": "CONFIRMED",
+    "evidence": "Each skip is backed by a measurement, not a preference: no queryable DSM across all 63 services on elevation.its.ny.gov (30.1 GB zip is the only path); footprints are whole-foot quantized with building-minimum semantics (+16.3 ft error measured at Cortelyou Rd) and add nothing over entrance_type, whose distribution I verified exactly against the local snapshot; class-25/InSAR/HAND already carry triggers in the map's fog list (map.md lines 65-67). None of these can be needed inside one ticket's horizon without the trigger firing first, and none require re-fetching anything already collected. The entrance_type counts are correct as written (Stair 1629, Easement - Street 164, Station House 112, Elevator 102, Easement - Passage 57, Escalator 18, then Stair/Escalator 10 and Ramp 10) \u2014 measured from data/archive/subway/i9wp-a4ja_2026-08-22.json, 2,120 rows."
+   },
+   {
+    "claim": "Keeping elev_2014_m in-table (2014 as 'cross-check' only).",
+    "verdict": "AMEND",
+    "evidence": "Keep the column, but the draft undersells it and therefore under-uses it. One DOUBLE x ~16.7K rows is ~130 KB, and the raw values are archived regardless, so the column is convenience for QC. Its real value is different: 2017 is a single post-Sandy terrain snapshot applied to a 2010-2026 label era (01's 311 series starts 2010-01-01; Sandy is 2012), and the 2014-vs-2017 delta is the ONLY handle in this stack on grade change during the label era \u2014 precisely at rebuilt shorelines, which are the flood-prone places. EXACT CHANGE: restate 2014 as 'QC input and the era's only terrain-change probe', and write the temporal-validity caveat into 08 as an obligation, the way 06 handed over its bus-stop churn caveat."
+   },
+   {
+    "claim": "DP6 \u2014 'a build ticket, not an in-map task' (needs ref/assets first; probes de-risked the API mechanics).",
+    "verdict": "AMEND",
+    "evidence": "The 'not in-map' half is right and for the right reason: ref/assets does not exist yet (data/ref/ has no assets table; data/archive/subway/ holds only i9wp-a4ja, not 06's second snapshot), bus-stop asset_ids come from the cross-feed dedupe, and silver/stops currently holds a single pick (4,558 stops, 330 cells) \u2014 nothing runnable today. The 'own ticket' half is scaffolding: one table, ~33 POSTs, one join, one boolean. EXACT CHANGE: make it the second step of the same build ticket as ref/assets \u2014 same module, same snapshot-fetch-only-when-missing pattern, same byte-identical gate, no separate `make features` target and no third version token until a second feature producer exists."
+   },
+   {
+    "claim": "features_version = sha1 over sorted (asset_id, elev_2017_m, elev_2014_m), recorded like 06's assets_version.",
+    "verdict": "REFUTED",
+    "evidence": "It fails at its one job and has no consumer. The hash covers only the inputs that never change (the DEM is static \u2014 a re-fetch next year returns the same numbers) and omits every tunable that actually changes the table: the 2.0 m / -1.0 m QC constants, the 3.28084 conversion, and assets_version itself. Change the QC threshold and the version token is byte-identical. Nothing downstream is specified to carry it (01's label_version = 311/alert as-of dates + frozen thresholds + RADIUS_M + assets_version; 08 names no such field). Delete it; the byte-identical rebuild gate plus src_asof already pin provenance, and if 08 ever needs a token it can sha1 the part file. If it is kept against this advice, it MUST include assets_version, both QC constants, the ft constant, and a pinned float formatting rule, or it is worse than nothing."
+   },
+   {
+    "claim": "'Complexes/stations get no rows: complex elevation is a read-side aggregate over child entrances.'",
+    "verdict": "CONFIRMED",
+    "evidence": "Safe, and measurably so: all 445 complexes appear on at least one entrance row in data/archive/subway/i9wp-a4ja_2026-08-22.json (445 distinct complex_id over 2,120 rows), so the read-side aggregate is never undefined for a published score unit; 30 complexes have exactly one entrance, where min = median = max anyway. Stations are carriers per 06 (delay join, route filter, structure) and take no radius attachment, so they need no elevation."
+   },
+   {
+    "claim": "'elev_ft = elev_2017_m x 3.28084 \u2014 canonical NAVD88 ft'; US-survey vs international foot differs < 0.001 ft.",
+    "verdict": "AMEND",
+    "evidence": "The tolerance claim is arithmetically right: 3.280839895 - 3.28083333 = 6.6e-6 ft per metre, i.e. 0.00066 ft at 100 m and ~7e-5 ft at typical NYC entrance grade \u2014 far below anything 08 can use. But the label is wrong: 3.28084 is the INTERNATIONAL foot, while the map's rule (map.md line 35) and CO-OPS practice say US survey feet. EXACT CHANGE: name the column's unit international feet, pin the factor as a named constant with the < 0.001 ft equivalence noted beside it, and stop calling the result 'US ft'. Separately, the datum half of 'NAVD88' is asserted, not verified \u2014 see missing[]."
+   },
+   {
+    "claim": "Blocking assertions: 'every cell centroid matched, row count 19,603, zero NULL elev_ft'.",
+    "verdict": "REFUTED",
+    "evidence": "Written as stated, this build fails on first run or, worse, passes with garbage. 3,043 of 4,113 cell centroids fall outside every NYC taxi zone (measured, data/ref/cell_zone) \u2014 open Atlantic, Raritan Bay, Long Island Sound, Newark Bay, NJ and Nassau land. Against a TopoBathymetric DEM the water ones return seafloor depths (auto-flagged suspect_water and meaningless as exposure features) and the out-of-city ones plausibly return NoData, since the service is NYC_TopoBathymetric. EXACT CHANGE: restrict cell rows per the DP1 amendment, then assert row count against the restricted universe and report a NoData count rather than gating it at zero over 13,370 never-probed bus stops."
+   },
+   {
+    "claim": "'Responses are location-keyed, not order-keyed \u2014 duplicate coords collapse; join by rounded (x,y), never by index.'",
+    "verdict": "AMEND",
+    "evidence": "The rule is correct and is the draft's most valuable probe finding, but it is under-specified for a build ticket in two ways that will bite. (1) The rounding precision and the spatial reference of the returned coordinates are not pinned \u2014 ref/assets entrance keys are 6 dp lon/lat while the ImageServer may echo coordinates in its own SR; the join key must name both. (2) The collapse is not an edge case: 06 keeps the 9 shared doorways as two rows each (one per complex) at identical coordinates, so the join is many-to-one by design and the assertion 'every point asset matched' must be phrased over distinct coordinates, not over asset_id counts. EXACT CHANGE: state 'join on (round(lon,6), round(lat,6)) taken from ref/assets, outSR pinned to 4326, sample-to-asset cardinality 1:N expected'."
+   },
+   {
+    "claim": "Net column set after this review.",
+    "verdict": "AMEND",
+    "evidence": "The draft's 13 columns reduce to 7 with no loss of any answerable question and no re-fetch risk: asset_id, elev_ft (canonical), elev_2017_m and elev_2014_m (raw, audit + terrain-change probe), grade_ok BOOLEAN, cell, src_asof. Deleted: kind (join), d_epoch_m (subtraction), grade_qc string (replaced by boolean), rel_elev_ft (08's window function), elev_min/med/max_ft and n_assets (08's GROUP BY), features_version (no consumer, hashes the wrong things). Every deletion is a pure derivation over columns that remain or over the archived raw snapshots, so none can force a re-fetch."
+   }
+  ],
+  "missing": [
+   "getSamples parameters are never pinned, so 'raw getSamples value' is undefined. Interpolation (RSP_NearestNeighbor vs the default bilinear), sampleDistance/sampleCount, returnFirstValueOnly, mosaicRule and outSR all change every number in the table \u2014 and the draft's own Grand Central diagnosis ('Park Ave viaduct interpolation') implicates exactly this setting. Freeze them in the design and record them in the snapshot.",
+   "The vertical datum is asserted, never verified. A 6-point EPQS ratio of 3.28 tests units, not datum; NGVD29 or a legacy borough datum would shift everything by ~0.3 m while leaving that ratio roughly intact. The draft's headline result (3 entrances below Battery nws_minor in NAVD88 vs 103 in the wrong datum) rides entirely on this. Read and archive the service metadata (vertical datum string, pixel size) at fetch, and report a signed mean residual vs EPQS in feet instead of a ratio.",
+   "Bus-stop epoch-delta distribution unmeasured. The 500-stop probe reports NoData and minimum only; the 2.0 m constant is frozen on entrances (13.7% of the universe). Report the |delta| quantiles and >2.0 m rate for those same 500 stops before freezing.",
+   "No obligations propagated into ticket 08, unlike 01 and 06 which both wrote theirs into the downstream ticket's Comments. 07 owes 08 at least: the fallback rule for grade_ok = false rows, complex aggregation (min vs median, 30 single-entrance complexes), the neighborhood definition for relative elevation (and a sweep of it beside the RADIUS_M sweep), elevation-vs-threshold arithmetic through 05's per-station STND->NAVD88 offsets, and entrance_type (Station House 112, Easement 221, Elevator 102) as the join-side control for DEM samples that read a roof or an el deck.",
+   "Temporal validity of a single 2017 terrain snapshot across a 2010-2026 label era is never stated as a bias. Sandy (2012) sits inside the era and post-Sandy shoreline rebuilds changed grade precisely at the flood-prone places; 06 recorded exactly this class of caveat for bus-stop churn. The 2014 column is the only available probe of it.",
+   "The cell score universe itself is wrong and 07 is the first ticket positioned to notice: 06 mints 4,113 cell score units from a bbox tiling, of which 3,043 have centroids outside any NYC zone, and 01's negative generator multiplies all of them by ~57 events (445 + 13,370 + 4,113 = 17,928 x 57 = 1.02M pairs). Scoring open Atlantic cells dilutes CSI and inflates the negative class. Flag it back to 06/08 rather than absorbing it silently by sampling seafloor.",
+   "Snapshot atomicity is unspecified: ~33 batches per epoch land in one data/archive/elevation/<service>_<date>.json under fetch-only-when-missing. A run that dies mid-way either leaves a poisoned file that is then never re-fetched, or discards 30 good batches. Name the rule (write-temp-then-rename, or one file per batch).",
+   "No frozen expectation for the QC gate. The cheapest guard that the upstream service has not been republished is a build assertion on the measured count itself (41 of 2,120 entrances at |delta| > 2.0 m, and the four named clusters); without it a silently changed service produces a plausible-looking table.",
+   "Which coordinates get sampled is unstated \u2014 ref/assets lon/lat (6-dp entrance keys, bus stops as cross-feed arithmetic means) or the source rows. It must be ref/assets, so features and geometry cannot disagree and so the location-keyed join is reproducible.",
+   "NoData policy for the 13,370 never-probed bus stops. 'Zero NULL elev_ft' as a hard gate over points measured at 3.7% coverage is a build-time landmine with no stated remedy; say what happens (fail with the offending asset_ids listed, or admit NULL with a reported count) before the ticket is written."
+  ]
+ },
+ "downstream": {
+  "verdicts": [
+   {
+    "claim": "Cell rows: 'Every cell has >= 1 member point asset by construction (06: cells in ref/assets are the cells of the point assets).'",
+    "verdict": "REFUTED",
+    "evidence": "Measured locally. `ref/cells` is the full NYC-bbox grid (4,113 rows, lon -74.300..-73.650, lat 40.450..40.950), not the occupied subset. Spatial join of the 2,120 archived entrance coords (data/archive/subway/i9wp-a4ja_2026-08-22.json) against ref/cells geometry: entrances occupy 317 cells. The one locally-present bus pick (4,558 stops) occupies 330; union 489. 06 measured all 13,370 bus stops in 1,035 Cells. Hard bound: only 1,354 of 4,113 cells intersect ANY taxi zone (ref/zones, 263 polygons incl. EWR), so >= 2,759 cell rows provably contain zero point assets. 06's assertion runs the other direction ('every asset cell in ref/cells', 15,935/15,935) and does not imply this one. Consequence: ~3,000 cell rows get n_assets=0 and NULL elev_min/med/max, and rel_elev_ft is undefined there."
+   },
+   {
+    "claim": "Decision 1 \u2014 table shape: 19,603 rows (15,490 point assets + 4,113 cells), no complex/station rows.",
+    "verdict": "AMEND",
+    "evidence": "Two exact changes. (a) Cell half: do not sample all 4,113 centroids. `ref/cell_zone` (already built, 04's centroid rule) has zone_id NOT NULL on exactly 1,070 cells \u2014 which matches NYC's ~784 km2 land / 0.737 km2 per res-8 hex = ~1,063, confirming zone_id is a land test. Sample centroids only for those 1,070 (3 POSTs, not 10); for the other 3,043 emit either no row or a row with n_assets=0 and NULL elevations. As drafted, ~2,759 cell rows are open water / New Jersey / Nassau sampled against a TOPO-BATHYMETRIC service: they return seafloor (mass `suspect_water`, not the edge case the draft frames) or NoData outside a NYC-scoped extent. (b) Complex half: publish 445 complex rows carrying the same elev_min_ft/elev_med_ft/elev_max_ft/n_ok the draft already accepts for cells, keyed by the same groupBy on parent_asset_id. Cost: +445 rows, no new column, no new code path, zero new POSTs. Cells and complexes are both 06 score units; materializing the aggregate for one and not the other is the inconsistency, not the aggregation itself."
+   },
+   {
+    "claim": "Complex-grain scoring is served: 'complex elevation is a read-side aggregate over child entrances (min = ingress logic)' \u2014 read-side aggregation with parent_asset_id in ref/assets.",
+    "verdict": "AMEND",
+    "evidence": "Mechanically trivial and CONFIRMED: one join to ref/assets (which every consumer already reads for geometry) plus a GROUP BY parent_asset_id \u2014 445 output rows, not 1.02M. Semantically it is a trap repeated in three places (08, 14's panel, 10). Measured from the entrance snapshot: all 445 complexes have >= 1 child entrance (445 distinct complex_id, min 1, max 35), so the aggregate is defined everywhere \u2014 but 30 complexes have exactly ONE entrance and 121 have <= 2. A single epoch_disagree row therefore voids a complex's elevation entirely, and `min` is precisely the aggregate a low artifact captures (WTC 2017 = -10.5 m = -34.4 ft). The draft hands over 'min = ingress logic' without saying 'min over grade_qc = ok only' and without the coverage counts. Add to the ticket: the ok-filter is mandatory before any complex aggregate, plus the measured count of complexes with zero ok entrances."
+   },
+   {
+    "claim": "(Reviewer hypothesis) The 19/445 complexes with no entrance inside their own 100 m circle break complex-grain elevation.",
+    "verdict": "REFUTED",
+    "evidence": "That 06 number is a label-ATTACHMENT fact (radius targets), not a parent/child fact. Measured: every one of the 445 complexes has >= 1 child entrance in i9wp-a4ja (445 distinct complex_id over 2,120 rows), and the elevation aggregate walks parent_asset_id, not the 100 m circle. The 19 complexes get an elevation like every other. The real coverage risk is the 30 single-entrance complexes above, not the 19."
+   },
+   {
+    "claim": "Decision 2 \u2014 grade_qc frozen constants: |d_epoch_m| > 2.0 => epoch_disagree, elev_2017_m < -1.0 => suspect_water, enum {ok, epoch_disagree, suspect_water}.",
+    "verdict": "AMEND",
+    "evidence": "The enum is single-valued but the rules are not mutually exclusive, and the draft's own headline artifact trips both: WTC reads -10.5 m in 2017 (< -1.0) with |delta| > 2 m. No precedence is stated, so two implementers produce two different tables and the byte-identical rebuild gate is underspecified. Add one line: 'suspect_water wins; a row trips at most one label' (or make grade_qc a sorted comma-joined multi-flag). Second amendment: the constants are frozen on 2,120 entrances and a 500-stop probe (3.7% of 13,370 bus stops) and ZERO cell centroids \u2014 the build must report the per-kind flag rate rather than deferring it silently to 'measured at build'."
+   },
+   {
+    "claim": "'The read-side fallback for flagged rows (cell median of ok assets) is 08's to apply.'",
+    "verdict": "REFUTED",
+    "evidence": "The draft measures that a 15 m octagon ring median CANNOT repair three of its four clusters ('at Grand Central and 174-175 Sts the ring straddles two real terrain levels'; at WTC the whole neighborhood is in the pit), then prescribes a median over an H3 res-8 hexagon \u2014 0.737 km2, ~461 m edge, ~30x coarser linearly than the ring that already failed. The prescribed fallback is strictly worse than the one the draft refuted. Amend to: flagged rows are dropped by consumers, or read from the other epoch already sitting in the same row (elev_2014_m at WTC/Bensonhurst, elev_2017_m at Grand Central where 2014 read the Park Ave viaduct deck) \u2014 never a hex median. State that the preferred epoch is per-row and unfrozen, which is exactly why the row carries both."
+   },
+   {
+    "claim": "Decision 3 \u2014 rel_elev_ft materialized in-table ('cell medians are computed anyway for the cell aggregates').",
+    "verdict": "REFUTED",
+    "evidence": "It is stored twice. rel_elev_ft = elev_ft - median(elev_ft of ok point assets in the same cell), and elev_med_ft on the cell row is defined as exactly that same median over the same population. So rel_elev_ft is `f.elev_ft - c.elev_med_ft` after a join on cell (one line, the join every consumer already makes). One fact in two columns that can drift on any future edit. It also contradicts the draft's own boundary \u2014 'this table stores measurements, not modeling choices' \u2014 since the neighborhood scale is a frozen modeling choice made here, not in 08, and no measurement supports H3-8 as the right scale. Exact change: delete rel_elev_ft; keep elev_med_ft."
+   },
+   {
+    "claim": "(Implicit) The drafted columns give 08 the elevation-shaped features it plausibly needs, with FloodNet barred.",
+    "verdict": "REFUTED",
+    "evidence": "The set is well matched to COASTAL exposure (absolute NAVD88 ft vs a tidal threshold) and poorly matched to the dominant label source. 01's spine is 311-driven (Street Flooding SJ + Highway Flooding SH), i.e. pluvial ponding, which is governed by local depressions and drainage, not absolute elevation; the only relief term offered is an anomaly over 0.737 km2. Nothing in the table resolves 'is this doorway in a dip' at doorway scale, and it is not on the skipped list with a trigger either \u2014 it is simply absent. The fix is cheap and already prototyped: the 8-point 15 m octagon the draft built for the QC probe, run over all 15,490 point assets on the 2017 epoch only = 123,920 points = 248 POSTs at the draft's own ~3 s/500 = ~12 min, one new column `local_relief_ft` = elev_ft - min(ring). Recommend swapping rel_elev_ft for it (net zero columns). If declined, it must appear under 'skipped' with the trigger 'per-event CSI on 311-labeled pluvial events is at chance'."
+   },
+   {
+    "claim": "Decision 4 \u2014 canonical elevation = raw 2017 always; flags never silently repaired.",
+    "verdict": "AMEND",
+    "evidence": "The rule is right and CONFIRMED as a storage rule, but it is unenforced at every consumer: three independent readers (08's model, 14's exporter, 10's detector) must each remember to join grade_qc, and the failure is silent and maximal \u2014 the WTC entrance ships as -34.4 ft NAVD88, the lowest asset in the city, inside the Sandy inundation polygon, which 01 makes a positive label. That is a spurious feature-label match on a row the draft already knows is a 2017 excavation. Propagate an obligation the way 01->08 and 06->08 already do: (a) into 08, 'elev_ft is read with grade_qc; scoring a non-ok row without an explicit fallback is a bug'; (b) into 14, an export invariant 'elev_ft key ABSENT when grade_qc != ok' \u2014 14 already has the absent-key convention and a 'no null property' gate, so this costs one WHERE clause."
+   },
+   {
+    "claim": "QC flags are usable downstream (leakage / correlation with label sources).",
+    "verdict": "AMEND",
+    "evidence": "No target leakage: grade_qc is computed only from the 2014 and 2017 DEMs, which contain no label information. But it is not safe as a MODEL feature. epoch_disagree is generated by construction and superstructure and has 41/2,120 support concentrated on four named sites (WTC Cortlandt, Grand Central, 174-175 Sts, Bensonhurst el) \u2014 large, alert-heavy complexes; 01's alert-station labels land at complex rows and the Sandy polygon covers Lower Manhattan, so a grade_qc dummy has enough support to memorize a handful of specific labeled complexes via a mechanism unrelated to flooding. Add one binding line to the ticket: 'grade_qc and d_epoch_m are QC filters, never model features.' That also settles it for 14 (a QC flag is not a display class) and 10."
+   },
+   {
+    "claim": "(Missing decision) Elevation vintage vs the label era \u2014 src_asof = snapshot date.",
+    "verdict": "AMEND",
+    "evidence": "01 binds 08 to a strict as-of cutoff before each event window for NFIP and sewer covariates. 07 hands 08 a static 2017 (and 2014) terrain snapshot used across a 2010-2026 label era in which Sandy (2012) is a labeled event, with post-Sandy resiliency construction baked into both epochs \u2014 terrain modified BECAUSE of a labeled flood. src_asof is the fetch date (2026-08-22), not the acquisition epoch, so nothing in the row carries the vintage. Exact change: state in the ticket that elev_ft is the 2017 epoch, that both epochs postdate Sandy, and add the 08 obligation 'report the score split pre-/post-2014 events, or state the static-covariate limitation beside the pooled CSI'."
+   },
+   {
+    "claim": "Decision 5 (DSM half) \u2014 skip DSM-minus-DEM because 'entrance_type already carries the headhouse signal'.",
+    "verdict": "AMEND",
+    "evidence": "The SKIP survives on its measured ground (no queryable DSM anywhere on elevation.its.ny.gov; only a 30.1 GB zip). The stated substitution is REFUTED by the draft's own counts, which I reproduced from the snapshot: 1,629 of 2,120 entrances (76.8%) are entrance_type='Stair' \u2014 a class that carries no covered/uncovered information and is exactly the population DSM-minus-DEM would split (open sidewalk cut vs canopied stair). entrance_type labels the 112 Station House rows and nothing else. Rewrite the reason as 'no cheap DSM path (measured)' and drop the substitution claim. Also mark the upgrade path honestly: per-tile pulls from finder.nyc.gov are asserted, never probed, and the trigger '08's residuals point at canopied stairs' is not actionable \u2014 08 cannot identify a canopied stair without the DSM. Usable trigger: '08 names <= N stations; pull tiles for those.'"
+   },
+   {
+    "claim": "Decision 5 (InSAR half) \u2014 InSAR subsidence stays in the fog, listed beside 109 GB / 26.6 GB items.",
+    "verdict": "AMEND",
+    "evidence": "Skip is correct, reason is wrong. The vault's first InSAR product is `velocity.tif` at 8,972,816 bytes \u2014 9 MB, cheaper than anything else in this ticket and sampled at the same 2,120 points by the same mechanism. Bundling it with class-25 (109 GB) and the 2010 DEM (26.6 GB) as a cost skip misrepresents it. State the magnitude reason instead: the 2017->2026 correction is centimetres against a feature published in feet and a QC threshold of 2 m, so it cannot move a decision. Mark it 'never for v1', not 'fog with an open trigger'."
+   },
+   {
+    "claim": "Decision 5 (2010 epoch) \u2014 skipped as '26.6 GB, pre-Sandy terrain only'.",
+    "verdict": "AMEND",
+    "evidence": "'Pre-Sandy terrain only' is the property that makes it useful, not a reason to discard it: the label era opens 2010-01-01 and Sandy is in it, and per the verdict above both retained epochs postdate the event. Keep the skip on the real ground (26.6 GB compressed / 121 GB unzipped ERDAS .img with a 92 GB spill, no COG, no ImageServer \u2014 vault) and give it the trigger it currently lacks: '08's per-event CSI is materially worse on pre-2014 events than post-2014'."
+   },
+   {
+    "claim": "Decision 5 (footprints and class-25) \u2014 building-footprint ground_elevation rejected; LiDAR class-25 stays in the fog.",
+    "verdict": "CONFIRMED",
+    "evidence": "Footprints: rejection is measured and over-determined (schema drift, whole-foot quantization, building-minimum semantics, +16.3 ft at Cortelyou Rd) and the vault independently warns the field has no per-record vintage or capture method. Class-25: the free 3DEP/Entwine copy carries standard classes only, so the upgrade genuinely requires NYC's own 109 GB LAS 1.4 \u2014 a real skip. One sharpening: 'entrance-grade DEM too coarse' is not a testable trigger. Make it 'per-event CSI at complex grain is no better than at Cell grain' \u2014 i.e. elevation is adding nothing at asset grain, so the sill-vs-grade distinction is the named next lever."
+   },
+   {
+    "claim": "Decision 6 \u2014 build ticket post-ref/assets, snapshots fetch-only-when-missing, ~40 POSTs/epoch, features_version = sha1 over sorted (asset_id, elev_2017_m, elev_2014_m), blocking assertions incl. 'every cell centroid matched, zero NULL elev_ft'.",
+    "verdict": "AMEND",
+    "evidence": "Shape CONFIRMED (post-ref ordering is right, snapshot-then-build matches 06, one-shot with no daemon is right for a live detector too, and the POST arithmetic is internally consistent: 15,490/500 = 31, 19,603/500 = 40). Two defects. (1) features_version must include assets_version. 01 was amended by 06 so label_version += assets_version; 07 needs the same coupling for the same reason and more strongly, because asset_features COPIES kind and cell from ref/assets and samples at ref/assets coordinates \u2014 a registry rebuild that moves a bus stop (cross-feed mean coords) leaves features_version unchanged while the row's elevation now refers to a point that no longer exists. Also add frozen_at; 06 carries both src_asof and frozen_at, 07 carries only src_asof. (2) The 'every cell centroid matched / zero NULL elev_ft' assertion is unprobed on the grain most likely to break it: 2,759 of 4,113 cell centroids touch no NYC land (measured), and a NYC-scoped topobathymetric service returning NoData over inland New Jersey turns the gate into a guaranteed build failure. Probe one water centroid and one NJ centroid before freezing the assertion."
+   },
+   {
+    "claim": "Display: pipeline 14's third panel can be served from this table.",
+    "verdict": "CONFIRMED",
+    "evidence": "Yes, mechanically. Cell rows join ref/cells for geometry at export \u2014 exactly 14's decided rule ('Cell geometry reaches the page joined at export from ref/cells', h3 in the browser rejected) \u2014 and the export is pure-SQL JSON with absent keys for unpublishable values, which is what NULL elev_ft/aggregates need. Three conditions to write into the handoff: (a) with ~3,000 memberless cells the flood hex layer is mostly empty, so the panel needs a hidden/covered count in the same honesty slot as 14's existing n_cells_hidden; (b) an export invariant dropping elev_ft when grade_qc != 'ok' (per the Decision-4 verdict), otherwise the page paints WTC as the city's low point; (c) the legend must name datum AND epoch ('NAVD88 US ft, 2017 LiDAR') \u2014 14's provenance strip would otherwise print src_asof (2026-08-22) as the vintage of a 2017 measurement."
+   },
+   {
+    "claim": "Detector (10): nothing elevation-shaped is missing.",
+    "verdict": "AMEND",
+    "evidence": "Grain and cadence are fine \u2014 10's output grain is Cell + station, cell and entrance rows exist, and a static one-shot table needs no staleness contract, so 'no daemon' is right for 10 too. The gap is the join that makes elevation actionable live. 10 compares assets against CO-OPS 6-min obs and 05's six threshold stations; the draft says the below-threshold margin is composed from 'elev_ft + rel_elev_ft + 05's offsets', but 05 supplies per-station offsets, not an asset->station assignment, and ref/assets carries no gauge FK. No ticket owns the nearest-gauge mapping, so neither 08's freeboard term nor 10's live comparison is actually constructible from what exists. Assign it (cheapest: nearest of the six by geodesic distance, computed at read from ref/assets geometry) or declare it out of scope in writing."
+   },
+   {
+    "claim": "Units: use 3.28084; US-survey vs international foot differs < 0.001 ft at NYC elevations.",
+    "verdict": "CONFIRMED",
+    "evidence": "Arithmetic checks. International 3.2808399 vs US survey 1200/3937 = 3.2808333, difference 6.6e-6 ft per metre. At NYC's highest ground (Todt Hill ~125 m) that is 8.2e-4 ft; at a typical 10 m doorway, 6.6e-5 ft. Under the stated 0.001 ft with margin, and three orders below the source LiDAR's own 0.242 ft NVA at 95%. The related datum arithmetic also checks: 10.49 - 6.06 = 4.43 ft NAVD88."
+   }
+  ],
+  "missing": [
+   "Complex-grain coverage numbers, unmeasured and required before 08 can aggregate safely: how many of the 445 complexes have ZERO grade_qc='ok' child entrances, and how many change by > 2 m between min-over-all and min-over-ok. Name the 30 single-entrance complexes (measured) as the population where one flagged row voids the score unit.",
+   "Owner for the asset -> CO-OPS gauge assignment. 05 gives six stations with per-station STND->NAVD88 offsets; 06 gives no gauge FK; 07 assumes '05's offsets' suffice. Without it neither 08's below-threshold margin nor 10's live freeboard exists.",
+   "features_version must include assets_version (symmetry with 01's label_version amendment), and the table needs frozen_at as well as src_asof \u2014 06 carries both. Also state whether asset_features.kind/cell are authoritative or a cached copy of ref/assets.",
+   "Sort key for the byte-identical rebuild gate. 06 specifies 'single sorted part file'; 07 asserts the gate but names no ORDER BY (asset_id is the obvious choice).",
+   "Precedence rule when a row trips both QC constants (WTC trips both), and whether n_assets counts all members or only ok members \u2014 the draft names the column n_assets but defines the aggregate over 'ok point assets', so consumers cannot distinguish 'empty cell' from 'all members flagged'.",
+   "A binding one-liner that grade_qc / d_epoch_m are filters, never model features \u2014 otherwise 08 will fit a 41-row dummy that co-varies with specific alert-heavy, Sandy-polygon complexes.",
+   "NoData probe on the two unprobed grains before the zero-NULL assertion is frozen: 13,370 bus stops (probed at 500) and 4,113 cell centroids (probed at 0, of which 2,759 touch no NYC land).",
+   "The rounding precision for the location-keyed getSamples join. The draft says 'join by rounded (x,y)' without naming it; entrance keys are 6 dp and bus coords are cross-feed arithmetic means, and the entrance file has 2,110 distinct 6-dp coords for 2,120 rows (one triple at 40.708077/-74.009753), so the fan-out back to asset_id depends on the exact rounding.",
+   "Elevation as-of discipline vs 01's covariate rule, and the fact that src_asof is a fetch date, not the acquisition epoch \u2014 14's provenance strip and 08's as-of cutoff both read it.",
+   "Station rows (496) are omitted by silence rather than by decision. 06 makes station the carrier for the subwaydata.nyc delay join used by ticket 09's impact signals; say explicitly that stations inherit their complex aggregate, or give them rows.",
+   "Distance-to-shoreline / tidal-reach term: the natural partner to absolute elev_ft for coastal exposure, present in no ticket (not 06, not 07, not the map's fog) and not assigned to 08's feature engineering.",
+   "What the flood panel on pipeline 14 actually renders (the map still parks that decision until after the detector). 07 should not be frozen as display-complete until that contract exists \u2014 at minimum record which grains the panel will need elevation at."
+  ]
+ }
+}
