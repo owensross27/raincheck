@@ -17,3 +17,12 @@ spine; Testing seams 1 and 2.
 - [ ] fixture: 2023-09-29 appears as an event-day under the four-literal union
 - [ ] canary: each of the four 311 literals matches trailing-30-day rows, and every frozen source literal and endpoint answers — the build fails otherwise
 - [ ] spine derivation is a pure function tested on fixtures; DuckDB contract tests on both written tables
+
+## Domain fact from flood-02 (2026-08-23, recorded by the orchestrator)
+
+alert_id is NOT a stable text key: MTA revises (header, description) IN PLACE under the
+same alert_id — measured 14 of 24 water alert_ids carrying multiple distinct texts, 50
+revisions total. Any fold keyed per alert_id silently keeps one arbitrary variant. The
+spine's cross-event merging and any text-derived field must work at revision grain (or
+deliberately reduce revisions with a stated rule), not assume one text per id. Ticket 02
+is re-measuring its extractor precision at revision grain for the same reason.

@@ -15,3 +15,11 @@ detector (FloodNet tier, MTA alert tier); Testing seam 2.
 - [ ] the FloodNet citation renders with the tier ("FloodNet (NYU and CUNY)", Mydlarz et al. 2024, WRR — non-commercial agreement)
 - [ ] MTA tier: the newest captured subway-alert rows each cycle, filtered by ticket 02's frozen LIVE vocabulary; one chip per incident via ticket 02's incident dedupe keys; first-seen time; active vs cleared from the "while"/"after" phrasing
 - [ ] parsers tested on captured fixture responses — the 2080-clock response, the null-deployment response, a dry-night offsets response — no network in tests
+
+## Domain fact from flood-02 (2026-08-23, recorded by the orchestrator)
+
+alert_id is NOT a stable text key: MTA revises (header, description) in place under one
+alert_id (14/24 water ids multi-variant, 50 revisions measured). The MTA tier's "one chip
+per incident" dedupe and active-vs-cleared phrasing check must therefore read the NEWEST
+revision's text per incident, and expect the text (including the while/after phrasing) to
+change under an unchanged alert_id between cycles.
