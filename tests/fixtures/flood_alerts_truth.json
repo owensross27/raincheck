@@ -1,0 +1,432 @@
+{
+ "complex_of": {
+  "79 St": "312",
+  "149 St-Hostos": "603",
+  "World Trade Center": "624",
+  "Chambers St": "624",
+  "Utica Av": "181"
+ },
+ "labels": [
+  {
+   "alert_id": "lmm:alert:264026:26",
+   "text_sha": "e07b0e8c69f2",
+   "flood_stations": [
+    "79 St"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264026:29",
+   "text_sha": "e07b0e8c69f2",
+   "flood_stations": [
+    "79 St"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264029:29",
+   "text_sha": "98c1fe513e28",
+   "flood_stations": [
+    "149 St-Hostos"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264026:26",
+   "text_sha": "6c29ea7b8c47",
+   "flood_stations": [
+    "79 St"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264026:29",
+   "text_sha": "6c29ea7b8c47",
+   "flood_stations": [
+    "79 St"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264031:26",
+   "text_sha": "09c77cc1b7de",
+   "flood_stations": [
+    "World Trade Center"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264031:26",
+   "text_sha": "61b2bec8c3c8",
+   "flood_stations": [
+    "World Trade Center",
+    "Chambers St"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264026:34",
+   "text_sha": "e83b49046987",
+   "flood_stations": [
+    "79 St"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264031:26",
+   "text_sha": "50cde89c72aa",
+   "flood_stations": [
+    "World Trade Center",
+    "Chambers St"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264031:34",
+   "text_sha": "50cde89c72aa",
+   "flood_stations": [
+    "World Trade Center",
+    "Chambers St"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264031:26",
+   "text_sha": "b9df1c1ceded",
+   "flood_stations": [
+    "World Trade Center",
+    "Chambers St"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264031:34",
+   "text_sha": "b9df1c1ceded",
+   "flood_stations": [
+    "World Trade Center",
+    "Chambers St"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264031:26",
+   "text_sha": "c3acb8804511",
+   "flood_stations": [
+    "World Trade Center",
+    "Chambers St"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264031:34",
+   "text_sha": "c3acb8804511",
+   "flood_stations": [
+    "World Trade Center",
+    "Chambers St"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264031:32",
+   "text_sha": "6984b97b48b6",
+   "flood_stations": [
+    "World Trade Center",
+    "Chambers St"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264031:34",
+   "text_sha": "6984b97b48b6",
+   "flood_stations": [
+    "World Trade Center",
+    "Chambers St"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264043:26",
+   "text_sha": "da0400d00376",
+   "flood_stations": [
+    "World Trade Center",
+    "Chambers St"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264043:26",
+   "text_sha": "f5fb350c1062",
+   "flood_stations": [
+    "World Trade Center",
+    "Chambers St"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264044:26",
+   "text_sha": "2ddb74b21edd",
+   "flood_stations": [
+    "79 St"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264048:26",
+   "text_sha": "d1ffcb91d63f",
+   "flood_stations": [
+    "Utica Av"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264031:32",
+   "text_sha": "e01d1ab246a7",
+   "flood_stations": [
+    "World Trade Center",
+    "Chambers St"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264031:34",
+   "text_sha": "e01d1ab246a7",
+   "flood_stations": [
+    "World Trade Center",
+    "Chambers St"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264050:26",
+   "text_sha": "01f3577edbad",
+   "flood_stations": [
+    "World Trade Center",
+    "Chambers St"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264026:34",
+   "text_sha": "ffcec4029c67",
+   "flood_stations": [
+    "79 St"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264026:34",
+   "text_sha": "435763c570c2",
+   "flood_stations": [
+    "79 St"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264029:26",
+   "text_sha": "6d537efd6410",
+   "flood_stations": [
+    "149 St-Hostos"
+   ],
+   "state": "cleared"
+  },
+  {
+   "alert_id": "lmm:alert:264048:29",
+   "text_sha": "af87fe52904f",
+   "flood_stations": [
+    "Utica Av"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264031:32",
+   "text_sha": "8c2ffe5bbdfb",
+   "flood_stations": [
+    "World Trade Center",
+    "Chambers St"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264060:34",
+   "text_sha": "f3c095022ec9",
+   "flood_stations": [
+    "World Trade Center",
+    "Chambers St"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264026:30",
+   "text_sha": "dcaa0a8f155b",
+   "flood_stations": [
+    "79 St"
+   ],
+   "state": "cleared"
+  },
+  {
+   "alert_id": "lmm:alert:264031:30",
+   "text_sha": "43179ed7bf4b",
+   "flood_stations": [
+    "Chambers St"
+   ],
+   "state": "cleared"
+  },
+  {
+   "alert_id": "lmm:alert:264044:26",
+   "text_sha": "defb8f31aeff",
+   "flood_stations": [
+    "79 St"
+   ],
+   "state": "cleared"
+  },
+  {
+   "alert_id": "lmm:alert:264060:32",
+   "text_sha": "081fde77f243",
+   "flood_stations": [
+    "World Trade Center"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264050:30",
+   "text_sha": "ae3c17ab02b3",
+   "flood_stations": [
+    "World Trade Center",
+    "Chambers St"
+   ],
+   "state": "cleared"
+  },
+  {
+   "alert_id": "lmm:alert:264043:26",
+   "text_sha": "62b450c453c6",
+   "flood_stations": [
+    "World Trade Center"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264048:26",
+   "text_sha": "2a51c6696d43",
+   "flood_stations": [
+    "Utica Av"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264048:35",
+   "text_sha": "2a51c6696d43",
+   "flood_stations": [
+    "Utica Av"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264063:25",
+   "text_sha": "5963024252f7",
+   "flood_stations": [
+    "Chambers St",
+    "Utica Av"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264026:30",
+   "text_sha": "8da1977575eb",
+   "flood_stations": [
+    "79 St"
+   ],
+   "state": "cleared"
+  },
+  {
+   "alert_id": "lmm:alert:264060:32",
+   "text_sha": "7e32ed80fa88",
+   "flood_stations": [
+    "World Trade Center"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264063:30",
+   "text_sha": "214040394670",
+   "flood_stations": [
+    "Chambers St",
+    "Utica Av"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264048:35",
+   "text_sha": "68d7ef8eeb49",
+   "flood_stations": [
+    "Utica Av"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264050:26",
+   "text_sha": "bb96ac41770a",
+   "flood_stations": [
+    "Chambers St"
+   ],
+   "state": "cleared"
+  },
+  {
+   "alert_id": "lmm:alert:264050:35",
+   "text_sha": "bb96ac41770a",
+   "flood_stations": [
+    "Chambers St"
+   ],
+   "state": "cleared"
+  },
+  {
+   "alert_id": "lmm:alert:264026:26",
+   "text_sha": "92d36bf2dc0a",
+   "flood_stations": [
+    "79 St"
+   ],
+   "state": "cleared"
+  },
+  {
+   "alert_id": "lmm:alert:264043:26",
+   "text_sha": "04f08236acb6",
+   "flood_stations": [
+    "World Trade Center"
+   ],
+   "state": "cleared"
+  },
+  {
+   "alert_id": "lmm:alert:264050:26",
+   "text_sha": "9a7149a15d80",
+   "flood_stations": [
+    "Chambers St"
+   ],
+   "state": "cleared"
+  },
+  {
+   "alert_id": "lmm:alert:264063:26",
+   "text_sha": "7ac554432957",
+   "flood_stations": [
+    "Chambers St",
+    "Utica Av"
+   ],
+   "state": "active"
+  },
+  {
+   "alert_id": "lmm:alert:264060:26",
+   "text_sha": "a497494e6777",
+   "flood_stations": [
+    "World Trade Center"
+   ],
+   "state": "cleared"
+  },
+  {
+   "alert_id": "lmm:alert:264063:26",
+   "text_sha": "a39b59cb79a8",
+   "flood_stations": [
+    "Chambers St",
+    "Utica Av"
+   ],
+   "state": "cleared"
+  }
+ ]
+}
