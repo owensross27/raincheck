@@ -8,7 +8,7 @@ export TZ := UTC
 export RAINCHECK_ARCHIVE_ROOT RAINCHECK_BRONZE_GB TRANSITLAND_API_KEY
 PY := .venv/bin/python
 
-.PHONY: warm ref nbp picks precip-hourly precip-cell schedule events gold baseline gates slice test topics
+.PHONY: warm ref nbp picks precip-hourly precip-cell schedule events gold baseline gates slice test topics flood-obs flood-spine
 
 topics:  ## recreate the two bus topics to spec C - DESTRUCTIVE: drops retained Kafka messages (Bronze keeps the record)
 	$(PY) -m raincheck.topics
@@ -44,6 +44,16 @@ gold:  ## roll leg_hours -> gold/cell_hour_speed and events -> gold/cell_hour_ro
 
 baseline:  ## dry hour-of-week Speed baseline for one window (make baseline WINDOW=w1|w2)
 	$(PY) -m raincheck.gold baseline $(WINDOW)
+
+# --- flood-build ticket 04: flood observations and the event spine ----------------
+# Both fetch their sources once into <root>/archive/flood and never again: a present
+# snapshot is what makes the tables reproducible years after the literals have moved.
+.PHONY: flood-obs flood-spine
+flood-obs:  ## label-grade flood observations -> silver/flood_obs (make flood-obs [SKIP_CANARY=1])
+	$(PY) -m raincheck.flood_obs $(if $(SKIP_CANARY),--skip-canary)
+
+flood-spine:  ## the dated flood event spine -> silver/flood_events
+	$(PY) -m raincheck.flood_spine
 
 gates:  ## tier-2 slice acceptance gates: 10-T3, 10-T6 wired; T4/T5 report-only slots
 	$(PY) -m raincheck.gates
