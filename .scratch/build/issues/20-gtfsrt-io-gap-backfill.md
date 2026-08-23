@@ -487,10 +487,19 @@ Two things that run carried:
    a separate step that reads R2** - the argument for keeping it separate, now demonstrated
    rather than asserted.
 
-**Recommended hardening (not done here):** make `gapfill fill` exit non-zero when
-`all_ok` is False, or have `backfill-chunk.sh` fail a chunk whose log contains
-`filled 0/24`. The driver's short-day grep already prints these loudly, which is how it
-was caught, but a chunk that accomplished nothing should not report success.
+**Recommended hardening: DONE (cd6fc71, closes orchestration map ticket 6).**
+`fill_day` now returns whether the day succeeded and `main()` exits non-zero when EVERY
+attempt failed. The bar is deliberately *nothing at all worked*, not *something failed*:
+gtfsrt.io lags 1-2 days, so the newest day of a default span is routinely unpublished, and
+failing on that would make the 06:00 daily job report FAILED every morning about a hole
+that fills itself tomorrow - the page-forever failure `gapfill.DEAD` exists to prevent. One
+good day in the span proves the source was reachable. Three tests, including the one that
+must NOT fire (one good day + one lagging day exits 0).
+
+Not urgent when found, and worth saying why: `daily` runs `gapcheck` strictly after the
+fill and gapcheck exits 1 on real gaps, so the live-capture era was already backstopped.
+This bit the backfill path, which had no equivalent backstop until `backfill-verify`
+existed.
 
 ### Measured protocol facts (for whoever runs the next backfill)
 
@@ -508,9 +517,15 @@ was caught, but a chunk that accomplished nothing should not report success.
   closes: `filled N/24` plus probed-dead hours must equal 24. That check caught a bug in
   the probe tool itself.
 
-### Decision needed from Ross: should `gapcheck`'s `START` move back to 2026-03-01?
+### Decision (RESOLVED 2026-08-23): `START` stays at 2026-08-15
 
-**Recommendation: NO. Leave `START` at 2026-08-15 and keep two era-appropriate tools.**
+**Ross decided NO - `START` stays in the live-capture era, and the backfilled range
+is verified with `scripts/backfill-verify.py` against R2, where it actually lives.**
+Guarded by `test_start_stays_in_the_live_capture_era` (13996b6), which fails with the
+re-pull risk spelled out if anyone moves it - the guard does not block the change, it
+makes it deliberate. The reasoning behind the decision is kept below.
+
+**Recommendation as given: NO. Leave `START` at 2026-08-15 and keep two era-appropriate tools.**
 It is not a config flip, and the failure mode of getting it wrong is severe.
 
 **What breaks if `START` moves back, measured not guessed:**
