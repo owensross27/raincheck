@@ -178,5 +178,14 @@ delay, headway-by-direction, and prediction-lag features.
 
 The 7-year nycbuspositions backfill is a separate fixed 12-col shape (nbp converter)
 and is not part of this drift. Verified safe readers: duck.table (union_by_name,
-143a00a, vp era tests), events.tu_rows/baselines (mergeSchema). Known verification
-hole: no TU era test yet.
+143a00a, vp era tests), events.tu_rows/baselines (mergeSchema). Both read paths now
+carry TU era tests too (b05b8d8), so the drift is covered end to end.
+
+**A new reader that forgets this fails SILENTLY, not loudly** (measured 2026-08-23,
+both engines). Spark without `mergeSchema` never raises — it takes one file's schema
+and the missing columns simply are not there, with the row count still correct.
+DuckDB without `union_by_name` raises only when a wide part sorts first; when a narrow
+part sorts first it silently drops the columns the same way. So the symptom of getting
+this wrong is not a crash but a column that quietly vanishes, or reads all-NULL, in a
+calc that looks fine. Any new Bronze bus reader must set `union_by_name` / `mergeSchema`
+and assert the era columns are PRESENT — a row-count check will not catch it.
