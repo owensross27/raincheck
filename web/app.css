@@ -47,6 +47,11 @@ code { font-size: 12px; color: var(--dim); }
 .row:first-child { border-top: 0; }
 .warn { color: #ffcf87; }
 
+/* the live panel dims itself when the pipeline stops writing (ticket 14); the dots dim
+   with it, in app.js - a bright panel over grey dots would still read as live */
+#live.stale { border-color: #6a5a33; }
+#live.stale #live-h::after { content: " - STALE"; color: #ffcf87; }
+
 .swatches { display: flex; height: 10px; width: 100%; border-radius: 4px; overflow: hidden; margin: 6px 0 2px; }
 .swatches span { flex: 1; }
 .swatches.one { width: 44px; }

@@ -17,6 +17,8 @@ const RATIO_STOPS = [[0.5, "#7f0000"], [0.65, "#d7301f"], [0.8, "#fc8d59"], [0.9
 // Dry Speed level, m/s: sequential, a different scale for a different quantity.
 const SPEED_STOPS = [[2, "#0d1b2a"], [3.5, "#1b4965"], [5, "#3d7ea6"], [6.5, "#7fb3d5"], [8, "#cfe6f4"]];
 const GREY = "#3a4049";
+// live dots: bright while the pipeline is writing, dimmed the moment it is not (ticket 14)
+const LIVE_FRESH = "#b0bec5", LIVE_STALE = "#5d666f";
 
 const $ = (id) => document.getElementById(id);
 const fmt = (v, d = 2) => (v === undefined || v === null ? "—" : v.toFixed(d));
@@ -37,7 +39,9 @@ const map = new maplibregl.Map({
       // GeoJSON source whose promoted id is not integer-like (measured: zero features,
       // no error event). Nothing here needs feature-state; the tooltip reads properties.
       cells: { type: "geojson", data: "files/cells.geojson" },
-      // ticket 14 replaces this empty stub with the exported live.geojson
+      // ticket 14 fills this from files/live.geojson, but only once the toggle is ticked.
+      // Still no promoteId: vehicle_id is "MTA NYCT_1234", not integer-like, and MapLibre
+      // 5.9.0 SILENTLY drops a source whose promoted id is not (measured: zero features).
       live: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
     },
     layers: [
@@ -49,8 +53,8 @@ const map = new maplibregl.Map({
         paint: { "line-color": "#0b0d10", "line-width": 0.4 } },
       { id: "zones-line", type: "line", source: "zones",
         paint: { "line-color": "#39424f", "line-width": 0.8 } },
-      { id: "live", type: "circle", source: "live",
-        paint: { "circle-radius": 2.6, "circle-color": "#b0bec5", "circle-opacity": 0.9 } },
+      { id: "live", type: "circle", source: "live", layout: { visibility: "none" },
+        paint: { "circle-radius": 2.6, "circle-color": LIVE_FRESH, "circle-opacity": 0.9 } },
     ],
   },
 });
@@ -311,8 +315,110 @@ Promise.all([
 new ResizeObserver(() => map.resize()).observe($("map"));
 
 /* --------------------------------------------------------------------------------
- * Live panel (ticket 14). The `live` source and layer above are an empty stub and
- * nothing here fetches, so the panel cannot show a stale fleet as a live one. Ticket
- * 14 fills #livemeta / #delaystate / #rainstate, enables #livetoggle, and drives
- * map.getSource("live").setData(...) on the 30 s meta.json clock with the STALE rules.
+ * Live panel (ticket 14 / spec L). Reads the two files `make live-export` swaps into
+ * files/, every 30 s, and only while the toggle is on.
+ *
+ * The panel's job is to be honest about age, so STALE is the DEFAULT and freshness has
+ * to be proven: a missing meta.json, an unparseable one, an `error`, an exporter-set
+ * `stale`, or a missing vp_age_s all read as stale, and only a vp_age_s inside the
+ * source's threshold clears it. `setData` runs only when `error` is null - a failed tick
+ * leaves live.geojson untouched on purpose, and re-reading it would repaint an old fleet
+ * as a new one.
  * -------------------------------------------------------------------------------- */
+const STALE_AFTER_S = { live: 120, bronze: 900 };   // Bronze flushes in 10-min parts
+const DELAY_CUT_S = 300;   // 06's Delay cutoff, borrowed for an agency-computed quantity
+
+let liveTimer = null, liveFeatures = null;
+
+const ago = (s) => (s === null || s === undefined) ? "age unknown"
+  : s < 90 ? `${Math.round(s)} s ago` : `${Math.round(s / 60)} min ago`;
+const plural = (n, one, many) => `${n ?? "—"} ${n === 1 ? one : many}`;
+// meta.error is a DuckDB message carrying a filesystem path; everything else on the panel
+// is a number we generated. Escape it so a '<' in a path cannot garble the markup.
+const esc = (s) => String(s).replace(/[<&]/g, c => (c === "<" ? "&lt;" : "&amp;"));
+
+// STALE unless proven otherwise. `vp_age_s` is the exporter's wall-clock age of the
+// newest row in the pruned partitions, so it keeps counting up after the stream dies.
+function isStale(m) {
+  if (!m || m.error || m.stale) return true;
+  const limit = STALE_AFTER_S[m.source] ?? STALE_AFTER_S.live;
+  return !(typeof m.vp_age_s === "number" && m.vp_age_s <= limit);
+}
+
+function renderLive(m) {
+  const stale = isStale(m);
+  map.setPaintProperty("live", "circle-color", stale ? LIVE_STALE : LIVE_FRESH);
+  map.setPaintProperty("live", "circle-opacity", stale ? 0.35 : 0.9);
+  $("live").classList.toggle("stale", stale);
+  $("live").title = stale ? "STALE: the pipeline is not writing" : "";
+
+  if (!m) {
+    $("livemeta").innerHTML = `<b class="warn">STALE: the pipeline is not writing.</b>
+      No <code>files/meta.json</code> - run <code>make live-export</code>.`;
+    return;
+  }
+  const p = m.stream_progress;
+  const bits = [
+    `${plural(m.n_vehicles, "vehicle", "vehicles")} in the last ${m.window_min} min,`,
+    `${m.n_in_rain_cells ?? "—"} in Cells at &ge; 1 mm RadarOnly,`,
+    `${m.n_with_prediction ?? "—"} with a next-stop Prediction.`,
+    `Feed ${ago(m.vp_age_s)} (VP ${m.vp_fetched_at_utc ?? "never"}).`,
+    p ? `Stream batch ${p.batch_id}, ${p.rows} rows, ${ago(p.age_s)}.`
+      : "No stream progress file.",
+    `source: ${m.source}.`,
+  ];
+  if (m.error) bits.push(`<span class="warn">export error: ${esc(m.error)}</span>`);
+  $("livemeta").innerHTML =
+    (stale ? `<b class="warn">STALE: the pipeline is not writing.</b> ` : "") + bits.join(" ");
+
+  // "MTA-reported trip delay > 5 min" - never "late": it is the agency's own number,
+  // unvalidated, and 300 s is 06's Delay cutoff borrowed. Gated until it actually arrives.
+  $("delaystate").textContent = !m.n_with_trip_delay
+    ? "unavailable - no live TU row carries trip_delay_s yet"
+    : `${(liveFeatures || []).filter(f => f.properties.trip_delay_s > DELAY_CUT_S).length}` +
+      ` of ${m.n_vehicles} over 5 min (agency-computed, unvalidated)`;
+
+  $("rainstate").textContent = m.precip_valid_ts
+    ? `valid ${m.precip_valid_ts} (${ago(m.precip_age_s)})`
+    : "no live tick yet";
+}
+
+async function liveTick() {
+  let meta = null;
+  try {
+    meta = await fetch("files/meta.json", { cache: "no-store" }).then(r => r.json());
+    if (meta.error === null || meta.error === undefined) {
+      const fc = await fetch("files/live.geojson", { cache: "no-store" }).then(r => r.json());
+      map.getSource("live").setData(fc);
+      liveFeatures = fc.features;
+    }
+  } catch (err) {
+    meta = null;               // missing or unparseable meta is stale, not an empty panel
+  }
+  renderLive(meta);
+}
+
+// The toggle stays disabled until the map is loaded, because every branch below touches
+// the `live` layer and setPaintProperty / getSource THROW before it exists - which would
+// kill the tick silently and leave the panel on its "off" text under a ticked box
+// (measured in a real tab). `load`, not `styledata`: styledata fires while
+// isStyleLoaded() is still false and setPaintProperty still throws "Style is not done
+// loading". A hidden tab throttles rAF and never fires it, which is why this panel can
+// only be checked in a VISIBLE tab - a headless screenshot is misleading.
+if (map.loaded()) $("livetoggle").disabled = false;
+else map.once("load", () => { $("livetoggle").disabled = false; });
+
+$("livetoggle").addEventListener("change", () => {
+  const on = $("livetoggle").checked;
+  map.setLayoutProperty("live", "visibility", on ? "visible" : "none");
+  clearInterval(liveTimer);
+  liveTimer = null;
+  if (on) {
+    liveTick();
+    liveTimer = setInterval(liveTick, 30000);
+  } else {
+    $("live").classList.remove("stale");
+    $("live").title = "";
+    $("livemeta").textContent = "off - nothing is being fetched.";
+  }
+});
