@@ -128,7 +128,9 @@ Flood-exposure scoring is a later map, not this one.
   precip spine, Cell grain, Silver conventions) and combines with the bus Gold at
   Cell-hour. Chart it with `/wayfinder` (chart mode) once this map reaches spec, or in
   parallel now that its groundwork research exists (`research/subway-rt-archives.md`,
-  `research/subway-flood-labels.md`, the two vault docs).
+  `research/subway-flood-labels.md`, the two vault docs). Charted 2026-08-22:
+  `.scratch/flood/map.md`, ten tickets, research fired. COMPLETE 2026-08-23:
+  all ten resolved; the way is clear for `/to-spec`.
 - Alerting channels of any kind (standing rule from quakestream).
 - Production deployment, public hosting of MTA-derived feeds (WMATA-style license
   issues do not apply to MTA, but re-serving raw feeds is not the goal).
