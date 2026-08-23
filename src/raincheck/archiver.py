@@ -103,7 +103,9 @@ def flush(rows: list[dict], kind: str, window_start: int) -> Path:
     key = KEY.get(kind, "fetched_at")
     if key in table.column_names:
         table = table.sort_by([(key, "ascending"), ("fetched_at", "ascending")])
-    pq.write_table(table, out, compression="zstd")
+    tmp = out.with_name(out.name + ".tmp")  # a reader mid-write must not see a torn footer
+    pq.write_table(table, tmp, compression="zstd")
+    tmp.replace(out)
     return out
 
 
