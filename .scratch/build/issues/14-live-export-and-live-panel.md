@@ -8,7 +8,7 @@ demo fallback. Spec: L (live view); Testing 14-3, 14-4.
 
 **Blocked by:** 12, 13
 
-**Status:** in-review (branch `claude/kind-dijkstra-a7c03f`, commit abf2677; one rebase owed when 13 lands on master)
+**Status:** in-review, rebased onto master @ 9872c78 (branch `claude/kind-dijkstra-a7c03f`); ready to land
 
 - [x] the loop reads live/vp with `fetched_at >= now() - 10 min` on the wall clock and `date IN (today, yesterday) AND hour IN (HH, HH-1)` literals (max probe over the same set), latest Ping per vehicle, left-joined to the latest live/tu row per (trip_id, vehicle_id); no precip join; pure-SQL JSON writer with absent keys; writes live.geojson then meta.json by atomic replace; a failed tick writes meta with error + stale and leaves live.geojson alone; Ctrl-C stops it
 - [x] meta.json carries as_of_utc, source, window_min, error, stale, vp/tu fetched_at + ages, precip_valid_ts + age, n_vehicles, n_with_prediction, n_with_trip_delay, n_in_rain_cells, stream_progress from the progress file, export_s
@@ -59,7 +59,33 @@ and the 12-streaming-job review record).
 13's branch alone: `claude/determined-driscoll-e43969` forks from a pre-ticket-12 master
 and does not contain `src/raincheck/stream.py`, which is the live/vp + live/tu contract
 this ticket consumes. Only conflict was the Makefile, resolved as both-sides-additive.
-Orchestrator approved the deviation. One rebase still owed when 13 formally lands.
+Orchestrator approved the deviation.
+
+**Rebase onto master @ 9872c78 (2026-08-23), after 13 landed as 286a620 + c0a6f2d.** Clean,
+zero conflicts; the cherry-picked duplicate of `8d3a45b` dropped by patch-id as expected.
+13's review fix (c0a6f2d) touches three files this ticket also touches, and all three merged
+disjointly: `web/app.js` (seven hunks, every one in the insight half — cellKeys, the
+band-reaches-1.0 statement, the rain-lag caption and y-domain, setHour focus restore,
+buildViews, the tooltip's textContent), `web/app.css` (`--accent` contrast only), `Makefile`
+(the `vendor` target's download-to-`.new`-then-verify only). Nothing in the review touched
+the `live` source, the circle layer, or the panel wiring. Re-read `buildViews` and
+`renderHeadline` afterwards rather than trusting the merge: neither reads any live-panel
+state, and the live panel remains independent of `head`, so it still works when the insight
+files are absent (re-confirmed in a real tab with headline.json missing).
+
+Also tidied, at the orchestrator's request, two stitched comment lines above the
+band-statement logic in `renderHeadline` — a dangling `// ...over the Hours that MEASURE a
+slowdown` fragment that continued nothing. Comment only, no behaviour change; flagged here
+because it is a hunk in ticket 13's territory, not ticket 14's.
+
+Post-rebase verification: full suite re-run, 283 collected and **283 passed, 0 skipped**
+(258 excluding `tests/test_stream.py` + 25 in it; split because a single sweep runs over
+10 minutes). That reconciles with master's 263 passed / 1 skipped as 264 + this ticket's 19:
+the one test that skips on master is `test_export.py`'s vendored-MapLibre check, and it runs
+here because this worktree has had `make vendor`. `tests/test_stream.py` was 25/25 on this
+run — the processing-time-trigger flake seen pre-rebase did not reappear.
+
+All five panel states re-checked by hand in a visible tab on top of the reviewed `app.js`.
 
 **Shipped.** `src/raincheck/live_export.py` (`make live-export [SOURCE=bronze] [ONCE=1]`),
 the live panel in `web/app.js` + `web/index.html` + `web/app.css`, `tests/test_live.py`
