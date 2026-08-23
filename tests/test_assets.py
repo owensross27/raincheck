@@ -12,10 +12,17 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from raincheck import ref
+from raincheck import flood_alerts, ref
+from raincheck.paths import data_root
 
 FIXTURES = Path(__file__).parent / "fixtures"
 CENTRAL_PARK_CELL = int("882a100895fffff", 16)
+
+DRIFT = ("ref/assets has drifted from tests/fixtures/flood_alerts_stations.json. Re-cutting the "
+         "fixture is NOT enough on its own: flood-build 02's precision/recall gate, its "
+         "hand-adjudicated truth complex_of mapping and its observation table were all measured "
+         "against these frozen rows, so those measurements need re-validating too — see "
+         ".scratch/flood-build/issues/02-alert-extractor.md.")
 
 STATIONS = [
     # complex 1: single station; complex 617: two stations (structure mixes); complex 611: misfile target
@@ -243,6 +250,29 @@ def test_assets_version_and_key_diff(root, assets):
     assert diff == {"added": [], "removed": [], "moved": ["bus:B1"]}
     assert ref.assets_key_diff(old, added)["added"] == ["bus:NEW"]
     assert ref.assets_key_diff(added, old)["removed"] == ["bus:NEW"]
+
+
+def _station_rows(stations) -> set:
+    return {(s["asset_id"], s["name"], s["complex_id"], s["daytime_routes"]) for s in stations}
+
+
+def test_flood_alerts_stations_fixture_matches_the_live_registry():
+    """Key stability against a downstream consumer: flood-build 02 froze this registry's 496
+    station rows into a fixture and measured its whole gate on them. Nothing else compares the
+    two, so a rename or an added station leaves those tests green while load_aliases() — the
+    production path — resolves aliases the measurements never saw. Real registry, so it skips
+    where there is none (same seam as the JVM and vendored-file skips)."""
+    root = data_root()
+    if not (root / "ref" / "assets").exists():
+        pytest.skip(f"no built ref/assets under {root}: run make ref, or point "
+                    "RAINCHECK_ARCHIVE_ROOT at a data root that has one")
+    frozen = _station_rows(json.loads((FIXTURES / "flood_alerts_stations.json").read_text()))
+    try:
+        live = _station_rows(s for c in flood_alerts.load_aliases(root).values() for s in c)
+    except KeyError as exc:  # FORMER_NAMES guard: a rename it points at raises before we diff
+        pytest.fail(f"{DRIFT}\n  load_aliases() rejected the live registry: {exc}")
+    assert live == frozen, (f"{DRIFT}\n  only in ref/assets: {sorted(live - frozen)[:5]}"
+                            f"\n  only in the fixture: {sorted(frozen - live)[:5]}")
 
 
 def test_removed_key_with_downstream_rows_fails_build(root, spark):
