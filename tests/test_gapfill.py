@@ -3,6 +3,7 @@ file:// tree of parquet files written one row group per poll snapshot (the real 
 verified shape), and mapper schemas are censused against archiver.flush on the same pb
 fixtures the feeds tests use."""
 import hashlib
+from datetime import date
 from pathlib import Path
 
 import pyarrow as pa
@@ -23,6 +24,56 @@ def load(name: str) -> gtfs_realtime_pb2.FeedMessage:
     feed = gtfs_realtime_pb2.FeedMessage()
     feed.ParseFromString((FIXTURES / name).read_bytes())
     return feed
+
+
+def bronze_day(root: Path, day: str, missing: dict[str, list[str]]) -> None:
+    """A Bronze tree with every kind x hour of `day` present except the named misses."""
+    for kind in gapfill.KINDS:
+        for h in range(24):
+            if f"{h:02d}" in missing.get(kind, []):
+                continue
+            d = root / "archive" / kind / f"date={day}" / f"hour={h:02d}"
+            d.mkdir(parents=True)
+            (d / "part-00.parquet").touch()
+
+
+@pytest.fixture()
+def one_day(monkeypatch):
+    monkeypatch.setattr(gapfill, "days", lambda *a, **k: ["2026-08-15"])
+    return "2026-08-15"
+
+
+def test_check_allowlists_dead_hours(tmp_path, one_day, monkeypatch, capsys):
+    """Hours gtfsrt.io never stored are reported but must not fail a scheduled check."""
+    monkeypatch.setattr(gapfill, "DEAD", {("subway_alerts", one_day): ("07", "12")})
+    bronze_day(tmp_path, one_day, {"subway_alerts": ["07", "12"]})
+    assert gapfill.check(tmp_path) == 0
+    out = capsys.readouterr().out
+    assert "dead at source: 07,12" in out and "22/24" in out  # reported, never hidden
+    assert "GAP" not in out
+
+
+def test_check_still_fails_on_a_fillable_gap_beside_a_dead_one(tmp_path, one_day, monkeypatch, capsys):
+    monkeypatch.setattr(gapfill, "DEAD", {("subway_alerts", one_day): ("07",)})
+    bronze_day(tmp_path, one_day, {"subway_alerts": ["07", "18"]})
+    assert gapfill.check(tmp_path) == 1
+    out = capsys.readouterr().out
+    assert "missing 18" in out and "[dead at source: 07]" in out  # 18 fillable, 07 not
+
+
+def test_check_flags_a_stale_dead_entry(tmp_path, one_day, monkeypatch, capsys):
+    monkeypatch.setattr(gapfill, "DEAD", {("vp", one_day): ("05",)})
+    bronze_day(tmp_path, one_day, {})  # every hour present: the entry has rotted
+    assert gapfill.check(tmp_path) == 0
+    assert "stale DEAD entry" in capsys.readouterr().out
+
+
+def test_dead_entries_are_well_formed():
+    """A typo in a key silently never matches, leaving the allowlist inert."""
+    for (kind, day), hours in gapfill.DEAD.items():
+        assert kind in gapfill.KINDS, kind
+        assert date.fromisoformat(day) >= gapfill.START, day
+        assert set(hours) <= {f"{h:02d}" for h in range(24)}, (kind, day, hours)
 
 
 def test_pick_snapshots_cadence_and_header_dedupe():

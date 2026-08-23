@@ -96,3 +96,12 @@ To refill them to the new shape later (optional): delete `part-gapfill-*.parquet
 `make gapcheck && make gapverify && make coldpush && make coldcheck`. It is a no-op for
 hours already captured or already filled, so it is safe to re-run at any time; gtfsrt.io
 lags 1-2 days, so the newest day usually needs a second pass.
+
+**Dead-hour allowlist (`gapfill.DEAD`):** the four source-dead hours are listed in code so
+`gapcheck` exits 0 on them — otherwise a scheduled run pages forever on holes nothing can
+fill. They are still printed (`[dead at source: 07,12]`), never hidden, and gapcheck says
+`stale DEAD entry` if a listed hour ever turns up, so the list cannot rot silently. Add an
+entry ONLY after probing gtfsrt.io and confirming zero snapshots for that hour — never to
+quiet a fill that merely failed. Note the check still exits 1 for the newest 1-2 days
+until their fill lands; that is correct (it is actionable), so run `gapfill` before
+`gapcheck` in any job.

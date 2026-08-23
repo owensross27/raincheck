@@ -35,6 +35,15 @@ GCS = "https://storage.googleapis.com/parquet.gtfsrt.io"
 START = date(2026, 8, 15)  # capture began; ticket 20 scope
 KINDS = ("vp", "tu", "alerts", "subway_tu", "subway_alerts")
 CADENCE = {"vp": 30, "tu": 120, "alerts": 300, "subway_tu": 60, "subway_alerts": 300}
+# Hours gtfsrt.io itself never stored - zero snapshots at source, so no fill can ever
+# produce them and gapcheck must not fail forever on them. Add an entry ONLY after
+# probing the source and confirming it holds nothing for that hour; never to quiet a
+# fill that merely failed. gapcheck prints a stale note when a listed hour turns up.
+DEAD = {
+    ("subway_alerts", "2026-08-15"): ("07", "12"),
+    ("subway_alerts", "2026-08-16"): ("13",),
+    ("subway_alerts", "2026-08-22"): ("18",),
+}
 RAW_COLS = {  # the gtfsrt.io columns each mapper reads (their files carry ~35-46)
     "vehicle_positions": ["entity_id", "vehicle_id", "trip_id", "route_id", "direction_id",
                           "start_date", "schedule_relationship", "latitude", "longitude",
@@ -289,16 +298,25 @@ def days(start: date | None = None, end: date | None = None):
 
 
 def check(root: Path) -> int:
-    """Hour completeness per kind x closed day; exit 1 while any closed day has gaps."""
+    """Hour completeness per kind x closed day. Exits 1 on fillable gaps only: DEAD hours
+    are still reported (never hidden) but cannot fail the check, so a scheduled run pages
+    on real gaps instead of forever on holes gtfsrt.io never had."""
     gaps = 0
     for kind in KINDS:
         for day in days():
             date_dir = root / "archive" / kind / f"date={day}"
             have = {d.name[5:] for d in date_dir.glob("hour=*") if any(d.glob("*.parquet"))}
-            miss = [f"{h:02d}" for h in range(24) if f"{h:02d}" not in have]
-            gaps += bool(miss)
-            print(f"{'GAP' if miss else 'OK '} {kind:13s} {day} {24 - len(miss):2d}/24"
-                  + (f"  missing {','.join(miss)}" if miss else ""))
+            miss = {f"{h:02d}" for h in range(24)} - have
+            dead = set(DEAD.get((kind, day), ()))
+            fillable = sorted(miss - dead)
+            gaps += bool(fillable)
+            note = f"  missing {','.join(fillable)}" if fillable else ""
+            if dead & miss:
+                note += f"  [dead at source: {','.join(sorted(dead & miss))}]"
+            if dead - miss:
+                note += (f"  [stale DEAD entry - hour(s) present: "
+                         f"{','.join(sorted(dead - miss))}]")
+            print(f"{'GAP' if fillable else 'OK '} {kind:13s} {day} {24 - len(miss):2d}/24{note}")
     print("note: subway_vp hours are unrecoverable (gtfsrt.io archives subway TU only)")
     return 1 if gaps else 0
 
