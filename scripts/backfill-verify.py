@@ -31,6 +31,11 @@ DEAD = {
     # legitimately leave whole hours unstored - expect more of these in alerts, and probe
     # each one rather than assuming.
     ("alerts", "2026-05-28"): {"04", "05", "06", "08", "09", "11", "13"},
+    # One contiguous alerts outage, 2026-06-24 17:00Z -> 2026-06-25 00:59Z. Split across
+    # two keys only because the DEAD map is keyed by day; it is a single 8-hour hole, and
+    # the day boundary in the middle is an artifact of the layout, not of the outage.
+    ("alerts", "2026-06-24"): {"17", "18", "19", "20", "21", "22", "23"},
+    ("alerts", "2026-06-25"): {"00"},
 }
 
 
@@ -75,6 +80,8 @@ def census(bucket: str, endpoint: str, feed: str, lo: str, hi: str):
 
 
 def main() -> int:
+    if len(sys.argv) < 3:
+        raise SystemExit(__doc__)
     lo, hi = sys.argv[1], sys.argv[2]
     feeds = FEEDS
     if "--feeds" in sys.argv:

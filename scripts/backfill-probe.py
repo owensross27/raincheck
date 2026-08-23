@@ -71,4 +71,9 @@ if __name__ == "__main__":
     kind, days = sys.argv[1], sys.argv[2:]
     if kind not in SOURCES:
         raise SystemExit(f"unknown kind {kind!r}; expected one of {', '.join(SOURCES)}")
-    raise SystemExit(1 if any(probe(kind, d) for d in days) else 0)
+    # A list, NOT any(generator): any() short-circuits on the first day with dead hours,
+    # silently skipping every later day. A probe that quietly examines fewer days than it
+    # was asked to is worse than no probe, because its clean-looking output invites you to
+    # believe the days it never read.
+    found = [probe(kind, d) for d in days]
+    raise SystemExit(1 if any(found) else 0)
