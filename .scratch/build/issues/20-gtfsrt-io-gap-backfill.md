@@ -259,9 +259,21 @@ that stranded April. Now needs two consecutive idle checks (d0117ae).
 **Damage and repair.** `tu` 2026-04-17 and 2026-04-28 both ended in R2 missing hour 23
 and most markers; both were filled while a concurrent pruner ran (the `/tmp` script, and
 my drain before fix 2). gtfsrt.io has 120 snapshots for h23 on both days, so the hour was
-always fillable. **The exact interleaving that lost h23 was NOT reconstructed** - the
-fill's stdout died with its session - so fix 3 closes a race that is demonstrable, not one
-proven to have caused those days. Fixes 1 and 2 fully explain the missing markers.
+always fillable. Fixes 1 and 2 fully explain the missing markers.
+
+> **Hour 23 root cause — found in May, recorded here because the evidence is April's.**
+> This chunk could not explain the missing h23 and said so; the guess on record was fix 3
+> (the empty-hour-dir race). **That guess was wrong.** May A reproduced the symptom with
+> the diagnostic April lacked: `vp 2026-05-14` h23 absent from R2 while the fill log said
+> `filled 24/24` - so the part was written locally and deleted before it ever uploaded.
+>
+> The prune treated *not in `pending`* as *verified remote*. It is not. A file created
+> AFTER the listing ran was never a candidate for that listing, so its absence proves
+> nothing. `fill_day` writes hour 23 last and only THEN touches the day's markers, so h23
+> is the part most likely to appear between a pass's listing and its prune. **The hour is
+> not special; its position in the write order is** - which is why April lost h23 twice
+> and never h07. Fixed by stamping the listing's start time and holding anything at or
+> newer than it (27aa035). Fix 3 remains correct and stays closed, but it was not this.
 
 Repair for both: a **full-day** re-fill (`gapfill --feed tu --date <day>`), which works
 only because local was already pruned - `missing_hours` then sees all 24 as missing and
