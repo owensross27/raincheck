@@ -1,0 +1,202 @@
+[
+ {
+  "i": 0,
+  "text": "No F service between Coney Island-Stillwell Av and Jay St-MetroTech in either direction.\n\nG service is suspended in both directions. Some F trains will only run between Jamaica-179 St and 2 Av to alleviate congestion between Manhattan and Brooklyn.\n\nWe are working to address heavy flooding in Brooklyn.\n\nPlease stay home if you don't need to travel.",
+  "affected": "F | G"
+ },
+ {
+  "i": 1,
+  "text": "There is no 2 5 service between Franklin Av-Medgar Evers College and Flatbush Av-Brooklyn College. 2 trains will run via the 3 line between Franklin Av-Medgar Evers College and New Lots Av.\n\n5 trains will run via the 4 line between Franklin Av-Medgar Evers College and Crown Hts-Utica Av.\n\nWhat's Happening?\n\nWe're continuing to remove water from the tracks caused by flooding from rainfall at various stations in Brooklyn.\n\nPlease stay home if you don't need to travel.",
+  "affected": "2 | 5"
+ },
+ {
+  "i": 2,
+  "text": "There is no 1 train service in most of Manhattan while we address a signal problem that is caused by flooding near 96 St. There is no 1 train service between 168 St-Washington Hts and South Ferry.\nConsider alternate travel.",
+  "affected": "1"
+ },
+ {
+  "i": 3,
+  "text": "Q service is extremely limited because of flooding across New York City. \n\nPlease avoid non-essential travel until further notice.",
+  "affected": "Q"
+ },
+ {
+  "i": 4,
+  "text": "A/D trains are running with delays in both directions after we addressed a signal problem caused by a water condition near 135 St. Uptown A/D trains have resumed running local from 125 St to 145 St.",
+  "affected": "A | D"
+ },
+ {
+  "i": 5,
+  "text": "SIR trains are running with delays between Huguenot and Tottenville in both directions after we addressed flooding. SIR trains have resumed regular service between Huguenot and Tottenville.",
+  "affected": "SI"
+ },
+ {
+  "i": 6,
+  "text": "N trains are running local between DeKalb Av and 59 St in both directions. What's Happening?\nWe're storing trains on the express tracks after our train storage facilities were impacted by heavy flooding.\n\nFor express service between Atlantic Av-Barclays Ctr and 36 St, take a D train.",
+  "affected": "N"
+ },
+ {
+  "i": 7,
+  "text": "[SIR] train service has resumed following earlier flooding condition between St. George and Tottenville. [SIR] train service has resumed following earlier flooding between St.George and Tottenville.",
+  "affected": "SIR"
+ },
+ {
+  "i": 8,
+  "text": "No 1 between Chambers St and 96 St.\nAvoid taking 1 2 3 trains.\nTake A C D.\nWe expect this to last at least thru the AM rush hour. What's Happening?\n\nWe are working to clear water from the tracks after a water main break at Times Sq-42 St.\nOur crews are also inspecting the tracks that were flooded.\n\nAdditional service changes:\n1 service is running in two sections:\nbetween South Ferry and Chambers St (extremely limited service)\nbetween Van Cortlandt Park-242 St and 96 St\nNorthbound 1 trains are running on the express track from 96 St to 137 St-City College.\nFor service to/from bypassed stations, take a southbound train.\n\nAs an alternative to local 1 service from 96 St to 137 St-City College, take an M104 bus.\n\nListen for announcements to hear how your train will operate.\n\nLIRR is cross-honoring MetroCard/OMNY users between Penn Station/Grand Central & Main St/Jamaica.",
+  "affected": "1"
+ },
+ {
+  "i": 9,
+  "text": "[B] and [D] train service changes and delays, due to a water conditions at 174-175 Sts and Tremont Av. See mta.info Due to a water condition at 174-175 Sts and Tremont Av, the following service changes are in effect: Northbound [B] and [D] trains are running with delays. Northbound [D] trains are running express from 167 St to Bedford Pk Blvd. Allow additional travel time.",
+  "affected": "D"
+ },
+ {
+  "i": 10,
+  "text": "5 trains are running with delays between Eastchester-Dyre Av and Bowling Green. What Happened?\n\nWe removed water from the tracks caused by flooding from rainfall at various stations in Brooklyn.",
+  "affected": "5"
+ },
+ {
+  "i": 11,
+  "text": "Subway service is extremely limited or temporarily suspended because of heavy rainfall and flooding across New York City.\n\nAvoid traveling until further notice",
+  "affected": "3 | 5 | 6 | 6X | A | B | C | E | FS | FX | G | GS | H | J | M | SI | W | Z"
+ },
+ {
+  "i": 12,
+  "text": "No 2 train service between Franklin Av and Flatbush Av.\n\n5 trains are operating between Bowling Green and Eastchester-Dyre Av in both directions. 2 trains will run via the 3 line between Franklin Av-Medgar Evers College and New Lots Av.\n\nWhat's Happening?\n\nWe're continuing to remove water from the tracks caused by flooding from rainfall at various stations in Brooklyn.\n\nPlease stay home if you don't need to travel.",
+  "affected": "2 | 5"
+ },
+ {
+  "i": 13,
+  "text": "G service is extremely limited and partially suspended because of heavy rainfall and flooding across New York City. Trains are running only between Church Av and 4 Av-9 St. However please avoid non-essential travel until further notice.",
+  "affected": "G"
+ },
+ {
+  "i": 14,
+  "text": "L service is extremely limited because of flooding across New York City.\n\nPlease avoid non-essential travel until further notice.",
+  "affected": "L"
+ },
+ {
+  "i": 15,
+  "text": "Train service is extremely limited, if not even suspended, because of heavy rainfall and flooding across the region. We strongly recommend you avoid traveling at this time, if you can. Check http://mta.info before you travel.",
+  "affected": "1 | 2 | 3 | 4 | 5 | 6 | 6X | 7 | 7X | A | B | C | D | E | F | FS | FX | G | GS | H | J | L | M | N | Q | R | SI | W | Z"
+ },
+ {
+  "i": 16,
+  "text": "M service is extremely limited because of flooding across New York City.\nTrains are running only between Middle Village-Metropolitan Av and Delancey St-Essex St.\nPlease avoid non-essential travel until further notice.",
+  "affected": "M"
+ },
+ {
+  "i": 17,
+  "text": "Following an earlier incident involving a water condition at 174-175 Sts and Tremont Av, [D] train service has resumed with delays. Following an earlier incident involving a water condition at 174-175 Sts and Tremont Av, [D] train service has resumed with delays.",
+  "affected": "D"
+ },
+ {
+  "i": 18,
+  "text": "R service is extremely limited because of heavy rainfall and flooding across New York City. Trains are running only between Whitehall St-South Ferry and Bay Ridge-95 St.\nHowever, please avoid non-essential travel until further notice.",
+  "affected": "R"
+ },
+ {
+  "i": 19,
+  "text": "C service is extremely limited because of flooding across New York City.\nPlease avoid non-essential traveling until further notice.",
+  "affected": "C"
+ },
+ {
+  "i": 20,
+  "text": "5 trains are running locally in Brooklyn and the Bronx to provide additional service.\n\n5 service to/from 238 St is not running. Expect delays on 2 3 and use 5 instead.\n\nAlso, we've reduced 5 train service to make room for rerouted 2 trains.\n\nWhat's Happening?\n\nWe are working to clear water from the tracks after a water main break at Times Sq-42 St.\nOur crews are also inspecting the tracks that were flooded.",
+  "affected": "5"
+ },
+ {
+  "i": 21,
+  "text": "Subway service is extremely limited or temporarily suspended because of heavy rainfall and flooding across New York City.\n\nAvoid traveling until further notice.",
+  "affected": "1 | 3 | 5 | 7 | A | B | C | D | E | FS | G | GS | H | J | M | N | Q | R | SI | W | Z"
+ },
+ {
+  "i": 22,
+  "text": "D service is extremely limited and partially suspended because of heavy rainfall and flooding across New York City. Trains are running only between Atlantic Av-Barclays Ctr and Coney Island-Stillwell Av. However, please avoid non-essential travel until further notice.",
+  "affected": "D"
+ },
+ {
+  "i": 23,
+  "text": "7 service is extremely limited because of flooding across New York City.\nPlease avoid non-essential travel until further notice.",
+  "affected": "7"
+ },
+ {
+  "i": 24,
+  "text": "E/F/R trains are running with delays in both directions.\nTake 7/N  trains instead. What's Happening?\nWe're addressing flooding that is causing a signal problem at Queens Plaza.",
+  "affected": "E | F | R"
+ },
+ {
+  "i": 25,
+  "text": "There is no SIR service between Tottenville and Huguenot because of flooding near Prince's Bay. The last stop for Tottenville-bound SIR trains will be Huguenot.\n\nFor service between Tottenville and Huguenot, consider taking an S59 or S78 bus.",
+  "affected": "SI"
+ },
+ {
+  "i": 26,
+  "text": "SIR trains have resumed making regular station stops between Prince's Bay and Tottenville following earlier flooding.",
+  "affected": "SI"
+ },
+ {
+  "i": 27,
+  "text": "4 service is suspended in most of Brooklyn.\n\n5 service is suspended in Brooklyn, Manhattan and most of The Bronx.\n\nPlease stay home if you don't need to travel. There is no 4 train service between Bowling Green and Crown Hts-Utica Av. 4 trains running in two sections:\nbetween Bowling Green and Woodlawn\nbetween New Lots Av and Crown Hts-Utica Av\n\n5 trains are only running between Eastchester-Dyre Av and E 180 St.\n\nWhat's Happening?\nWe're working to address flooding on the tracks.",
+  "affected": "4 | 5"
+ },
+ {
+  "i": 28,
+  "text": "SIR service is suspended between Pleasant Plains and Tottenville in both directions because of flooding.",
+  "affected": "SI"
+ },
+ {
+  "i": 29,
+  "text": "2 5  trains are delayed in both directions after we addressed a water condition on the tracks at Newkirk Av-Little Haiti. 2 5 trains have resumed making regular stops between Wall St/Bowling Green and Flatbush Av-Brooklyn College.",
+  "affected": "2 | 5"
+ },
+ {
+  "i": 30,
+  "text": "L service is extremely limited because of heavy rainfall and flooding across New York City. Trains are running only between 8 Av and Canarsie-Rockaway Pkwy.\n\nHowever, please avoid non-essential travel until further notice.",
+  "affected": "L"
+ },
+ {
+  "i": 31,
+  "text": "E/F/M/R trains are running with delays in both directions.\n Downtown M trains are rerouted from Queens to Manhattan. \nTake 7/N/W trains instead. What's Happening?\nWe're addressing flooding that is causing a signal problem at Queens Plaza.\n\nDetailed Service Changes\nDowntown M trains are running on the F line from 21 St-Queensbridge to 47-50 Sts-Rockefeller Ctr.",
+  "affected": "E | F | M | R"
+ },
+ {
+  "i": 32,
+  "text": "Northbound 1 trains are bypassing 137 St-City College due to a water condition on the platform at that station. For service to/from 137 St-City College, take a southbound train.",
+  "affected": "1"
+ },
+ {
+  "i": 33,
+  "text": "No Franklin Av Shuttle at this station because of heavy rainfall and flooding across New York City.\n\nPlease avoid non-essential travel until further notice. Please avoid non-essential travel until further notice.",
+  "affected": "FS"
+ },
+ {
+  "i": 34,
+  "text": "4 trains have resumed making stops between The Bronx, Manhattan and Brooklyn.\nTrains are running between Crown Hts-Utica Av and New Lots Av while 3 service is suspended.\nExpect extensive delays in both directions due to rainfall and flooding across New York City. \nPlease avoid non-essential travel until further notice.",
+  "affected": "4"
+ },
+ {
+  "i": 35,
+  "text": "A service is limited because of heavy flooding across New York City.\nPlease avoid non-essential travel until further notice.",
+  "affected": "A"
+ },
+ {
+  "i": 36,
+  "text": "No Q service in Brooklyn or most of Manhattan.\n\nQ trains are only running between 96 St and 57 St-7 Av.\n\nPlease stay home if you don't need to travel. What's Happening?\nWe're working to address heavy flooding.",
+  "affected": "Q"
+ },
+ {
+  "i": 37,
+  "text": "Following an earlier water condition at 174-175 Sts, [B] and [D] train service has resumed. Following an earlier water condition at 174-175 Sts, [B] and [D] train service has resumed.",
+  "affected": "B | D"
+ },
+ {
+  "i": 38,
+  "text": "Subway service is extremely limited or temporarily suspended because of heavy rainfall and flooding across New York City.\n\nAvoid traveling until further notice.",
+  "affected": "1 | 3 | 4 | 5 | 6 | 6X | 7 | A | B | C | D | E | FS | FX | G | GS | H | J | L | M | N | Q | R | SI | W | Z"
+ },
+ {
+  "i": 39,
+  "text": "G service is extremely limited because of flooding across New York City.\n\nPlease avoid non-essential travel until further notice.",
+  "affected": "G"
+ }
+]

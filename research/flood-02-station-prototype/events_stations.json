@@ -1,0 +1,2012 @@
+[
+ {
+  "era": "new",
+  "id": "102162",
+  "first_day": "2023-04-30",
+  "complex_ids": [
+   "130"
+  ],
+  "names": [
+   "Wilson Av"
+  ],
+  "system_wide": false,
+  "n_rows": 3
+ },
+ {
+  "era": "new",
+  "id": "102183",
+  "first_day": "2023-05-01",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 2
+ },
+ {
+  "era": "new",
+  "id": "102195",
+  "first_day": "2023-05-01",
+  "complex_ids": [
+   "605"
+  ],
+  "names": [
+   "168 St",
+   "168 St-Washington Hts"
+  ],
+  "system_wide": false,
+  "n_rows": 2
+ },
+ {
+  "era": "new",
+  "id": "102380",
+  "first_day": "2023-05-02",
+  "complex_ids": [
+   "240",
+   "277",
+   "41",
+   "9"
+  ],
+  "names": [
+   "57 St-7 Av",
+   "7 Av"
+  ],
+  "system_wide": false,
+  "n_rows": 5
+ },
+ {
+  "era": "new",
+  "id": "110940",
+  "first_day": "2023-07-08",
+  "complex_ids": [
+   "254"
+  ],
+  "names": [
+   "Jamaica-179 St"
+  ],
+  "system_wide": false,
+  "n_rows": 7
+ },
+ {
+  "era": "new",
+  "id": "110954",
+  "first_day": "2023-07-08",
+  "complex_ids": [
+   "254"
+  ],
+  "names": [
+   "Jamaica-179 St"
+  ],
+  "system_wide": false,
+  "n_rows": 3
+ },
+ {
+  "era": "new",
+  "id": "117595",
+  "first_day": "2023-08-29",
+  "complex_ids": [
+   "611"
+  ],
+  "names": [
+   "Times Sq-42 St"
+  ],
+  "system_wide": false,
+  "n_rows": 7
+ },
+ {
+  "era": "new",
+  "id": "117596",
+  "first_day": "2023-08-29",
+  "complex_ids": [
+   "611"
+  ],
+  "names": [
+   "Times Sq-42 St"
+  ],
+  "system_wide": false,
+  "n_rows": 8
+ },
+ {
+  "era": "new",
+  "id": "117601",
+  "first_day": "2023-08-29",
+  "complex_ids": [
+   "611"
+  ],
+  "names": [
+   "Times Sq-42 St"
+  ],
+  "system_wide": false,
+  "n_rows": 7
+ },
+ {
+  "era": "new",
+  "id": "117605",
+  "first_day": "2023-08-29",
+  "complex_ids": [
+   "611"
+  ],
+  "names": [
+   "Times Sq-42 St"
+  ],
+  "system_wide": false,
+  "n_rows": 3
+ },
+ {
+  "era": "new",
+  "id": "119215",
+  "first_day": "2023-09-11",
+  "complex_ids": [
+   "517"
+  ],
+  "names": [
+   "Prince's Bay"
+  ],
+  "system_wide": false,
+  "n_rows": 3
+ },
+ {
+  "era": "new",
+  "id": "120097",
+  "first_day": "2023-09-18",
+  "complex_ids": [
+   "358"
+  ],
+  "names": [
+   "Newkirk Av-Little Haiti"
+  ],
+  "system_wide": false,
+  "n_rows": 2
+ },
+ {
+  "era": "new",
+  "id": "121646",
+  "first_day": "2023-09-29",
+  "complex_ids": [
+   "626"
+  ],
+  "names": [
+   "Botanic Garden"
+  ],
+  "system_wide": false,
+  "n_rows": 4
+ },
+ {
+  "era": "new",
+  "id": "121648",
+  "first_day": "2023-09-29",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 9
+ },
+ {
+  "era": "new",
+  "id": "121651",
+  "first_day": "2023-09-29",
+  "complex_ids": [
+   "79"
+  ],
+  "names": [
+   "86 St"
+  ],
+  "system_wide": true,
+  "n_rows": 4
+ },
+ {
+  "era": "new",
+  "id": "121652",
+  "first_day": "2023-09-29",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 11
+ },
+ {
+  "era": "new",
+  "id": "121653",
+  "first_day": "2023-09-29",
+  "complex_ids": [
+   "47"
+  ],
+  "names": [
+   "Newkirk Plaza"
+  ],
+  "system_wide": false,
+  "n_rows": 5
+ },
+ {
+  "era": "new",
+  "id": "121654",
+  "first_day": "2023-09-29",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 1
+ },
+ {
+  "era": "new",
+  "id": "121661",
+  "first_day": "2023-09-29",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 7
+ },
+ {
+  "era": "new",
+  "id": "121662",
+  "first_day": "2023-09-29",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 2
+ },
+ {
+  "era": "new",
+  "id": "121664",
+  "first_day": "2023-09-29",
+  "complex_ids": [
+   "169",
+   "325",
+   "623"
+  ],
+  "names": [
+   "Canal St"
+  ],
+  "system_wide": false,
+  "n_rows": 10
+ },
+ {
+  "era": "new",
+  "id": "121667",
+  "first_day": "2023-09-29",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 6
+ },
+ {
+  "era": "new",
+  "id": "121670",
+  "first_day": "2023-09-29",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 6
+ },
+ {
+  "era": "new",
+  "id": "121672",
+  "first_day": "2023-09-29",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 3
+ },
+ {
+  "era": "new",
+  "id": "121673",
+  "first_day": "2023-09-29",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 3
+ },
+ {
+  "era": "new",
+  "id": "121674",
+  "first_day": "2023-09-29",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 7
+ },
+ {
+  "era": "new",
+  "id": "121677",
+  "first_day": "2023-09-29",
+  "complex_ids": [
+   "225"
+  ],
+  "names": [
+   "47-50 Sts-Rockefeller Ctr"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "new",
+  "id": "121686",
+  "first_day": "2023-09-29",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 2
+ },
+ {
+  "era": "new",
+  "id": "121688",
+  "first_day": null,
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "new",
+  "id": "121689",
+  "first_day": "2023-09-29",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 7
+ },
+ {
+  "era": "new",
+  "id": "121698",
+  "first_day": "2023-09-29",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 11
+ },
+ {
+  "era": "new",
+  "id": "121703",
+  "first_day": "2023-09-29",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 2
+ },
+ {
+  "era": "new",
+  "id": "121769",
+  "first_day": "2023-09-30",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 1
+ },
+ {
+  "era": "new",
+  "id": "121835",
+  "first_day": "2023-09-30",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "new",
+  "id": "132475",
+  "first_day": "2023-12-18",
+  "complex_ids": [
+   "519"
+  ],
+  "names": [
+   "Richmond Valley"
+  ],
+  "system_wide": false,
+  "n_rows": 2
+ },
+ {
+  "era": "new",
+  "id": "132580",
+  "first_day": "2023-12-18",
+  "complex_ids": [
+   "518",
+   "522"
+  ],
+  "names": [
+   "Pleasant Plains",
+   "Tottenville"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "new",
+  "id": "135513",
+  "first_day": "2024-01-10",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 2
+ },
+ {
+  "era": "new",
+  "id": "144684",
+  "first_day": "2024-03-23",
+  "complex_ids": [
+   "519"
+  ],
+  "names": [
+   "Richmond Valley"
+  ],
+  "system_wide": false,
+  "n_rows": 3
+ },
+ {
+  "era": "new",
+  "id": "1449",
+  "first_day": "2020-05-28",
+  "complex_ids": [
+   "294"
+  ],
+  "names": [
+   "238 St"
+  ],
+  "system_wide": false,
+  "n_rows": 3
+ },
+ {
+  "era": "new",
+  "id": "162011",
+  "first_day": "2024-07-24",
+  "complex_ids": [
+   "612"
+  ],
+  "names": [
+   "Lexington Av/53 St"
+  ],
+  "system_wide": false,
+  "n_rows": 5
+ },
+ {
+  "era": "new",
+  "id": "165983",
+  "first_day": "2024-08-19",
+  "complex_ids": [
+   "305"
+  ],
+  "names": [
+   "137 St-City College"
+  ],
+  "system_wide": false,
+  "n_rows": 3
+ },
+ {
+  "era": "new",
+  "id": "18208",
+  "first_day": "2021-03-25",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 2
+ },
+ {
+  "era": "new",
+  "id": "19148",
+  "first_day": null,
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 2
+ },
+ {
+  "era": "new",
+  "id": "209169",
+  "first_day": "2025-07-15",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 2
+ },
+ {
+  "era": "new",
+  "id": "209179",
+  "first_day": "2025-07-14",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 2
+ },
+ {
+  "era": "new",
+  "id": "209183",
+  "first_day": "2025-07-14",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 1
+ },
+ {
+  "era": "new",
+  "id": "209186",
+  "first_day": "2025-07-15",
+  "complex_ids": [
+   "273"
+  ],
+  "names": [
+   "Queens Plaza"
+  ],
+  "system_wide": false,
+  "n_rows": 8
+ },
+ {
+  "era": "new",
+  "id": "209190",
+  "first_day": "2025-07-15",
+  "complex_ids": [
+   "157",
+   "304",
+   "310",
+   "396",
+   "475"
+  ],
+  "names": [
+   "145 St",
+   "96 St"
+  ],
+  "system_wide": false,
+  "n_rows": 7
+ },
+ {
+  "era": "new",
+  "id": "209191",
+  "first_day": "2025-07-15",
+  "complex_ids": [
+   "157",
+   "310",
+   "396",
+   "475"
+  ],
+  "names": [
+   "96 St"
+  ],
+  "system_wide": true,
+  "n_rows": 12
+ },
+ {
+  "era": "new",
+  "id": "209201",
+  "first_day": "2025-07-15",
+  "complex_ids": [
+   "377"
+  ],
+  "names": [
+   "3 Av-138 St"
+  ],
+  "system_wide": false,
+  "n_rows": 3
+ },
+ {
+  "era": "new",
+  "id": "212159",
+  "first_day": "2025-08-01",
+  "complex_ids": [
+   "240",
+   "277",
+   "41",
+   "9"
+  ],
+  "names": [
+   "57 St-7 Av",
+   "7 Av"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "new",
+  "id": "217765",
+  "first_day": "2025-09-11",
+  "complex_ids": [
+   "152",
+   "438"
+  ],
+  "names": [
+   "135 St"
+  ],
+  "system_wide": false,
+  "n_rows": 7
+ },
+ {
+  "era": "new",
+  "id": "21783",
+  "first_day": null,
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "new",
+  "id": "22677",
+  "first_day": "2021-06-04",
+  "complex_ids": [
+   "374"
+  ],
+  "names": [
+   "E 143 St-St Mary's St"
+  ],
+  "system_wide": false,
+  "n_rows": 2
+ },
+ {
+  "era": "new",
+  "id": "25464",
+  "first_day": "2021-07-08",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "new",
+  "id": "25554",
+  "first_day": "2021-07-09",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "new",
+  "id": "25674",
+  "first_day": "2021-07-10",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "new",
+  "id": "28719",
+  "first_day": "2021-08-24",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "new",
+  "id": "29018",
+  "first_day": "2021-08-27",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 2
+ },
+ {
+  "era": "new",
+  "id": "29609",
+  "first_day": "2021-09-02",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 30
+ },
+ {
+  "era": "new",
+  "id": "29637",
+  "first_day": "2021-09-02",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 8
+ },
+ {
+  "era": "new",
+  "id": "29639",
+  "first_day": "2021-09-02",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 8
+ },
+ {
+  "era": "new",
+  "id": "29640",
+  "first_day": "2021-09-02",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 8
+ },
+ {
+  "era": "new",
+  "id": "29641",
+  "first_day": "2021-09-02",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 5
+ },
+ {
+  "era": "new",
+  "id": "29642",
+  "first_day": "2021-09-02",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 11
+ },
+ {
+  "era": "new",
+  "id": "29643",
+  "first_day": "2021-09-02",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 6
+ },
+ {
+  "era": "new",
+  "id": "29647",
+  "first_day": "2021-09-02",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 7
+ },
+ {
+  "era": "new",
+  "id": "29648",
+  "first_day": "2021-09-02",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 9
+ },
+ {
+  "era": "new",
+  "id": "29649",
+  "first_day": "2021-09-02",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 5
+ },
+ {
+  "era": "new",
+  "id": "29660",
+  "first_day": "2021-09-02",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 4
+ },
+ {
+  "era": "new",
+  "id": "29662",
+  "first_day": "2021-09-02",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 7
+ },
+ {
+  "era": "new",
+  "id": "29666",
+  "first_day": "2021-09-02",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 7
+ },
+ {
+  "era": "new",
+  "id": "29670",
+  "first_day": "2021-09-02",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 7
+ },
+ {
+  "era": "new",
+  "id": "29679",
+  "first_day": "2021-09-02",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 5
+ },
+ {
+  "era": "new",
+  "id": "29681",
+  "first_day": "2021-09-02",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 7
+ },
+ {
+  "era": "new",
+  "id": "29688",
+  "first_day": "2021-09-02",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 4
+ },
+ {
+  "era": "new",
+  "id": "29692",
+  "first_day": "2021-09-02",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 4
+ },
+ {
+  "era": "new",
+  "id": "29699",
+  "first_day": "2021-09-02",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 4
+ },
+ {
+  "era": "new",
+  "id": "29700",
+  "first_day": "2021-09-02",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 8
+ },
+ {
+  "era": "new",
+  "id": "29707",
+  "first_day": "2021-09-02",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 3
+ },
+ {
+  "era": "new",
+  "id": "29736",
+  "first_day": "2021-09-02",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 4
+ },
+ {
+  "era": "new",
+  "id": "29755",
+  "first_day": "2021-09-02",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 3
+ },
+ {
+  "era": "new",
+  "id": "29760",
+  "first_day": "2021-09-02",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 6
+ },
+ {
+  "era": "new",
+  "id": "29767",
+  "first_day": "2021-09-02",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 7
+ },
+ {
+  "era": "new",
+  "id": "29773",
+  "first_day": "2021-09-02",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 2
+ },
+ {
+  "era": "new",
+  "id": "29796",
+  "first_day": "2021-09-02",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 3
+ },
+ {
+  "era": "new",
+  "id": "29827",
+  "first_day": "2021-09-02",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 1
+ },
+ {
+  "era": "new",
+  "id": "29853",
+  "first_day": "2021-09-02",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": true,
+  "n_rows": 1
+ },
+ {
+  "era": "new",
+  "id": "3197",
+  "first_day": "2020-07-10",
+  "complex_ids": [
+   "603"
+  ],
+  "names": [
+   "149 St-Hostos"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "new",
+  "id": "36007",
+  "first_day": "2021-10-26",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 6
+ },
+ {
+  "era": "new",
+  "id": "52400",
+  "first_day": "2022-03-02",
+  "complex_ids": [
+   "215"
+  ],
+  "names": [
+   "Tremont Av"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "new",
+  "id": "69186",
+  "first_day": "2022-07-19",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "new",
+  "id": "76264",
+  "first_day": "2022-09-13",
+  "complex_ids": [
+   "391"
+  ],
+  "names": [
+   "138 St-Grand Concourse"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "new",
+  "id": "76276",
+  "first_day": "2022-09-13",
+  "complex_ids": [
+   "38"
+  ],
+  "names": [
+   "86 St"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "new",
+  "id": "76281",
+  "first_day": "2022-09-13",
+  "complex_ids": [
+   "126",
+   "629"
+  ],
+  "names": [
+   "Jefferson St",
+   "Lorimer St"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "new",
+  "id": "76282",
+  "first_day": "2022-09-13",
+  "complex_ids": [
+   "240",
+   "277",
+   "41",
+   "9"
+  ],
+  "names": [
+   "57 St-7 Av",
+   "7 Av"
+  ],
+  "system_wide": false,
+  "n_rows": 2
+ },
+ {
+  "era": "new",
+  "id": "76283",
+  "first_day": "2022-09-13",
+  "complex_ids": [
+   "181",
+   "345"
+  ],
+  "names": [
+   "Crown Hts-Utica Av",
+   "Utica Av"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "new",
+  "id": "88158",
+  "first_day": "2022-12-23",
+  "complex_ids": [
+   "198"
+  ],
+  "names": [
+   "Howard Beach-JFK Airport"
+  ],
+  "system_wide": false,
+  "n_rows": 3
+ },
+ {
+  "era": "new",
+  "id": "91482",
+  "first_day": "2023-01-26",
+  "complex_ids": [
+   "471",
+   "611"
+  ],
+  "names": [
+   "34 St-Hudson Yards",
+   "Times Sq-42 St"
+  ],
+  "system_wide": false,
+  "n_rows": 2
+ },
+ {
+  "era": "old",
+  "id": "0B09048C-1E05-4EFF-9E6A-C06914F71883",
+  "first_day": "2017-01-25",
+  "complex_ids": [
+   "447"
+  ],
+  "names": [
+   "Flushing-Main St"
+  ],
+  "system_wide": false,
+  "n_rows": 7
+ },
+ {
+  "era": "old",
+  "id": "126E8033-D4AD-4B0E-94DE-29BD644A92E5",
+  "first_day": "2017-01-19",
+  "complex_ids": [
+   "149"
+  ],
+  "names": [
+   "163 St-Amsterdam Av"
+  ],
+  "system_wide": false,
+  "n_rows": 5
+ },
+ {
+  "era": "old",
+  "id": "13CCC3B1-474D-476A-AF29-A4384E178796",
+  "first_day": "2017-06-14",
+  "complex_ids": [
+   "374"
+  ],
+  "names": [
+   "E 143 St-St Mary's St"
+  ],
+  "system_wide": false,
+  "n_rows": 3
+ },
+ {
+  "era": "old",
+  "id": "199C9217-A64F-4197-944A-52944DB52236",
+  "first_day": "2019-12-22",
+  "complex_ids": [
+   "185"
+  ],
+  "names": [
+   "Liberty Av"
+  ],
+  "system_wide": false,
+  "n_rows": 2
+ },
+ {
+  "era": "old",
+  "id": "19EFC75D-912D-461D-A488-1E0C6C20C374",
+  "first_day": "2017-02-21",
+  "complex_ids": [
+   "436"
+  ],
+  "names": [
+   "Harlem-148 St"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "208537D6-5A92-460F-94A2-66FB3725B793",
+  "first_day": "2017-03-20",
+  "complex_ids": [
+   "254"
+  ],
+  "names": [
+   "Jamaica-179 St"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "23E9CE66-9082-4C8A-A279-5B77D363CF17",
+  "first_day": "2017-01-17",
+  "complex_ids": [
+   "133",
+   "617"
+  ],
+  "names": [
+   "Atlantic Av",
+   "Atlantic Av-Barclays Ctr"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "2702C2B1-BDF4-4792-868B-E723C6937528",
+  "first_day": "2016-05-30",
+  "complex_ids": [
+   "377"
+  ],
+  "names": [
+   "3 Av-138 St"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "28CA75C4-4BA5-4252-B0C8-D084199F2442",
+  "first_day": "2019-03-26",
+  "complex_ids": [
+   "320"
+  ],
+  "names": [
+   "23 St"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "2BA3C760-D43E-40E9-9461-ECCE1C3A427B",
+  "first_day": "2013-02-01",
+  "complex_ids": [
+   "14",
+   "165",
+   "228",
+   "320",
+   "405",
+   "606"
+  ],
+  "names": [
+   "23 St",
+   "23 St-Baruch College",
+   "Court Sq-23 St"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "2D7643F1-EF25-4B2B-A226-53A6FB15CF24",
+  "first_day": "2017-01-10",
+  "complex_ids": [
+   "374"
+  ],
+  "names": [
+   "E 143 St-St Mary's St"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "2DB82D7D-61CE-40BF-AF61-5154DC43D9D2",
+  "first_day": "2017-02-13",
+  "complex_ids": [
+   "158",
+   "311",
+   "38",
+   "397",
+   "476",
+   "79"
+  ],
+  "names": [
+   "86 St"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "31F7BAC7-1286-4E5B-A89E-08847A9D8FD5",
+  "first_day": "2018-01-08",
+  "complex_ids": [
+   "399"
+  ],
+  "names": [
+   "68 St-Hunter College"
+  ],
+  "system_wide": false,
+  "n_rows": 2
+ },
+ {
+  "era": "old",
+  "id": "3288A303-AD69-4D0F-9782-8FB303EAF494",
+  "first_day": "2017-08-18",
+  "complex_ids": [
+   "516",
+   "522"
+  ],
+  "names": [
+   "Huguenot",
+   "Tottenville"
+  ],
+  "system_wide": false,
+  "n_rows": 4
+ },
+ {
+  "era": "old",
+  "id": "35AB2459-D9C1-40B8-BF8E-6BB46D766D6C",
+  "first_day": "2017-04-06",
+  "complex_ids": [
+   "254"
+  ],
+  "names": [
+   "Jamaica-179 St"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "368F52E7-89A5-4548-BEC7-6EC17CCD5B71",
+  "first_day": "2019-10-27",
+  "complex_ids": [
+   "38"
+  ],
+  "names": [
+   "86 St"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "3B508E11-2758-4C07-96B8-D42CD88D3D8A",
+  "first_day": "2018-01-10",
+  "complex_ids": [
+   "461"
+  ],
+  "names": [
+   "Queensboro Plaza"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "3D1B3B2A-CB99-4F77-9484-10F70DBCE780",
+  "first_day": "2017-07-20",
+  "complex_ids": [
+   "238"
+  ],
+  "names": [
+   "Smith-9 Sts"
+  ],
+  "system_wide": false,
+  "n_rows": 5
+ },
+ {
+  "era": "old",
+  "id": "3D5B80DB-882A-40CF-9073-C2FEB371135E",
+  "first_day": "2016-06-01",
+  "complex_ids": [
+   "635"
+  ],
+  "names": [
+   "Whitehall St-South Ferry"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "4271B2DF-14CB-401F-B304-395D0B95DB0A",
+  "first_day": "2016-06-05",
+  "complex_ids": [
+   "312",
+   "65"
+  ],
+  "names": [
+   "79 St"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "438A5FF8-CC9C-4C3C-AD25-8E2AC7D0721E",
+  "first_day": "2016-09-13",
+  "complex_ids": [
+   "179",
+   "343"
+  ],
+  "names": [
+   "Nostrand Av"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "5C5DC3CF-64C6-4E17-AD32-F0E7229C9DD0",
+  "first_day": "2015-12-17",
+  "complex_ids": [
+   "273"
+  ],
+  "names": [
+   "Queens Plaza"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "5D147E76-2068-45CE-BFCA-735271C75684",
+  "first_day": "2017-09-01",
+  "complex_ids": [
+   "211",
+   "380"
+  ],
+  "names": [
+   "Bedford Park Blvd",
+   "Bedford Park Blvd-Lehman College"
+  ],
+  "system_wide": false,
+  "n_rows": 2
+ },
+ {
+  "era": "old",
+  "id": "5EA12533-BA27-4398-8B22-6F706F7A1228",
+  "first_day": "2018-07-27",
+  "complex_ids": [
+   "501",
+   "519",
+   "522"
+  ],
+  "names": [
+   "Richmond Valley",
+   "St George",
+   "Tottenville"
+  ],
+  "system_wide": false,
+  "n_rows": 5
+ },
+ {
+  "era": "old",
+  "id": "62838F5E-7D21-4571-A69F-5BAE0755E22A",
+  "first_day": "2018-11-25",
+  "complex_ids": [
+   "519"
+  ],
+  "names": [
+   "Richmond Valley"
+  ],
+  "system_wide": false,
+  "n_rows": 2
+ },
+ {
+  "era": "old",
+  "id": "6E7AAAFA-0EDE-416A-9213-13BF886C8E0A",
+  "first_day": "2016-08-29",
+  "complex_ids": [
+   "614"
+  ],
+  "names": [
+   "59 St-Columbus Circle"
+  ],
+  "system_wide": false,
+  "n_rows": 3
+ },
+ {
+  "era": "old",
+  "id": "6F92229A-9D4A-41F7-A668-B2B28030BD78",
+  "first_day": "2018-08-11",
+  "complex_ids": [
+   "157",
+   "310",
+   "396",
+   "475"
+  ],
+  "names": [
+   "96 St"
+  ],
+  "system_wide": false,
+  "n_rows": 2
+ },
+ {
+  "era": "old",
+  "id": "7625EE2D-D3FE-4F7E-A1EC-B68C5C6082EE",
+  "first_day": "2018-04-16",
+  "complex_ids": [
+   "519"
+  ],
+  "names": [
+   "Richmond Valley"
+  ],
+  "system_wide": false,
+  "n_rows": 5
+ },
+ {
+  "era": "old",
+  "id": "774B5380-8DF7-4B11-BE79-65F97EDC5179",
+  "first_day": "2017-08-02",
+  "complex_ids": [
+   "371",
+   "374"
+  ],
+  "names": [
+   "E 143 St-St Mary's St",
+   "Hunts Point Av"
+  ],
+  "system_wide": false,
+  "n_rows": 3
+ },
+ {
+  "era": "old",
+  "id": "7F92128D-DC8B-48DD-9AEC-39E71C82406F",
+  "first_day": "2018-08-06",
+  "complex_ids": [
+   "461",
+   "613"
+  ],
+  "names": [
+   "Lexington Av/59 St",
+   "Queensboro Plaza"
+  ],
+  "system_wide": false,
+  "n_rows": 6
+ },
+ {
+  "era": "old",
+  "id": "83C93DDE-D0C4-4493-867A-5E41052CAC45",
+  "first_day": "2017-01-20",
+  "complex_ids": [
+   "149"
+  ],
+  "names": [
+   "163 St-Amsterdam Av"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "86DB13BF-99FA-465F-A0D3-D88C0D02C9A8",
+  "first_day": "2017-05-05",
+  "complex_ids": [
+   "613"
+  ],
+  "names": [
+   "Lexington Av/59 St"
+  ],
+  "system_wide": false,
+  "n_rows": 2
+ },
+ {
+  "era": "old",
+  "id": "8B990975-E15D-4067-BFF8-D2AAA5A900D6",
+  "first_day": "2017-03-31",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "8BCF6BD1-0D07-4231-ACAA-8F30D27D100E",
+  "first_day": "2017-01-10",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 4
+ },
+ {
+  "era": "old",
+  "id": "914656A7-6DFD-434F-9F66-14CE63F66A19",
+  "first_day": "2017-10-29",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 3
+ },
+ {
+  "era": "old",
+  "id": "98A758D4-488C-4D04-B2E3-848EA99CAA7D",
+  "first_day": "2017-02-13",
+  "complex_ids": [
+   "158",
+   "311",
+   "38",
+   "397",
+   "476",
+   "79"
+  ],
+  "names": [
+   "86 St"
+  ],
+  "system_wide": false,
+  "n_rows": 3
+ },
+ {
+  "era": "old",
+  "id": "98D1EF0F-21CB-446D-B6F5-BB2FFFB46211",
+  "first_day": "2017-08-02",
+  "complex_ids": [
+   "216"
+  ],
+  "names": [
+   "174-175 Sts"
+  ],
+  "system_wide": false,
+  "n_rows": 2
+ },
+ {
+  "era": "old",
+  "id": "9C236A7D-3F06-4305-B9C1-391ABB14741C",
+  "first_day": "2017-05-05",
+  "complex_ids": [
+   "517",
+   "519"
+  ],
+  "names": [
+   "Prince's Bay",
+   "Richmond Valley"
+  ],
+  "system_wide": false,
+  "n_rows": 4
+ },
+ {
+  "era": "old",
+  "id": "A9008B26-1C6D-457F-AA00-B481BDB376DC",
+  "first_day": "2018-01-08",
+  "complex_ids": [
+   "35",
+   "613",
+   "614"
+  ],
+  "names": [
+   "59 St",
+   "59 St-Columbus Circle"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "A91DE1A7-A16D-4106-97D7-A36CC500A11C",
+  "first_day": "2017-08-13",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 2
+ },
+ {
+  "era": "old",
+  "id": "AAE1B4BE-CDEE-47FC-9B09-FC201FCE51BD",
+  "first_day": "2017-01-09",
+  "complex_ids": [
+   "167",
+   "225"
+  ],
+  "names": [
+   "47-50 Sts-Rockefeller Ctr",
+   "W 4 St-Wash Sq"
+  ],
+  "system_wide": false,
+  "n_rows": 8
+ },
+ {
+  "era": "old",
+  "id": "AB9A4C64-1F42-4F8D-98DE-679C8E38811C",
+  "first_day": null,
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "AE99B432-428D-44B3-B8A7-B85C570BFBDE",
+  "first_day": "2017-05-05",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "AFF61EFA-46CA-42A1-AF04-B7E74D2DC66D",
+  "first_day": "2017-10-29",
+  "complex_ids": [
+   "55",
+   "58"
+  ],
+  "names": [
+   "Brighton Beach",
+   "Coney Island-Stillwell Av"
+  ],
+  "system_wide": false,
+  "n_rows": 3
+ },
+ {
+  "era": "old",
+  "id": "B52ABA92-5821-4D91-B738-BD17F86C08C5",
+  "first_day": "2017-08-02",
+  "complex_ids": [
+   "216"
+  ],
+  "names": [
+   "174-175 Sts"
+  ],
+  "system_wide": false,
+  "n_rows": 3
+ },
+ {
+  "era": "old",
+  "id": "BC3818A1-1129-4937-A2DA-2CE1838BA1A9",
+  "first_day": "2017-08-12",
+  "complex_ids": [
+   "464"
+  ],
+  "names": [
+   "Vernon Blvd-Jackson Av"
+  ],
+  "system_wide": false,
+  "n_rows": 2
+ },
+ {
+  "era": "old",
+  "id": "BE0D87E4-D6C5-48F8-9D3E-DDFE002D73C2",
+  "first_day": "2019-01-17",
+  "complex_ids": [
+   "278"
+  ],
+  "names": [
+   "Jamaica Center-Parsons/Archer"
+  ],
+  "system_wide": false,
+  "n_rows": 2
+ },
+ {
+  "era": "old",
+  "id": "BEF4101C-9599-4B46-8F05-194089991D3C",
+  "first_day": "2018-01-08",
+  "complex_ids": [
+   "301"
+  ],
+  "names": [
+   "181 St"
+  ],
+  "system_wide": false,
+  "n_rows": 5
+ },
+ {
+  "era": "old",
+  "id": "C1D64A12-5B84-43FB-B8B7-2066CC22D9F6",
+  "first_day": "2018-05-02",
+  "complex_ids": [
+   "437"
+  ],
+  "names": [
+   "145 St"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "C4A7C1C9-6886-4238-8F38-F27C45079DE9",
+  "first_day": null,
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "C537DA18-590C-4BED-8818-FAF38F6B560C",
+  "first_day": "2016-10-19",
+  "complex_ids": [
+   "143"
+  ],
+  "names": [
+   "Inwood-207 St"
+  ],
+  "system_wide": false,
+  "n_rows": 4
+ },
+ {
+  "era": "old",
+  "id": "C607D965-6876-455C-B733-F710CCFB0C97",
+  "first_day": "2014-04-30",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "C611300D-F011-4A73-B788-DFC622415AF9",
+  "first_day": null,
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "C85F1F63-4A53-4D4D-86AA-174A27784D71",
+  "first_day": "2017-01-19",
+  "complex_ids": [
+   "149"
+  ],
+  "names": [
+   "163 St-Amsterdam Av"
+  ],
+  "system_wide": false,
+  "n_rows": 11
+ },
+ {
+  "era": "old",
+  "id": "CB5FBDE6-0B84-42E3-86D3-A56E44F4C13E",
+  "first_day": "2016-06-09",
+  "complex_ids": [
+   "164",
+   "318",
+   "471",
+   "607"
+  ],
+  "names": [
+   "34 St-Herald Sq",
+   "34 St-Hudson Yards",
+   "34 St-Penn Station"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "D1829A14-83F1-470C-88B7-905FD626A17C",
+  "first_day": "2019-07-17",
+  "complex_ids": [
+   "519"
+  ],
+  "names": [
+   "Richmond Valley"
+  ],
+  "system_wide": false,
+  "n_rows": 2
+ },
+ {
+  "era": "old",
+  "id": "D3660DBA-4A1D-4E60-9512-E39DA407728A",
+  "first_day": "2019-09-26",
+  "complex_ids": [
+   "13",
+   "319",
+   "404"
+  ],
+  "names": [
+   "28 St"
+  ],
+  "system_wide": false,
+  "n_rows": 2
+ },
+ {
+  "era": "old",
+  "id": "D73AC011-D4B5-4235-8B02-D1150611B45F",
+  "first_day": "2016-08-29",
+  "complex_ids": [
+   "35",
+   "613",
+   "614"
+  ],
+  "names": [
+   "59 St",
+   "59 St-Columbus Circle"
+  ],
+  "system_wide": false,
+  "n_rows": 6
+ },
+ {
+  "era": "old",
+  "id": "DFBEACC9-2BDE-4E70-A46C-7230CF4D6BAD",
+  "first_day": "2016-10-15",
+  "complex_ids": [
+   "601",
+   "602",
+   "618"
+  ],
+  "names": [
+   "14 St",
+   "14 St-Union Sq"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "E00BE242-8A46-4734-B40B-34B3A23457CF",
+  "first_day": null,
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "E5E06C0C-121C-463D-9271-0D71553AC848",
+  "first_day": "2017-06-22",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "E75DB700-C312-4284-AB89-BB2AF400DF89",
+  "first_day": "2016-12-15",
+  "complex_ids": [
+   "340"
+  ],
+  "names": [
+   "Grand Army Plaza"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "E98AF916-6398-4F3A-8CB7-43FA02171C8D",
+  "first_day": "2017-07-11",
+  "complex_ids": [
+   "214"
+  ],
+  "names": [
+   "182-183 Sts"
+  ],
+  "system_wide": false,
+  "n_rows": 6
+ },
+ {
+  "era": "old",
+  "id": "EBB8971E-5131-4F71-8562-5FDDD55CC2C6",
+  "first_day": null,
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 3
+ },
+ {
+  "era": "old",
+  "id": "EE9E20CB-0EBD-4C83-A54B-84AA4D800B88",
+  "first_day": "2019-01-28",
+  "complex_ids": [
+   "127",
+   "26"
+  ],
+  "names": [
+   "DeKalb Av"
+  ],
+  "system_wide": false,
+  "n_rows": 7
+ },
+ {
+  "era": "old",
+  "id": "EF309F9D-0C57-433D-A7B0-532BCFE9607F",
+  "first_day": "2020-03-04",
+  "complex_ids": [
+   "120"
+  ],
+  "names": [
+   "Bedford Av"
+  ],
+  "system_wide": false,
+  "n_rows": 3
+ },
+ {
+  "era": "old",
+  "id": "F28F61ED-7509-4768-B7BC-C708959F399C",
+  "first_day": "2016-02-16",
+  "complex_ids": [
+   "416"
+  ],
+  "names": [
+   "Wakefield-241 St"
+  ],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "F2C59971-3F67-4B07-A531-D340436EB429",
+  "first_day": "2017-06-22",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 1
+ },
+ {
+  "era": "old",
+  "id": "F5E856C6-BEDF-46E8-8267-7C5F3BCEB120",
+  "first_day": "2018-07-17",
+  "complex_ids": [
+   "377"
+  ],
+  "names": [
+   "3 Av-138 St"
+  ],
+  "system_wide": false,
+  "n_rows": 6
+ },
+ {
+  "era": "old",
+  "id": "F77C74B6-D1D0-4621-9512-4C15BF366928",
+  "first_day": "2017-03-02",
+  "complex_ids": [
+   "620"
+  ],
+  "names": [
+   "Court St"
+  ],
+  "system_wide": false,
+  "n_rows": 3
+ },
+ {
+  "era": "old",
+  "id": "FBB0D2B9-E78C-49EF-B1DA-B38D4240895A",
+  "first_day": null,
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 2
+ },
+ {
+  "era": "old",
+  "id": "FEF590B3-7CFE-4978-95A3-7EABA363B946",
+  "first_day": "2017-06-24",
+  "complex_ids": [],
+  "names": [],
+  "system_wide": false,
+  "n_rows": 1
+ }
+]
