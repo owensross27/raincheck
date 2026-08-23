@@ -15,7 +15,8 @@
 #   chunk.sh 2026-04-01 2026-04-30 drain    push/prune only, for a fill someone else owns
 set -uo pipefail
 LO=$1; HI=$2; MODE=${3:-full}
-DATA=/Users/ross/raincheck/data
+DATA=${RAINCHECK_BACKFILL_DATA:-/Users/ross/raincheck/data}   # overridable so the
+                                                             # prune guard is testable
 ROOT="$DATA/archive"
 SRC=/Users/ross/raincheck/src
 PY=/Users/ross/raincheck/.venv/bin/python
@@ -39,8 +40,13 @@ fill() {
   for f in vp tu alerts; do
     if budget_tripped; then say "ABORT fill: STOPPED_BUDGET present"; return 1; fi
     say "fill $f $LO..$HI"
+    # No tail: keep every line the fill emits. When April's two torn days had to be
+    # diagnosed, the driver's output had been truncated and then died with its session,
+    # so why hour 23 went missing could not be reconstructed. The per-day "filled N/24"
+    # lines are the record of what actually happened; a chunk log is cheap, a lost one
+    # is not. Only the "no missing hours" no-op spam is dropped.
     RAINCHECK_ARCHIVE_ROOT="$DATA" PYTHONPATH="$SRC" "$PY" -m raincheck.gapfill fill \
-      --feed "$f" --date "$LO:$HI" 2>&1 | grep -vE "no missing hours" | tail -20
+      --feed "$f" --date "$LO:$HI" 2>&1 | grep -vE "no missing hours"
     rc=${PIPESTATUS[0]}
     [ "$rc" -eq 0 ] || { say "FILL FAILED $f rc=$rc"; return 1; }
   done
@@ -49,9 +55,24 @@ fill() {
 
 push_prune() {
   cd "$ROOT" || return 1
+  budget_tripped && say "CRITICAL: STOPPED_BUDGET present - live capture has halted"
   aws s3 sync . "$DEST" --endpoint-url "$RAINCHECK_COLD_ENDPOINT" --no-progress >/dev/null 2>&1
-  aws s3 sync . "$DEST" --endpoint-url "$RAINCHECK_COLD_ENDPOINT" --size-only --dryrun --no-progress 2>/dev/null \
-    | sed -n 's/^(dryrun) upload: \(.*\) to s3:.*$/\1/p' | sed 's|^\./||' > "$PENDING"
+
+  # The prune deletes anything NOT in this listing, so an empty listing means "delete
+  # everything marked". A failed dryrun (network blip, expired creds, endpoint down)
+  # produces exactly that empty file, and the prune would then delete local parts it
+  # never proved remote - with local pruned and R2 never written, that is real data loss.
+  # So the listing's exit status gates the prune: no proof, no deletion.
+  local raw="$PENDING.raw"
+  if ! aws s3 sync . "$DEST" --endpoint-url "$RAINCHECK_COLD_ENDPOINT" \
+        --size-only --dryrun --no-progress > "$raw" 2>/dev/null; then
+    say "SKIP prune: remote listing failed, nothing proven remote (keeping all local)"
+    rm -f "$raw"; cd /Users/ross/raincheck || return 1
+    return 1
+  fi
+  sed -n 's/^(dryrun) upload: \(.*\) to s3:.*$/\1/p' "$raw" | sed 's|^\./||' > "$PENDING"
+  rm -f "$raw"
+
   "$PY" "$PRUNE_PY" "$LO" "$HI" "$PENDING" "$ROOT"
   say "archive now $(du -sh "$ROOT" | cut -f1)"
   cd /Users/ross/raincheck || return 1
