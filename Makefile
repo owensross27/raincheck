@@ -8,7 +8,7 @@ export TZ := UTC
 export RAINCHECK_ARCHIVE_ROOT RAINCHECK_BRONZE_GB TRANSITLAND_API_KEY
 PY := .venv/bin/python
 
-.PHONY: warm ref nbp picks precip-hourly precip-cell schedule events gold baseline gates slice test topics flood-obs flood-spine
+.PHONY: warm ref nbp features picks precip-hourly precip-cell schedule events gold baseline gates slice test topics flood-obs flood-spine
 
 topics:  ## recreate the two bus topics to spec C - DESTRUCTIVE: drops retained Kafka messages (Bronze keeps the record)
 	$(PY) -m raincheck.topics
@@ -21,6 +21,11 @@ ref:  ## build every ref/ lookup table (ticket 02)
 
 nbp:  ## convert one nycbuspositions UTC day to Bronze VP (make nbp DATE=YYYY-MM-DD)
 	$(PY) -m raincheck.nbp $(DATE)
+
+# ~310 one-shot POSTs (~15 min) the first time; every rerun reads the snapshots under
+# <root>/snapshots, which stay OUT of the archive root because DEC/DEP bar rehosting.
+features:  ## silver/asset_features + silver/cell_stormwater for every point asset (flood 03)
+	$(PY) -m raincheck.features
 
 # The slice needs w1 + w2 = 24 zips (C1, D1, C3, D3 x six feeds); downloads 401 + exit 2
 # until the ticket-13 Hobbyist/Academic grant is live - run when 13 says approved.
