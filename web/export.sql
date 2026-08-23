@@ -92,11 +92,16 @@ CREATE OR REPLACE TEMP VIEW zn AS
   FROM read_parquet(getvariable('root') || '/ref/zones/**/*.parquet');
 
 -- Cell-hour grain: cell_hour_speed is (cell, hour, route_id, route_class) and Speed is
--- route-free here. hour_of_week is America/New_York, Monday 00 local = 0 - exactly
--- gold.baseline()'s expression, so the join to the baseline cannot drift.
+-- route-free here. hour_of_week is America/New_York, Monday 00 local = 0, matching
+-- gold.baseline()'s NUMBERING - which is not the same as matching its TEXT. gold.py:142
+-- runs `(dayofweek + 5) % 7` on Spark, where dayofweek is 1=Sunday; DuckDB's dayofweek is
+-- 0=Sunday, so the identical text here would put Monday at 144 and every baseline join one
+-- local day out (measured: it reproduced 0 of 178,826 w1 baseline rows, `+ 6` reproduces
+-- them). tests/test_export.py pins Monday 00 local -> 0 against fixed dates, NOT against a
+-- fixture built with this same expression - a self-consistent fixture cannot catch this.
 CREATE OR REPLACE TEMP TABLE chs AS
   SELECT w.win, s.cell, s.hour_end_utc,
-         ((dayofweek(timezone('America/New_York', s.hour_end_utc)) + 5) % 7) * 24
+         ((dayofweek(timezone('America/New_York', s.hour_end_utc)) + 6) % 7) * 24
            + hour(timezone('America/New_York', s.hour_end_utc)) AS hw,
          timezone('America/New_York', s.hour_end_utc)::DATE AS local_date,
          sum(s.n_legs) AS n_legs, sum(s.dist_m_sum) AS dist, sum(s.dt_s_sum) AS dt
@@ -219,6 +224,7 @@ CREATE OR REPLACE TEMP TABLE h_cell AS
   SELECT st.layer, st.key, st.hour_end_utc, c.win, c.cell, c.n_legs,
          (c.dist / c.dt) / d.dd AS ratio,
          t.t * ((c.dist / c.dt) / d.dd) * d.se / d.dd AS half,
+         t.t * d.se / d.dd AS rel_half,   -- the gate's quantity: the baseline's own precision
          d.n AS n_dry
   FROM storm st
   JOIN chs c ON c.hour_end_utc = st.hour_end_utc
@@ -300,9 +306,16 @@ CREATE OR REPLACE TEMP MACRO band(ratio, v_wet, v_dry) AS
 -- ------------------------------------------------------------------- publish gates
 CREATE OR REPLACE TEMP TABLE w_pub AS
   SELECT * FROM w_cell WHERE 2 * half < getvariable('gate_width');
+-- The storm-hour half-width is t * ratio * se(D)/D, i.e. PROPORTIONAL TO THE ESTIMATE, so
+-- gating it on absolute width would censor on the answer: it would keep slow Cells and drop
+-- fast ones at the same baseline precision, biasing every published median downward, and it
+-- would wave through a Cell whose storm Speed is 0 with a degenerate [0, 0] interval.
+-- The gate is therefore the same width applied to the DENOMINATOR's own relative interval,
+-- which is what the storm-hour interval actually measures and is independent of the ratio.
 CREATE OR REPLACE TEMP TABLE h_pub AS
   SELECT * FROM h_cell
-  WHERE 2 * half < getvariable('gate_width') AND isfinite(ratio) AND isfinite(half);
+  WHERE 2 * rel_half < getvariable('gate_width') AND half > 0
+    AND isfinite(ratio) AND isfinite(half);
 
 -- ------------------------------------------------------ cells.geojson (long -> wide)
 CREATE OR REPLACE TEMP TABLE cell_prop AS
@@ -353,11 +366,11 @@ FROM (
 -- @@out headline.json
 SELECT json_object(
   'gate_width', getvariable('gate_width'),
-  'gate', 'a per-Cell figure publishes only when its 95% interval is narrower than gate_width; the gate is interval width, never bare n',
+  'gate', 'a per-Cell figure publishes only when its 95% interval is narrower than gate_width; the gate is interval width, never bare n. For the storm-hour layers the width tested is the DRY BASELINE''s own relative 95% interval, because the storm-hour half-width is proportional to the ratio and gating that directly would censor on the answer - keeping slow Cells and dropping fast ones at equal baseline precision. A Cell whose storm-hour interval is degenerate (zero width) is never published.',
   'precip_src', 'AORC hourly, hour-ending',
   'preview_note', 'this slice supports citywide and borough effects and the two composites; per-Cell colour is a preview with wide intervals; hotspot claims wait for the 7-year backfill and 08''s coarsened rerun',
-  'hidden_note', 'n_cells_hidden counts footprint Cells with Legs in this layer whose 95% interval is too wide to publish; stuck buses lose Legs, so the hidden set is storm-correlated and every median-Cell figure is over Cells that kept service',
-  'chord_note', 'band = [measured chord ratio, chord-corrected companion]; the companion applies research 10 B1b''s class-median polyline/chord r (1.164 under 3 m/s, 1.025 at 3-6, 1.015 at 6-10, 1.016 above 10) to each arm and is an UPPER BOUND on the correction, not the correction. Where the band reaches ~1.0 that storm''s slowdown is not separable from chord bias.',
+  'hidden_note', 'n_cells_hidden counts EVERY footprint Cell with Legs in this layer that did not publish - the interval too wide, or no interval at all (too few wet-event clusters, or no dry same-hour-of-week baseline) - so n_cells + n_cells_hidden reconciles with the coloured and grey Cells on the map; stuck buses lose Legs, so the hidden set is storm-correlated and every median-Cell figure is over Cells that kept service',
+  'chord_note', 'band = [measured chord ratio, chord-corrected companion]; the companion applies research 10 B1b''s class-median polyline/chord r (1.164 under 3 m/s, 1.025 at 3-6, 1.015 at 6-10, 1.016 above 10) to each arm and is an UPPER BOUND on the correction, not the correction. B1b''s classes are POLYLINE speed classes and the arms here are chord speeds, which are lower, so an arm can be assigned one class low - that inflates the correction, which is the conservative direction for an upper edge and reproduces 10 section 2''s own worked arithmetic (Ida 04Z 0.745 -> ~0.85). Where the band reaches ~1.0 that storm''s slowdown is not separable from chord bias.',
   'cell_property_keys', json_object(
      'window', '<w1|w2>_dry, _ndry, _ratio, _lo, _hi, _nwet, _nev',
      'storm_hour', '<r|lo|hi|n|d|mm|lag><MMDDHH>, e.g. r090203 = the Ida 03Z ratio',
@@ -365,7 +378,7 @@ SELECT json_object(
   'rows', json(rows), 'lag', json(lag))
 FROM
  (SELECT '[' || string_agg(r, ',' ORDER BY ord, layer, sort_key) || ']' AS rows FROM (
-    SELECT 1 AS ord, a.gk AS layer, '' AS sort_key, json_object(
+    SELECT 1 AS ord, a.gk AS layer, '' AS sort_key, json_merge_patch('{}', json_object(
       'layer', a.gk, 'label', upper(a.gk) || ' wet Hours',
       'value', round(a.ratio, 3),
       'lo', round(a.ratio - a.half, 3), 'hi', round(a.ratio + a.half, 3),
@@ -378,21 +391,22 @@ FROM
       'hi_ex_preschool', round(x.ratio + x.half, 3),
       'estimand_ex_preschool', 'the same figure over school-in-session service days only (ref/calendar, joined on the Hour''s America/New_York calendar date)',
       'band', json_array(round(a.ratio, 3), band(a.ratio, arm.v_wet, arm.v_dry)),
-      'median_cell', m.med,
+      'median_cell', m.med,   -- json_merge_patch below drops it when no Cell is publishable
       'median_cell_estimand', 'median over publishable Cells of the per-Cell bus-seconds-weighted mean wet anomaly (each Cell''s own 95% CI clustered by wet event, gate on interval width)',
       'n_events', a.g, 'n_legs', a.n_legs, 'n_cell_hours', a.n_wet,
-      'n_cells', m.n_cells, 'n_cells_hidden', m.n_cells_hidden)::VARCHAR AS r
+      'n_cells', m.n_cells, 'n_cells_hidden', m.n_cells_hidden))::VARCHAR AS r
     FROM wagg a
     JOIN wagg d ON d.scope = 'city_day' AND d.gk = a.gk
     LEFT JOIN wagg x ON x.scope = 'exschool' AND x.gk = a.gk
     JOIN w_arms arm ON arm.win = a.gk
-    JOIN (SELECT win, round(median(ratio) FILTER (WHERE 2 * half < getvariable('gate_width')), 3) AS med,
-                 count(*) FILTER (WHERE 2 * half < getvariable('gate_width')) AS n_cells,
-                 count(*) FILTER (WHERE NOT (2 * half < getvariable('gate_width'))) AS n_cells_hidden
-          FROM w_cell GROUP BY 1) m ON m.win = a.gk
+    JOIN (SELECT e.win, m.med, coalesce(m.n_cells, 0) AS n_cells,
+                 e.n_with_legs - coalesce(m.n_cells, 0) AS n_cells_hidden
+          FROM (SELECT win, count(DISTINCT cell) AS n_with_legs FROM wet GROUP BY 1) e
+          LEFT JOIN (SELECT win, round(median(ratio), 3) AS med, count(*) AS n_cells
+                     FROM w_pub GROUP BY 1) m USING (win)) m ON m.win = a.gk
     WHERE a.scope = 'city'
     UNION ALL
-    SELECT 2, s.layer, s.key, json_object(
+    SELECT 2, s.layer, s.key, json_merge_patch('{}', json_object(
       'layer', s.layer, 'label', strftime(s.hour_end_utc, '%Y-%m-%d %HZ'),
       'hour_end_utc', strftime(s.hour_end_utc, '%Y-%m-%dT%H:%M:%SZ'), 'key', s.key,
       -- explicit, so the page never has to infer the layer list from which properties
@@ -405,21 +419,25 @@ FROM
       'median_cell', c.med,
       'median_cell_estimand', 'median over publishable Cells of the per-Cell storm-hour Speed ratio against that Cell''s own dry same-hour-of-week baseline; over publishable Cells only, which are the Cells that kept service',
       'n_legs', s.n_legs, 'n_cells', c.n_cells, 'n_cells_hidden', c.n_cells_hidden,
-      'mm_1h_citywide_mean', c.mm)::VARCHAR
+      'mm_1h_scored_cells_mean', c.mm,
+      'mm_1h_estimand', 'mean AORC mm_1h over the Cells scored in this Hour (those with Legs and a dry same-hour-of-week baseline), not over the whole footprint'))::VARCHAR
     FROM h_city s
     JOIN storm st ON st.key = s.key
-    JOIN (SELECT h.key,
-                 round(median(h.ratio) FILTER (WHERE 2 * h.half < getvariable('gate_width')), 3) AS med,
-                 count(*) FILTER (WHERE 2 * h.half < getvariable('gate_width')) AS n_cells,
-                 count(*) FILTER (WHERE NOT (2 * h.half < getvariable('gate_width'))) AS n_cells_hidden,
-                 round(avg(r.mm_1h)::DOUBLE, 2) AS mm
-          FROM h_cell h LEFT JOIN h_rain r ON r.key = h.key AND r.cell = h.cell
-          GROUP BY 1) c ON c.key = s.key))
+    JOIN (SELECT e.key, p.med, coalesce(p.n_cells, 0) AS n_cells,
+                 e.n_with_legs - coalesce(p.n_cells, 0) AS n_cells_hidden, e.mm
+          FROM (SELECT st.key, count(DISTINCT c.cell) AS n_with_legs,
+                       round(avg(r.mm_1h)::DOUBLE, 2) AS mm
+                FROM storm st JOIN chs c ON c.hour_end_utc = st.hour_end_utc
+                JOIN foot f ON f.cell = c.cell
+                LEFT JOIN h_rain r ON r.key = st.key AND r.cell = c.cell
+                WHERE c.dt > 0 AND c.n_legs > 0 GROUP BY 1) e
+          LEFT JOIN (SELECT key, round(median(ratio), 3) AS med, count(*) AS n_cells
+                     FROM h_pub GROUP BY 1) p USING (key)) c ON c.key = s.key))
 CROSS JOIN
  (SELECT '[' || string_agg(l, ',' ORDER BY win, rain, lag_h) || ']' AS lag FROM (
     SELECT win, rain, lag_h, json_object('window', win, 'rain', rain, 'lag_h', lag_h,
       'ratio', round(ratio, 3), 'n_legs', n_legs, 'n_cells', n_cells,
-      'estimand', 'bus-minute-weighted citywide space-mean chord Speed of the Cell-hours lag_h Hours after that Cell''s last wet Hour (' || CASE rain WHEN 'heavy' THEN 'mm_1h >= 10' ELSE 'mm_1h >= 1' END || ' mm, AORC), over the same Cells'' dry same-hour-of-week space-mean Speed')::VARCHAR AS l
+      'estimand', 'bus-minute-weighted citywide space-mean chord Speed of the Cell-hours lag_h Hours after that Cell''s last wet Hour (' || CASE rain WHEN 'heavy' THEN 'mm_1h >= 10' ELSE 'mm_1h >= 1' END || ' mm, AORC), over the same Cells'' dry same-hour-of-week space-mean Speed. NO interval is published for this curve: read its shape, not any single point')::VARCHAR AS l
     FROM lagtab));
 
 -- ---------------------------------------------------------------------- zones.geojson

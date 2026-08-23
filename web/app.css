@@ -6,7 +6,7 @@
   --line: #2a2f38;
   --ink: #e8ebef;
   --dim: #9aa4b2;
-  --accent: #4d90c8;
+  --accent: #2f6ea6;        /* 4.5:1 with white at 12px; #4d90c8 was 3.4:1 */
   --grey: #3a4049;          /* the "no publishable value" fill, mirrored in the legend */
 }
 * { box-sizing: border-box; }
