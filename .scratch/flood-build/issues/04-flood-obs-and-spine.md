@@ -26,3 +26,16 @@ revisions total. Any fold keyed per alert_id silently keeps one arbitrary varian
 spine's cross-event merging and any text-derived field must work at revision grain (or
 deliberately reduce revisions with a stated rule), not assume one text per id. Ticket 02
 is re-measuring its extractor precision at revision grain for the same reason.
+
+## Inherit from flood-02's landing (2026-08-23, recorded by the orchestrator)
+
+- The frozen keys are named constants in src/raincheck/flood_alerts.py: REVISION_KEY,
+  INCIDENT_KEY = ("event_id",), OBSERVATION_KEY = ("event_id","complex_id"), plus
+  ALERT_ID_RE and MIN_PRECISION. Import them; do not restate the tuples.
+- Routes fold per alert_id, NOT per revision — in-place edits split informed-entity rows
+  across revisions, and a revision-local route set manufactures ambiguity (caught by
+  adversarial review; flood-02's own test had blessed the loss).
+- Cross-event state reconciliation is THIS ticket's job: concurrent events disagree about
+  a shared complex (measured: 264048 ends active on Utica Av while 264063 reports it
+  cleared). Ticket 13 renders per-(event,complex) state from the newest revision and does
+  NOT reconcile.

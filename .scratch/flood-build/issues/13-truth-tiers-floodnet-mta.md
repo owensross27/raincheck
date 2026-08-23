@@ -23,3 +23,15 @@ alert_id (14/24 water ids multi-variant, 50 revisions measured). The MTA tier's 
 per incident" dedupe and active-vs-cleared phrasing check must therefore read the NEWEST
 revision's text per incident, and expect the text (including the while/after phrasing) to
 change under an unchanged alert_id between cycles.
+
+## Inherit from flood-02's landing (2026-08-23, recorded by the orchestrator)
+
+- `state` for a chip = the newest revision of that (event, complex), via flood-02's
+  frozen constants (REVISION_KEY / INCIDENT_KEY / OBSERVATION_KEY in flood_alerts.py).
+- Events can disagree about a shared complex (264048 active on Utica Av vs 264063
+  cleared); render per-event truthfully — reconciling across events is ticket 04's job,
+  not this tier's.
+- Known extractor debt recorded on ticket 02: BRIDGE_FWD's connector alternation has no
+  AT branch (the real cause of the B1 recall miss — the prototype README's explanation is
+  wrong), BRIDGE_BACK fullmatches zero live/holdout rows, and the live measurement rests
+  on one storm night with 5 distinct station names. Treat live recall claims accordingly.
