@@ -36,6 +36,12 @@ DEAD = {
     # the day boundary in the middle is an artifact of the layout, not of the outage.
     ("alerts", "2026-06-24"): {"17", "18", "19", "20", "21", "22", "23"},
     ("alerts", "2026-06-25"): {"00"},
+    # First dead hours seen in tu, and the only ones: a gtfsrt.io tu outage covering
+    # 00:00-01:59Z. h02 comes back at 100 snapshots against the ~120 norm, i.e. tapering
+    # recovery, which is what a source outage ending mid-hour looks like. vp and alerts
+    # both filled 24/24 that day, so it hit tu alone - same shape as 2026-04-27, where
+    # only vp lost an hour.
+    ("tu", "2026-07-30"): {"00", "01"},
 }
 
 
