@@ -43,6 +43,10 @@ DEAD = {
     ("subway_alerts", "2026-08-15"): ("07", "12"),
     ("subway_alerts", "2026-08-16"): ("13",),
     ("subway_alerts", "2026-08-22"): ("18",),
+    # Backfilled bus history has one known source-dead hour, vp 2026-04-27 h04 (probed
+    # 2026-08-23; see ticket 20). It is deliberately NOT listed: check() iterates from
+    # START, so a pre-START key would never match and would sit here looking like
+    # protection it does not provide. Add it if and when START moves back.
 }
 RAW_COLS = {  # the gtfsrt.io columns each mapper reads (their files carry ~35-46)
     "vehicle_positions": ["entity_id", "vehicle_id", "trip_id", "route_id", "direction_id",
