@@ -15,7 +15,8 @@ the private R2 bucket. Not public hosting; enrichment/Spark stays local.
 
 **Blocked by:** None (18 resolved — bucket, credentials and sync conventions exist)
 
-**Status:** built — wizard awaits Ross (`scripts/cloud-capture-wizard.sh`)
+**Status:** deployed 2026-08-23 to Ross's EC2 dev box (vinylpig-dev); capturing and
+pushing on its own. 7-day cutover clock started — see Cutover below.
 
 - [x] provider pick, one short note: Oracle Always-Free ARM (a1.flex, $0, capacity/signup
       friction risk) vs Hetzner CAX11 (~EUR 3.3/mo, boring and reliable). Default to
@@ -41,6 +42,8 @@ the private R2 bucket. Not public hosting; enrichment/Spark stays local.
 - [ ] cutover note recorded on this ticket: date the box's capture is verified continuous
       for 7 days; decision then whether the Mac LaunchAgent stays as backup or is booted
       out (`launchctl bootout gui/$(id -u)/com.raincheck.archiver`).
+      — first push 2026-08-23 is recorded; the 7-day clock runs to 2026-08-30. Only the
+      verdict is outstanding, and it is Ross's call.
 - [x] one runnable check: an hour-completeness query (24 hour-dirs per feed per closed UTC
       day in the bucket) that is loud on any gap; doubles as the daily health check.
       — `scripts/coldgaps.sh` (6 kinds x 24 hour-dirs, exit 1 + COLDGAPS lines on any
@@ -107,11 +110,54 @@ fresh VMs, fatal is-active probe, ssh errors hidden on retry loop, rsync -e quot
 invisibility. Refuted (no change needed): box-token delete-scope escalation chain,
 "permanent invisible outage" scenario. Suite 144/144 green on rebased master.
 
-## Cutover (pending)
+## Cutover (clock running)
 
-Box first-push date: ______ (wizard stage 8). After 7 consecutive clean
-`coldgaps` days, record the date here and decide: Mac LaunchAgent stays as backup or
-`launchctl bootout gui/$(id -u)/com.raincheck.archiver`.
+**Box first-push date: 2026-08-23** (14:30:46 UTC, `raincheck-coldpush.service`). After 7
+consecutive clean `coldgaps` days — i.e. through **2026-08-30** — record the verdict here
+and decide: Mac LaunchAgent stays as backup or
+`launchctl bootout gui/$(id -u)/com.raincheck.archiver`. The Mac agent stays ON until then;
+the cutover call is Ross's.
+
+Daily check from the Mac: `make coldgaps` (defaults to yesterday UTC). On the box the same
+check runs at 02:15 UTC and leaves `raincheck-coldgaps.service` red on a gap.
+
+| Day (UTC) | coldgaps | note |
+|-----------|----------|------|
+| 2026-08-23 | pending — first partial box day (box started 14:23 UTC; Mac covers hours 00-14) | |
+
+## Deployed 2026-08-23 — vinylpig-dev (agent, over ssh)
+
+Target: **vinylpig-dev**, `i-098a6ea89c4b15502` / `44.218.135.197` (us-east-1, t3.small),
+login `ubuntu`, key `~/.ssh/lewis-signs-dev.pem`. Ubuntu 24.04.4 LTS x86_64, Python 3.12.3,
+TZ already `Etc/UTC` and clock synced, passwordless sudo, outbound https confirmed
+(pypi 200, mta.info 301, r2.cloudflarestorage.com 301). Ross authorized `/opt/raincheck` +
+the three units + the apt install of `python3-venv`, 2026-08-23.
+
+Ran the wizard's stages 5-8 by hand over ssh (1-4 are account/VM creation — skipped).
+Installed: `/opt/raincheck` (src + scripts + systemd + 356 MB venv), nologin `raincheck`
+user (uid 997), root-owned `/etc/raincheck.env` mode 600, the three units enabled at boot.
+Nothing else on the box was touched — Docker/containerd/fail2ban and Ross's other dev work
+were left alone, and `systemctl --failed` is empty box-wide after the install.
+
+**`RAINCHECK_BRONZE_GB=2`, not the wizard's 20.** This is a SHARED box: 19 GB root volume,
+only 7.3 GB free after the venv (containerd 2.7 G, docker 1.6 G, /home/ubuntu 1.5 G). A
+20 GB cap exceeds the whole disk and would starve Ross's dev work before the archiver's
+loud stop ever fired. Measured capture is 137-333 MB/day (7 days sampled off the Mac's
+archive), so 2 GB is ~6 days of buffer if R2 goes unreachable, and leaves ~5 GB headroom.
+The wizard now derives its default from the box's free disk (quarter of free, 20 max) and
+warns if the cap meets or exceeds free space, so a re-run cannot fill a shared box.
+
+Verification: all six live kinds flushed their first 10-min part at 14:30:25 UTC (vp 21603
+rows, tu 201923, alerts 420, subway_tu 66487, subway_vp 2791, subway_alerts 3558), the
+first push landed at 14:30:46, and every part matches R2 byte-for-byte from the Mac
+(vp 339338, tu 1047211, alerts 25395, subway_vp 23542, subway_tu 244665,
+subway_alerts 33039). Archiver RSS 268 MB against 876 MB available — fits, but the box has
+no swap, so that is the number to watch. Suite 168/168 green.
+
+`make coldgaps` on 2026-08-22 (the last closed day, so the MAC's capture, before the box
+existed) is red: `subway_vp` missing hours 04/06/10, `subway_alerts` missing 18. Pre-existing
+laptop-sleep loss — exactly what this ticket exists to stop — not a deployment fault, and
+ticket 20's backfill is the recovery path.
 
 ## Provider decision amended (2026-08-23, Ross)
 

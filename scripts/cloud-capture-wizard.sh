@@ -287,8 +287,23 @@ printf '  %s✓ box ready%s\n' "$GREEN" "$RESET"
 stage "Write /etc/raincheck.env on the box"
 say "R2 credentials come from the local .env; the box keeps them in root-owned"
 say "/etc/raincheck.env (600), read by the systemd units only."
-ask BRONZE_GB "Box disk cap RAINCHECK_BRONZE_GB [20]:"
-[[ -z "$BRONZE_GB" ]] && BRONZE_GB=20
+# Default the cap to a quarter of the box's free disk (20 max). A shared box — an
+# existing dev box rather than a fresh VM — must never be filled by Bronze; capture
+# runs ~350 MB/day, so even a 2 GB cap absorbs ~6 days of an R2 outage.
+FREE_GB=$(run "df -BG --output=avail / | tail -1 | tr -dc '0-9'" 2>/dev/null || true)
+if [[ "${FREE_GB:-}" =~ ^[0-9]+$ ]] && (( FREE_GB > 0 )); then
+  note "box has ${FREE_GB}G free on /"
+  DEFAULT_GB=$(( FREE_GB / 4 ))
+  if (( DEFAULT_GB < 1 ));  then DEFAULT_GB=1;  fi
+  if (( DEFAULT_GB > 20 )); then DEFAULT_GB=20; fi
+else
+  DEFAULT_GB=20
+fi
+ask BRONZE_GB "Box disk cap RAINCHECK_BRONZE_GB [$DEFAULT_GB]:"
+[[ -z "$BRONZE_GB" ]] && BRONZE_GB="$DEFAULT_GB"
+if [[ "${FREE_GB:-}" =~ ^[0-9]+$ ]] && (( FREE_GB > 0 && BRONZE_GB >= FREE_GB )); then
+  warn "cap ${BRONZE_GB}G >= ${FREE_GB}G free — Bronze can fill the disk and starve other work"
+fi
 printf 'RAINCHECK_ARCHIVE_ROOT=/opt/raincheck/data\nRAINCHECK_BRONZE_GB=%s\nRAINCHECK_COLD_BUCKET=%s\nRAINCHECK_COLD_ENDPOINT=%s\nRAINCHECK_COLD_KEY_ID=%s\nRAINCHECK_COLD_SECRET=%s\n' \
   "$BRONZE_GB" "$(_existing RAINCHECK_COLD_BUCKET)" "$(_existing RAINCHECK_COLD_ENDPOINT)" \
   "$(_existing RAINCHECK_COLD_KEY_ID)" "$(_existing RAINCHECK_COLD_SECRET)" \
