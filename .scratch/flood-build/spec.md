@@ -176,6 +176,16 @@ anyone the page is shown to; implementer = the agent building a slice.
     existing test suite's style, so that "done" is a passing assertion, not a
     claim.
 
+## Decision log
+
+- 2026-08-23 — Ross, directly in the overview session: the 18-ticket breakdown and this
+  spec are blessed as-is ("bless the flood tickets as is and let it keep building") — no
+  amendments, no re-run of /to-tickets. The compressed chain that produced them
+  (wayfinder 10 → /to-spec → /to-tickets → implement 01 in one session) was accepted as a
+  one-off, not precedent: from ticket 02 onward, one ticket per session, landing on
+  master per ticket. The breakdown's open veto items (granularity/edges) convert to
+  in-ticket notes, surfaced to Ross only if one becomes load-bearing.
+
 ## Implementation Decisions
 
 ### Labels and the event spine (tickets 01, 02; amended by 06, 08, 10)
