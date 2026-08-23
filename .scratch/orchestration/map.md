@@ -117,11 +117,14 @@ to decide before `/to-spec` / `/to-tickets`.
    short written walkthrough); where that lives so it is shareable
    without shipping MTA raw data (cloud ticket 9's boundary decision
    applies).
-6. **gapfill rc-0-on-empty-fill hardening.** A chunk that fills nothing
-   must not exit 0 (all_ok=False suppresses markers but not the exit
-   code today — how a network outage once logged success [T20]). Ships
-   regardless of Airflow timing; the DAG then inherits a truthful exit
-   code instead of compensating for a lying one.
+6. **gapfill rc-0-on-empty-fill hardening.** RESOLVED 2026-08-23, ahead
+   of the map, by the ticket-20 close-out session (landed 66044a1 as
+   3429309 with 3 tests). Design decision recorded there: the bar is
+   "nothing at all worked", NOT "something failed" — gtfsrt.io lags 1-2
+   days, so the newest day of a default span is routinely unpublished
+   and failing on it would page every 06:00 about a hole that fills
+   itself tomorrow; verified against daily.py's actual default span.
+   The DAG inherits a truthful exit code; nothing left to build here.
 
 ## Review round 1 (2026-08-23, adversarial panel — corrections applied)
 
