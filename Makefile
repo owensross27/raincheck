@@ -70,3 +70,14 @@ coldcheck:  ## loud gap check: every local Bronze file present remotely with mat
 	@out=$$($(COLD) sync "$${RAINCHECK_ARCHIVE_ROOT:-data}/archive" "s3://$(RAINCHECK_COLD_BUCKET)/archive" --size-only --dryrun); \
 	if [ -n "$$out" ]; then printf '%s\n' "$$out"; echo "coldcheck: GAP - files above are missing or size-mismatched remotely"; exit 1; \
 	else echo "coldcheck: OK - local Bronze fully present remotely"; fi
+
+# --- ticket 20: gap backfill from gtfsrt.io (recover archiver sleep-gap hours) ----
+.PHONY: gapfill gapcheck gapverify
+gapfill:  ## fill missing Bronze hours from gtfsrt.io (make gapfill [FEED=vp] [DATE=D[:D]]; default all five kinds, 2026-08-15..yesterday)
+	$(PY) -m raincheck.gapfill fill $(if $(FEED),--feed $(FEED)) $(if $(DATE),--date $(DATE))
+
+gapcheck:  ## hour-completeness per kind x closed day (exit 1 while any closed day has gaps)
+	$(PY) -m raincheck.gapfill check
+
+gapverify:  ## sanity: filled hours vs adjacent archiver hours (rows, key coverage, schema)
+	$(PY) -m raincheck.gapfill verify $(if $(FEED),--feed $(FEED))
