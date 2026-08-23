@@ -80,6 +80,11 @@ ALERT_WHERE = (
     " OR upper(description) like '%WATER FROM THE TRACKS%')")
 COVERAGE_ALERT = (date(2012, 10, 2), date(2020, 3, 31), date(2020, 4, 28))
 ALERT_DARK = (date(2026, 6, 30), date(2026, 8, 15))  # Socrata tail -> archiver capture
+# The datasets open in 2012, but the flood SIGNAL does not: the spec's per-source calendar
+# says "alerts effectively 2016+", and the extractor agrees (1 observation in 2015, 10 in
+# 2016, ~15/year after). The spine's coverage flag uses this floor, not the dataset's
+# first row — a day wrongly marked covered mints false negatives in ticket 05's anti-join.
+ALERT_LABELS_FROM = date(2016, 1, 1)
 
 # ---- frozen USGS / Sandy pins ----------------------------------------------------
 # STN's single-event parameter is Event=, never EventId= (which answers HTTP 500), and a
@@ -320,9 +325,12 @@ def reconcile(obs: list[dict]) -> list[dict]:
     observation, and the newest revision across the merged events owns the state. No gap
     tolerance is needed or invented: every measured disagreement overlaps in time.
     """
+    if any(o["first_seen"] is None or o["last_seen"] is None for o in obs):
+        # every era stamps its rows (Socrata `date`, the archiver `fetched_at`), so a None
+        # here means an upstream shape changed — merging on it would silently mis-cluster
+        raise ValueError("alert observation without a seen-span cannot be reconciled")
     by_complex: dict[str, list[dict]] = {}
-    for o in sorted(obs, key=lambda o: (o["complex_id"], o["first_seen"] or 0,
-                                        o["event_id"])):
+    for o in sorted(obs, key=lambda o: (o["complex_id"], o["first_seen"], o["event_id"])):
         by_complex.setdefault(o["complex_id"], []).append(o)
     out = []
     for complex_id, group in sorted(by_complex.items()):
@@ -486,6 +494,11 @@ def count(base: str, dataset: str, where: str | None = None) -> int:
 
 def canary(asof: date = ASOF, days: int = 30) -> dict[str, int]:
     """Every frozen source literal and endpoint must still answer, or the build fails.
+
+    The trailing window rides ASOF, not today's date, because ASOF also gates the data:
+    it is the stamp on every snapshot the build reads. Bump ASOF to refresh the sources and
+    the canary window moves with it, which is exactly when a rename must be caught; rebuild
+    at the frozen ASOF and the canary asks about the same window the snapshots cover.
 
     The four 311 literals are the sharp end: the city renamed the dropdown once already
     and the two-literal set silently lost every label after 2026-07. The RENAMES must

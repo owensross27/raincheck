@@ -48,12 +48,11 @@ baseline:  ## dry hour-of-week Speed baseline for one window (make baseline WIND
 # --- flood-build ticket 04: flood observations and the event spine ----------------
 # Both fetch their sources once into <root>/archive/flood and never again: a present
 # snapshot is what makes the tables reproducible years after the literals have moved.
-.PHONY: flood-obs flood-spine
 flood-obs:  ## label-grade flood observations -> silver/flood_obs (make flood-obs [SKIP_CANARY=1])
 	$(PY) -m raincheck.flood_obs $(if $(SKIP_CANARY),--skip-canary)
 
-flood-spine:  ## the dated flood event spine -> silver/flood_events
-	$(PY) -m raincheck.flood_spine
+flood-spine:  ## the dated flood event spine -> silver/flood_events (make flood-spine [SKIP_CANARY=1])
+	$(PY) -m raincheck.flood_spine $(if $(SKIP_CANARY),--skip-canary)
 
 gates:  ## tier-2 slice acceptance gates: 10-T3, 10-T6 wired; T4/T5 report-only slots
 	$(PY) -m raincheck.gates

@@ -8,15 +8,15 @@ spine; Testing seams 1 and 2.
 
 **Blocked by:** 02
 
-**Status:** in-progress (claimed 2026-08-23, worktree mystifying-germain-35e4d4)
+**Status:** in-review (built, reviewed and re-verified 2026-08-23; worktree mystifying-germain-35e4d4, branch claude/mystifying-germain-35e4d4)
 
-- [ ] `silver/flood_obs` GeoParquet (~60K rows), label-grade sources only: 311 street/highway flooding points, FloodNet events from the curated Socrata event table (never the row-capped raw API), station-labeled alerts from ticket 02, USGS high-water marks, Sandy inundation polygons; columns source, source_id, ts_utc, obs_ts_kind {incident, report, alert}, geometry, Cell, depth_mm (nullable), text (nullable); covariate sources never enter
-- [ ] the 311 descriptor set is FOUR exact literals — 'Street Flooding (SJ)', 'Highway Flooding (SH)' and their 2023-09 renames 'Flooding on Street', 'Flooding on Highway' — and the daily-count p99 triggers are RE-MEASURED on the union per era-dataset (nearest-rank), frozen as named constants with the era they were measured on (the original 97/84 were legacy-literal-only and biased low across the 2023-09..2026 overlap)
-- [ ] spine triggers, any of: (a) 311 daily count ≥ frozen p99; (b) ≥ 1 station-naming alert flood event; (c) NOAA Storm Events flood types by county FIPS and the enumerated coastal zone names; (d) CO-OPS water level at the Battery or Kings Point ≥ that station's own NWS minor threshold, station datum both sides, two consecutive readings
-- [ ] contiguous event-days merge; window = [NY-midnight of first day − 3 h, NY-midnight after last day + 3 h] as UTC hour_end bounds — never observation-derived; event class from Storm Events FLOOD_CAUSE where present, else trigger-based; Dec–Mar pluvial days at or below freezing reclass to snowmelt and leave the pluvial fit
-- [ ] fixture: 2023-09-29 appears as an event-day under the four-literal union
-- [ ] canary: each of the four 311 literals matches trailing-30-day rows, and every frozen source literal and endpoint answers — the build fails otherwise
-- [ ] spine derivation is a pure function tested on fixtures; DuckDB contract tests on both written tables
+- [x] `silver/flood_obs` GeoParquet (~60K rows), label-grade sources only: 311 street/highway flooding points, FloodNet events from the curated Socrata event table (never the row-capped raw API), station-labeled alerts from ticket 02, USGS high-water marks, Sandy inundation polygons; columns source, source_id, ts_utc, obs_ts_kind {incident, report, alert}, geometry, Cell, depth_mm (nullable), text (nullable); covariate sources never enter
+- [x] the 311 descriptor set is FOUR exact literals — 'Street Flooding (SJ)', 'Highway Flooding (SH)' and their 2023-09 renames 'Flooding on Street', 'Flooding on Highway' — and the daily-count p99 triggers are RE-MEASURED on the union per era-dataset (nearest-rank), frozen as named constants with the era they were measured on (the original 97/84 were legacy-literal-only and biased low across the 2023-09..2026 overlap)
+- [x] spine triggers, any of: (a) 311 daily count ≥ frozen p99; (b) ≥ 1 station-naming alert flood event; (c) NOAA Storm Events flood types by county FIPS and the enumerated coastal zone names; (d) CO-OPS water level at the Battery or Kings Point ≥ that station's own NWS minor threshold, station datum both sides, two consecutive readings
+- [x] contiguous event-days merge; window = [NY-midnight of first day − 3 h, NY-midnight after last day + 3 h] as UTC hour_end bounds — never observation-derived; event class from Storm Events FLOOD_CAUSE where present, else trigger-based; Dec–Mar pluvial days at or below freezing reclass to snowmelt and leave the pluvial fit
+- [x] fixture: 2023-09-29 appears as an event-day under the four-literal union
+- [x] canary: each of the four 311 literals matches trailing-30-day rows, and every frozen source literal and endpoint answers — the build fails otherwise
+- [x] spine derivation is a pure function tested on fixtures; DuckDB contract tests on both written tables
 
 ## Build notes (2026-08-23, worktree mystifying-germain-35e4d4)
 
@@ -123,6 +123,62 @@ reported, never landed at (0, 0).
 - `spine_version` chains the thresholds, vocabularies, window rule and source as-of stamp,
   so ticket 18's alternate universes stamp differently by construction. `label_version`
   (ticket 05) should chain THIS, plus assets_version.
+
+## Adversarial review (2026-08-23, four lenses + refutation round)
+
+Four independent lenses (correctness/time, spec conformance, test-quality mutation, and
+over-engineering) filed findings; each was handed to a skeptic instructed to refute it.
+The Mac crashed mid-run and the surviving findings were judged here. What changed:
+
+**Refuted, but worth recording so nobody re-files it.**
+- *"Storm Events stamps are Eastern STANDARD time — a one-day shift."* Every NYC row does
+  carry `CZ_TIMEZONE='EST-5'`, so the inference is reasonable, but the field is a zone
+  LABEL, not the applied offset. Measured the same way FloodNet's clock was, over the 68
+  NYC county flash/flood rows inside the built AORC months: citywide mean mm_1h at the
+  implied hour is **24.84 reading the stamps as NY wall time vs 18.13 as EST-5**, a clean
+  single peak at +4 h. The stamps are NY wall clock; the code was already right, and the
+  measurement is now in `_storm_span`'s docstring so the next reader does not "fix" it.
+- *"The 311 rename canary is anchored to the frozen ASOF, so its trailing-30-day window
+  never advances."* ASOF also gates the DATA — it is the stamp on every snapshot the build
+  reads — so the canary window and the snapshot window move together. Bump ASOF to refresh
+  and the canary asks about the new window, which is exactly when a rename must be caught.
+  Docstring now says so.
+- Alert trigger (b) using the flood's first-seen day rather than its whole span: worth 4
+  extra event-days in 16 years, and the window's own +3 h pad already covers a flood that
+  runs past midnight, so the label still attaches. Left alone.
+
+**Confirmed and fixed.**
+1. **The tide rule was untestable** — a reviewer mutated `COOPS_CONSECUTIVE` 2 → 1 and the
+   whole suite still passed. The run-scan is now a pure `exceedance_days()` and the rule is
+   pinned directly: one spike does not trigger, two adjacent readings do, two exceedances
+   across a data gap do not, and the boundary is at-or-above.
+2. **`cov_tide` was written but never asserted** (hardcoding it True passed the suite), and
+   the `>= p99` boundary was indistinguishable from `>`. Both now have tests, and the
+   coverage test asserts the fixture exercises BOTH values of the flag rather than one.
+3. **Storm Events had no coverage flag and a silent skip.** The source LAGS: NY rows are
+   published only through **2026-05-29**, so the 4 most recent events (2026-07-06 onward)
+   were reporting `by_storm=False` — indistinguishable from "no storm activity". Added
+   `cov_storm` from the measured publication horizon, and a missing details file for a PAST
+   year now raises instead of printing and continuing.
+4. **The alert coverage floor was the dataset era, not the label era.** `COVERAGE_ALERT[0]`
+   is 2012-10-02, but the spec's calendar says "alerts effectively 2016+" and the extractor
+   agrees (1 observation in 2015, 10 in 2016, ~15/year after). Coverage now uses
+   `ALERT_LABELS_FROM = 2016-01-01`: a day wrongly marked covered mints FALSE NEGATIVES in
+   ticket 05's anti-join, so the floor is deliberately conservative. 57 of 206 events are
+   now alert-uncovered.
+5. **A comment stated a share the data contradicts.** It claimed the 2023-09 renames "carry
+   a third of the modern record"; they are 1,445 of erm2's 23,512 rows (6.1%), or 11.9% of
+   the 2023-09-28-onward overlap era. Corrected to the measured numbers.
+6. Smaller: the p99 reproduction gate compared thresholds by identity (`is`), so an
+   equal-but-distinct dict silently skipped it — now `==`. `reconcile()` guarded against a
+   None seen-span in its sort key but not in the comparison two lines later — it now
+   refuses the input outright, because a None there means an upstream shape changed.
+   `COOPS_BLIND` was a constant nothing read; it is a comment now.
+
+**Still open, deliberately.** The spine canary and the flood_obs canary are separate (each
+module canaries its own endpoints) and both are skippable with `--skip-canary` for an
+offline rebuild from snapshots — which is the reproducibility case the design asks for, and
+the case where the canary SHOULD be expected to fail years later.
 
 ## Domain fact from flood-02 (2026-08-23, recorded by the orchestrator)
 
