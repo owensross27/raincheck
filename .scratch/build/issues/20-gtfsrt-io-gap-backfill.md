@@ -122,8 +122,8 @@ next has budget. Refill go/no-go stays Ross's call.
 
 ## Scope amendment: 167-day bus-history backfill (2026-08-23, measured; IN PROGRESS)
 
-> Progress: March and April COMPLETE and verified in R2 (chunk logs below).
-> Remaining: 2026-05-01..08-14. Verify chunks with `scripts/backfill-verify.py`, NOT
+> Progress: March, April and May COMPLETE and verified in R2 (chunk logs below).
+> Remaining: 2026-06-01..08-14. Verify chunks with `scripts/backfill-verify.py`, NOT
 > `make gapverify` - see the April log for why gapverify cannot see this range.
 
 `START = date(2026, 8, 15)` was "capture began", a deliberate scope line, not a source
@@ -307,3 +307,58 @@ Run one chunk at a time - two concurrent chunks under the ORIGINAL `/tmp` script
 `/tmp/pending.txt`, where one actor overwrites the other's verified-remote list and the
 other then deletes local files it never proved remote. `scripts/backfill-chunk.sh` uses a
 per-run mktemp file, but sequential remains the tested path.
+
+### Chunk log: May 2026 COMPLETE (2026-08-23)
+
+Run as two half-month chunks with `scripts/backfill-chunk.sh` in full mode (one process
+owning fill AND concurrent drain, so a chunk cannot reach the fill-only state that
+stranded April). **Verified in R2, rc=0:**
+
+    OK  vp      744/744 hours                      parts_missing=0 markers_missing=0 zero_byte_parts=0
+    OK  tu      744/744 hours                      parts_missing=0 markers_missing=0 zero_byte_parts=0
+    OK  alerts  737/744 hours (+7 dead at source)  parts_missing=0 markers_missing=0 zero_byte_parts=0
+
+**6.42 GB.** Local May parts remaining: 0. Archive ended 4.43 GiB against the 9.31 GiB
+budget, peaking 5.18 GiB mid-chunk. `STOPPED_BUDGET` never appeared. Chunk A ran 23 min,
+chunk B 19 min - a half-month is ~20 min, so the remaining span is hours, not days.
+
+**Chunk A found the hour-23 root cause** that April could only guess at. See the
+correction box in the April section: the prune read *not in `pending`* as *verified
+remote*, which is false for any file created after the listing ran. Fixed in 27aa035.
+**Chunk B then verified clean on its first pass with no short last-hour, which was the
+agreed criterion for calling that class closed.**
+
+**Dead at source: alerts 2026-05-28, hours 04, 05, 06, 08, 09, 11, 13.** The fill said
+`filled 17/24` and 24 - 7 = 17, so fill and source agree exactly. alerts is event-driven
+at a 300 s cadence, and that day is sparse throughout (several hours hold 1-2 snapshots),
+so a quiet day can legitimately leave whole hours unstored. **Expect more of these in
+alerts specifically** - and probe each rather than assuming from this one.
+
+**`scripts/backfill-probe.py <kind> <day>` makes that probe a command** rather than a good
+intention. It reads only Parquet footers and derives the hour exactly as `fill_day` does,
+prints snapshots per hour plus a paste-ready DEAD entry, and exits 1 only when real dead
+hours exist. Its most useful answer is the negative one: probing `vp 2026-05-14` showed
+all 24 hours with ~120 snapshots, which is what turned that day's missing h23 from "maybe
+the source" into a confirmed prune bug.
+
+**Three more fixes, all found by re-reviewing my own code before it ran unattended:**
+
+1. **A failed remote listing would have deleted everything** (9958619). `push_prune` built
+   its verified-remote list from a `--dryrun` whose exit status it ignored. The prune
+   deletes everything NOT in that list, so an empty list means "delete every marked file
+   in range", and a network blip or dead endpoint produces exactly that. Measured: a dead
+   endpoint returns rc=1 and 0 lines. The listing's exit status now gates the prune.
+   The contract is also stated at the deletion site in `backfill-prune.py`, because
+   nothing there said whose job that check was.
+2. **`backfill-verify` counted objects and ignored size** (2127efd). A truncated or
+   zero-byte part verified OK - the same false-OK class as gapverify. Parts must now carry
+   bytes; markers stay exempt since `_gapfill` is legitimately empty.
+3. **Each pass synced the whole archive** (aafe00f) - 20k objects, 25 GB, to verify at most
+   a half-month. Now scoped to the chunk's own month prefixes. Verified against a synthetic
+   tree, because a filter matching NOTHING looks identical to "everything uploaded" and
+   feeds the same empty list that item 1 is about.
+
+**Running total: 2026-03-01..05-31 complete and verified** (March 7.11 GB, April 6.84 GB,
+May 6.42 GB). R2 holds 20,739 objects / 25.1 GB overall, about $0.38/month at
+$0.015/GB-month. Remaining: 2026-06-01..08-14, source pre-flighted (273 files across
+91 days x 3 feeds, none missing, none suspiciously small).
