@@ -76,6 +76,28 @@ def test_dead_entries_are_well_formed():
         assert set(hours) <= {f"{h:02d}" for h in range(24)}, (kind, day, hours)
 
 
+def test_start_stays_in_the_live_capture_era():
+    """Moving START back is not a config change - it would halt live capture.
+
+    `days()` defaults its span to START and `missing_hours` reads the LOCAL tree. Bronze
+    for 2026-03-01..08-14 was filled, pushed to R2 and pruned locally on purpose (ticket
+    18: R2 is its durable home), so local reads as entirely missing. Move START back and a
+    routine `make gapfill` tries to re-pull the whole range - ~207 GB of downloads, ~37 GB
+    of local writes - trips RAINCHECK_BRONZE_GB and STOPS THE ARCHIVER, opening the very
+    gaps this tool exists to close. It fires on a normal command, not an exotic one.
+
+    Verify that range with scripts/backfill-verify.py, which reads R2 where the data
+    actually lives. To genuinely move START you must first teach check() and
+    missing_hours() that a pruned-to-cloud hour is complete, stop the prune deleting
+    _gapfill markers, and recreate ~12,000 markers from the R2 listing - see ticket 20's
+    "Decision needed from Ross" section. This test is here so that work is chosen, not
+    stumbled into.
+    """
+    assert gapfill.START >= date(2026, 8, 15), (
+        f"START={gapfill.START} predates live capture; read this test's docstring before "
+        f"changing it - a routine `make gapfill` would re-pull ~207 GB and halt capture")
+
+
 def test_pick_snapshots_cadence_and_header_dedupe():
     snaps = [(0, 10), (20, 10), (40, 11), (60, 11), (80, 11), (120, 11), (180, 13)]
     assert gapfill.pick(snaps, 60) == [0, 3, 6]
