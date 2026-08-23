@@ -26,3 +26,7 @@ Two measured facts that change this ticket's design:
 2. 60 bus stops have no elevation and no ring fallback: MTA Bus Company stops in Nassau
    County, outside the NYC DEM footprint entirely. This ticket owes them an explicit
    policy (exclude-with-count, or a stated out-of-footprint class — never silent NULLs).
+3. The stormwater not-analyzed count at point grain is 745 total: 673 inside DEP's
+   exclusion mask + 72 outside the study area entirely. (Corrects the 673 quoted
+   mid-day on 2026-08-23, which was only the in-mask share; flood-03's ticket file
+   carries the same breakdown.)

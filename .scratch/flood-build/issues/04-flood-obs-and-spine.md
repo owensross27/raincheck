@@ -8,7 +8,7 @@ spine; Testing seams 1 and 2.
 
 **Blocked by:** 02
 
-**Status:** in-review (built, reviewed and re-verified 2026-08-23; worktree mystifying-germain-35e4d4, branch claude/mystifying-germain-35e4d4)
+**Status:** landed (origin/master b44e6a3 + 9e3f844, 2026-08-23; suite 321/0 green at landing)
 
 - [x] `silver/flood_obs` GeoParquet (~60K rows), label-grade sources only: 311 street/highway flooding points, FloodNet events from the curated Socrata event table (never the row-capped raw API), station-labeled alerts from ticket 02, USGS high-water marks, Sandy inundation polygons; columns source, source_id, ts_utc, obs_ts_kind {incident, report, alert}, geometry, Cell, depth_mm (nullable), text (nullable); covariate sources never enter
 - [x] the 311 descriptor set is FOUR exact literals — 'Street Flooding (SJ)', 'Highway Flooding (SH)' and their 2023-09 renames 'Flooding on Street', 'Flooding on Highway' — and the daily-count p99 triggers are RE-MEASURED on the union per era-dataset (nearest-rank), frozen as named constants with the era they were measured on (the original 97/84 were legacy-literal-only and biased low across the 2023-09..2026 overlap)
