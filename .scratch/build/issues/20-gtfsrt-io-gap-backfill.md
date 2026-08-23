@@ -64,6 +64,16 @@ subway_tu missing 04,06,10; alerts +14,15; subway_alerts +14,15,18 — no marker
 so a plain `make gapfill` re-run closes it once published (the standing gap-repair path;
 kept per ponytail, also the recovery tool for any future outage).
 
+**08-22 seam closed (2026-08-23 13:30Z re-run):** gtfsrt.io published it; a plain
+`make gapfill` recovered 19 more hours (vp 3, tu 3, alerts 5, subway_tu 3, subway_alerts
+5) with no other change — the re-run path works as designed, and these parts carry the
+canonical post-10 schema (verified on disk). Totals now **373 hours / 926 parts**,
+archive 4.3 GB. gapverify OK on all five kinds, coldpush + coldcheck OK (remote proven).
+**Final window completeness 08-15..08-22: 956/960 = 99.6%**, the only misses being
+gtfsrt.io's four dead hours: **subway_alerts 08-15 h07, 08-15 h12, 08-16 h13, 08-22 h18**
+(zero snapshots at source — unrecoverable, not a fill bug). Every other kind x day in the
+window is 24/24.
+
 **Wild-data cases handled (tests pin both):** one snapshot/day can carry an all-NULL
 `fetch_timestamp` (skipped with a counted note); stats-absent row groups fall back to
 reading just the two timestamp columns. Discovered in passing: live vp parts
@@ -75,10 +85,14 @@ therefore requires archiver-columns ⊆ filled-columns rather than equality.
 decoders (vp +`header_ts`; tu +`direction_id`,`trip_delay_s`,`trip_ts`,`header_ts`).
 The mappers now emit those shapes (all four derivable from gtfsrt.io columns; census
 tests green against the merged decoders), so future fills write the canonical schema.
-The 886 parts already filled and coldpushed carry the pre-10 shapes — era-consistent
-with their same-day archiver parts, readable by union-by-name, verified and durable, so
-they were deliberately left in place rather than refilled at wind-down. To refill them
-to the new shape later (optional): delete `part-gapfill-*.parquet` + `_gapfill` markers
-for 08-15..08-21, then `make gapfill`, `make gapverify`, `make coldpush`. **Resume
-command for the 08-22 seam (once gtfsrt.io publishes it, 1-2 days):** `make gapfill`
-then `make gapcheck && make gapverify && make coldpush && make coldcheck`.
+The 886 parts filled in the first run carry the pre-10 shapes (the 40 parts of the 08-22
+re-run carry the new one) — era-consistent with their same-day archiver parts, readable
+by union-by-name, verified and durable, so they were left in place rather than refilled.
+To refill them to the new shape later (optional): delete `part-gapfill-*.parquet` +
+`_gapfill` markers for 08-15..08-21, then `make gapfill`, `make gapverify`,
+`make coldpush`. Handed to the schema-era reconcile task (vp+tu, all three eras).
+
+**Standing use:** `make gapfill` after any capture outage, then
+`make gapcheck && make gapverify && make coldpush && make coldcheck`. It is a no-op for
+hours already captured or already filled, so it is safe to re-run at any time; gtfsrt.io
+lags 1-2 days, so the newest day usually needs a second pass.
