@@ -161,6 +161,26 @@ def read_rows(root: Path, name: str) -> list[tuple]:
         f"hive_partitioning = true, hive_types_autocast = false)").fetchall())
 
 
+def test_bronze_vp_unions_mixed_schema_hour_pair(spark, tmp_path):
+    """Bronze vp mixes part schemas within one date (pre-07 archiver parts lack
+    schedule_relationship and header_ts; gapfill/post-restart parts have the former):
+    bronze_vp's mergeSchema read must union by name and NULL-fill, never error or drop."""
+    from raincheck.events import bronze_vp
+
+    write_bronze(tmp_path, "2021-09-02", "02",
+                 [(*ping("v1", "A", "B41", -73.95, 0, 0), "ADDED")])
+    write_bronze(tmp_path, "2021-09-02", "03", [ping("v2", "A", "B41", -73.95, 3600, 0)])
+    old = tmp_path / "archive" / "vp" / "date=2021-09-02" / "hour=03" / "part-test.parquet"
+    t = pq.read_table(old)  # replay the pre-07 12-column part shape in place
+    pq.write_table(t.drop_columns(["schedule_relationship", "header_ts"]), old)
+
+    df = bronze_vp(tmp_path, spark, "2021-09-02")
+    assert "schedule_relationship" in df.columns
+    got = {r.vehicle_id: r.schedule_relationship
+           for r in df.select("vehicle_id", "schedule_relationship").collect()}
+    assert got == {"v1": "ADDED", "v2": None}
+
+
 def aug31_pings() -> list[tuple]:
     t = int(datetime(2021, 8, 31, 22, 0, tzinfo=timezone.utc).timestamp()) - T0
     rows = [ping("v10", "C", "B1", -73.86, t, 0, start="20210831"),
