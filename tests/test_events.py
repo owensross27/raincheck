@@ -181,6 +181,48 @@ def test_bronze_vp_unions_mixed_schema_hour_pair(spark, tmp_path):
     assert got == {"v1": "ADDED", "v2": None}
 
 
+TU_ERA_COLS = ("direction_id", "trip_delay_s", "trip_ts", "header_ts")
+
+
+def test_tu_rows_unions_mixed_schema_hour_pair(spark, tmp_path):
+    """Bronze tu's era gap is wider than vp's: pre-10 archiver parts and the ticket-20
+    gapfill parts lack all four of direction_id, trip_delay_s, trip_ts and header_ts,
+    and sit in the same date dir as canonical parts (2026-08-15..21 on disk). The
+    mergeSchema read behind tu_rows - baselines opens the same root the same way - must
+    union by name and NULL-fill, never error, and never drop an era's rows. The four
+    columns arrive in non-canonical order here on purpose: the union is by name.
+
+    Dropping mergeSchema here does not raise, it SILENTLY loses the four columns
+    (measured: right row count, columns simply absent) - so the column-presence
+    assertion, not the row count, is what carries this test."""
+    from raincheck.events import tu_rows
+
+    day, day8 = "2026-08-15", "20260815"
+    t12 = int(datetime(2026, 8, 15, 12, tzinfo=timezone.utc).timestamp())
+    write_bronze_tu(tmp_path, day, "12", [("t1", "B41", day8, "v1", "S1", t12 + 300, t12)])
+    write_bronze_tu(tmp_path, day, "13",
+                    [("t2", "B41", day8, "v2", "S2", t12 + 3900, t12 + 3600)])
+    new = tmp_path / "archive" / "tu" / f"date={day}" / "hour=13" / "part-test.parquet"
+    t = pq.read_table(new)  # promote hour 13 to the canonical 13-column shape
+    for c, val in (("direction_id", 1), ("trip_delay_s", 42),
+                   ("trip_ts", t12 + 3600), ("header_ts", t12 + 3601)):
+        t = t.append_column(c, pa.array([val] * t.num_rows, pa.int64()))
+    pq.write_table(t, new)
+
+    # the aggregate tu_rows runs over the pair keeps one row per era, neither dropped
+    got = tu_rows(tmp_path, spark, day)
+    assert got is not None  # the date dir exists, so None would mean the read saw nothing
+    assert {r.vehicle_id: r.pred for r in got.collect()} == {"v1": t12 + 300, "v2": t12 + 3900}
+
+    raw = (spark.read.option("basePath", str(tmp_path / "archive" / "tu"))
+           .option("mergeSchema", "true")
+           .parquet(str(tmp_path / "archive" / "tu" / f"date={day}")))
+    assert all(c in raw.columns for c in TU_ERA_COLS)
+    rows = {r.vehicle_id: r.asDict() for r in raw.select("vehicle_id", *TU_ERA_COLS).collect()}
+    assert [rows["v1"][c] for c in TU_ERA_COLS] == [None] * 4
+    assert [rows["v2"][c] for c in TU_ERA_COLS] == [1, 42, t12 + 3600, t12 + 3601]
+
+
 def aug31_pings() -> list[tuple]:
     t = int(datetime(2021, 8, 31, 22, 0, tzinfo=timezone.utc).timestamp()) - T0
     rows = [ping("v10", "C", "B1", -73.86, t, 0, start="20210831"),

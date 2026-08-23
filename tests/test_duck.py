@@ -36,3 +36,33 @@ def test_table_unions_mixed_schema_hour_pair(tmp_path, monkeypatch):
     got = [dict(zip(cols, r)) for r in rows]
     assert [g["schedule_relationship"] for g in got] == [None, "ADDED"]
     assert [g["vehicle_id"] for g in got] == ["a", "b"]
+
+
+TU_ERA_COLS = ("direction_id", "trip_delay_s", "trip_ts", "header_ts")
+
+
+def test_table_unions_mixed_tu_schema_hour_pair(tmp_path, monkeypatch):
+    """Bronze tu drifts the same way vp does but wider: pre-10 archiver parts and the
+    ticket-20 gapfill parts lack all four of direction_id, trip_delay_s, trip_ts and
+    header_ts. duck.table must union by name and read every one of them as NULL.
+
+    The pre-fix failure mode is order-dependent and the narrow-first case is SILENT
+    (measured): with the narrow part first read_parquet binds its schema and the four
+    columns simply vanish - right row count, no error; only wide-first raises. The
+    narrow part is written first here on purpose, so the column-presence assertion is
+    what carries this test."""
+    monkeypatch.setattr(archiver, "ROOT", tmp_path)
+    old = {"trip_id": "t1", "vehicle_id": "a", "stop_id": "S1",
+           "arrival_time": 1786478700, "fetched_at": 1786478400}
+    new = {**old, "trip_id": "t2", "vehicle_id": "b", "direction_id": 1,
+           "trip_delay_s": 42, "trip_ts": 1786482000, "header_ts": 1786482001,
+           "arrival_time": 1786482300, "fetched_at": 1786482000}
+    archiver.flush([old], "tu", 1786478400)  # hour=20, pre-10 shape (9 columns)
+    archiver.flush([new], "tu", 1786482000)  # hour=21, canonical (13 columns)
+    rel = duck.table(duck.connect(), tmp_path / "tu")
+    cols = rel.columns
+    assert all(c in cols for c in TU_ERA_COLS)
+    got = [dict(zip(cols, r)) for r in rel.order("hour").fetchall()]
+    assert [g["trip_id"] for g in got] == ["t1", "t2"]  # neither era's rows dropped
+    assert [got[0][c] for c in TU_ERA_COLS] == [None] * 4
+    assert [got[1][c] for c in TU_ERA_COLS] == [1, 42, 1786482000, 1786482001]
