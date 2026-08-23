@@ -70,3 +70,15 @@ reading just the two timestamp columns. Discovered in passing: live vp parts
 08-15..08-22 lack `schedule_relationship` (the daemon ran pre-ticket-07 code until the
 08-23 restart) — vp Bronze has two part schemas independent of this fill; gapverify
 therefore requires archiver-columns ⊆ filled-columns rather than equality.
+
+**Era note (post ticket-10 merge, session wind-down):** ticket 10 extended the bus
+decoders (vp +`header_ts`; tu +`direction_id`,`trip_delay_s`,`trip_ts`,`header_ts`).
+The mappers now emit those shapes (all four derivable from gtfsrt.io columns; census
+tests green against the merged decoders), so future fills write the canonical schema.
+The 886 parts already filled and coldpushed carry the pre-10 shapes — era-consistent
+with their same-day archiver parts, readable by union-by-name, verified and durable, so
+they were deliberately left in place rather than refilled at wind-down. To refill them
+to the new shape later (optional): delete `part-gapfill-*.parquet` + `_gapfill` markers
+for 08-15..08-21, then `make gapfill`, `make gapverify`, `make coldpush`. **Resume
+command for the 08-22 seam (once gtfsrt.io publishes it, 1-2 days):** `make gapfill`
+then `make gapcheck && make gapverify && make coldpush && make coldcheck`.

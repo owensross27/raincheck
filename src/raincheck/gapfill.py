@@ -40,8 +40,9 @@ RAW_COLS = {  # the gtfsrt.io columns each mapper reads (their files carry ~35-4
                           "start_date", "schedule_relationship", "latitude", "longitude",
                           "bearing", "stop_id", "timestamp", "occupancy_status",
                           "feed_timestamp", "fetch_timestamp"],
-    "trip_updates": ["entity_id", "trip_id", "route_id", "start_date", "vehicle_id",
-                     "stop_id", "stop_sequence", "arrival_time", "departure_time",
+    "trip_updates": ["entity_id", "trip_id", "route_id", "start_date", "direction_id",
+                     "vehicle_id", "trip_delay", "trip_timestamp", "stop_id",
+                     "stop_sequence", "arrival_time", "departure_time",
                      "feed_timestamp", "fetch_timestamp"],
     "service_alerts": ["entity_id", "cause", "effect", "active_period_start",
                        "active_period_end", "header_text", "description_text", "agency_id",
@@ -99,6 +100,7 @@ def _vp(t: pa.Table) -> pa.Table:
         "stop_id": _nn(t.column("stop_id")),
         "ts": t.column("timestamp"),
         "occupancy": _names(t.column("occupancy_status"), OCCUPANCY),
+        "header_ts": t.column("feed_timestamp"),
         "fetched_at": _epoch(t.column("fetch_timestamp")),
     })
 
@@ -111,15 +113,19 @@ def _stu_rows(t: pa.Table) -> pa.Table:  # decode_tu: entities without StopTimeU
 
 def _tu(t: pa.Table) -> pa.Table:
     t = _stu_rows(t)
-    return _bronze(t.num_rows, {
+    return _bronze(t.num_rows, {  # ticket 10's TU_COLS shape
         "trip_id": _nn(t.column("trip_id")),
         "route_id": _nn(t.column("route_id")),
         "start_date": _nn(t.column("start_date")),
+        "direction_id": t.column("direction_id"),
         "vehicle_id": _nn(t.column("vehicle_id")),
+        "trip_delay_s": t.column("trip_delay"),
+        "trip_ts": t.column("trip_timestamp"),
         "stop_id": _nn(t.column("stop_id")),
         "stop_sequence": t.column("stop_sequence"),
         "arrival_time": t.column("arrival_time"),
         "departure_time": t.column("departure_time"),
+        "header_ts": t.column("feed_timestamp"),
         "fetched_at": _epoch(t.column("fetch_timestamp")),
     })
 

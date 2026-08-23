@@ -60,7 +60,8 @@ def raw(feed_type: str, snaps: list[tuple[int | None, int, list[dict]]]) -> tupl
                     occupancy_status=pa.int32())
     if feed_type == "trip_updates":
         cols.update(stop_sequence=pa.uint32(), arrival_time=pa.int64(),
-                    departure_time=pa.int64())
+                    departure_time=pa.int64(), trip_delay=pa.int32(),
+                    trip_timestamp=pa.uint64())
     if feed_type == "service_alerts":
         cols.update(cause=pa.int32(), effect=pa.int32(), active_period_start=pa.uint64(),
                     active_period_end=pa.uint64())
@@ -179,8 +180,10 @@ def test_tu_drops_stu_less_entity_rows(tmp_path, fake_gcs):
     gapfill.fill_day(root, "tu", DAY)
     t = pq.read_table(root / "archive" / "tu" / f"date={DAY}" / "hour=00")
     assert t.to_pylist() == [{"trip_id": "t1", "route_id": "B1", "start_date": None,
-                              "vehicle_id": "MTA NYCT_9", "stop_id": "S1", "stop_sequence": 3,
-                              "arrival_time": D0 + 50, "departure_time": None,
+                              "direction_id": None, "vehicle_id": "MTA NYCT_9",
+                              "trip_delay_s": None, "trip_ts": None, "stop_id": "S1",
+                              "stop_sequence": 3, "arrival_time": D0 + 50,
+                              "departure_time": None, "header_ts": D0 + 4,
                               "fetched_at": D0 + 5}]
 
 
