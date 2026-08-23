@@ -32,6 +32,18 @@ DEST="s3://${RAINCHECK_COLD_BUCKET}/archive"
 
 say() { echo "[$(date -u +%H:%M:%S)Z] $*"; }
 
+# Sync only the month prefixes this chunk touches, instead of walking the whole archive
+# every 180 s to verify at most a half-month of it. Correct because the prune is already
+# structurally confined to [LO,HI]: a pending list covering the chunk's months is exactly
+# the list it consults. Live-capture dates are outside these prefixes, so a pass no longer
+# touches them at all - the 06:00 daily job and the EC2 box push those.
+SCOPE=(--exclude "*")
+for _k in vp tu alerts; do
+  for _m in $(printf '%s\n%s\n' "${LO:0:7}" "${HI:0:7}" | sort -u); do
+    SCOPE+=(--include "$_k/date=$_m-*")
+  done
+done
+
 # Live capture must never halt. If the archiver ever trips its budget, stop adding to the
 # archive immediately rather than filling into an already-stopped capture.
 budget_tripped() { [ -e "$DATA/STOPPED_BUDGET" ]; }
@@ -56,7 +68,8 @@ fill() {
 push_prune() {
   cd "$ROOT" || return 1
   budget_tripped && say "CRITICAL: STOPPED_BUDGET present - live capture has halted"
-  aws s3 sync . "$DEST" --endpoint-url "$RAINCHECK_COLD_ENDPOINT" --no-progress >/dev/null 2>&1
+  aws s3 sync . "$DEST" --endpoint-url "$RAINCHECK_COLD_ENDPOINT" "${SCOPE[@]}" \
+    --no-progress >/dev/null 2>&1
 
   # The prune deletes anything NOT in this listing, so an empty listing means "delete
   # everything marked". A failed dryrun (network blip, expired creds, endpoint down)
@@ -69,7 +82,7 @@ push_prune() {
   # - gets deleted having never been uploaded.
   local snap; snap=$(date +%s)
   local raw="$PENDING.raw"
-  if ! aws s3 sync . "$DEST" --endpoint-url "$RAINCHECK_COLD_ENDPOINT" \
+  if ! aws s3 sync . "$DEST" --endpoint-url "$RAINCHECK_COLD_ENDPOINT" "${SCOPE[@]}" \
         --size-only --dryrun --no-progress > "$raw" 2>/dev/null; then
     say "SKIP prune: remote listing failed, nothing proven remote (keeping all local)"
     rm -f "$raw"; cd /Users/ross/raincheck || return 1
