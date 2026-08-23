@@ -253,6 +253,28 @@ def test_alerts_mapping(tmp_path, fake_gcs):
     assert row["description"] is None and row["direction_id"] == 1  # "" -> NULL
 
 
+def test_alerts_maps_pre_expansion_source_without_direction_id(tmp_path, fake_gcs):
+    """gtfsrt.io grew service_alerts from 20 to 50 columns mid-2026, so their historical
+    files have no direction_id COLUMN at all (not merely a null value). The mapper must
+    NULL it rather than KeyError - the crash this replays is what blocked the
+    2026-03-01.. bus-history backfill. Measured: direction_id is all-NULL for this feed
+    in both source eras, so NULL-filling loses nothing real."""
+    root = tmp_path / "root"
+    a = {"entity_id": "alert:1", "cause": 6, "effect": 4, "active_period_start": D0,
+         "active_period_end": D0 + 3600, "header_text": "detour", "description_text": "",
+         "route_id": "B41", "agency_id": "MTA NYCT"}
+    src = remote(fake_gcs, "service_alerts", gapfill.FEEDS["alerts"], DAY,
+                 [(D0 + 5, D0 + 4, [a])])
+    t = pq.read_table(src)  # replay the pre-expansion source shape in place
+    pq.write_table(t.drop_columns(["direction_id"]), src)
+
+    gapfill.fill_day(root, "alerts", DAY)
+    row = pq.read_table(root / "archive" / "alerts" / f"date={DAY}" / "hour=00").to_pylist()[0]
+    assert row["direction_id"] is None          # absent column -> NULL, no crash
+    assert row["agency"] == "bus" and row["alert_id"] == "alert:1"
+    assert row["cause"] == "ACCIDENT" and row["effect"] == "DETOUR"  # rest still maps
+
+
 # --- schema census: every mapper's output schema == what archiver.flush writes ---------
 CENSUS = [
     ("vp", "vehicle_positions", lambda: decode_vp(load("vehicle_positions_2026-08-11.pb"))),

@@ -171,7 +171,11 @@ def _alerts(t: pa.Table, agency: str) -> pa.Table:
         "route_id": _nn(t.column("route_id")),
         "stop_id": _nn(t.column("stop_id")),
         "trip_id": _nn(t.column("trip_id")),
-        "direction_id": t.column("direction_id"),
+        # gtfsrt.io grew service_alerts from 20 to 50 columns mid-2026; their
+        # historical files have no direction_id at all -> NULL, exactly as the
+        # NYCT extension columns above. Absent-column, not absent-value.
+        "direction_id": t.column("direction_id") if "direction_id" in t.column_names
+        else None,
     })
 
 
