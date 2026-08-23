@@ -122,8 +122,8 @@ next has budget. Refill go/no-go stays Ross's call.
 
 ## Scope amendment: 167-day bus-history backfill (2026-08-23, measured; IN PROGRESS)
 
-> Progress: March, April and May COMPLETE and verified in R2 (chunk logs below).
-> Remaining: 2026-06-01..08-14. Verify chunks with `scripts/backfill-verify.py`, NOT
+> Progress: March, April, May and June COMPLETE and verified in R2 (chunk logs below).
+> Remaining: 2026-07-01..08-14. Verify chunks with `scripts/backfill-verify.py`, NOT
 > `make gapverify` - see the April log for why gapverify cannot see this range.
 
 `START = date(2026, 8, 15)` was "capture began", a deliberate scope line, not a source
@@ -362,3 +362,46 @@ the source" into a confirmed prune bug.
 May 6.42 GB). R2 holds 20,739 objects / 25.1 GB overall, about $0.38/month at
 $0.015/GB-month. Remaining: 2026-06-01..08-14, source pre-flighted (273 files across
 91 days x 3 feeds, none missing, none suspiciously small).
+
+### Chunk log: June 2026 COMPLETE (2026-08-23)
+
+**Verified in R2, rc=0:**
+
+    A (06-01..06-15)  vp 360/360  tu 360/360  alerts 360/360                      clean first pass
+    B (06-16..06-30)  vp 360/360  tu 360/360  alerts 352/360 (+8 dead at source)
+
+June A ran ~16 min and June B ~19 min, both clean on the first pass for vp and tu. Archive
+stayed between 4.43 and 4.74 GiB throughout; `STOPPED_BUDGET` never appeared. March, April
+and May all re-verified unchanged afterwards.
+
+**Dead at source: ONE contiguous alerts outage, 2026-06-24 17:00Z -> 2026-06-25 00:59Z.**
+It appears in `backfill-verify.DEAD` as two entries - `("alerts","2026-06-24"): h17-h23`
+and `("alerts","2026-06-25"): h00` - **only because the map is keyed by day. The midnight
+boundary is an artifact of the layout, not of the outage; do not "tidy" the seam or treat
+the two keys as unrelated incidents.** Probe evidence: 06-24 holds snapshots through h16
+then nothing at all, 06-25 has nothing at h00 then resumes at h01. The fill reported
+`filled 17/24` and `filled 23/24`; 24-7 and 24-1 agree exactly.
+
+**A bug in the probe tool itself, found by that arithmetic.** `backfill-probe` ended with
+`any(probe(kind, d) for d in days)`. `any()` short-circuits, so the first day with dead
+hours stopped the loop and **every later day was silently never probed** - asked about
+06-24 and 06-25, it read 06-24, found dead hours, and never opened 06-25, while printing
+output that looked like a complete answer.
+
+That is the worst shape a verification tool can fail in: *it examined less than it was
+asked to and said nothing about the difference*, so its clean-looking output invites belief
+in days it never read. It surfaced only because `backfill-verify` reported 8 missing hours
+while the probe had accounted for 7 - **the arithmetic failing to close is what exposed
+it**. Probing one day per invocation, as May did, would never have revealed it, and the
+DEAD list would eventually have gained an entry for a day the tool never actually opened.
+Fixed in f48d5ce: a list comprehension, with the exit status computed after every day is
+probed.
+
+**The recurring mistake, now four instances.** Hour 23 (absence from a listing read as
+"verified", without asking whether the listing could have seen the file), the empty pending
+list ("no lines" read as "nothing pending", without asking whether the listing ran), the
+zero-byte part ("object exists" read as "hour recoverable", without asking whether it had
+bytes), and this one ("no output for 06-25" read as "nothing to report", without asking
+whether the probe ran for it). **Every one is trusting an absence without checking the
+thing that was supposed to produce presence.** When a check comes back empty here, the next
+question is always whether the producer ran - not what the emptiness means.
