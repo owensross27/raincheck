@@ -164,3 +164,43 @@ Nothing is filled beyond the 2026-03-01 pilot day until this is decided.
 hours never overwritten (there are none before 08-15, but the assertion stays), canonical
 post-ticket-10 mappers throughout. Note `check()` still defaults to START, so gapcheck
 will not verify backfilled days until START moves or --date is passed.
+
+### Chunk log: March 2026 COMPLETE (2026-08-23)
+
+Ross picked option **(b) chunked push-then-prune** on 2026-08-23 (answered directly in
+the backfill session; re-confirmed via the orchestrator). Historical Bronze is pushed to
+R2 and pruned locally per chunk; R2 is its durable home, per ticket 18.
+
+**March verified in R2** - vp/tu/alerts each 744 parts + 744 `_gapfill` markers over
+744 hours = 31 days x 24 h, no gaps. 1.60 + 5.50 + 0.01 = **7.11 GB**. `coldcheck` clean.
+Local March parts remaining: 0. Archive returned to 4.4 GB; `STOPPED_BUDGET` never
+appeared and live capture was never interrupted.
+
+**Projection corrected: ~38.3 GB, not 27.6 GB.** The 27.6 figure came from a single
+pilot day (2026-03-01, 165 MB) which was a light service day. A full month measures
+**229 MB/day**, so 167 days lands near 38 GB (~$0.64/month at R2's $0.015/GB-month).
+Download volume scales similarly - the 207 GB figure is likewise a floor.
+
+**Two operational gotchas worth keeping:**
+1. `RAINCHECK_BRONZE_GB=10` is 10e9 BYTES = **9.31 GiB**, but `du` reports GiB. Comparing
+   them directly overstates headroom ~7%. A full month fills ~9.6 GiB peak if pruning
+   waits for the chunk to finish - i.e. it trips the budget and halts capture mid-chunk.
+   The fix is to prune CONCURRENTLY with the fill, not after it.
+2. Concurrent pruning is safe only if gated on the `_gapfill` marker: `fill_day` touches
+   markers only after a day fully succeeds, so a marker proves the part is complete and
+   not mid-write. Files written after the sync snapshot show as not-yet-remote and are
+   simply kept for the next pass - that is expected during a concurrent pass, NOT a
+   failure (box-coldpush.sh may treat unverified as fatal because it only considers
+   files older than PRUNE_MIN; that assumption does not hold here). The authoritative
+   gate is `coldcheck` once filling has stopped.
+
+**Queued follow-ups (not done here):**
+- Per-date pruned-to-cloud markers, required IF `START` ever moves backwards or `check()`
+  grows a date argument - otherwise gapcheck would see the pruned range as wholly missing
+  and could re-pull ~38 GB. Not reachable today: `check(root)` takes no date argument.
+- Ticket 15 residual: gapfill's default span ends at today-1, so the newest service day's
+  tail hours under `date=D+1` can only fill the following morning; daily.py defers that
+  day loudly (0908a9e) - correct but one morning late. Optional: let the daily job pass a
+  span covering today.
+- Expect a benign `coldcheck` soft-path warn in daily.log most mornings until this
+  backfill finishes; 94aebc now names concurrent gapfill as a cause.
