@@ -119,3 +119,48 @@ The claim note dd88f38 is stale in three places — verified state:
   header_ts). events.tu_rows/baselines set mergeSchema=true so likely safe, unverified.
 Recommendation on record: skip the cosmetic refill; add the TU era test when a session
 next has budget. Refill go/no-go stays Ross's call.
+
+## Scope amendment: 167-day bus-history backfill (2026-08-23, measured, NOT YET RUN)
+
+`START = date(2026, 8, 15)` was "capture began", a deliberate scope line, not a source
+limit. Probing gtfsrt.io shows far more history exists for our feeds, so this amends the
+scope to 2026-03-01..2026-08-14 (167 days), bus only (vp/tu/alerts). Subway history is
+explicitly OUT of scope pending a separate go.
+
+**Source retention: append-only, nothing ages out.** Measured 2026-08-23 by listing the
+public bucket: 231 contiguous date partitions bucket-wide (2026-01-04..08-22), but MTA
+bus vp/tu only from 2026-03-01. Those differing start dates rule out a rolling window -
+a retention policy would cut every feed at the same date. Feeds archived per day grows
+monotonically (5 on 01-04 -> 18 on 08-22) with ZERO feeds dropped, so 2026-01-04 is the
+service's genesis and 2026-03-01 is when they onboarded the MTA bus feed. No deletion
+observed in 8 months; no published SLA found, and wholesale service death remains an
+unquantified risk.
+
+**Measured cost** (one full pilot day, 2026-03-01, all 24 hours, already on disk):
+- vp 24 parts / 37.9 MB / 3.47M rows; tu 24 parts / 127.5 MB / 28.5M rows
+- 165.4 MB/day -> **27.6 GB Bronze for 167 days**, ~6.3B rows, ~12,000 parts
+- **207 GB to download** from gtfsrt.io (1.24 GB/day mean over four sampled days)
+- runtime ~8 s/day for vp; whole range plausibly 1-2 h wall clock
+- R2 at $0.015/GB-month: ~32 GB total archive = **~$0.50/month**, upload ops negligible
+
+**Blocker 1 (FIXED, a9cb8be):** gtfsrt.io grew service_alerts 20 -> 50 columns mid-2026;
+historical files have no direction_id column and the mapper raised KeyError, aborting the
+day. Now NULL-filled. vp/tu source schemas verified stable across ten sampled dates
+spanning the whole range, so no mid-run crash risk there.
+
+**Blocker 2 (OPEN, needs Ross):** the archiver's `RAINCHECK_BRONZE_GB` is the 10 GB
+default (no .env override) and `bronze_bytes()` counts every byte under archive/.
+Archive is 4.5 GB; +27.6 GB = ~32 GB trips `STOPPED_BUDGET` and **halts live capture**
+within the hour, which would open the very gaps this tool exists to close. Disk is also
+tight: 40 GB free, so a full local materialisation leaves ~8 GB headroom. Options:
+(a) raise RAINCHECK_BRONZE_GB past ~35 (his config, his call);
+(b) fill -> gapverify -> coldpush -> prune per chunk (ticket 19's push-then-prune), local
+    stays under budget and R2 becomes the durable home per ticket 18 - but this DELETES
+    local historical Bronze after a verified push;
+(c) keep the range cold-only.
+Nothing is filled beyond the 2026-03-01 pilot day until this is decided.
+
+**Provenance:** unchanged - part-gapfill-<feed>.parquet + `_gapfill` markers, archiver
+hours never overwritten (there are none before 08-15, but the assertion stays), canonical
+post-ticket-10 mappers throughout. Note `check()` still defaults to START, so gapcheck
+will not verify backfilled days until START moves or --date is passed.
