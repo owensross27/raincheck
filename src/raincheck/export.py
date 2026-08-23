@@ -50,13 +50,16 @@ def run(root: Path, out_dir: Path, gate_width: float = GATE_WIDTH) -> dict[str, 
     con.execute("SET VARIABLE gate_width = ?", [gate_width])
     con.execute(prelude)
     out_dir.mkdir(parents=True, exist_ok=True)
-    written = {}
+    # all three files or none: a run that died on the third query would otherwise leave
+    # web/files holding two fresh files beside one stale one, and the page would render a
+    # cell layer and a ground layer from different builds with nothing to show for it
+    staged = []
     for name, query in queries:
         (text,) = con.execute(query).fetchone()
-        path = out_dir / name
-        path.write_text(text)
-        written[name] = path
-    return written
+        tmp = out_dir / (name + ".tmp")
+        tmp.write_text(text)
+        staged.append((name, tmp))
+    return {name: tmp.replace(out_dir / name) for name, tmp in staged}
 
 
 def report(written: dict[str, Path]) -> None:

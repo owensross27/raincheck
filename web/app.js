@@ -22,6 +22,7 @@ const $ = (id) => document.getElementById(id);
 const fmt = (v, d = 2) => (v === undefined || v === null ? "—" : v.toFixed(d));
 
 let head = null;         // headline.json
+let cellKeys = new Set();  // property keys present in cells.geojson
 let views = [];
 let view = null;         // the active view object
 let hourKey = null;      // active storm-hour key (MMDDHH) or null
@@ -89,7 +90,15 @@ function renderHeadline() {
   const r = currentRow();
   if (!r) { $("headline").innerHTML = ""; return; }
   const bandLo = Math.min(r.band[0], r.band[1]), bandHi = Math.max(r.band[0], r.band[1]);
-  const bandNear1 = bandHi >= 0.98 && r.value < 0.98;
+  // spec L requires the panel to state that the 2023-09-29 band reaches ~1.0. It is a
+  // property of the STORM, not of the selected Hour: band() collapses to a point whenever
+  // both arms sit in one chord class, so an hour-local test would hide the statement on
+  // most hours of exactly the storm it is required for.
+  // ...over the Hours that MEASURE a slowdown: an Hour whose measured ratio is already
+  // above 1.0 has a band reaching 1.0 trivially and says nothing about chord bias.
+  const slow = head.rows.filter(x => x.layer === r.layer && x.value < 0.98);
+  const layerHi = slow.length ? Math.max(...slow.map(x => Math.max(x.band[0], x.band[1]))) : 0;
+  const bandNear1 = layerHi >= 0.98 && r.value < 1.0;
   const parts = [];
 
   parts.push(`<div class="row">
@@ -97,8 +106,8 @@ function renderHeadline() {
     <div class="band">citywide Speed ratio (chord band), 95% CI [${fmt(r.lo, 3)}, ${fmt(r.hi, 3)}]
       &middot; ${r.n_legs.toLocaleString()} Legs</div>
     <p class="note">${r.estimand}</p>
-    ${bandNear1 ? `<p class="note warn">The band reaches ${fmt(bandHi)}: this storm's slowdown is
-       not separable from chord bias.</p>` : ""}</div>`);
+    ${bandNear1 ? `<p class="note warn">Across this layer the chord-corrected band reaches
+       ${fmt(layerHi)}: this storm's slowdown is not separable from chord bias.</p>` : ""}</div>`);
 
   parts.push(`<div class="row">
     <div class="big">${fmt(r.median_cell)}</div>
@@ -144,15 +153,20 @@ function renderCurve() {
               { name: "heavy", pts: heavy.map(l => [l.lag_h, l.ratio]), color: "#fc8d59" }];
     xs = all.map(l => String(l.lag_h));
     caption = `${view.label}: Speed ratio by Hours since the Cell's last wet Hour ` +
-      `(blue: any rain ≥ 1 mm; orange: ≥ 10 mm). Flat is the result, not a bug.`;
+      `(blue: any rain ≥ 1 mm; orange: ≥ 10 mm). No interval is published for this curve - ` +
+      `read its shape, not any single point.`;
   }
-  const lo = 0.65, hi = 1.12, n = Math.max(1, xs.length - 1);
+  const vals = series.flatMap(s => s.pts.map(p => p[1]));
+  // fit the domain to the data (padded, always containing 1.0) rather than clamping into a
+  // fixed band: a clamped point is drawn at the edge and reads as a real value
+  const lo = Math.min(0.9, ...vals) - 0.03, hi = Math.max(1.05, ...vals) + 0.03;
+  const n = Math.max(1, xs.length - 1);
   const X = (i) => PADL + (i / n) * (W - PADL - PADR);
-  const Y = (v) => PADT + (1 - (Math.min(hi, Math.max(lo, v)) - lo) / (hi - lo)) * (H - PADT - PADB);
+  const Y = (v) => PADT + (1 - (v - lo) / (hi - lo)) * (H - PADT - PADB);
   const bits = [`<line x1="${PADL}" x2="${W - PADR}" y1="${Y(1)}" y2="${Y(1)}"
       stroke="#5a6472" stroke-dasharray="3 3"/>`,
     `<text x="2" y="${Y(1) + 4}" fill="#9aa4b2" font-size="10">1.0</text>`,
-    `<text x="2" y="${Y(lo) + 4}" fill="#9aa4b2" font-size="10">${lo}</text>`];
+    `<text x="2" y="${Y(lo) + 4}" fill="#9aa4b2" font-size="10">${lo.toFixed(2)}</text>`];
   series.forEach(s => {
     if (!s.pts.length) return;
     const d = s.pts.map((p, i) => `${i ? "L" : "M"}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join("");
@@ -173,7 +187,20 @@ function renderCurve() {
 }
 
 // ---------------------------------------------------------------- view switching
-function setHour(k) { hourKey = k; drawHourButtons(); paint(); renderHeadline(); renderCurve(); }
+function setHour(k) {
+  const hadFocus = document.activeElement && document.activeElement.dataset
+    && document.activeElement.dataset.h !== undefined;
+  hourKey = k;
+  drawHourButtons();
+  // drawHourButtons() rebuilds #hours, so the button the user just activated is gone and
+  // focus falls to <body>; a keyboard user would tab through the map and every layer
+  // button again for each hour step. Put focus back where they left it.
+  if (hadFocus) {
+    const b = document.querySelector(`#hours button[data-h="${k}"]`);
+    if (b) b.focus();
+  }
+  paint(); renderHeadline(); renderCurve();
+}
 
 function drawHourButtons() {
   if (!view.hours) { $("hours").innerHTML = ""; return; }
@@ -203,12 +230,14 @@ function buildViews() {
                  hourKeys: keys, defaultHour: worst });
   }
   for (const w of ["w1", "w2"]) {
-    if (!head.rows.some(r => r.layer === w)) continue;
-    const yrs = w === "w1" ? "2021 Aug–Oct" : "2023 Sep–Oct";
-    views.push({ id: w, layer: w, label: `${w.toUpperCase()} wet vs dry`, kind: "ratio",
-                 hours: false, prop: `${w}_ratio`, sub: yrs });
-    views.push({ id: w + "d", layer: w, label: `${w.toUpperCase()} dry baseline`, kind: "speed",
-                 hours: false, prop: `${w}_dry`, sub: yrs });
+    if (head.rows.some(r => r.layer === w))
+      views.push({ id: w, layer: w, label: `${w.toUpperCase()} wet vs dry`, kind: "ratio",
+                   hours: false, prop: `${w}_ratio` });
+    // the dry baseline is a Speed LEVEL straight off cells.geojson, so it is offered
+    // whenever the property exists - it does not depend on the wet aggregation producing a row
+    if (cellKeys.has(`${w}_dry`))
+      views.push({ id: w + "d", layer: w, label: `${w.toUpperCase()} dry baseline`,
+                   kind: "speed", hours: false, prop: `${w}_dry` });
   }
   $("views").innerHTML = views.map(v =>
     `<button type="button" data-v="${v.id}" aria-pressed="false">${v.label}</button>`).join("");
@@ -248,7 +277,11 @@ function showTip(e) {
   tip.style.display = "block";
   tip.style.left = Math.min(e.point.x + 14, window.innerWidth - 280) + "px";
   tip.style.top = (e.point.y + 14) + "px";
-  tip.innerHTML = `<b>${where}</b>Cell ${p.cell}<br>${body}`;
+  // `body` is built from literals and rounded numbers, but `where` carries zone_name and
+  // borough, which originate in the downloaded TLC shapefile - the one string here that
+  // crosses a trust boundary. Set it as text, never as markup.
+  tip.innerHTML = `<b></b>Cell ${p.cell}<br>${body}`;
+  tip.querySelector("b").textContent = where;
 }
 map.on("mousemove", "cells", showTip);
 map.on("click", "cells", showTip);          // touch
@@ -260,6 +293,7 @@ Promise.all([
   fetch("files/cells.geojson").then(r => r.json()),
 ]).then(([h, cells]) => {
   head = h;
+  cells.features.forEach(f => Object.keys(f.properties).forEach(k => cellKeys.add(k)));
   $("preview-note").textContent = head.preview_note;
   $("note-chord").textContent = head.chord_note;
   $("note-hidden").textContent = head.hidden_note;

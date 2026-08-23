@@ -149,8 +149,9 @@ def t14_1(root: Path) -> bool:
 
         nulls = [(f["id"], k) for f in cells["features"]
                  for k, v in f["properties"].items() if v is None]
-        rows_ok = all(r["estimand"].strip() and isinstance(r["band"], list) and len(r["band"]) == 2
-                      and isinstance(r["n_cells_hidden"], int) for r in head["rows"])
+        rows_ok = bool(head["rows"]) and all(   # all([]) is True: an empty rows array is a FAIL
+            r["estimand"].strip() and isinstance(r["band"], list) and len(r["band"]) == 2
+            and isinstance(r["n_cells_hidden"], int) for r in head["rows"])
         fixture = next((f["properties"] for f in cells["features"]
                         if f["id"] == FIXTURE_CELL), {})
         fixture_ok = fixture.get("w1_dry", 0) > 0 and any(

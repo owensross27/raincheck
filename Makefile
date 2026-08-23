@@ -120,12 +120,18 @@ MAPLIBRE := 5.9.0
 MAPLIBRE_JS_SHA := 2276259c7bd8ec632cc055115efdad53783b7da6e7104fad4c4837ea467d908d
 MAPLIBRE_CSS_SHA := 43c1d886b5fdf0aac4e7135bd6f84b823d9f48283a648012665f9be52c01389f
 
+# Download to .new, verify, and only then replace: writing straight to the final path would
+# destroy the last known-good copy on the way to failing the checksum.
 vendor:  ## fetch the pinned MapLibre UMD build into web/vendor (no CDN at demo time)
 	@mkdir -p web/vendor
-	curl -fsSL -o web/vendor/maplibre-gl.js https://unpkg.com/maplibre-gl@$(MAPLIBRE)/dist/maplibre-gl.js
-	curl -fsSL -o web/vendor/maplibre-gl.css https://unpkg.com/maplibre-gl@$(MAPLIBRE)/dist/maplibre-gl.css
-	@printf '%s  %s\n' "$(MAPLIBRE_JS_SHA)" web/vendor/maplibre-gl.js \
-	                   "$(MAPLIBRE_CSS_SHA)" web/vendor/maplibre-gl.css | shasum -a 256 -c -
+	curl -fsSL -o web/vendor/maplibre-gl.js.new https://unpkg.com/maplibre-gl@$(MAPLIBRE)/dist/maplibre-gl.js
+	curl -fsSL -o web/vendor/maplibre-gl.css.new https://unpkg.com/maplibre-gl@$(MAPLIBRE)/dist/maplibre-gl.css
+	@printf '%s  %s\n' "$(MAPLIBRE_JS_SHA)" web/vendor/maplibre-gl.js.new \
+	                   "$(MAPLIBRE_CSS_SHA)" web/vendor/maplibre-gl.css.new | shasum -a 256 -c - \
+	  || { rm -f web/vendor/maplibre-gl.js.new web/vendor/maplibre-gl.css.new; \
+	       echo "vendor: checksum FAILED, previous copy left untouched"; exit 1; }
+	@mv web/vendor/maplibre-gl.js.new web/vendor/maplibre-gl.js
+	@mv web/vendor/maplibre-gl.css.new web/vendor/maplibre-gl.css
 	@echo "vendor: maplibre-gl $(MAPLIBRE) verified"
 
 export:  ## insight files from Gold -> web/files (make export [GATE=0.30] sweeps the interval gate)

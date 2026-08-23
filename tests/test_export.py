@@ -16,6 +16,8 @@ is byte-identical.
 """
 import json
 import math
+import re
+import statistics
 import threading
 import urllib.error
 import urllib.request
@@ -54,46 +56,57 @@ ZONE = (43, "Central Park", "Manhattan",
         "POLYGON ((-73.9816 40.7684, -73.9582 40.8006, -73.9492 40.7969, -73.9726 40.7649, "
         "-73.9816 40.7684))")
 IDA = datetime(2021, 9, 2, 3, tzinfo=timezone.utc)   # the storm hour every layer keys on
-W1_START = datetime(2021, 8, 16, 12, tzinfo=timezone.utc)
+# two window bins, Monday 08:00 and Friday 14:00 America/New_York, both inside W1
+WINDOW_BINS = (datetime(2021, 8, 16, 12, tzinfo=timezone.utc),
+               datetime(2021, 8, 20, 18, tzinfo=timezone.utc))
 
 
 def _rows():
     """(speed rows, precip rows) for the fixture window.
 
-    Ten weekly Thursdays at the same hour-of-week as the Ida hour build each Cell's dry
-    baseline bin; five of them are also made wet at a different hour-of-week so every Cell
-    clears the two-wet-event minimum the interval needs. The Ida hour itself is wet and
-    slow (half the dry Speed) for CP1 and CP2 and only mildly slow for NOZ.
+    Two hour-of-week bins, because the window layer and the storm layer need different
+    shapes and the earlier fixture accidentally gave the window layer none:
+
+    BIN A (Ida's own bin, Wednesday 23:00 local): nine weekly dry Hours around Ida plus the
+    Ida Hour itself, wet and slow. This is what the storm-hour layer scores against.
+    BINS B and C (Monday 08:00 and Friday 14:00 local): four weekly WET Hours followed by
+    four weekly DRY Hours in the SAME bin, so each wet Cell-hour has a dry
+    same-hour-of-week baseline to be scored against. Two bins, not one, so the eight wet
+    weeks outweigh the single dramatic Ida anomaly and the per-Cell interval is narrow
+    enough to clear the publish gate - otherwise the per-Cell window layer is present in
+    the headline but absent from every Cell. The previous fixture put each wet Hour's dry
+    counterpart one day later, in a different hour-of-week bin, so every weekly wet
+    Cell-hour was dropped by the baseline join and the whole window layer was untested.
+
+    NOZ is given a milder slowdown and heavier rain on one wet week than the two Central
+    Park Cells, so the median-Cell figure and the heavy-rain lag series are not degenerate.
     """
     speed, precip = [], []
     dry = {CP1: 4.0, CP2: 5.0, NOZ: 6.0}
-    # the baseline bin: the same hour-of-week as Ida, once a week across the window
-    for wk in range(10):
-        h = IDA + timedelta(weeks=wk - 2)
-        if h == IDA:
-            continue
-        for hexid, (cell, _, _) in CELLS.items():
-            dt_s = 3600
-            # a little scatter so the bin has a real standard error, not a degenerate 0
-            v = dry[hexid] * (1 + 0.02 * ((wk % 3) - 1))
-            speed.append((cell, h, 40 + wk, v * dt_s, dt_s))
-            precip.append((cell, h, 0.0, 0.0, 0.0))
-    # wet Hours on their own hour-of-week bin, spread over separate wet events
-    for wk in range(6):
-        h = W1_START + timedelta(weeks=wk)
-        for hexid, (cell, _, _) in CELLS.items():
-            dt_s = 3600
-            speed.append((cell, h, 30, dry[hexid] * 0.95 * dt_s, dt_s))
-            precip.append((cell, h, 2.0, 0.0, 0.0))
-            # that bin's dry side, so the wet Hour has a baseline to be scored against
-            hd = h + timedelta(days=1)
-            speed.append((cell, hd, 30, dry[hexid] * dt_s, dt_s))
-            precip.append((cell, hd, 0.0, 0.0, 0.0))
-    # the Ida storm hour: wet, and slow where the Cells are on the map
+
+    def add(cell, h, n_legs, speed_mps, mm, mm_prev=0.0, mm_6h=0.0):
+        speed.append((cell, h, n_legs, speed_mps * 3600, 3600))
+        precip.append((cell, h, mm, mm_prev, mm_6h))
+
     for hexid, (cell, _, _) in CELLS.items():
-        factor = 0.5 if hexid in (CP1, CP2) else 0.9
-        speed.append((cell, IDA, 25, dry[hexid] * factor * 3600, 3600))
-        precip.append((cell, IDA, 30.0, 5.0, 40.0))
+        # BIN A: the Ida bin's dry side, one Hour a week, with scatter so the bin has a
+        # real standard error rather than a degenerate zero
+        for wk in range(9):
+            h = IDA + timedelta(weeks=wk - 2)
+            if h == IDA:
+                continue
+            add(cell, h, 40 + wk, dry[hexid] * (1 + 0.02 * ((wk % 3) - 1)), 0.0)
+        # BIN A: the storm Hour itself
+        add(cell, IDA, 25, dry[hexid] * (0.5 if hexid in (CP1, CP2) else 0.9), 30.0, 5.0, 40.0)
+        # BINS B and C: four wet weeks then four dry weeks, all inside one hour-of-week bin
+        for start in WINDOW_BINS:
+            for wk in range(4):
+                heavy = 12.0 if hexid == NOZ and wk == 0 else 2.0
+                add(cell, start + timedelta(weeks=wk), 30,
+                    dry[hexid] * (0.9 if hexid in (CP1, CP2) else 0.97), heavy)
+            for wk in range(4, 8):
+                add(cell, start + timedelta(weeks=wk), 30,
+                    dry[hexid] * (1 + 0.03 * ((wk % 3) - 1)), 0.0)
     return speed, precip
 
 
@@ -135,7 +148,11 @@ def seed(root: Path) -> None:
     # the baseline table's own grain, built from the same dry mask gold.baseline() uses
     write("gold/cell_hourofweek_baseline", """
         SELECT cell,
-               (((dayofweek(timezone('America/New_York', hour_end_utc)) + 5) % 7) * 24
+               -- gold.baseline() numbers Monday 00 local = 0. It gets there with Spark's
+               -- (dayofweek + 5) % 7 (Spark: 1=Sunday); the same numbering in DuckDB
+               -- (0=Sunday) is (dayofweek + 6) % 7. The fixture stands in for the
+               -- Spark-written table, so it must carry Spark's numbering.
+               (((dayofweek(timezone('America/New_York', hour_end_utc)) + 6) % 7) * 24
                  + hour(timezone('America/New_York', hour_end_utc)))::SMALLINT AS hour_of_week,
                sum(dist_m_sum) / sum(dt_s_sum) AS speed_dry,
                count(DISTINCT hour_end_utc) AS n_dry, sum(n_legs) AS n_legs_dry,
@@ -271,6 +288,149 @@ def test_re_export_is_byte_identical(exported):
         assert path.read_bytes() == (out_dir / name).read_bytes(), f"{name} is not reproducible"
 
 
+def test_property_keys_are_written_in_sorted_order(exported):
+    """Byte-identity alone does not pin the writer's ORDER BY: two runs in one process pick
+    the same arbitrary order, so dropping it stays green there while the real slice comes
+    out unsorted (measured). Sorted keys are the actual contract - it is what makes the
+    exported artifact diffable across machines."""
+    files, _, _ = exported
+    for feature in files["cells.geojson"]["features"]:
+        keys = list(feature["properties"])
+        assert keys[0] == "cell", "the Cell id is written first"
+        assert keys[1:] == sorted(keys[1:]), f"{feature['id']} properties are not sorted"
+
+
+def test_hour_of_week_puts_monday_00_local_at_zero():
+    """The bug this pins: gold.baseline() reaches "Monday 00 local = 0" with SPARK's
+    dayofweek (1=Sunday), and the identical text in DuckDB (0=Sunday) lands one local day
+    out - it reproduced 0 of 178,826 real baseline rows. A fixture cannot catch that,
+    because a fixture built with the same expression is self-consistent under either
+    convention. So this reads the offset out of the SQL and checks it against FIXED DATES."""
+    import duckdb
+
+    m = re.search(r"\(\(dayofweek\(timezone\('America/New_York', s\.hour_end_utc\)\)"
+                  r"\s*\+\s*(\d+)\)\s*%\s*7\)", export.SQL.read_text())
+    assert m, "could not find the hour_of_week expression in export.sql"
+    off = int(m.group(1))
+    con = duckdb.connect()
+    con.execute("SET TimeZone = 'UTC'")
+    hw = f"((dayofweek(t) + {off}) % 7) * 24 + hour(t)"
+    # 2021-08-16 is a Monday and 2021-08-22 a Sunday, both EDT (UTC-4)
+    got = con.execute(
+        f"SELECT {hw} FROM (VALUES (TIMESTAMP '2021-08-16 00:00:00'), "
+        f"(TIMESTAMP '2021-08-16 08:00:00'), (TIMESTAMP '2021-08-17 00:00:00'), "
+        f"(TIMESTAMP '2021-08-22 23:00:00')) v(t)").fetchall()
+    assert [r[0] for r in got] == [0, 8, 24, 167], (
+        f"offset {off} gives {[r[0] for r in got]}, want Monday 00 -> 0 ... Sunday 23 -> 167")
+
+
+def test_the_window_layer_publishes_per_cell_ratios_with_intervals(exported):
+    """The window layer is the export's headline claim. It was entirely dead under the
+    first fixture (every wet Hour's baseline bin was a day off, so the join dropped them
+    all) and both a 999x interval and a null-instead-of-absent property shipped green."""
+    files, _, _ = exported
+    p = props(files["cells.geojson"])[CP1]
+    for key in ("w1_ratio", "w1_lo", "w1_hi", "w1_nwet", "w1_nev", "w1_dry", "w1_ndry"):
+        assert key in p, f"{key} missing: the window layer is not being exercised"
+    assert p["w1_lo"] < p["w1_ratio"] < p["w1_hi"]
+    assert p["w1_nev"] >= 2, "an interval needs at least two wet-event clusters"
+    assert p["w1_ratio"] < 1.0, "the fixture's wet Hours are slower than its dry baseline"
+    row = next(r for r in files["headline.json"]["rows"] if r["layer"] == "w1")
+    assert row["n_cells"] > 0 and row["lo"] < row["value"] < row["hi"]
+    assert row["sensitivity_day"]["lo"] < row["value"] < row["sensitivity_day"]["hi"]
+
+
+def test_the_published_interval_is_the_clustered_t_interval(exported):
+    """An oracle for the interval MAGNITUDE, not just its ordering: recompute CP1's window
+    half-width here, independently of export.sql, from the fixture's own rows. Ordering
+    assertions alone leave the whole tcrit table free - replacing every value with 1.96
+    passed all twelve tests before this."""
+    import duckdb
+
+    files, root, _ = exported
+    con = duckdb.connect()
+    con.execute("SET TimeZone = 'UTC'")
+    rows = con.execute(f"""
+        SELECT s.dt_s_sum, (s.dist_m_sum / s.dt_s_sum) / b.speed_dry
+        FROM read_parquet('{root}/gold/cell_hour_speed/**/*.parquet', hive_partitioning = true) s
+        JOIN read_parquet('{root}/silver/precip_cell_hourly/**/*.parquet', hive_partitioning = true) p
+             ON p.cell = s.cell AND p.hour_end_utc = s.hour_end_utc
+        JOIN read_parquet('{root}/gold/cell_hourofweek_baseline/**/*.parquet', hive_partitioning = true) b
+             ON b.cell = s.cell AND b.hour_of_week =
+                ((dayofweek(timezone('America/New_York', s.hour_end_utc)) + 6) % 7) * 24
+                 + hour(timezone('America/New_York', s.hour_end_utc))
+        WHERE s.cell = {CELLS[CP1][0]} AND p.mm_1h >= 1.0""").fetchall()
+
+    # every fixture wet Hour is its own wet event (they are days apart, far beyond the
+    # 6-dry-Hour bridge), so the cluster-robust weighted variance reduces to the ordinary
+    # SEM of the anomalies - which is what makes this an independent check
+    weights = [float(w) for w, _ in rows]
+    anomalies = [float(a) for _, a in rows]
+    assert len(anomalies) >= 5 and len(set(weights)) == 1
+    mean = statistics.fmean(anomalies)
+    se = statistics.stdev(anomalies) / math.sqrt(len(anomalies))
+    t = {8: 2.306, 9: 2.262, 10: 2.228, 11: 2.201, 12: 2.179}[len(anomalies) - 1]
+
+    p = props(files["cells.geojson"])[CP1]
+    assert p["w1_ratio"] == pytest.approx(mean, abs=0.001)
+    assert (p["w1_hi"] - p["w1_lo"]) / 2 == pytest.approx(t * se, abs=0.002)
+
+
+def test_the_chord_band_applies_the_measured_class_medians(exported):
+    """band() straight from the SQL, so the class table and its lookup are pinned even
+    though the fixture's two citywide arms sit in one class and cancel to 1.0."""
+    import duckdb
+
+    con = duckdb.connect()
+    con.execute("SET TimeZone = 'UTC'")
+    con.execute("LOAD spatial")
+    con.execute("SET VARIABLE root = ?", [str(exported[1])])
+    con.execute("SET VARIABLE gate_width = ?", [export.GATE_WIDTH])
+    con.execute(export.split(export.SQL.read_text())[0])
+    band = lambda r, vw, vd: con.execute(f"SELECT band({r}, {vw}, {vd})").fetchone()[0]
+    # research 10 B1b class medians: <3 -> 1.164, 3-6 -> 1.025, 6-10 -> 1.015, >10 -> 1.016
+    assert band(1.0, 2.0, 4.0) == pytest.approx(1.164 / 1.025, abs=0.001)
+    assert band(1.0, 4.0, 4.0) == 1.0            # one class, no correction invented
+    assert band(0.745, 2.9, 3.3) == pytest.approx(0.846, abs=0.002)  # 10 section 2's own worked case
+    assert band(1.0, 2.0, 4.0) > 1.0, "the correction must never deepen a slowdown"
+
+
+def test_the_rain_lag_table_is_published_per_intensity(exported):
+    """spec I's rain-lag table, and the page's curve. Untested at either tier before this,
+    and the first fixture made the two intensity series byte-identical."""
+    files, _, _ = exported
+    lag = files["headline.json"]["lag"]
+    assert lag, "no rain-lag rows"
+    for r in lag:
+        assert r["rain"] in ("all", "heavy") and r["lag_h"] >= 0
+        assert r["estimand"].strip() and r["n_legs"] > 0 and math.isfinite(r["ratio"])
+    by = {(r["window"], r["rain"], r["lag_h"]): r for r in lag}
+    a = by[("w1", "all", 0)]
+    h = by[("w1", "heavy", 0)]
+    assert h["n_legs"] < a["n_legs"], "the heavy series must be a strict subset"
+    assert h["ratio"] != a["ratio"], "the two intensity series must not be the same numbers"
+
+
+def test_no_headline_value_is_ever_null(exported):
+    """The absent-key contract is the whole file's contract, not cells.geojson's alone."""
+    files, root, out_dir = exported
+    tight = json.loads(export.run(root, out_dir.parent / "nulls", gate_width=0.0001)["headline.json"].read_text())
+    for row in files["headline.json"]["rows"] + tight["rows"]:
+        for key, value in row.items():
+            assert value is not None, f"headline row {row['layer']} has a null {key}"
+        assert row["n_cells"] == 0 or "median_cell" in row
+    assert all(r["n_cells"] == 0 for r in tight["rows"]), "the tight gate should publish nothing"
+
+
+def test_the_default_gate_width_is_the_swept_default(exported):
+    """The width-behaviour test passes its own gate, so nothing pinned the production
+    constant: setting it to 100.0 shipped every unpublishable value and stayed green."""
+    files, _, _ = exported
+    assert export.GATE_WIDTH == 0.30
+    p = props(files["cells.geojson"])[CP1]
+    assert p["w1_hi"] - p["w1_lo"] < export.GATE_WIDTH
+
+
 # ------------------------------------------------------------------------ 14-4 smoke
 def test_the_stdlib_server_answers_200_for_the_page_and_its_files(exported, tmp_path):
     """14-4: `make web` is `python -m http.server --directory web`. The page, both vendored
@@ -315,6 +475,7 @@ def test_the_stdlib_server_answers_200_for_the_page_and_its_files(exported, tmp_
 def test_the_page_loads_only_vendored_scripts():
     """No CDN at demo time (spec L): every script and stylesheet the page pulls is local."""
     html = (export.REPO / "web" / "index.html").read_text()
-    assert "http://" not in html and "https://" not in html.split("<!--")[0]
+    remote = re.findall(r'(?:src|href)\s*=\s*["\']((?:https?:)?//[^"\']+)', html)
+    assert not remote, f"the page loads remote assets: {remote}"
     for tag in ("vendor/maplibre-gl.js", "vendor/maplibre-gl.css", "app.js", "app.css"):
         assert tag in html
