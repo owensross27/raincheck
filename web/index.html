@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>raincheck - does rain slow the NYC buses, and where</title>
+<!-- vendored by `make vendor` into web/vendor/ (gitignored): no CDN at demo time, no build step -->
+<link href="vendor/maplibre-gl.css" rel="stylesheet">
+<link href="app.css" rel="stylesheet">
+</head>
+<body>
+<div id="map" role="application" aria-label="Map of NYC H3 Cells coloured by bus Speed ratio"></div>
+
+<!-- ------------------------------------------------- panel 1: the insight view (ticket 13) -->
+<div id="left">
+<section id="insight" class="panel" aria-labelledby="insight-h">
+  <h1 id="insight-h">Does rain slow the NYC buses, and where?</h1>
+  <p class="note" id="preview-note">loading&hellip;</p>
+
+  <h2 class="lbl" id="views-h">Layer</h2>
+  <div id="views" class="btns" role="group" aria-labelledby="views-h"></div>
+  <div id="hours" class="btns" role="group" aria-label="Storm hour (hour ending, UTC)"></div>
+
+  <div id="headline" aria-live="polite"></div>
+
+  <figure id="curve">
+    <figcaption id="curve-cap" class="lbl"></figcaption>
+    <svg id="curve-svg" viewBox="0 0 340 96" role="img" aria-labelledby="curve-cap"></svg>
+  </figure>
+
+  <h2 class="lbl">How to read these numbers</h2>
+  <p class="note" id="note-chord"></p>
+  <p class="note" id="note-hidden"></p>
+  <p class="note" id="note-gate"></p>
+</section>
+
+<div id="legend" class="panel">
+  <div class="lbl" id="legend-title">Speed ratio</div>
+  <div class="swatches" id="swatches" aria-hidden="true"></div>
+  <div class="ticks"><span id="tick-lo"></span><span id="tick-mid"></span><span id="tick-hi"></span></div>
+  <div class="swatches one" aria-hidden="true"><span class="grey"></span></div>
+  <div class="note" id="grey-note">grey = no publishable value for this layer (the property is absent, not null)</div>
+  <div class="note" id="legend-estimand"></div>
+  <div class="note">rain: AORC hourly, hour-ending</div>
+</div>
+</div>
+
+<!-- ------------------------------------------- panel 2: the live view (stub; ticket 14 fills it) -->
+<section id="live" class="panel" aria-labelledby="live-h">
+  <h2 id="live-h">Live: the fleet right now</h2>
+  <p id="livemeta" class="note">not wired yet - <code>make live-export</code> and this panel land
+     with ticket 14. Nothing on this panel is fetched, so nothing here can look live when it is not.</p>
+  <p class="note">MTA-reported trip delay: <span id="delaystate">unavailable (decoder build item)</span></p>
+  <p class="note">rain: MRMS RadarOnly QPE 01H, uncalibrated, hour-ending -
+     <span id="rainstate">no live tick yet</span></p>
+  <p><label class="note"><input type="checkbox" id="livetoggle" disabled> show vehicles (30 s refresh)</label></p>
+</section>
+
+<div id="provenance" class="panel note">
+  Kafka 3.9 &rarr; Spark 3.5.3 + Sedona 1.9.1 &rarr; GeoParquet &rarr; DuckDB 1.5.5 (<code>make export</code>,
+  pure-SQL JSON writer) &rarr; MapLibre GL JS 5.9.0, vendored. Rain: NOAA AORC hourly (analysis),
+  MRMS RadarOnly QPE (live). Ground: TLC taxi zones, no basemap.
+  <span id="prov-files"></span>
+</div>
+
+<div id="tip" role="tooltip"></div>
+
+<script src="vendor/maplibre-gl.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
