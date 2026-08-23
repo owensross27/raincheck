@@ -120,10 +120,10 @@ The claim note dd88f38 is stale in three places — verified state:
 Recommendation on record: skip the cosmetic refill; add the TU era test when a session
 next has budget. Refill go/no-go stays Ross's call.
 
-## Scope amendment: 167-day bus-history backfill (2026-08-23, measured; IN PROGRESS)
+## Scope amendment: 167-day bus-history backfill (2026-08-23, measured; COMPLETE)
 
-> Progress: March, April, May, June and July COMPLETE and verified in R2 (chunk logs below).
-> Remaining: 2026-08-01..08-14. Verify chunks with `scripts/backfill-verify.py`, NOT
+> Progress: COMPLETE. All 167 days (2026-03-01..08-14) filled, pushed and verified in R2:
+> 12,006 hours + 18 dead-at-source = 12,024/12,024. 36.89 GB. Verify with `scripts/backfill-verify.py`, NOT
 > `make gapverify` - see the April log for why gapverify cannot see this range.
 
 `START = date(2026, 8, 15)` was "capture began", a deliberate scope line, not a source
@@ -438,3 +438,113 @@ there an absent listing meant *delete everything*, here it meant *report gaps*. 
 the FAILURE of a check as a RESULT of the check.** The family rule, now covering five
 instances: *absence of evidence needs its producer checked, and inability-to-check needs
 its own exit code.*
+
+### Chunk log: August 1-14 COMPLETE, and the 167-day backfill is DONE (2026-08-23)
+
+**Whole range verified in one pass, `backfill-verify.py 2026-03-01 2026-08-14`, rc=0:**
+
+    OK  vp      4007/4008 hours (+1  dead at source)  parts_missing=0 markers_missing=0 zero_byte_parts=0
+    OK  tu      4006/4008 hours (+2  dead at source)  parts_missing=0 markers_missing=0 zero_byte_parts=0
+    OK  alerts  3993/4008 hours (+15 dead at source)  parts_missing=0 markers_missing=0 zero_byte_parts=0
+
+12,006 hours present + 18 dead at source = **12,024 of 12,024 hour-slots accounted for**.
+Every dead hour was confirmed by probing gtfsrt.io for zero snapshots first; none was ever
+used to paper over a fill that failed.
+
+**36.89 GB / 24,012 objects** (vp 8.23, tu 28.59, alerts 0.07), ~**$0.55/month** at R2's
+$0.015/GB-month. The whole bucket is 41.65 GB / 32,421 objects. Local Bronze parts for the
+range: **0**. Archive ended at 4.62 GiB against the 9.31 GiB budget; **`STOPPED_BUDGET`
+never appeared and live capture was never interrupted at any point.** The 38 GB projection
+in the March log was accurate.
+
+    month     GB   objects        month     GB   objects
+    2026-03  7.11     4464        2026-06  6.27     4304
+    2026-04  6.84     4318        2026-07  6.83     4460
+    2026-05  6.70     4450        2026-08  3.14     2016  (1-14 only)
+
+**August needed two runs, and the first one is the most instructive failure of the whole
+backfill.** Its first attempt filled NOTHING: all 42 day-feed combinations logged
+`not published yet at gtfsrt.io` / `filled 0/24` **in the same second**, immediately after
+the machine crash. That signature is not a source outage - it is no network. Confirmed
+three ways: the next log line was `SKIP prune: remote listing failed`, a pre-flight two
+hours earlier had HEAD-checked all 273 files in 05-16..08-14 as present, and re-checking
+after recovery showed vp 213 MB / tu 1250 MB / alerts 58 MB for 08-14. The re-run filled
+42/42 at 24/24.
+
+Two things that run carried:
+
+1. **The empty-pending guard fired in production, against the exact condition that
+   motivated it.** `SKIP prune: remote listing failed, nothing proven remote (keeping all
+   local)` is 9958619 doing its job during a network outage with local Bronze sitting
+   prunable. Without it an empty listing would have read as *everything is verified,
+   delete it*. The guard came from re-reviewing my own code hours earlier; the crash is
+   what would have collected on it.
+2. **A chunk that fills nothing still exits rc=0.** `fill_day` sets `all_ok=False` and
+   writes no markers, but the process exits 0, so `backfill-chunk.sh` logged
+   `fill side finished rc=0` and the driver treated the chunk as done. Nothing in the fill
+   path distinguishes *filled 14 days* from *filled nothing because the network was down*.
+   The only reason this did not become a silently-missing August is that **verification is
+   a separate step that reads R2** - the argument for keeping it separate, now demonstrated
+   rather than asserted.
+
+**Recommended hardening (not done here):** make `gapfill fill` exit non-zero when
+`all_ok` is False, or have `backfill-chunk.sh` fail a chunk whose log contains
+`filled 0/24`. The driver's short-day grep already prints these loudly, which is how it
+was caught, but a chunk that accomplished nothing should not report success.
+
+### Measured protocol facts (for whoever runs the next backfill)
+
+- **Half-month chunks take 16-23 min**, dominated entirely by tu. Rates: vp ~10 s/day,
+  tu ~50-110 s/day, alerts ~2-4 s/day. The full 167 days is a few hours, not days.
+- **Concurrent draining held local between 4.4 and 5.4 GiB the whole time**, never above
+  5.4. Budget headroom was never the binding constraint once pruning kept pace - but that
+  is *because* pruning ran concurrently, which is March's lesson and still the core of the
+  protocol.
+- **Sequential chunks only.** Two at once double the unpruned local footprint, and under
+  the original `/tmp` script they also shared `/tmp/pending.txt`.
+- **Verify with `backfill-verify.py`, never `make gapverify`** - see the May log for why
+  gapverify structurally cannot see this range and reports OK anyway.
+- **Probe before declaring any hour dead** (`backfill-probe.py`), and check the arithmetic
+  closes: `filled N/24` plus probed-dead hours must equal 24. That check caught a bug in
+  the probe tool itself.
+
+### Decision needed from Ross: should `gapcheck`'s `START` move back to 2026-03-01?
+
+**Recommendation: NO. Leave `START` at 2026-08-15 and keep two era-appropriate tools.**
+It is not a config flip, and the failure mode of getting it wrong is severe.
+
+**What breaks if `START` moves back, measured not guessed:**
+
+1. **`gapcheck` would report GAP on every backfilled hour.** `check()` counts an hour
+   present only if `any(d.glob("*.parquet"))`. A `_gapfill` marker does **not** satisfy
+   that. Local parts for the whole range are pruned by design - R2 is their home per
+   ticket 18 - so all 12,006 hours would read as missing. A check that pages forever on
+   holes nothing can fill is the exact failure `gapfill.DEAD` exists to prevent.
+2. **Far worse: `make gapfill` would try to re-pull the entire range.** `days()` defaults
+   its span to `START`, and `missing_hours` reads the *local* tree, which is empty. A
+   routine `make gapfill` would attempt ~207 GB of downloads and ~37 GB of local writes,
+   blow through `RAINCHECK_BRONZE_GB`, and **halt live capture** - opening the very gaps
+   this tool exists to close. This is a footgun that fires on a normal command, not an
+   exotic one.
+
+**What moving it back would actually require** (i.e. the honest scope, if Ross wants it):
+- Teach `check()` that a pruned-to-cloud hour is complete - a marker, or a per-date
+  marker, has to count as evidence alongside `*.parquet`.
+- Stop the prune deleting markers, and **recreate ~12,000 markers** for the already-pruned
+  range from the R2 listing.
+- Teach `missing_hours` the same thing, or `gapfill` still re-pulls.
+- Then `gapcheck` asserts the completeness of a **local copy that intentionally does not
+  exist**, which is the part that makes the whole exercise questionable.
+
+**Why the recommendation is "no":** the backfilled range's durable home is R2, so R2 is
+where its completeness should be asserted - which is exactly what
+`scripts/backfill-verify.py 2026-03-01 2026-08-14` does today, against the only copy that
+exists, in one pass, in about a minute. `gapcheck` remains correct and useful for the
+live-capture era it was written for. Two tools, each matching where its data actually
+lives, beats one tool taught to lie about a local copy that was deleted on purpose.
+
+**If the answer is no, one cheap guard is worth adding:** a test pinning
+`START >= 2026-08-15` with a comment pointing here, so that anyone who moves it hits a red
+test explaining the re-pull risk rather than discovering it when live capture halts. Happy
+to add it on a word - deliberately not added unilaterally, since it constrains a knob that
+is Ross's to set.
