@@ -4,3 +4,5 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .env
+web/files/
+web/vendor/

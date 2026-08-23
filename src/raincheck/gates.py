@@ -1,8 +1,11 @@
 """`make gates` (ticket 05 / spec Testing, tier 2): the slice-scale acceptance runner.
 Wired: 10-T3 (the Ida gate: citywide space-mean chord Speed for the storm hours over
 the median of the same hour-of-week citywide value across the other eight dry weeks of
-the window, computed from gold/cell_hour_speed, never the baseline table) and 10-T6
-(footprint Cells/day, 0 Legs in AORC-NULL Cells, terminal-drop share storm vs control).
+the window, computed from gold/cell_hour_speed, never the baseline table), 10-T6
+(footprint Cells/day, 0 Legs in AORC-NULL Cells, terminal-drop share storm vs control)
+and 14-1 (the insight export against the slice: no null property, the fixture Cell's
+levels, 263 valid zones, byte-identical re-export, and how much of each layer the
+interval-width publish gate hides - reported, never quietly widened).
 Report-only slots for 10-T4 (Socrata benchmarks) and 10-T5 (Product 3) land with
 ticket 06. Reads Gold and Silver with DuckDB; no Spark.
 
@@ -13,10 +16,11 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from raincheck import duck
+from raincheck import duck, export
 from raincheck.paths import data_root
 from raincheck.ref import WINDOWS
 
+FIXTURE_CELL = "882a100895fffff"  # Central Park (07-1's H3 oracle Cell), 14-1's named Cell
 IDA_GATED = [datetime(2021, 9, 2, h, tzinfo=timezone.utc) for h in (3, 4)]
 REPORTED = [datetime(2021, 9, 2, 2, tzinfo=timezone.utc)] + [
     datetime(2023, 9, 29, h, tzinfo=timezone.utc) for h in range(10, 22)]
@@ -120,6 +124,67 @@ def t6(con, root: Path, controls: dict[datetime, list[datetime]]) -> bool:
     return null_legs == 0 and close
 
 
+def t14_1(root: Path) -> bool:
+    """14-1 tier 2 (ticket 13): the export run against the built slice. The tier-1 twin in
+    tests/test_export.py asserts the same invariants on a three-Cell fixture Gold; this one
+    adds what only the slice can show - the real feature count, 263 valid zones, and how
+    much of the map each layer's interval-width gate hides."""
+    import json
+    import tempfile
+
+    print("14-1 (insight export)")
+    need = ("gold/cell_hourofweek_baseline", "ref/cells", "ref/cell_zone", "ref/zones",
+            "ref/calendar")
+    gaps = [n for n in need if not any((root / n).rglob("*.parquet"))]
+    if gaps:
+        print(f"  inputs missing: {', '.join(gaps)} - run make baseline / make ref [FAIL]")
+        return False
+
+    with tempfile.TemporaryDirectory() as tmp:
+        first = export.run(root, Path(tmp) / "a")
+        second = export.run(root, Path(tmp) / "b")
+        cells = json.loads(first["cells.geojson"].read_text())
+        head = json.loads(first["headline.json"].read_text())
+        zones = json.loads(first["zones.geojson"].read_text())
+
+        nulls = [(f["id"], k) for f in cells["features"]
+                 for k, v in f["properties"].items() if v is None]
+        rows_ok = all(r["estimand"].strip() and isinstance(r["band"], list) and len(r["band"]) == 2
+                      and isinstance(r["n_cells_hidden"], int) for r in head["rows"])
+        fixture = next((f["properties"] for f in cells["features"]
+                        if f["id"] == FIXTURE_CELL), {})
+        fixture_ok = fixture.get("w1_dry", 0) > 0 and any(
+            k.startswith("r0902") for k in fixture)
+        same = all(first[n].read_bytes() == second[n].read_bytes() for n in first)
+
+        con = duck.connect()
+        con.execute("LOAD spatial")
+        valid = con.execute(
+            "SELECT count(*), count(*) FILTER (WHERE ST_IsValid(ST_GeomFromGeoJSON(g))) "
+            "FROM (SELECT unnest(?::JSON[])::VARCHAR AS g)",
+            [[json.dumps(f["geometry"]) for f in zones["features"]]]).fetchone()
+
+    print(f"  cells.geojson: {len(cells['features'])} footprint Cells, "
+          f"{len(nulls)} null property values (gate: 0) "
+          f"[{'PASS' if not nulls else 'FAIL'}]")
+    print(f"  {FIXTURE_CELL}: w1_dry={fixture.get('w1_dry')} with an Ida hour "
+          f"[{'PASS' if fixture_ok else 'FAIL'}]")
+    print(f"  headline: {len(head['rows'])} rows, each with an estimand, a numeric band "
+          f"and n_cells_hidden [{'PASS' if rows_ok else 'FAIL'}]")
+    print(f"  zones.geojson: {valid[0]} features, {valid[1]} ST_IsValid "
+          f"(gate: 263 and all valid) [{'PASS' if valid == (263, 263) else 'FAIL'}]")
+    print(f"  re-export byte-identical [{'PASS' if same else 'FAIL'}]")
+    # report-only: the publish gate is interval width, and where it hides most of a layer
+    # that is the storm tail, not a mis-set gate - the numbers go on the record either way
+    for r in head["rows"]:
+        shown, hidden = r["n_cells"], r["n_cells_hidden"]
+        share = shown / (shown + hidden) if shown + hidden else 0
+        print(f"    {r['label']:<22} {shown:>5} shown / {hidden:>5} hidden "
+              f"({share:.0%} published){'  <-- most of the map hidden' if share < 0.5 else ''}"
+              " [report]")
+    return not nulls and rows_ok and fixture_ok and same and valid == (263, 263)
+
+
 def main() -> None:
     root = data_root()
     missing = [n for n in TABLES if not any((root / n).rglob("*.parquet"))]
@@ -130,6 +195,7 @@ def main() -> None:
     con = duck.connect()
     ok, controls = t3(con, root)
     ok &= t6(con, root, controls)
+    ok &= t14_1(root)
     print("10-T4 (Socrata benchmarks): report-only slot, lands with ticket 06")
     print("10-T5 (Product 3 raster comparison): report-only slot, lands with ticket 06")
     if not ok:

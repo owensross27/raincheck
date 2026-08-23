@@ -109,3 +109,27 @@ stream:  ## Kafka -> live/vp + live/tu until Ctrl-C (make stream FRESH=1 discard
 .PHONY: daily
 daily:  ## catch up what a sleeping Mac missed: gapfill/verify/check, coldpush/check, events+gold, MRMS month, live prune
 	$(PY) -m raincheck.daily
+
+# --- ticket 13: insight export, vendored MapLibre, the static page ----------------
+# `make export` needs the slice loaded (gold + baselines + precip); `make vendor` needs
+# the network once. web/files/ and web/vendor/ are gitignored derived output.
+.PHONY: vendor export web
+MAPLIBRE := 5.9.0
+# v6 is ESM-only (its package.json exports only `import` and dist/maplibre-gl.js 404s),
+# so 5.9.0 is the UMD pin. Checksums pin the bytes, not just the version tag.
+MAPLIBRE_JS_SHA := 2276259c7bd8ec632cc055115efdad53783b7da6e7104fad4c4837ea467d908d
+MAPLIBRE_CSS_SHA := 43c1d886b5fdf0aac4e7135bd6f84b823d9f48283a648012665f9be52c01389f
+
+vendor:  ## fetch the pinned MapLibre UMD build into web/vendor (no CDN at demo time)
+	@mkdir -p web/vendor
+	curl -fsSL -o web/vendor/maplibre-gl.js https://unpkg.com/maplibre-gl@$(MAPLIBRE)/dist/maplibre-gl.js
+	curl -fsSL -o web/vendor/maplibre-gl.css https://unpkg.com/maplibre-gl@$(MAPLIBRE)/dist/maplibre-gl.css
+	@printf '%s  %s\n' "$(MAPLIBRE_JS_SHA)" web/vendor/maplibre-gl.js \
+	                   "$(MAPLIBRE_CSS_SHA)" web/vendor/maplibre-gl.css | shasum -a 256 -c -
+	@echo "vendor: maplibre-gl $(MAPLIBRE) verified"
+
+export:  ## insight files from Gold -> web/files (make export [GATE=0.30] sweeps the interval gate)
+	$(PY) -m raincheck.export $(if $(GATE),--gate $(GATE))
+
+web:  ## serve web/ with the stdlib server (make web [PORT=8000]); nothing needs Range requests
+	$(PY) -m http.server $(or $(PORT),8000) --directory web
