@@ -48,8 +48,18 @@ def prune(root: Path, lo: str, hi: str, pending: set[str]) -> tuple[int, int, in
                 # skipped the hour forever, stranding that part locally for good.
                 # Here the marker outlives every part it gates: it goes only once the
                 # hour holds nothing else, which is exactly when its job is done.
-                if held == 0:
+                #
+                # It must ALSO be proven remote before it goes, exactly like a part. The
+                # marker is written when its day completes, which can land after this
+                # pass's pending snapshot was taken; deleting it then would destroy the
+                # only record that the hour was ever filled, since local is pruned and R2
+                # never received it. That is how tu 2026-04-17 ended up in R2 with 22
+                # parts and no markers. If it is still pending, keep it - the next pass
+                # uploads it and then it can go.
+                if held == 0 and str(marker.relative_to(root)) not in pending:
                     marker.unlink(missing_ok=True)
+                elif held == 0:
+                    stuck += 1
     # Tidy only inside the chunk range: walking the whole archive can rmdir an hour-dir
     # the live archiver just created and is about to write into.
     for kind in KINDS:
@@ -107,12 +117,26 @@ def demo() -> None:
         assert (mixed_pend.parent / "_gapfill").exists(), \
             "STRAND BUG: marker dropped while a part is still pending"
 
-        # second pass, now that the straggler uploaded: it must actually get pruned
+        # An hour whose parts are all verified but whose MARKER is not yet uploaded must
+        # keep the marker: deleting it would erase the only record the hour was filled,
+        # because local is about to be pruned and R2 never got it.
+        late = part("tu", "2026-04-14", "00")
+        late_marker = str((late.parent / "_gapfill").relative_to(root))
+        still_pending = {late_marker, str(mixed_pend.relative_to(root)),
+                         str(pend.relative_to(root))}
+        n3, _, _ = prune(root, "2026-04-01", "2026-04-30", still_pending)
+        assert n3 == 1, n3
+        assert not late.exists(), "verified part should be pruned"
+        assert (late.parent / "_gapfill").exists(), \
+            "MARKER-LOSS BUG: deleted a marker that was never uploaded"
+
+        # final pass, everything now uploaded: stragglers prune and both dirs go
         pruned2, _, stuck2 = prune(root, "2026-04-01", "2026-04-30", set())
         assert not mixed_pend.exists(), "STRAND BUG: straggler unprunable on next pass"
         assert not mixed_pend.parent.exists(), "hour should be gone after full drain"
+        assert not late.parent.exists(), "hour should be gone once its marker uploaded"
         assert pruned2 == 2 and stuck2 == 0, (pruned2, stuck2)
-        print("prune self-check OK: gates hold, no strand, drained dirs removed")
+        print("prune self-check OK: gates hold, no strand, no marker loss, dirs removed")
 
 
 if __name__ == "__main__":
