@@ -24,15 +24,15 @@ cloud compute. Cost to stay minimal.
 **Blocked by:** None (sequencing: hook into the daily job when 15 lands; the sync itself can
 be built and run standalone before that)
 
-**Status:** built — waiting on one human step (Ross runs `scripts/cold-storage-wizard.sh`)
+**Status:** resolved
 
 - [x] provider comparison (one short note in the ticket): S3 Glacier Instant Retrieval /
       Standard-IA vs Backblaze B2 for ~100 GB with near-zero egress; pick the cheapest sane
       default and record the $/month arithmetic
-- [ ] bucket created (or a `/wizard` step for Ross if account setup / payment needs a human);
+- [x] bucket created (or a `/wizard` step for Ross if account setup / payment needs a human);
       credentials via the gitignored `.env`, never hardcoded, never committed
-      — **wizard authored at `scripts/cold-storage-wizard.sh`; Ross runs it** (account,
-      bucket, scoped token, writes RAINCHECK_COLD_* to .env, verifies, offers first push)
+      — **wizard authored at `scripts/cold-storage-wizard.sh`; Ross ran it 2026-08-22**
+      (account, bucket, scoped token, RAINCHECK_COLD_* in .env, verified, first push done)
 - [x] one-way push sync of `<root>/archive/` (rclone or aws-cli sync class of tool — prefer a
       battle-tested syncer over hand-rolled code), idempotent re-runs (only new/changed files
       upload), never deletes remote objects — `make coldpush`: `aws s3 sync` (aws CLI already
@@ -86,3 +86,16 @@ runs in wizard stage 5 once Ross creates the bucket.
    with InvalidRegionName (R2 accepts only `auto` and its own region codes).
    `AWS_DEFAULT_REGION=auto` is now pinned in both the Makefile `COLD` variable (overview
    session's fix, folded in) and the wizard's verify step.
+
+## Resolution (2026-08-22, overview session)
+
+First full push complete and verified: 6,176 objects / ~4.0 GB in `raincheck-bronze`,
+`make coldcheck` reports OK (local Bronze fully present remotely). R2 free tier: $0/month.
+
+Setup friction worth keeping (both now noted in the wizard):
+- Ross's first token was read-only — every PutObject returned AccessDenied while listing
+  worked, which made verify look fine. The token must be **Object Read & Write**; a second
+  wizard run with a read-write token fixed it.
+- A GAP from `coldcheck` right after a long first push is expected drift, not failure: the
+  live archiver writes new parts during the multi-minute sync. An incremental `make
+  coldpush` catches the stragglers in seconds. Moot once ticket 15's daily job runs both.

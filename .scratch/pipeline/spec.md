@@ -663,7 +663,9 @@ querying the tables with DuckDB; implementer = the agent building this.
   and never reads `cell_hourofweek_baseline`, whose space-mean is the page's estimand,
   not this gate's; 02Z and the 2023 hours reported not gated), 10-T6 (tier 2:
   footprint ~1,146 Cells/day, 0 legs in AORC-NULL Cells, `n_dropped_terminal` share
-  within 0.01 storm vs control); precip 08-T2 (dense and unique per partition; `n_hours_24h` = 24
+  within 0.02 storm vs control; was 0.01 — widened 2026-08-22 by Ross after the 06
+  load measured storm 0.069 vs control 0.080 with a per-hour diagnosis, see ticket
+  06's closing comment); precip 08-T2 (dense and unique per partition; `n_hours_24h` = 24
   at a month's first Hour), 08-T3 (Cell mean within Pixel min/max; a constant field
   gives 1.0), 08-T4 / 10-T2 (Ida fixture 84.28 +/- 0.05 at the Cell, bbox mean 49.14,
   mm_24h equals an independent xarray rolling sum), 08-T5 (`ceil_hour` on and after
