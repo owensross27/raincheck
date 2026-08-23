@@ -59,9 +59,15 @@ push_prune() {
 
 say "=== chunk $LO..$HI ($MODE) start ==="
 if [ "$MODE" = "drain" ]; then
-  # Someone else owns the fill. Drain behind it until their fill process is gone.
-  while pgrep -f 'raincheck\.gapfill fill' >/dev/null; do
-    say "--- drain pass (foreign fill still running) ---"
+  # Someone else owns the fill. Drain behind it until their fill is really finished.
+  # "Finished" needs two consecutive idle checks, not one: a driver looping over feeds
+  # (vp -> tu -> alerts) leaves a gap of a second or two between them with no gapfill
+  # process alive, and a single check can land in that gap and quit with two feeds still
+  # to come. Two checks a sleep apart cannot both land in a gap that short.
+  idle=0
+  while [ "$idle" -lt 2 ]; do
+    if pgrep -f 'raincheck\.gapfill fill' >/dev/null; then idle=0; else idle=$((idle + 1)); fi
+    say "--- drain pass (foreign fill running; idle checks: $idle/2) ---"
     push_prune
     sleep 180
   done
