@@ -206,7 +206,9 @@ def tu_rows(root: Path, spark, day: str) -> DataFrame | None:
     paths = [tu / f"date={x}" for x in (d, d + timedelta(days=1)) if (tu / f"date={x}").exists()]
     if not paths:
         return None
-    return (spark.read.option("basePath", str(tu)).parquet(*(str(p) for p in paths))
+    # mergeSchema: parts written before the decoder gained trip_delay_s/header_ts coexist
+    return (spark.read.option("basePath", str(tu)).option("mergeSchema", "true")
+            .parquet(*(str(p) for p in paths))
             .where((F.col("start_date") == day.replace("-", ""))
                    & F.col("arrival_time").isNotNull() & F.col("vehicle_id").isNotNull()
                    & F.col("stop_id").isNotNull())
@@ -458,7 +460,7 @@ def baselines(root: Path, spark, day: str, out: Path, sched) -> None:
         print(f"events {day}: Passage-vs-Prediction agreement n/a (no TU rows; archive era)",
               flush=True)
         return
-    tu = (spark.read.option("basePath", str(root / "archive" / "tu"))
+    tu = (spark.read.option("basePath", str(root / "archive" / "tu")).option("mergeSchema", "true")
           .parquet(*(str(p) for p in tu_paths))
           .where(F.col("start_date") == day.replace("-", ""))
           .where(F.col("arrival_time").isNotNull())

@@ -1,0 +1,565 @@
+{
+ "stats": {
+  "verdicts": [
+   {
+    "claim": "DP6 output: `gold/flood_exposure` is one row per scored unit carrying `eta` (linear predictor) and `score_index` (0-100 within kind).",
+    "verdict": "REFUTED",
+    "evidence": "Incoherent with the model as specified. eta = beta.x and x contains event-varying terms (max mm_1h/3h/6h, window total, antecedent mm_24h, n wet hours, event-side gauge margin). A unit-grain row requires those held at a REFERENCE EVENT, which the draft never names (design storm? Atlas-14 100-yr? Ida? climatological mean? all-precip-at-zero?). Every choice yields a different published map. Worse, the entire validation plan is at unit-EVENT grain, so nothing in it validates the unit-grain object that actually ships. This is the largest hole in the draft: the validated object and the published object are different objects."
+   },
+   {
+    "claim": "DP2 headline: \"The asset layer earns its keep only if the full model beats B1 [precip-only] on held-out events - that comparison is the headline validation claim.\"",
+    "verdict": "REFUTED",
+    "evidence": "Measured on the two storms with the local AORC build (`/Users/ross/raincheck/data/silver/precip_cell_hourly`, src=aorc), over the 1,336 land cells, 01's window rule: within-event B1 AUC at cell grain is Ida 0.541/0.559/0.563/0.562 (mx1/mx3/mx6/total), 2023-09-29 0.638/0.642/0.601/0.530. A single covariate with zero flood physics - bus-stop count per cell - scores AUC 0.704 (Ida) and 0.698 (2023-09-29), beating every precip feature. The draft's own cell feature list contains `n_assets` and `borough`. \"Full beats B1\" is therefore won by reporting density before a single flood feature is read, and the pass tells you nothing about exposure. Add B3 = asset/reporting-density-only as a mandatory baseline, or the headline is vacuous."
+   },
+   {
+    "claim": "DP2: \"Two mandatory baselines: B0 = event base rate (climatology); B1 = precip-only logistic.\"",
+    "verdict": "REFUTED",
+    "evidence": "The list is missing the baseline that actually threatens the model: B2 = unit climatology (as-of historical positive frequency per unit). Measured at cell grain: using Ida's positive cell set as the sole predictor of 2023-09-29 gives CSI 0.258, against the best precip-only threshold's 0.264 and predict-all-land 0.218; AUC(Ida 311-count -> 2023 label) = 0.630 vs best precip AUC 0.642. One prior storm's footprint is as good a predictor as all the precipitation in the world. Under the `flooded_reported` estimand with measured chronic repeaters, B2 will be strong. Without it the whole exercise cannot distinguish flood skill from \"the usual suspects\". Ponytail corollary: if B2 wins, ship B2 and no model."
+   },
+   {
+    "claim": "DP5: \"event-grouped 5-fold CV - every pair of an event in one fold (~57 (a)-days, ~70 union events -> ~14/fold)\"; DP1 negative bound \"~15,160 units x ~70 union events ~= 1.06M pairs\".",
+    "verdict": "REFUTED",
+    "evidence": "The ~70 is unmeasured and low. I measured 01's criteria (a) and (b) directly: 57 criterion-(a) days (from trigger_days.json) and 71 distinct days carrying a non-system-wide station-naming alert (from `/Users/ross/raincheck/research/flood-02-station-prototype/events_stations.json`). Overlap is only 13 days. Union = 115 distinct days -> 105 merged contiguous events. Criteria (c) NOAA Storm Events (Flash Flood/Flood/Coastal Flood, 5 FIPS + coastal zones, 2010-2026) and (d) CO-OPS >=2 consecutive readings over nws_minor at Battery/Kings Point are still uncounted and both run to hundreds of days over 16 years. Units are 445 + 13,370 + 1,336 = 15,151. Pairs from (a)|(b) alone = 1.59M, not 1.06M; the true figure is plausibly 3-5M."
+   },
+   {
+    "claim": "DP5: \"per-event CSI with event-bootstrap intervals beside the pooled number\" is a well-defined reported statistic.",
+    "verdict": "REFUTED",
+    "evidence": "Measured over the 71 alert-labeled days: 43 (61%) label exactly ONE complex, 65 (92%) label fewer than five; distribution {1:43, 2:11, 3:7, 4:4, 5:1, 6:3, 7:1, 10:1}, max 10. Per-event CSI on a 1-positive event is TP/(TP+FP+FN) in {0, 1/(1+FP)} - a scaled Bernoulli, not a skill measure. Events with zero positives of a kind give 0/0, and the draft names no convention (dropping them biases upward, since those are exactly the events where the model can only be wrong). Report instead: pooled CSI with an event-CLUSTER bootstrap on the pooled statistic; per-event POD (defined whenever >=1 positive) and a raw per-event FP count; never a per-event CSI mean."
+   },
+   {
+    "claim": "DP5: the spatially-thinned sensitivity fit (one positive per 311 source point per kind) \"is the answer to 06's 'consider spatial blocking'\".",
+    "verdict": "REFUTED",
+    "evidence": "Fails four ways. (1) It thins positives only, so the case-control ratio moves and, worse, \"nearest unit keeps it\" selects on distance-to-311-point - correlated with density and elevation. That is a different estimand, not a de-duplication. (2) Alert-path positives (155 complex-event pairs, measured) have no 311 source point and are untouched, so complexes are only partly thinned. (3) It is applied to the FIT while the duplication damages the METRIC's effective n; the fix belongs in the variance (cluster at the 311-point level) or in a per-source-point recall statistic. (4) Measured, the thinning barely bites: Ida at 100 m gives 332 distinct bus stops from 244 hitting 311 points - a 27% reduction. Above all, with event-grouped folds every unit appears in every fold, so there is NO unit-level train/test separation at all. Leave-region-out spatial blocking in the SPLIT is still needed - it is the only test of generalization to unseen locations, which is exactly what the detector does."
+   },
+   {
+    "claim": "DP5: \"Sweeps inside the folds, full tables published: RADIUS_M {50,100,200}; 311 era-threshold {p98, p99, p99.5}.\"",
+    "verdict": "REFUTED",
+    "evidence": "Not implementable as phrased. Both knobs change the LABEL SET, and the threshold knob also changes the EVENT SPINE - hence fold membership and the pair universe - so there is no fixed held-out target against which to select. Measured swing (haversine, 100 m = 01's frozen constant): Ida entrances 13/39/136 and complexes 6/12/44 at R=50/100/200; 2023-09-29 12/38/141 and 6/17/46; bus stops 112/332/1,196 (Ida) - a ~10x positive-class swing. CSI is base-rate-sensitive, so the three tables are not comparable row-to-row and none can be used for selection. The only honest reading: re-run the entire CV once per setting under a deterministic fold rule (e.g. hash of event_id, so shared events land in the same fold), and read the tables as SENSITIVITY, never selection. Separately, the p98/p99.5 daily-count constants are never measured or stamped - only the p99 values 97/84 exist as frozen constants."
+   },
+   {
+    "claim": "DP5 era rule: \"Era honesty: fit on AORC-era events only (2010-2025).\"",
+    "verdict": "REFUTED",
+    "evidence": "There is no 2010-2025 AORC era in this project. `/Users/ross/raincheck/research/08-weather-join-features.md` line 92 scopes src=aorc as \"the whole 2017-07..2024-09 backfill\"; locally only 2021-08..10 and 2023-08..10 exist under `data/archive/precip/aorc/`. Measured against that span: only 24 of 57 criterion-(a) days (42%) and 43 of 71 alert days (61%) fall inside - 57 of 115 union days, 53 of 105 merged events. Days outside, by year: 2010:3, 2011:3, 2012:3, 2013:3, 2014:7, 2015:2, 2016:13, 2017:13, 2025:6, 2026:5. Fitting \"2010-2025\" silently requires ~7.5 extra years of AORC ingest (upstream years are fetchable at s3://noaa-nws-aorc-v1-1-1km/{year}.zarr, per src/raincheck/precip.py) that no ticket budgets. Either name the ingest as a build item or state the fit era as 2017-07..2024-09 and re-derive every count."
+   },
+   {
+    "claim": "\"Class balance at unit-event grain is extreme\" - Ida 39/2,120 entrances, 12/445 complexes, 119/4,558 stops, 324 cells; 2023-09-29 38/17/196/291.",
+    "verdict": "CONFIRMED",
+    "evidence": "Reproduced exactly. Pure-python haversine at RADIUS_M=100 m over the 2,120-row entrance snapshot (`data/archive/subway/i9wp-a4ja_2026-08-22.json`) and the 692/617 storm points: Ida 39 entrances / 12 complexes, 2023-09-29 38 entrances / 17 complexes. h3_latlng_to_cell(lat,lon,8) over the same points: 324 and 291 distinct cells, all inside the land set. (Note: an initial DuckDB ST_Distance_Sphere pass gave 113/37 - that function disagreed with a hand-checked haversine by 16% on a single pair and was wrong. The draft's numbers are right.)"
+   },
+   {
+    "claim": "\"Class balance at unit-event grain is extreme\" as a statement covering all three kinds.",
+    "verdict": "AMEND",
+    "evidence": "True at complex (12/445 = 2.7%) and bus-stop (~2.6%) grain; FALSE at cell grain. Measured against the corrected 1,336-cell land universe: Ida 324/1,336 = 24.3%, 2023-09-29 291/1,336 = 21.8%. Cells are a moderate-prevalence problem, not a rare-event one, and the naive all-positive rule already scores CSI 0.243 / 0.218 there. The three kinds sit in different statistical regimes and cannot share one metric narrative or one honesty anchor."
+   },
+   {
+    "claim": "DP5 calibration anchor: \"published FIM systems run CSI 0.26-0.45\" as the honest expectation.",
+    "verdict": "AMEND",
+    "evidence": "At cell grain that band is a floor a null model clears, not a bar. Measured: predicting every land cell positive scores CSI 0.243 (Ida) and 0.218 (2023-09-29); the best precip-only threshold scores 0.291 / 0.264 - i.e. +0.05 over the degenerate rule and already inside the quoted range. State the anchor per kind and always beside the base-rate CSI (pos/n) for the same events, or the number reads as skill when it is prevalence."
+   },
+   {
+    "claim": "DP1: \"cells restricted to NYC-land cells - hex intersects a taxi zone, EWR excluded (measured ~1,344 of 4,113)\".",
+    "verdict": "REFUTED",
+    "evidence": "The constant is wrong by 8. Measured with ST_Intersects over `data/ref/cells` x `data/ref/zones` (263 zones): 1,354 cells intersect ANY zone; 1,336 intersect a non-EWR zone; exactly 18 cells touch EWR, and ZERO touch both EWR and a non-EWR zone. 1,344 = 1,354 - 10, i.e. the intersects rule for inclusion mixed with the CENTROID count (10) for the EWR exclusion. Separately: `data/ref/cell_zone` as built is centroid-based (3,043 null-borough of 4,113; 1,070 non-null incl. 10 EWR), so the drafted universe is NOT computable from that table - it needs a fresh cells-x-zones intersect join, an unnamed read dependency. Freeze 1,336, and name the join."
+   },
+   {
+    "claim": "DP1: the land-cell restriction discharges 06's obligation on the polluted cell universe.",
+    "verdict": "REFUTED",
+    "evidence": "06's comment says \"restrict scored cells to land/asset-bearing cells\"; the draft kept only the land half. Measured: 15 cells intersect NO taxi zone yet contain 46 real bus stops (lat 40.618-40.934, lon -74.21..-73.704 - the NJ/Westchester/Nassau fringe). Those cells are excluded from the scored universe while their bus stops remain score units. A 311 point (or a Sandy-polygon intersect) landing there mints a cell-grain label with no scored row - an orphaned `gold/flood_labels` row, which 06 defines as a build FAILURE. The rule must be \"intersects a non-EWR zone OR contains a point asset\" (1,336 + 15 = 1,351)."
+   },
+   {
+    "claim": "\"the two largest storms on record\" are Ida (2021-09-01/02) and 2023-09-29.",
+    "verdict": "REFUTED",
+    "evidence": "2012-10-29 (Sandy) is in the criterion-(a) trigger list, and 01 makes the Sandy inundation polygon a label-grade source attaching by contains (points) / intersects (cells) for that event. Sandy's NYC inundation footprint is ~51 of ~302 sq mi, so on order 10-17% of the 13,370 bus stops go positive from ONE event - roughly an order of magnitude above Ida's ~300. 01's mitigation (\"per-event reporting in 08 keeps it from owning the positive class\") governs the METRIC display, not the LIKELIHOOD: a pooled fit weights every pair equally, so Sandy would dominate the coefficients and make the coastal freeboard/water-level terms look excellent for one storm's reason. The draft inherits that sentence and never handles the fit. Measure Sandy's positive count per kind, then decide: event weighting, leave-Sandy-out coefficient sensitivity, or exclusion from fit."
+   },
+   {
+    "claim": "DP4: \"Coastal: static freeboard = elev_ft - assigned gauge's nws_minor in NAVD88\" is a feature distinct from elevation.",
+    "verdict": "REFUTED",
+    "evidence": "It is an affine re-parameterization of elev_ft, not new information. The draft's own measurement collapses the assignment to three gauges with Battery taking 5,847 of 6,678 assets (87.6%; Kings Point 588, Sandy Hook 243), so freeboard = elev_ft minus one of three constants. With borough already in the model - and gauge assignment near-determined by geography - it is collinear by construction. 07's corroborating measurement: in the correct datum only 3 entrances sit below Battery minor flood (Battery nws_minor 10.49 ft STND = 4.43 ft NAVD88), so the term is near-uniformly positive and carries no threshold crossing. In an L2 fit two collinear features split one coefficient, which directly breaks the \"coefficients published = the transparent index\" claim. Drop static freeboard; keep elev_ft plus a 3-level gauge dummy, and keep only the event-side margin."
+   },
+   {
+    "claim": "DP4: \"cell - member-asset aggregates (NULL for asset-less land cells -> missing-indicator column, no imputation)\" is a neutral missing-data handling choice.",
+    "verdict": "REFUTED",
+    "evidence": "Measured: 327 of the 1,336 land cells (24.5%) contain zero point assets (1,009 of 1,336 have >=1, over 2,120 entrances + the local stops tables). The missing indicator is therefore a 24%-prevalence dummy perfectly aligned with \"no bus stop and no subway entrance here\" - i.e. it IS the asset-density covariate that measured AUC 0.704/0.698 against the two storm label sets. It smuggles the reporting-rate channel into the model as a missingness flag, in BOTH arms of the with/without-history-covariates comparison that claims to isolate that channel. Name it as a density covariate and control it, or drop asset-less cells from the cell fit."
+   },
+   {
+    "claim": "DP4: \"History covariates ... Score reported with and without these two (the chronic-reporter channel)\" is sufficient to handle chronic-reporter bias.",
+    "verdict": "REFUTED",
+    "evidence": "The two named covariates (NFIP claims, 311 sewer-backup density) are not the only reporting-rate channel, and the with/without arm leaves the rest in place in BOTH arms: borough, n_entrances, n_assets, and the elevation missing-indicator. Measured, bus-stop count per cell alone separates the label at AUC 0.70 on both storms - more than any precip feature. A two-arm comparison over a channel that survives in both arms measures nothing. Either add a third arm (all density/identity proxies removed) or state plainly that the whole model is a reporting-rate model and the estimand name is doing all the honesty work."
+   },
+   {
+    "claim": "DP3: the per-kind percentile index is \"robust to calibration failure, honest under PU labels\".",
+    "verdict": "AMEND",
+    "evidence": "Half true, and the wrong half is load-bearing. Rank is invariant to any MONOTONE transform, so it is robust to calibration failure. It is NOT robust to reporting bias, which is a spatially varying selection - a rank-distorting transform, not a monotone one. Rank preservation under PU labels needs SCAR (selected completely at random), which the draft's own evidence refutes: measured over 71 alert days, complex 519 is labeled on 7 distinct days, 611/374/613 on 4-5, median 1; and 345 of 445 complexes (78%) are structural zeros in the alert channel. Keep the percentile index as the public unit, but restate the reason: \"we publish rank because the level is uninterpretable under an unknown reporting rate\" - not \"rank is unbiased\"."
+   },
+   {
+    "claim": "DP2: three per-kind L2 logistics with published coefficients give a usable transparent index at 2.7% positive rate.",
+    "verdict": "AMEND",
+    "evidence": "Row-count EPV is fine (~400-700 complex positives over ~20 columns). The binding constraint is the CLUSTER count, which the draft's own \"errors clustered by event\" convention concedes: ~105 events, of which measured 71 alert-days carry a median of ONE labeled complex, so the effective informative-cluster count is ~20 against ~20 columns - cluster-level EPV ~1. What breaks first is not the fit (L2 stabilizes point estimates) but the interpretation: cluster-robust standard errors will swamp the coefficients that DP2 proposes to publish AS the transparent index, and DP6 proposes to ship as the detector interface. Either publish coefficients with cluster-robust intervals and let them be wide, or cut the feature count to what ~20 clusters can support."
+   },
+   {
+    "claim": "DP4: \"sewer_type SKIPPED v1: 97.7% of the GI proxy layer is Combined - a near-constant covariate\".",
+    "verdict": "AMEND",
+    "evidence": "The skip may be right; the stated reason is a measurement artifact. The 97.7% is a property of the chosen proxy - 04 measured `df32-vzax` at 16,231 points, Combined 15,863 / MS4 271 / Non-combined 93 / Separate 4. 04 also measured an MS4 `DrainageAreas` layer at 1,354 polygons, an areal source that would give a genuinely varying combined-vs-MS4 covariate (Staten Island and parts of Queens/Bronx). Restate the reason as \"no cheap areal join budgeted for v1\", with the DrainageAreas layer as the named upgrade path - do not record \"near-constant\" as a property of the world."
+   },
+   {
+    "claim": "DP4: stormwater = DEP Stormwater Flood Map category, ordinal none/nuisance/deep, moderate-current scenario only.",
+    "verdict": "CONFIRMED",
+    "evidence": "Matches 04's measurements exactly: the 33.8 MB zip contains 4 scenario .gdb folders and \"Moderate 2.13\\\"/hr + current\" is one of them; the two flood categories are \"Deep and Contiguous Flooding (>=1ft)\" and \"Nuisance Flooding (>=4in, <1ft)\", so the three-level ordinal (none / nuisance / deep) is a faithful recoding of measured literals. No fabricated constant here."
+   },
+   {
+    "claim": "DP5: \"Event classes ... are validation strata, not model inputs - the model conditions on the physical drivers directly.\"",
+    "verdict": "AMEND",
+    "evidence": "The strata are partly label-endogenous. 01's classing uses FLOOD_CAUSE where present, but falls back to by_tide / by_311 / by_alert booleans - and by_311 and by_alert are the label-generating triggers themselves. So a \"pluvial\" stratum is by construction a set of events where 311 or alerts fired (guaranteed positives), while a coastal-only stratum can be all-zero. Class-stratified CSI is then conditioned on the outcome process. Restrict the strata used for reporting to the exogenous sources (Storm Events FLOOD_CAUSE, CO-OPS exceedance) or carry the endogeneity as a stated caveat on every stratified table."
+   },
+   {
+    "claim": "DP5: strict as-of history covariates plus event-grouped 5-fold CV is a clean split.",
+    "verdict": "AMEND",
+    "evidence": "Event-grouped folds are not time-ordered, and the as-of history covariates (NFIP claims, 311 sewer-backup density) are cumulative functions of PAST outcomes. So a positive event held out in fold 1 (say 2023-09-29) feeds the as-of covariate of a 2024 event sitting in a training fold: held-out outcomes leak forward into training features. This is legitimate at deployment time but inflates random event-grouped CV. Add a rolling-origin (forward-chaining) split as a second reported axis, since that is the split that matches how the covariates are actually generated."
+   },
+   {
+    "claim": "DP5: \"The five 2026 precip-gap events are excluded from fit and reported in a validation-only table (no precip features exist)\".",
+    "verdict": "REFUTED",
+    "evidence": "Not implementable as written. The linear predictor requires the precip block (max mm_1h/3h/6h, window total, antecedent mm_24h, wet hours); with no precip source at all - AORC ends 2025-12-31, MRMS starts 2026-08-14, and the five days are 2026-05-20/21/24, 07-06, 07-18 - the model cannot emit eta for those events, so the table can carry label counts but no CSI/POD/FAR. The draft's missing-indicator scheme is specified only for cell ELEVATION, never for precip. Either specify a precip-missing scheme (and accept that it makes the score a different model on those days) or state that the 2026 gap events are a label-count report only."
+   },
+   {
+    "claim": "DP5: \"07's obligations: ... pre-/post-2014 event split reported beside pooled CSI\" discharges the era-honesty requirement.",
+    "verdict": "AMEND",
+    "evidence": "2014 is 07's ELEVATION-epoch split, and it is the wrong cut for the label process. The label-generating process breaks at 2020 (source dataset 76ig-c548 -> erm2-nwe9, frozen threshold 97 -> 84 - two different p99s on two different datasets) and again at 2020-11-16 (FloodNet online, changing the detectability anti-join). Neither cut is reported. Report all three splits, or state which one the honesty claim rests on."
+   },
+   {
+    "claim": "DP5: \"Observed-vs-unlabeled (01): pairs with an active in-radius FloodNet sensor and no aq7i-eu5q event = observed negatives, reported separately\" as a validation pillar.",
+    "verdict": "AMEND",
+    "evidence": "Arithmetic makes this a garnish, not a pillar. 440 sensors x a 100 m circle = ~13.8 km^2 of ~783 km^2 of NYC land, i.e. ~1.8% of units, and only for events after 2020-11-16 (measured: 8 of the 57 criterion-(a) days, and none of the 2010-2019 half of the union). Expected observed-tier pairs are on the order of 0.3% of the total. State the expected pair count and the resulting interval width before promising a separate CSI - otherwise the separate report will be a number with no precision, published beside a number with some."
+   },
+   {
+    "claim": "DP1: score units are 445 complexes + 13,370 bus stops + land cells, \"~15,160 units\".",
+    "verdict": "AMEND",
+    "evidence": "445 + 13,370 + 1,336 = 15,151 (or 15,166 if the 15 asset-bearing off-zone cells are added per the corrected rule). The figure is close but it is a frozen constant in an effort whose contract is byte-identical rebuilds and chained version hashes; publish the exact number after the cell-universe rule is fixed, and stamp it into score_version's \"scored-universe definition\" term."
+   },
+   {
+    "claim": "DP6: \"The detector re-evaluates the SAME linear model with live features - no second model to reconcile.\"",
+    "verdict": "AMEND",
+    "evidence": "True as an engineering statement, misleading as a product one, and the reason is measurable. The event-varying block has almost no within-city contrast: adjacent-cell correlation of max mm_3h on 2023-09-29 is r = 0.9888 over 7,462 neighbor pairs, with a coefficient of variation of 0.35 around a 51.7 mm mean (consistent with pipeline-08's ~4 km effective-resolution caveat and its adjacent-Pixel r 0.996-0.998); and the coastal margin takes exactly three values per event with 87.6% of assets on Battery. So live eta = static index + a near-global offset: the detector's map will look the same every storm, only brighter or dimmer. Record that consequence beside the interface claim, and make \"does within-event ranking beat the static ranking?\" an explicit validation question."
+   },
+   {
+    "claim": "DP4 barred-feature list: \"Barred: anything FloodNet-derived; grade_ok / epoch deltas; anything alert-derived (labels)\".",
+    "verdict": "AMEND",
+    "evidence": "Incomplete on its own terms. `gold/flood_labels` carries n_311, source_mix, depth_mm, depth_source, first_obs_utc and label_support - all label-derived, none named in the bar list, and all trivially joinable at the same key the feature build uses. In an effort that bars grade_ok specifically because it is a memorization channel, the label table's own columns deserve an explicit line. Bar the whole label table except the y column."
+   },
+   {
+    "claim": "DP5: bus-churn sensitivity \"score fit/eval restricted to stops present in the era's picks vs all stops, delta published\" discharges 06's churn obligation.",
+    "verdict": "AMEND",
+    "evidence": "The mechanism is right but the coverage is not stated, and it is severe. 06's own bus-stop set is pinned to picks from 2026-06/07; the label era runs 2010-2026 and includes the 2022 Bronx and 2025 Queens redesigns. Measured on the union spine: 62 of 115 union days (54%) predate 2020, i.e. more than half the events are scored against a 2026 bus network. \"Restricted to stops present in the era's picks\" is not computable before the earliest archived pick - name that date, report how many events fall before it, and say plainly that for those events the bus_stop kind has no valid negative universe at all."
+   },
+   {
+    "claim": "Draft's alert-mass measurement: \"93 station-labeled events -> 155 complex-event pairs, 100 distinct complexes, mean 1.67 stations/event; complex 519 labeled 7x, 611 5x\".",
+    "verdict": "CONFIRMED",
+    "evidence": "Reproduced exactly from `/Users/ross/raincheck/research/flood-02-station-prototype/events_stations.json`: excluding system_wide rows, 93 station-labeled events, 155 complex-event pairs, 100 distinct complexes (mean 1.67). Including system_wide: 95 events / 160 pairs. Top complexes by event: 519 x7, 611 x5, then 254/374/38/613 x4. By distinct DAY: 519 x7, 374/613 x4, median 1, max 7 over 71 days."
+   }
+  ],
+  "missing": [
+   "REFERENCE EVENT for the published score. `gold/flood_exposure` is unit-grain but eta contains event-varying precip and gauge terms. No design storm, percentile, or convention is named. Until it is, the public number is undefined and unvalidated.",
+   "SANDY (2012-10-29) handling in the FIT. It is in the criterion-(a) trigger list and 01 attaches its inundation polygon by contains/intersects. Needs: a measured per-kind positive count for that event, then a decision - event weighting, leave-Sandy-out coefficient sensitivity, or exclusion from fit. 01's \"per-event reporting keeps it from owning the positive class\" governs the metric, not the likelihood.",
+   "B2 = unit climatology (as-of per-unit historical positive frequency) and B3 = asset/reporting-density-only as mandatory baselines. Measured: B2-by-proxy (Ida cell set -> 2023-09-29) scores CSI 0.258 vs precip-only 0.264; B3-by-proxy (stops per cell) scores AUC 0.70 vs precip 0.54-0.64. Without both, \"beats B1\" is uninformative.",
+   "Convention for per-event CSI when an event has ZERO positives of a kind (0/0). Measured, this will be a large share of the >=105-event union - every criterion-(c)/(d)-only day. Dropping them biases the reported number upward; the choice must be stated and its selection effect quantified.",
+   "Measured counts for criteria (c) NOAA Storm Events and (d) CO-OPS. Every downstream number - fold size, pair count, base rate, CSI - is a function of the union size, and 60% of the union's criteria have never been counted. This is a required measurement before any of DP1/DP5's arithmetic can be frozen.",
+   "Fold-assignment rule and RNG seed, stamped into score_version. In a byte-identical-rebuild effort, the CV split is an unstamped constant, and the sweep tables are only comparable if the fold rule is deterministic across sweep settings (e.g. hash of event_id).",
+   "The p98 and p99.5 daily-count constants for the 311 threshold sweep. Only the p99 values (97 on 76ig-c548, 84 on erm2-nwe9) are measured and frozen; the other two sweep points do not exist yet, and each implies a different event spine and a different fold membership.",
+   "Whether snowmelt-class events enter the fit. 01 reclasses Dec-Mar pluvial days with spine t2m_c <= 0 as snowmelt, \"kept, excluded from pluvial training\". Measured: 19 of 57 criterion-(a) days (33%) fall in Dec-Mar. Up to a third of the (a)-day fit universe hangs on an unmade decision.",
+   "AORC ingest scope as a named build item, or a restated fit era. pipeline-08 scopes src=aorc at 2017-07..2024-09; the draft's 2010-2025 needs ~7.5 additional years. Measured: only 57 of 115 union days sit inside the built span.",
+   "An explicit bar on the remaining `gold/flood_labels` columns (n_311, source_mix, depth_mm, depth_source, first_obs_utc, label_support) as model features.",
+   "A rolling-origin (forward-chaining) split as a second reported axis, to match the cumulative as-of history covariates; and a leave-region-out spatial split, which the thinned fit does not substitute for.",
+   "Expected pair count and interval width for the observed-negative (FloodNet) tier, before it is promised as a separately reported CSI. Coverage arithmetic puts it near 0.3% of pairs.",
+   "Disposition of the 15 cells that intersect no taxi zone but contain 46 bus stops - either add them to the scored cell universe or state how their cell-grain labels avoid orphaning under 06's build-failure contract.",
+   "A stated within-event-skill test: does the model's ranking WITHIN an event beat the static ranking? Measured precip contrast (adjacent-cell r = 0.9888) and the 3-valued gauge margin make this the question the detector actually rides on, and no metric in the plan answers it.",
+   "The earliest archived bus pick date, and what the bus_stop negative universe means for the 62 of 115 union days (54%) that predate 2020."
+  ]
+ },
+ "pony": {
+  "verdicts": [
+   {
+    "claim": "DP6/DP3: `gold/flood_exposure` is one row per scored unit carrying `eta` (linear predictor) and a percentile `score_index`.",
+    "verdict": "REFUTED",
+    "evidence": "Unbuildable as written. Roughly half the listed features are event-side (max mm_1h/3h/6h in window, window total, antecedent mm_24h, n wet hours, event-side gauge margin). A per-unit row needs a named event condition and the draft never states one. Two lazy options, pick one: (a) eta_static = the static-coefficient partition of the fitted model, which then forces the coefficient JSON to expose that partition and forces a ruling on whether reporting-propensity controls (borough) enter the public eta; (b) a named frozen reference storm. Until this is decided, DP6 cannot be implemented and DP3's percentile has nothing to rank."
+   },
+   {
+    "claim": "DP5: event-grouped 5-fold CV plus a spatially-thinned sensitivity fit discharges 06's \"consider spatial blocking in splits\" obligation.",
+    "verdict": "REFUTED",
+    "evidence": "Thinning removes duplicate positives; it does not hold out locations. Event-grouped folds hold out EVENTS, so a model that memorises \"these chronic locations flood\" scores clean on every held-out event. The draft names its own counter-example: complex 519 labelled 7x, 611 5x -- present in training for 4 of 5 folds and in test for the 5th with 6 of its own labels still in train. 07 already flagged the same channel (41 flagged entrances concentrate on alert-heavy complexes inside the Sandy polygon). Lazy fix, one extra CV loop at the frozen defaults: a second 5-fold grouped by cell (location-blocked), reported beside the event-grouped number. That is the only number that answers \"does the asset layer generalise to a place we have never seen flood\"."
+   },
+   {
+    "claim": "DP5: \"Sweeps inside the folds, full tables published: RADIUS_M {50,100,200}; 311 era-threshold {p98, p99, p99.5}.\"",
+    "verdict": "REFUTED",
+    "evidence": "Incoherent for the threshold axis, not merely expensive. The 311 threshold DEFINES the event set (01 criterion (a)); change it and the events change, so the folds change and the CV estimates across thresholds are not comparable and cannot be selected in-fold. Radius is fine in-fold (same events, different labels). Both also bump label_version (01: sha1 over 311/alert as-of, frozen thresholds, RADIUS_M, + 06's assets_version), so each sweep cell is a full label-table rebuild, not a modelling-loop parameter. Amend 01's binding here: radius selectable in-fold; threshold = outer replication, comparisons restricted to the p99.5-common event subset or declared non-comparable."
+   },
+   {
+    "claim": "DP5 fit count: the validation plan as listed survives ponytail.",
+    "verdict": "REFUTED",
+    "evidence": "Counted. Crossed reading: full = 3 kinds x 2 history x 3 radius x 3 threshold x 2 thinning = 108 configs, +36 for the bus_stop churn variant = 144; B1 = 3 x 3 x 3 = 27, +9 churn = 36; total 180 configs x 5 folds = 900 fits. The objection is not runtime (sklearn L2 on <=936K rows x ~20 features is minutes) -- it is that the headline claim \"full beats B1\" gets 108 chances to be true and 180 published tables have no fixed reading. One-at-a-time around a frozen primary (RADIUS_M=100 and p99, both already frozen constants in 01; history-on; unthinned; all-stops) = 3 primary + 6 radius + 6 threshold + 3 history-off + 3 thinned + 1 churn + 3 B1 = 25 configs x 5 = 125 fits. State which reading is intended; the OAT one is the only one with a headline."
+   },
+   {
+    "claim": "DP4: \"Score reported with and without these two [NFIP claims, 311 sewer-backup density]\" as a double run.",
+    "verdict": "REFUTED",
+    "evidence": "This doubles every fit on every sweep axis to answer a question the split cannot answer. Both covariates are pure location memory; under event-grouped CV they will look excellent by construction, exactly as the chronic-repeater channel does. Run history-on only, and report the with/without contrast ONCE under the location-blocked split from the DP5 finding. That converts a 2x multiplier on ~90 configs into one extra CV run."
+   },
+   {
+    "claim": "DP4 coastal: \"static freeboard = elev_ft - assigned gauge's nws_minor... event-side max water-level margin over nws_minor at the assigned gauge... Main effects only in v1.\"",
+    "verdict": "REFUTED",
+    "evidence": "Two features that are one, and the main-effects form cannot express the physics. (1) Collinearity, from the draft's own measurement: only three gauges take assets (Battery 5,847 / Kings Point 588 / Sandy Hook 243), so static freeboard = elev_ft - c_g with c_g on three values -- an affine transform of elev_ft, rank-deficient against the elevation features already in the vector up to a 3-level gauge dummy. L2 keeps it numerically stable and makes the published coefficients meaningless, and the coefficients ARE the product (DP6). (2) margin - freeboard = max_wl_navd88 - elev_ft = head over the asset, the actual physical quantity; a main-effects fit can only represent it if b1 = -b2, a constraint it will not find at these positive counts. Lazier AND more correct: replace both with ONE clamped composite surge_head_ft = max(0, max_wl_navd88_in_window - elev_ft). Near-zero for inland assets on rainy days, large on surge days -- self-gating, so no interaction term is needed, 1 df instead of 2, and it is exactly what the detector computes live."
+   },
+   {
+    "claim": "DP2/DP3: event classes (pluvial/coastal/mixed) are \"validation strata, not model inputs -- the model conditions on the physical drivers directly.\"",
+    "verdict": "REFUTED",
+    "evidence": "Internally inconsistent with main-effects-only. \"Coastal events flood low places, pluvial events flood depressions\" IS an interaction; a single pooled main-effects model cannot represent it, so class-as-stratum and main-effects-only cannot both hold. Two coherent exits: (a) adopt the clamped surge_head composite above, which makes the pooled main-effects model correct because the coastal term self-gates; or (b) fit pluvial-only for v1 -- the map's stated destination is a detector \"during an active rain event\", the spine is 311-dominated, and 01 already set the precedent of excluding an event class (snowmelt) from pluvial training. (b) additionally deletes the gauge assignment (07's obligation 6), the freeboard terms, the 05 dependency for the live detector and the 23.8 km Rockaway caveat. Do not ship (c) = the draft as written."
+   },
+   {
+    "claim": "01's \"per-event reporting in 08 keeps [Sandy] from owning the positive class\" is discharged by the draft's per-event CSI.",
+    "verdict": "REFUTED",
+    "evidence": "Per-event reporting is EVALUATION; the fit is pooled across events, and the draft never states a rule for Sandy. Sandy is a criterion-(a) trigger day (2012-10-29 in trigger_days.json) and 01 attaches its polygon to Cells by intersects. NYC's Sandy inundation footprint is ~51 mi^2 = ~132 km^2 against an H3 res-8 cell of ~0.74 km^2, so the polygon plausibly intersects on the order of 250-350 of the 1,336 land cells from ONE event -- comparable to Ida's measured 324. A single coastal event supplying a large share of cell positives to a pooled model whose event_class is explicitly not an input is the failure mode 01 asked 08 to prevent. Needs an explicit rule: Sandy held out of the fit and used as a validation event, or polygon labels excluded from the cell fit."
+   },
+   {
+    "claim": "DP5: 06's bus-churn obligation is discharged by \"score fit/eval restricted to stops present in the era's picks vs all stops, delta published\".",
+    "verdict": "REFUTED",
+    "evidence": "No inputs exist. Measured: /Users/ross/raincheck/data/archive/static/ holds exactly one pick per feed (bronx/brooklyn/busco/manhattan/queens 2026-06-23, staten_island 2026-07-28, subway 2026-08-07). /Users/ross/raincheck/research/13-historic-gtfs-sources.md measured the whole public landscape and concluded \"Nothing public holds the bytes for the whole window\": Transitland (grant pending, another effort's ticket) covers only 2017-07-14..2024-09-06 and \"neither storm-day pick\"; Wayback gives 4-7% of days per feed. 34 of the 57 trigger days are 2010-2019, before the earliest capture. The honest v1 answer is to state the bias as unbounded and unquantified, or restrict the bus_stop fit to the era where the network is knowable -- not to promise a sensitivity table with no data source."
+   },
+   {
+    "claim": "DP2: three per-kind L2 logistic fits, one per score unit, because the feature vectors differ by kind.",
+    "verdict": "AMEND",
+    "evidence": "The complex fit is the one that does not survive. Parameter count as listed: 6 precip + 2 elevation (min & median) + 2 coastal + 1 stormwater + 2 history + ~5 structure dummies + n_entrances + 4 borough dummies + >=1 missing indicator ~= 24, against ~130 distinct labelled complexes (100 from alerts per the draft) and ~70 events -- effective EPV 3-5, and 11 of the 24 are borough+structure+n_entrances. Cut to TWO fits: (1) one POINT model over radius targets, since 07's silver/asset_features gives entrances and bus stops an identical feature vector (elev_ft, ring15_min/med, cell) -- this is not the pooled-across-scales model the draft rejects; (2) the cell model. Complex score = OR/max over child entrances, which is already 06's own positive rule, so it costs zero new features. Alert-station labels then stop being training data and become an INDEPENDENT complex-level validation set -- which also breaks 07's flagged-entrance memorisation channel instead of feeding it."
+   },
+   {
+    "claim": "DP2 headline: \"the asset layer earns its keep only if the full model beats B1 on held-out events.\"",
+    "verdict": "AMEND",
+    "evidence": "Rigged at bus-stop grain. Measured on this repo's stops tables: 13,370 distinct stop_ids in 1,021 cells, mean 13.1 and max 72 per cell. B1 (cell precip only) therefore predicts ONE value for all ~13 stops in a cell; any within-cell feature differentiates them by construction, and since event-grouped CV does not hold out locations, within-cell memorisation passes the test. The comparison is meaningful for the cell model and near-vacuous for bus stops. Either declare the headline at cell grain, or evaluate full-vs-B1 under the location-blocked split."
+   },
+   {
+    "claim": "DP1: \"cells restricted to NYC-land cells -- hex intersects a taxi zone, EWR excluded (measured ~1,344 of 4,113)\".",
+    "verdict": "AMEND",
+    "evidence": "The count is 1,336, not ~1,344, and the draft mixed two rules to get there. Measured on /Users/ross/raincheck/data/ref/: 4,113 cells; 1,354 intersect any taxi zone; 18 intersect the EWR zone (zone_id=1); 1,336 intersect a non-EWR zone (18 + 1,336 = 1,354, so no cell touches both). The draft subtracted the 10 CENTROID-in-EWR cells (ref/cell_zone, which is a centroid join: 1,070 cells have a zone_id, borough EWR = 10) from an INTERSECTS total. Also note ref/cell_zone does not implement the stated rule -- the intersects join against ref/zones is a new read."
+   },
+   {
+    "claim": "DP1: the land-cell restriction is the right scored universe for cells.",
+    "verdict": "CONFIRMED",
+    "evidence": "Verified, with two bonuses the draft did not claim. Re-H3'd the probe's storm points at res 8: all 324 of Ida's distinct positive cells and all 291 of 2023-09-29's fall inside the 1,336 -- zero positive loss. The lazier alternative (asset-bearing cells only, 1,021 with bus stops) would drop 7 Ida and 9 sep2023 positives, so it is not worth it. Bonus: the 168 permanently-NULL AORC cells (measured directly on data/silver/precip_cell_hourly/src=aorc/month=2021-09) are ALL non-land -- 0 of 168 are in the 1,336 -- so the land restriction retires the NULL-precip caveat for the cell model entirely. Say that; it is a free win the draft leaves on the table."
+   },
+   {
+    "claim": "DP1/DP4: cell elevation = member-asset aggregates, \"NULL for asset-less land cells -> missing-indicator column, no imputation\".",
+    "verdict": "AMEND",
+    "evidence": "Missing a number in an effort whose rule is measured-not-estimated: 330 of the 1,336 land cells (24.7%) contain no bus stop (measured). A quarter of the cell universe carries the missing indicator. Second, the universes are inconsistent: 15 cells that contain real bus stops fall OUTSIDE the land set, so those cells are scored at bus_stop grain but not at cell grain. One extra OR clause fixes it: \"intersects a non-EWR taxi zone OR contains a scored point asset\"."
+   },
+   {
+    "claim": "DP4: the cell model needs elevation aggregates at all.",
+    "verdict": "REFUTED",
+    "evidence": "Ladder rung 1. 07 measured within-cell relief at p50 2.6 m and concluded the hex grain \"carries no doorway signal\"; the aggregate is a mean over bus-stop samples, which are roadway-sited and therefore a biased sample of cell terrain; and it is missing for 24.7% of the universe. Cut it and the missing-indicator column and the NULL branch with it. The cell model's terrain content is already carried by the DEP stormwater category, which IS a depression map at that grain. Add cell elevation back only if the cell model's residuals concentrate on the coastal fringe, which is the surge_head composite's job anyway."
+   },
+   {
+    "claim": "DP4: complex elevation = \"min & median elev_ft over grade_ok child entrances\".",
+    "verdict": "REFUTED",
+    "evidence": "07 handed 08 exactly one decision -- \"min-vs-median is 08's call, made once here\" -- and the draft takes both, which is the non-decision. Take min: water enters at the lowest doorway, which is also why 07 built ring15_MIN. Correlation is near-total anyway -- 30 of 445 complexes have exactly one entrance so min == median there, and the rest average 4.8 children."
+   },
+   {
+    "claim": "DP4: `n_entrances` as a complex feature.",
+    "verdict": "REFUTED",
+    "evidence": "It is the fan-out multiplier of the complex's own label rule. Complex positive = OR over child entrances (06), mean 4.8 children per complex, so a 20-entrance complex has 20 chances to catch a 100 m radius label and a 1-entrance complex has one. The model will learn \"big complexes get labelled more\", it will be one of the largest coefficients, and the coefficients are the published product. This is the same class of contamination 07 barred grade_ok for. Drop it, or the coefficient JSON must carry the fan-out caveat inline and n_entrances must never be presented as a physical driver."
+   },
+   {
+    "claim": "DP4: `borough` on all three kinds, `structure` (mode over stations) on complexes.",
+    "verdict": "REFUTED",
+    "evidence": "12 parameters of borough dummies across three fits plus ~5 structure dummies on the smallest-N fit. Under the flooded_reported estimand borough is a REPORTING-PROPENSITY control, not an exposure driver -- including it makes the model more accurate on the stated estimand and less useful as a public exposure map, and the draft never says whether control coefficients enter the published eta (see the DP6 finding). Drop borough from complex and cell; the cell model's n_assets already carries urban density in 1 df and is collinear with it. structure is worse: 06 says structure is station-grain and 9 complexes mix values, so \"mode\" is lossy, and the mechanism it proxies (elevated vs subway) is already in elev_ft and the ring relief."
+   },
+   {
+    "claim": "DP4 precip: six window features with \"disjoint lags by subtraction per pipeline-08\".",
+    "verdict": "REFUTED",
+    "evidence": "The subtraction rule is misapplied. Pipeline-08's rule is for nested SUMS at one hour_end (mm_3h - mm_1h); max(mm_3h) - max(mm_1h) over a window is not a disjoint quantity, because the maxima occur at different hours. Windowed maxima of nested sums are MORE correlated than the hourly versions pipeline-08 measured at VIF 12.5, not less. And on the high-leverage events the redundancy is total: Ida's rain fell in ~4 hours, so max mm_6h ~= window total. Cut to two: max mm_1h (intensity) + window total (volume). Four features deleted, the collinearity actually gone instead of papered over."
+   },
+   {
+    "claim": "DP4: \"n wet hours\" as a feature shared with the live detector.",
+    "verdict": "REFUTED",
+    "evidence": "It has two definitions and the draft claims one. CONTEXT's Wet hour is mm_1h >= 1.0 AND t2m_c > 2; pipeline-08 section 2 records t2m_c as NULL for src=mrms until a live-era phase source is chosen, and pipeline-14 already ruled that the live panel uses a bare mm_1h >= 1 threshold, \"explicitly not CONTEXT's Wet hour\". So \"the detector re-evaluates the SAME linear model with live features\" is false for this feature. Cutting it (see the precip finding) resolves this for free."
+   },
+   {
+    "claim": "DP4: sewer_type skipped v1 because \"97.7% of the GI proxy layer is Combined -- a near-constant covariate\".",
+    "verdict": "REFUTED",
+    "evidence": "Right skip, wrong denominator, and the wrong denominator is a false economy. The 97.7% is the sewer_type breakdown of df32-vzax GREEN INFRASTRUCTURE asset points (Combined 15,863 / MS4 271 / Non-combined 93 / Separate 4 = 15,863/16,231; /Users/ross/raincheck/research/flood-04-stormwater-geodata.md line 132). GI siting is driven by the CSO consent order, so it is preferentially built in combined-sewer areas -- the layer is near-constant because of how GI is funded, not because the city is. 04 measured MS42020_DrainageAreas (1,354 polygons) as live and fully queryable, and research/flood-04 line 173 already names the point-in-polygon test. Staten Island and eastern Queens hold a large share of the 13,370 scored stops. One query against the scored units gives the real constancy number; skip on that number, not this one."
+   },
+   {
+    "claim": "DP6: the in-repo coefficient JSON is the detector interface -- \"no second model to reconcile\".",
+    "verdict": "CONFIRMED",
+    "evidence": "Right-sized, not ceremony. Coefficients + preprocessing constants + feature definitions as JSON is the laziest interface that works: no model server, no pickle, no sklearn version pin, no drift between a batch scorer and a live scorer. Keep it exactly as scoped. The defects are in what the JSON carries, not in the choice (see the next two findings)."
+   },
+   {
+    "claim": "DP6: the coefficient JSON marks \"the live-computable subset\" of features.",
+    "verdict": "REFUTED",
+    "evidence": "Ceremony, and it hides the constant that actually matters. Every listed feature is either a static lookup (elevation, ring relief, stormwater category, borough, NFIP, sewer-backup density, structure) or live (MRMS precip, CO-OPS water level) -- the marked subset is everything, so the field is a no-op. What the JSON needs and lacks: a per-src precip constant. Pipeline-08 measured MRMS Pass2 at 0.86-0.92 of AORC on both storms; the model is fitted AORC-only (correctly, per the never-pool binding) and the detector then feeds it MRMS inputs running 8-14% low. Either carry the measured ratio as a declared adjustment on the live precip input, or declare live output rank-only and uncalibrated. Deciding this later forces a schema change to the JSON, which is exactly the redesign-within-one-ticket the effort rules bar."
+   },
+   {
+    "claim": "DP6: score_version = sha1(label_version, features_version, model-constant JSON, scored-universe definition).",
+    "verdict": "AMEND",
+    "evidence": "Three terms missing, all one-liners now and version-chain breaks later. (1) precip src + as-of: silver/precip_cell_hourly is rebuilt per (src, month) by pipeline-08's job, so a precip rebuild silently changes the fitted coefficients with no version bump. (2) the DEP stormwater FGDB snapshot date. (3) the NFIP as-of date -- 01 put the 311 and alert as-ofs in label_version, but NFIP is covariate-only, so its strict-as-of cutoff lives here and nowhere else."
+   },
+   {
+    "claim": "DP6: `gold/flood_exposure_validation` as a Gold table.",
+    "verdict": "REFUTED",
+    "evidence": "Not a Gold table. ~70 events x 3 kinds ~= 210 rows, no consumer (the serving surface shows scores, not CSI), and it is regenerated by every sweep. The draft is already inconsistent with itself: the sweep and sensitivity tables are \"build assets linked from the ticket\" while the per-event CSI rows get a Gold table, version chain, rebuild gate and byte-identical test for the same kind of output. Put all of it in one build asset beside the sweeps; promote to Gold when a consumer asks for it. gold/flood_exposure itself (15,151 rows, rebuilt whole, single sorted part file) is correctly scoped and matches 06/07's convention -- no change there."
+   },
+   {
+    "claim": "DP3: per-kind percentile index 0-100 is the public number.",
+    "verdict": "AMEND",
+    "evidence": "Within-kind granularity is fine (445 complexes ~= 4.5 units per index step; 1,336 cells ~= 13). The defect is cross-kind, and the map's destination renders all three layers together. Measured Ida event-conditional positive rates: cells 324/1,336 = 24.3%, complexes 12/445 = 2.7%, entrances 39/2,120 = 1.8% -- a ~9x spread. A cell at index 50 is more likely to flood than a bus stop at index 90, and a shared legend says they are not. Either record a display obligation (never two kinds in one legend), or publish the per-kind event-conditional base rate beside the index. 07 set the precedent of recording display obligations from a modelling ticket."
+   },
+   {
+    "claim": "\"Class balance at unit-event grain\": Ida 692 points -> 39/2,120 entrances, 12/445 complexes, 119/4,558 stops (one pick), 324 distinct cells.",
+    "verdict": "AMEND",
+    "evidence": "The bus-stop cell of that table is not comparable to the others. Measured: 4,558 is the Brooklyn pick (pick_id c05b9ae..., data/silver/stops), while the other three columns are citywide. Ida's 692 points are 25.3% Brooklyn (Queens 248, Staten Island 196, Brooklyn 175, Bronx 56, Manhattan 17) -- the storm's flooding was mostly outside that pick. 2023-09-29 is 50.4% Brooklyn (311/617). The scored universe is 13,370 stops, 2.9x the pick. Re-run the row citywide or label it Brooklyn-only; as printed it understates the bus-stop positive class by roughly 3x for the event the draft leans on hardest. (Cell counts 324 and 291 independently reproduce -- those are right.)"
+   },
+   {
+    "claim": "\"The five 2026 precip-gap events\"; \"~57 (a)-days, ~70 union events -> ~14/fold\".",
+    "verdict": "AMEND",
+    "evidence": "Recomputed from trigger_days.json under 01's contiguous-merge rule: 57 trigger days collapse to 52 criterion-(a) EVENTS (2014-02-13/14, 2014-04-30/05-01, 2018-11-25/26, 2021-09-01/02, 2026-05-20/21 all merge). The 2026 gap is 5 days but 4 EVENTS. AORC-era (a)-events = 48, which is 9.6 per fold at 5-fold from criterion (a) alone; the ~14/fold figure depends entirely on the unmeasured ~70 union estimate. Worse, 18 of the 52 (a)-events (34.6%) are Dec-Mar and therefore subject to 01's snowmelt reclass gate (spine t2m_c <= 0, kept but excluded from pluvial training) -- worst case 30 AORC-era pluvial events, 6 per fold. The draft never says whether snowmelt events are in or out of the 08 fit, and the answer moves the fold size by up to 2.3x."
+   },
+   {
+    "claim": "DP4: \"Precip, event x cell (silver/precip_cell_hourly src=aorc)\" is available for the 2010-2025 fit era.",
+    "verdict": "AMEND",
+    "evidence": "Available upstream, not built, and the build is the single largest unnamed item in the draft. AORC has 1979.zarr..2025.zarr (research/08-weather-join-evidence.md line 109), so 2010-2025 is obtainable. But /Users/ross/raincheck/data/silver/precip_cell_hourly/src=aorc holds five month partitions (2021-08/09/10, 2023-09/10). The criterion-(a) spine alone -- windows plus the 24 h lookback -- requires 52 AORC month partitions; 4 are built, so 48 to build, plus the Bronze NYC Zarr slices for 2010-2019 which have never been pulled. The union spine adds more. That is a ~12x expansion of the precip build and it appears nowhere in the draft's build items or its Skipped section."
+   },
+   {
+    "claim": "DP4: the coastal event-side term is a unit-event feature supported by the ~1.06M-pair sample.",
+    "verdict": "AMEND",
+    "evidence": "Effective-N honesty, the same obligation 06 imposed for bus stops. With only three gauges taking assets (Battery 5,847 / Kings Point 588 / Sandy Hook 243), the event-side water-level margin takes three values per event -- it separates almost nothing WITHIN an event, so its coefficient is fitted on the number of coastal events (order 10-20 of ~70), not on 1.06M pairs. Say so beside the coastal coefficient, the way the draft already carries 06's 13,370-stops-in-1,035-cells caveat. The pair count also needs the corrected cell figure: 445 + 13,370 + 1,336 = 15,151 units x ~70 = 1.061M, unchanged to three significant figures."
+   },
+   {
+    "claim": "DP5: \"Calibration expectations anchored: published FIM systems run CSI 0.26-0.45.\"",
+    "verdict": "AMEND",
+    "evidence": "Estimand mismatch, on a ticket whose first binding is estimand honesty. Those CSI figures come from inundation-extent forecasting; 01's estimand is flooded_reported (P(a report is generated)) and 01 requires it \"named on every public artifact\". Comparing a reporting-rate CSI to an inundation-extent CSI without a label invites exactly the confusion 01 wrote the rule against. Keep the anchor if it is useful for scale, but stamp it \"different estimand, order of magnitude only\"."
+   },
+   {
+    "claim": "DP4: DEP Stormwater Flood Map category, moderate-current scenario only, FGDB downloaded once at build.",
+    "verdict": "AMEND",
+    "evidence": "Right scenario call (current, not the 2050 projections, for a 2010-2026 fit) and the snapshot-once pattern matches 07's. Two gaps. (1) No reader named, and there is no geopandas/fiona/GDAL in /Users/ross/raincheck/pyproject.toml. Do not add one: DuckDB is already a dependency and its spatial extension exposes the OpenFileGDB driver -- verified in this repo's venv (st_drivers() returns OpenFileGDB). Read the FGDB once with ST_Read, extract (asset_id, category) to a small Parquet build asset, never touch the FGDB again. That is rung 5, no new dependency. (2) Claim honesty: the DEP category is itself the output of DEP's hydrologic model and will likely be the strongest static feature. If it dominates, the honest headline is \"DEP's map validated against 311, plus rain\", not \"we built a flood model\" -- state that up front rather than discovering it in the coefficient table."
+   },
+   {
+    "claim": "DP1: grain = unit-event pairs, target = flooded_reported, negatives by 01's anti-join at read, never materialised.",
+    "verdict": "CONFIRMED",
+    "evidence": "Correct and correctly lazy. Matches 01's estimand verbatim, matches 06's per-kind grain filter over the mixed-kind ref/assets, and the pair arithmetic reproduces (445 + 13,370 + 1,336 = 15,151 x ~70 ~= 1.06M). Anti-join at read rather than a materialised negative table is the right rung -- the table would be 1.06M rows that change with every sweep cell. No attack."
+   },
+   {
+    "claim": "DP2: rejecting trees/GBM, hand-weighted index, and a pooled cross-kind model for v1.",
+    "verdict": "CONFIRMED",
+    "evidence": "All three rejections hold, and the reasoning on the hand-weighted index is the best line in the draft (\"the logistic IS the transparent index once coefficients are published\"). GBM at an effective sample of ~70 events with chronic repeaters would memorise locations and the event-grouped split would not catch it. Note only that the stated upgrade trigger -- \"full model fails to beat B1 -> the asset features, not the model class, are the problem\" -- is only readable once the fit count is collapsed to a single primary configuration (see the DP5 fit-count finding); at 108 full-vs-B1 comparisons the trigger has no defined state."
+   }
+  ],
+  "missing": [
+   "daily311.json is NOT in the scratchpad (only trigger_days.json, storm_points.json, gauges.txt, elev_samples.json and the 06/07 probe files). So the p98 and p99.5 event counts were never measured -- the draft proposes a three-point sweep over an axis whose effect on the event count, and therefore on fold size, is unknown. At p99.5 a 5-fold split could put ~5 events in a fold with zero complex positives, which breaks per-event CSI intervals. Measure the two alternate thresholds' day counts before committing to the sweep.",
+   "Asset existence / first_seen_date. 06's own adversarial review (assets/06-adversarial-verdicts.json, D6) demanded a first_seen_date column and an exclusion rule -- \"no report can be generated at an asset that does not exist\" -- and it did NOT survive into 06's resolved Answer (the final column list has no first_seen_date). 08 does not pick it up either. Consequence: ~10 complexes opened after 2012 (Second Av 2017, Hudson Yards 2015, the 7 extension, Cortlandt St 2018) enter the anti-join as NEGATIVES for 2010-2016 events, and 01's Sandy `contains` attachment can mint them as POSITIVES on 2012-10-29. Every bus_stop row's only provenance is a 2026 pick, so the whole 2010-2019 bus_stop universe is anachronistic. This is 08's to close now, because 08 owns the scored universe.",
+   "L2 penalty selection is unstated. The draft says L2-regularized and never says how lambda is chosen. If it is tuned by inner CV, that is an inner loop the fit count does not include and a second forking path; if it is a frozen constant, name it and put it in score_version's model-constant JSON.",
+   "Class weighting / intercept handling for the imbalance is unstated. At ~1-24% event-conditional positive rates over 1.06M pairs, whether the fit uses class weights, a prior-corrected intercept, or raw MLE changes eta by a constant per kind -- which changes the published percentile index's relationship to probability and changes what the detector's live threshold means.",
+   "The operating point is \"in-fold-chosen\" but the objective is not named. Chosen to maximise CSI? To fix POD? To fix FAR? Different choices give different headline CSI and the draft's own anchor comparison depends on it.",
+   "Complexes with zero grade_ok children are never resolved. 07 asked 08 to report the count and the draft repeats the obligation without saying how those complexes are SCORED (NULL elevation + indicator? drop from the universe? ring15_med fallback?). 30 of 445 complexes have exactly one entrance, so one flagged row voids the unit -- and 07 measured the 41 flagged entrances as concentrating on alert-heavy complexes, i.e. exactly the positive class.",
+   "Display rules for the score are absent. 07 recorded a binding display obligation (drop elev_ft when NOT grade_ok, else the page paints WTC as a -34 ft city low point inside the Sandy polygon). The draft publishes score_index for units whose elevation inputs are NULL or flagged with no equivalent rule -- a bus stop scored on a NULL elevation and a missing indicator will render identically to one scored on real terrain.",
+   "Sandy's cell footprint was never measured. No Sandy polygon exists locally, so the size of its contribution to the cell positive class (estimated at 250-350 of 1,336 land cells) is an order-of-magnitude estimate, not a measurement. Measure it before choosing between holding Sandy out of the fit and down-weighting it.",
+   "Citywide bus-stop positive counts for both reference storms are unmeasured -- the draft's 119 and 196 are Brooklyn-pick numbers. Without the citywide counts the bus_stop model's positive class size, and therefore its EPV, is unknown.",
+   "The DEP Stormwater FGDB itself has not been fetched or sized. 04 established it is FGDB-only with no queryable service; the draft assumes a \"downloaded once at build\" step with no measured URL, byte size, category field name, or coverage fraction. Coverage fraction is promised as an output but the layer's actual extent versus the 15,151 scored units is unknown.",
+   "Whether snowmelt-reclassed events are in or out of the 08 fit is never stated. 01 keeps them and excludes them from pluvial training; 18 of the 52 criterion-(a) events are Dec-Mar and exposed to the reclass gate."
+  ]
+ },
+ "rails": {
+  "verdicts": [
+   {
+    "claim": "DP1 (universes): scored cells = 'hex intersects a taxi zone, EWR excluded (measured ~1,344 of 4,113)'",
+    "verdict": "REFUTED",
+    "evidence": "Measured against /Users/ross/raincheck/data/ref/cells/part-00000.parquet x /Users/ross/raincheck/data/ref/zones/part-00000.parquet (DuckDB spatial): cells intersecting ANY zone = 1,354; cells intersecting EWR = 18, and all 18 intersect ONLY EWR. So intersects-minus-EWR = 1,336, not 1,344. The draft's 1,344 = 1,354 minus 10, and 10 is the count of cells whose CENTROID is in EWR (data/ref/cell_zone borough='EWR' = 10 of 1,070 non-null). Two different predicates were mixed in one subtraction. The pure centroid rule gives 1,070 total / 1,060 non-EWR. Right rule for a precip-fed pluvial score is intersects (a hex is positive if any 311 point lands in it, and 311 points near the shoreline sit in hexes whose centroid is offshore) -> freeze cells_scored = 1,336."
+   },
+   {
+    "claim": "DP1: the land-cell rule satisfies 07's obligation (7) and 06's comment ('restrict scored cells to land/asset-bearing cells')",
+    "verdict": "AMEND",
+    "evidence": "The chosen rule is not a superset of asset-bearing cells. Measured: 15 cells that contain registry bus stops fall outside intersects-minus-EWR, holding 46 stops (Peninsula Blvd/Mott Av in Nassau, S Broadway in Yonkers, 34 St Hoboken Light Rail and NJ Tpke in NJ). So a bus_stop can be scored while its own cell is not \u2014 the cell/bus_stop consistency story and any 'cell = neighborhood of its assets' read both break. Also 330 of the 1,336 land cells contain no bus stop at all (1,006 do), so ~25% of the cell universe carries a NULL elevation aggregate and rides on the missing-indicator column. Fix: cells_scored = (intersects a non-EWR zone) UNION (contains >=1 score-unit asset)."
+   },
+   {
+    "claim": "DP1: bus_stop universe = all 13,370 stops",
+    "verdict": "AMEND",
+    "evidence": "Measured over /Users/ross/raincheck/data/silver/stops (cross-feed mean coords, 13,370 distinct stop_id \u2014 matches 06): 72 stops fall inside no NYC taxi zone (borough NULL; Nassau/Westchester/NJ). 311 SJ/SH is a NYC-only dataset, so those 72 are structurally unlabelable \u2014 permanent negatives that dilute exactly the way 06's cell obligation warned. The draft applies the land restriction to cells only. Either restrict stops the same way or state the 72 as a named, counted dilution."
+   },
+   {
+    "claim": "DP1: '57 criterion-(a) trigger days' and '~70 union events -> ~14/fold'",
+    "verdict": "REFUTED",
+    "evidence": "57 days reproduces exactly from the probe (trigger_days.json: 34 old + 23 new) \u2014 CONFIRMED. But (a) 57 days = 52 EVENTS after 01's contiguous merge: 2014-02-13/14, 2014-04-30/05-01, 2018-11-25/26, 2021-09-01/02, 2026-05-20/21 (5 merges); the draft uses days and events interchangeably throughout. (b) ~70 union events is a large undercount: from 02's own deliverable /Users/ross/raincheck/research/flood-02-station-prototype/events_stations.json, station-labeled alert events span 71 distinct first_days, and 58 of those 71 are NOT 311-trigger days. Criterion (b) alone pushes the union past 115 days before Storm Events (c) over 5 counties 2010-2026 and CO-OPS (d) are added. Every downstream number keyed to ~70 (1.06M pairs, 14 events/fold, per-event bootstrap power) is wrong in the same direction."
+   },
+   {
+    "claim": "Class balance evidence: 'Ida 692 geocoded points -> 39/2,120 entrances, 12/445 complexes, 119/4,558 stops (one pick), 324 distinct cells; 2023-09-29: 617 points -> 38 entrances, 17 complexes, 196 stops, 291 cells'",
+    "verdict": "REFUTED",
+    "evidence": "Re-ran the attachment against the draft's own probe inputs (scratchpad/storm_points.json: ida 692, sep2023 617 \u2014 both CONFIRMED) with the frozen RADIUS_M=100 m geodesic. Cells reproduce exactly (324 / 291). Entrances and complexes do NOT reproduce at any radius in the sweep: Ida gives 113 entrances / 37 complexes at 100 m (17/8 at 50 m, 357/93 at 200 m); 2023-09-29 gives 106/37 at 100 m (25/13 at 50 m, 354/98 at 200 m). Nearest-entrance thinning gives 33/32 and 42/37 \u2014 also not 39/12 or 38/17. Bus stops at the ACTUAL scored universe (13,370, not the 4,558-stop Brooklyn pick) are 857 for Ida and 848 for 2023-09-29 \u2014 7.2x and 4.3x the quoted figures, moving Ida's bus_stop base rate from 2.6% to 6.4%. The block that motivates the whole 'class balance is extreme' framing is not reproducible from its own stated inputs."
+   },
+   {
+    "claim": "Gauge assignment (07 obligation 6): 'nearest-of-six over 2,120 entrances + 4,558 stops assigns Battery 5,847 / Kings Point 588 / Sandy Hook 243. Max assignment distance 23.8 km (eastern Rockaways -> Battery)'",
+    "verdict": "REFUTED",
+    "evidence": "The numbers reproduce EXACTLY on the Brooklyn pick (pick_id c05b9aef..., 4,558 stops) \u2014 5,847/588/243, max 23,835 m to Battery \u2014 but that pick is 34% of the registry and is the one feed nearest the Battery. Over the full 15,490 assets that 07's silver/asset_features actually holds (2,120 entrances + 13,370 stops), nearest-of-six by haversine gives Battery 9,645 / Kings Point 4,902 / Sandy Hook 943 \u2014 Kings Point goes from 8.8% to 31.6% of assets, a 3.6x shift. The max distance is 23.97 km at (40.5950, -73.7513) in Far Rockaway, assigned to KINGS POINT, not Battery. 63 of 203 Rockaway-peninsula assets (lat<40.63, lon>-73.90) and 87 assets south of 40.65N route to Kings Point \u2014 a Long Island Sound gauge on the far side of Long Island, whose nws_minor is 22.89 ft STND / 17.09 ft offset = 5.80 ft NAVD88 vs Battery's 4.43. The map's Jamaica Bay blind spot is worse than the draft quantifies, and 'nearest by geodesic' is a straight-line rule that ignores the intervening landmass."
+   },
+   {
+    "claim": "'the three CT stations get zero assets (they are event-spine criteria only)'",
+    "verdict": "REFUTED",
+    "evidence": "01's criterion (d) names exactly two stations: Battery 8518750 and Kings Point 8516945 (hourly_height datum=STND, >=2 consecutive readings above that station's own nws_minor). Bridgeport 8467150, New Haven 8465705 and New London 8461490 come from 05's six-station threshold set and are in NEITHER the spine nor the asset assignment. They are dead weight in the nearest-of-six computation, and the draft's parenthetical misstates a binding rail."
+   },
+   {
+    "claim": "Coastal event feature: 'event-side max water-level margin over nws_minor at the assigned gauge in window'",
+    "verdict": "AMEND",
+    "evidence": "01's spine only fetches CO-OPS hourly_height at Battery and Kings Point. Under the full-registry assignment 943 assets take Sandy Hook 8531680, whose water-level series nobody fetches. 05 confirms datum=NAVD works directly on datagetter for all six stations, so this is cheap \u2014 but it is an unowned build item (a third station series, <=365-day chunks, gap->coverage=missing per 01) that the draft neither names nor budgets."
+   },
+   {
+    "claim": "DP4 (elevation features): 'bus_stop \u2014 elev_ft, relief terms (elev_ft - ring15_med x 3.280833333, elev_ft - ring15_min)'",
+    "verdict": "REFUTED",
+    "evidence": "Unit bug, verbatim in the draft. 07's schema stores ring15_min_m and ring15_med_m in METERS and elev_ft in NAVD88 US survey feet. The first relief term correctly multiplies by 3.280833333; the second subtracts raw metres from feet. At a typical bus stop (elev_ft ~ 20, ring15_min_m ~ 5.8) the term evaluates to 14.2 instead of the correct 1.0 \u2014 the feature would be dominated by absolute elevation, i.e. it silently duplicates elev_ft instead of measuring local relief, and the fitted coefficient would be uninterpretable."
+   },
+   {
+    "claim": "DP4: 07's pluvial relief obligation (5) is satisfied",
+    "verdict": "REFUTED",
+    "evidence": "Two parts dropped. (a) Relief terms are given to bus_stop ONLY; the complex feature list is 'min & median elev_ft over grade_ok child entrances' with no relief term at all. 07 built the 15 m ring on all 2,120 entrances precisely because 01's spine is 311-dominated pluvial ponding governed by DOORWAY-scale depressions \u2014 entrances are the doorways. Applying the doorway term to bus stops and not to entrances inverts the motivation. (b) 07 delegated the neighbourhood definition explicitly: 'the relative-elevation neighborhood definition (ring vs cell window) is 08's, swept beside the RADIUS_M sweep'. The draft's sweep list is only {RADIUS_M, 311 threshold} \u2014 the neighbourhood sweep is silently absent."
+   },
+   {
+    "claim": "DP4: complex elevation = 'min & median elev_ft over grade_ok child entrances'",
+    "verdict": "AMEND",
+    "evidence": "07 asked for one decision \u2014 'min-vs-median is 08's call, made once here' \u2014 and the draft ships both. Measured from the entrance probe (scratchpad/entrances.json, 2,120 rows): 445 complexes, of which 30 have exactly one entrance (matches 07). For those 30 rows min and median are numerically IDENTICAL \u2014 exact collinearity in 6.7% of the complex design matrix, and near-collinearity across the rest. Under L2 the pair splits the coefficient arbitrarily and 'coefficients published as the transparent index' stops being readable, which is the draft's own stated reason for choosing a logistic over a GBM. Pick one (median for typical doorway, min for worst doorway) and say which."
+   },
+   {
+    "claim": "DP4: 07 obligation (3), 'flagged-row fallback = drop', is compatible with the stated universe of 445 complexes",
+    "verdict": "AMEND",
+    "evidence": "Contradiction. 30 complexes have exactly one entrance, so one flagged child voids the unit; 07 says as much and asks 08 to report the count of complexes with zero ok children. 'Drop' therefore removes score units from a universe the draft freezes at 445, and 07 offered ring15_med per-row precisely as the fallback for this case. Same hole for bus stops: 07 measured 4 flagged + 1 NoData per 4,557 sampled, so ~12-15 flagged stops registry-wide \u2014 dropped, or emitted with a missing indicator? The draft never says, and gold/flood_exposure has no absent-key convention."
+   },
+   {
+    "claim": "DP4: 07 obligation (2), QC flags never enter as features, is satisfied",
+    "verdict": "AMEND",
+    "evidence": "Satisfied verbatim ('Barred: grade_ok / epoch deltas'), but the draft misses the residual leak 07's binding does not close: the 41 flagged entrances concentrate on alert-heavy complexes inside the Sandy polygon, so USING grade_ok as a filter conditions the complex aggregate on a label-correlated selection. Dropping the flagged child of an alert-heavy complex changes that complex's min/median in a direction correlated with y. The filter is right; it needs a stated sensitivity (aggregate with and without the filter, on the ~30 stations that carry the 41 rows)."
+   },
+   {
+    "claim": "DP4: sewer_type skipped because '97.7% of the GI proxy layer is Combined - a near-constant covariate'",
+    "verdict": "AMEND",
+    "evidence": "The arithmetic is CONFIRMED against 04: df32-vzax = 16,231 points, Combined 15,863 = 97.73%. The inference is a selection-bias error. Green-infrastructure points are SITED by a CSO-reduction program, so their sewer_type composition describes where DEP built GI, not how NYC's sewersheds are distributed \u2014 MS4/separate areas cover large parts of Staten Island and eastern Queens. 04 already resolved the unbiased source and left it on the table: MS42020_DrainageAreas, 1,354 polygons, live queryable ArcGIS, no auth, point-in-polygon join. The skip may still be right for v1 (ponytail), but it must be justified by the polygon layer's coverage, not by the GI points."
+   },
+   {
+    "claim": "DP4: DEP stormwater category as 'ordinal none/nuisance/deep, moderate-current scenario only'",
+    "verdict": "AMEND",
+    "evidence": "Scenario name checks out against 04 (four .gdb folders; 'Moderate 2.13\"/hr + current' exists). But 04 enumerates FOUR display categories, not three: 'Deep and Contiguous Flooding (>=1ft)', 'Nuisance Flooding (>=4in, <1ft)', 'Future High Tides 2050', and an 'Area not included in analysis' MASK. The draft's ordinal collapses the mask into 'none' \u2014 encoding not-analyzed as not-flooded, which is exactly the imputation the effort's precip-gap rule forbids elsewhere in the same document. Needs a fourth level or a missing indicator; 'coverage fraction reported' does not fix the encoding."
+   },
+   {
+    "claim": "DP5: 'Sweeps inside the folds: RADIUS_M {50,100,200}; 311 era-threshold {p98, p99, p99.5}'",
+    "verdict": "REFUTED",
+    "evidence": "The threshold sweep cannot run inside a fold. The 311 threshold IS the event spine (01 criterion (a)): changing 97/84 changes which days are event-days, hence the event universe, hence the fold membership, hence the windows the precip features are computed over. 'Inside the fold' is only coherent for a parameter that varies within a fixed event set. It must be an outer loop: re-derive the spine, re-derive folds, refit, and report the whole CV as a separate row per threshold \u2014 and the comparison across thresholds is not a within-fold comparison. The radius sweep IS fold-safe (events unchanged, labels change), but it needs a build item the draft omits: RADIUS_M is baked into label_version and gold/flood_labels holds only the 100 m positives, so the 50/200 m label sets must be materialized or re-derived from silver/flood_obs inside each fold."
+   },
+   {
+    "claim": "DP5: 'per-event CSI with event-bootstrap intervals beside the pooled number' discharges 01's interval obligation",
+    "verdict": "AMEND",
+    "evidence": "Incoherent as written. An event-bootstrap resamples EVENTS and produces an interval on the pooled/mean statistic \u2014 it cannot produce an interval for a single event's CSI, which is one number computed from that event's own units. A per-event interval requires resampling units WITHIN the event, and those units are exactly the spatially duplicated fan-out 06 warned about (measured 1.69 stops per 311 point for Ida, 2.07 for 2023-09-29 at 100 m over the full registry), so a naive unit bootstrap will be anticonservative. Say which: cluster-bootstrap over 311 source points within the event, or drop to a pooled interval only. Also gold/flood_exposure_validation's column list has no interval columns."
+   },
+   {
+    "claim": "DP5 / 07 obligation (4): 'pre-/post-2014 event split reported beside pooled CSI'",
+    "verdict": "AMEND",
+    "evidence": "Reported as asked, but unusable without a guard the draft does not give: the split is confounded with LABEL availability, not just terrain age. Measured from 02's deliverable, alert-labeled days by year are 2013:1, 2015:1, 2016:10, 2017:20, 2018:9, 2019:7 \u2014 two alert-labeled days total before 2016 and zero before 2013 \u2014 and FloodNet starts 2020-11-16. So pre-2014 complexes can only be labeled through the 311->entrance radius path, with no station labels and no FloodNet. Pre-2014 CSI will be worse for label reasons. 07 made 'pre-2014 events score materially worse' the explicit trigger for pulling the 26.6 GB 2010 non-COG ERDAS epoch \u2014 as drafted, that trigger fires on a label artifact and buys an expensive, wrong build."
+   },
+   {
+    "claim": "DP5 era honesty: 'fit on AORC-era events only (2010-2025)'",
+    "verdict": "REFUTED",
+    "evidence": "This is the largest rails gap in the draft. Pipeline-08's resolved Answer declares src=aorc for the '2017-2024 backfill'; what is actually BUILT locally is five months \u2014 /Users/ross/raincheck/data/silver/precip_cell_hourly/src=aorc/month= 2021-08, 2021-09, 2021-10, 2023-09, 2023-10 (15.1M rows, 4,113 cells). Of the 57 criterion-(a) trigger days, exactly 5 fall inside the built months (2021-08-22, 2021-09-01, 2021-09-02, 2021-10-26, 2023-09-29) and 31 fall outside pipeline-08's DECLARED 2017-2024 scope (23 pre-2017, 8 in 2025+). Fitting 2010-2025 requires roughly 192 months of AORC ingest that no ticket owns and the draft's 'Skipped, with reasons' does not mention. Either name the backfill as a build item with its cost, or narrow the fit era to what pipeline-08 owns and say so."
+   },
+   {
+    "claim": "DP5: 'The five 2026 precip-gap events are excluded from fit and reported in a validation-only table'",
+    "verdict": "AMEND",
+    "evidence": "Two undercounts. (a) 5 DAYS = 4 EVENTS: 2026-05-20 and 2026-05-21 are contiguous and merge under 01's rule. (b) The gap is a property of the CALENDAR, not of criterion (a): AORC ends 2025-12-31 and MRMS starts 2026-08-14, so EVERY union event in 2026-01-01..2026-08-13 is precip-less \u2014 alert-only days, Storm Events days and CO-OPS days included \u2014 not just the five 311-triggered ones the draft enumerates. Define the held-out set by date range, not by an enumerated day list."
+   },
+   {
+    "claim": "Pipeline-08 binding: 168 permanently-NULL AORC cells vs the scored land-cell universe",
+    "verdict": "CONFIRMED",
+    "evidence": "Determinable, and it comes out in the draft's favour \u2014 but the draft flags the hazard and never resolves it. Measured: cells with count(mm_1h)=0 across all built AORC months = exactly 168 (reproduces pipeline-10's number). Zero of the 168 intersect any taxi zone, so overlap with the 1,336-cell scored universe is 0, and zero registry bus stops sit in one. State this as a checked build assertion (assert |cells_scored INTERSECT null_cells| = 0) so a footprint change breaks the build rather than silently emptying score rows."
+   },
+   {
+    "claim": "Pipeline-08 binding: 'AORC day-gap events -> NULL-row rule, not imputation'",
+    "verdict": "AMEND",
+    "evidence": "Asserts a population that may be empty. AORC's two real gaps are 2024-06-18 (whole day) and 2024-11-27T20Z; no criterion-(a) trigger day falls in June 2024 or late November 2024, and 01's windows are only midnight-3h..midnight+3h, so no (a)-event window touches either gap. The rule is right and cheap to keep, but the draft should say it is currently vacuous for (a)-days and only bites on union events from (b)/(c)/(d) \u2014 which it has not enumerated (see the ~70 undercount)."
+   },
+   {
+    "claim": "Pipeline-08 binding: srcs never pooled, MRMS era is replication-only, disjoint lags by subtraction",
+    "verdict": "CONFIRMED",
+    "evidence": "All three carried verbatim and correctly: 'srcs are never pooled in one fit (AORC vs MRMS collinear with era)', 'MRMS-era events (2026-08-14+) are an out-of-sample replication read, never pooled', 'Disjoint lags by subtraction per pipeline-08 (VIF up to 12.5 on nested sums)'. The MRMS ingest start (2026-08-14T00:00Z) and the AORC end (2025-12-31) match pipeline-08's Answer. This is the cleanest part of the draft."
+   },
+   {
+    "claim": "06 obligation (1): bus-stop churn sensitivity = 'score fit/eval restricted to stops present in the era's picks vs all stops, delta published'",
+    "verdict": "REFUTED",
+    "evidence": "Not executable on the rails as built. There are no 'era's picks': /Users/ross/raincheck/data/ref/picks holds exactly six rows, all published 2026-06-22 or 2026-07-27, and /Users/ross/raincheck/data/archive/static holds exactly one zip per feed (bronx/brooklyn/busco/manhattan/queens 2026-06-23, staten_island 2026-07-28, subway 2026-08-07). The 2022 Bronx and 2025 Queens redesigns cannot be reconstructed from anything local. Either name an external historical-GTFS fetch as a build item (transitland / mobilitydatabase, new source, HITL) or replace the method with one that runs on local data \u2014 e.g. a borough x era interaction, or drop Bronx pre-2022 and Queens pre-2025 stop-events entirely and publish that delta."
+   },
+   {
+    "claim": "06 obligations (2) fan-out and (3) effective-sample are discharged",
+    "verdict": "AMEND",
+    "evidence": "(3) is carried verbatim as a caveat, which is what 06 asked. (2) is answered with a spatially-thinned sensitivity fit rather than spatial blocking. That is defensible \u2014 clustering by event does absorb within-event spatial duplication for INFERENCE, since duplicates are by construction within one event \u2014 but the draft never states the remaining problem (the POINT estimate is still weighted toward high-fan-out 311 points), gives no decision rule if the main and thinned coefficients disagree, and never considers the one-line fix: weight each positive by 1/(units attached to its source point). Measured fan-out at 100 m over the full registry: 1.69 stops per 311 point for Ida, 2.07 for 2023-09-29."
+   },
+   {
+    "claim": "06 obligation (4): '~15,160 units x ~70 union events ~= 1.06M pairs at read, never materialized'",
+    "verdict": "AMEND",
+    "evidence": "Unit count should be 445 + 13,370 + 1,336 = 15,151 once the cell rule is corrected, and it rises again if asset-bearing non-land cells are added back. The event multiplier is the real problem (see the ~70 verdict): at >=115 union days the bound is ~1.7M, not 1.06M. 'Never materialized' is correctly preserved from 06. Recompute the bound after the union spine is actually enumerated, and freeze it as a build assertion."
+   },
+   {
+    "claim": "01 obligation: 'observed subset reported separately from unlabeled, never pooled'",
+    "verdict": "AMEND",
+    "evidence": "Satisfied verbatim in one line, but never sized and therefore not yet a plan. With 440 FloodNet sensors and a 100 m radius, the number of score units with an active in-radius sensor is a few hundred at most, so a per-event observed-negative CSI will be uninformative noise on most events. The draft also never says whether observed negatives enter the FIT or only the report \u2014 01 constrains the reporting, so this is 08's call and it is unmade. Measure the observed-unit count per kind before promising a separate table."
+   },
+   {
+    "claim": "01 obligation: 'detectability anti-join from sensor active ranges + 02's parseability'",
+    "verdict": "REFUTED",
+    "evidence": "One sentence ('sensor active ranges + 02's alert parseability gate the negative universe') that is not operationalized and, read literally, is destructive: FloodNet events start 2020-11-16, so gating the negative universe on sensor active ranges deletes every negative before 2020-11 \u2014 i.e. 40 of 57 trigger days. 02's parseability bears only on the alert path at complexes, not on bus stops or cells. Also unused: 02's measured recall (0.970 new era, 0.778 old era) means missed station extractions are FALSE NEGATIVES concentrated in the old era, compounding the pre-2014 confound. And 01's coverage constants give alert holes the draft never carries into its era rules \u2014 2020-04-01..27, flood signal effectively 2016+, and Socrata tail 2026-06-29 vs archiver capture 2026-08-16 (dark 2026-06-30..08-15) \u2014 while complexes draw most of their positives from alerts."
+   },
+   {
+    "claim": "01 obligation: 'Calibration expectations anchored: published FIM systems run CSI 0.26-0.45'",
+    "verdict": "AMEND",
+    "evidence": "Carried verbatim as 01 requires \u2014 but the draft repeats it without naming the estimand mismatch, which makes it dishonest as an expectation. Published FIM CSI is computed against inundation EXTENT, where the positive fraction of the evaluated domain is often tens of percent. Here the pooled unit-event base rate is roughly 0.1-0.3%: even Ida, the largest storm on record, gives 857/13,370 = 6.4% of bus stops (measured) and 324/1,336 = 24% of land cells, and typical trigger days are far smaller. CSI 0.26 at a 0.2% base rate demands precision and recall both near 0.4 on a PU-labeled target. As written the anchor either condemns a reasonable model or invites operating-point gaming. State the base rate beside the anchor, and add the base-rate-relative baseline (B0's CSI) as the real floor."
+   },
+   {
+    "claim": "DP2: three per-kind L2 logistics with B0/B1 baselines; 'the full model beats B1 on held-out events' is the headline validation claim",
+    "verdict": "AMEND",
+    "evidence": "The headline is grain-dependent and close to vacuous at two of the three grains. Precip is constant within a Cell-hour, so B1 assigns ONE identical probability to every bus stop in a cell (06: mean 12.9, max 67) and to every complex in a cell \u2014 any within-cell feature beats it by construction, and 'the asset layer earns its keep' is decided before a single coefficient is fit. At cell grain B1 and the full model differ only by borough, n_assets and the elevation aggregate. Also missing: the L2 penalty lambda is never mentioned. Tuning it on the same event-grouped folds used for reporting leaks; the draft's 'sweeps inside the folds' names RADIUS_M and the 311 threshold but not lambda. Nested CV or a frozen lambda, and a per-kind statement of what beating B1 would actually mean."
+   },
+   {
+    "claim": "DP2: the three fits give independent validation evidence",
+    "verdict": "AMEND",
+    "evidence": "They do not. One 311 point mints the cell positive AND ~1.7-2.1 bus_stop positives AND (via the entrance OR) the complex positive from the same report. Agreement across kinds is close to mechanical, so three per-kind CSIs are not three independent confirmations and must not be read as such in the write-up. Worse for the cell fit specifically: a cell is positive iff a 311 SJ/SH point lands in it, and criterion (a) makes the DAY an event because the citywide SJ/SH count is high \u2014 the cell model's y and the event trigger are the same data stream, so the cell fit mostly learns where people call 311. That is precisely the chronic-reporter channel the with/without-history split is meant to isolate, and it cannot: the history covariates are NFIP + sewer-backup density, not SJ/SH call density itself. Add historical SJ/SH call density to the with/without pair or say the cell model cannot separate the channel."
+   },
+   {
+    "claim": "DP3: public number = per-kind percentile index 0-100, probabilities confined to validation tables",
+    "verdict": "AMEND",
+    "evidence": "Honest under PU labels \u2014 but as specified it is not computable, because it inherits the grain hole (next verdict): a percentile of eta requires a per-unit eta, and eta is defined at unit x event. Two further consumer problems: a within-kind percentile is not comparable across kinds, so the serving panel cannot color one map or rank a station against a bus stop; and a percentile is uniform by construction, so half the city is always 'above median' whatever the actual risk. If the index survives, publish the eta->percentile mapping (the empirical CDF) in the coefficient JSON, or ticket 10 cannot render an index at all."
+   },
+   {
+    "claim": "DP6 / DP1: gold/flood_exposure = 'one row per scored unit: asset_id, kind, score_index, eta, score_version, frozen_at'",
+    "verdict": "REFUTED",
+    "evidence": "Grain contradiction at the center of the design. The model is fit at unit x EVENT grain on event-varying features \u2014 window max mm_1h/3h/6h, window total, antecedent mm_24h, n wet hours, event-side gauge margin, and NFIP/sewer covariates that the draft itself makes time-varying ('strict as-of before each window'). A single eta per unit therefore does not exist until 08 says how event features are marginalized: a frozen reference storm, feature means, or a static-only sub-model. The draft never says. Until it does, the headline table, the percentile index, and ticket 10's 'detector = score x live forcing?' are all undefined \u2014 and if the static score already contains precip, multiplying by live forcing double-counts it."
+   },
+   {
+    "claim": "DP6: 'Model artifact = the 10 interface... The detector re-evaluates the SAME linear model with live features - no second model to reconcile'",
+    "verdict": "REFUTED",
+    "evidence": "This does not serve ticket 10. Every precip and coastal feature in the fitted spec is an aggregate over the CLOSED event window: 'max mm_1h, max mm_3h, max mm_6h in window; window total; n wet hours' and 'max water-level margin over nws_minor at the assigned gauge in window'. At detection time the window is open, so none of them exist. Feeding running partial-window maxima into coefficients fit on full-window maxima is a different model: every feature is downward-biased at t < window end, the bias shrinks as the event proceeds, and the resulting score is uncalibrated and non-monotone in time. Marking a 'live-computable subset' does not fix it \u2014 dropping terms from a fitted linear model changes what the remaining coefficients mean. The cheap fix is already on the rails: pipeline-08 stores mm_1h, mm_1h_prev, mm_3h, mm_6h, mm_24h, n_hours_24h at (src, cell, hour_end_utc) \u2014 trailing, leakage-free, identical offline and live. Fit at unit x event-HOUR grain on those columns and define the event score as max over hours; then one linear model genuinely serves both the history table and the detector, and 'no second model to reconcile' becomes true instead of aspirational."
+   },
+   {
+    "claim": "DP6: 'score_version = sha1(label_version, features_version, model-constant JSON, scored-universe definition)'",
+    "verdict": "AMEND",
+    "evidence": "The chain omits precip identity entirely \u2014 no src, no AORC/MRMS partition version, no grid sha256 (pipeline-08 stores one per ref/grids row). An AORC re-key, a month rebuild, or a switch of src leaves score_version unchanged, which defeats the exact hazard pipeline-08's Answer spends its length preventing ('srcs are never pooled', src collinear with era). assets_version is correctly inherited twice (via label_version per 06(c) and features_version per 07). Add src + the precip partition/grid hash, and the RADIUS_M/threshold values actually used."
+   },
+   {
+    "claim": "DP6: outputs serve the eventual serving panel (absent-key conventions, provenance)",
+    "verdict": "REFUTED",
+    "evidence": "Three holes. (a) No absent-key convention: what is emitted for an asset-less land cell (330 measured), a NoData bus stop, or a complex with zero grade_ok children \u2014 NULL score row, missing row, or removed from the universe? Undefined, and it collides with the frozen '445 complexes' given the 'fallback = drop' rule and the 30 single-entrance complexes. (b) No provenance columns: gold/flood_exposure carries score_version and frozen_at but not label_version, features_version, assets_version, cells_scored or src, so a panel cannot say which labels or which precip source produced a score without re-deriving the hash. flood_exposure_validation has neither frozen_at nor score_version nor interval columns. (c) 07's display obligations were handed forward \u2014 'export drops elev_ft when NOT grade_ok (else the page paints WTC as a -34 ft city low point inside the Sandy polygon)' and 'legend names datum AND epoch (NAVD88 US ft, 2017 LiDAR)' \u2014 and the draft's outputs carry no elevation or grade_ok column at all, so nothing propagates them and no ticket now owns them."
+   }
+  ],
+  "missing": [
+   "AORC backfill build item: no ticket owns extending silver/precip_hourly + precip_cell_hourly src=aorc beyond the five built months (2021-08..10, 2023-09..10) to the fit era. Name the months, the cost, and who builds them \u2014 or narrow the fit era.",
+   "Union event spine never enumerated: the draft only measures criterion (a). Criteria (b) alert days (58 of 71 are not (a)-days), (c) Storm Events over FIPS 36005/36047/36061/36081/36085 plus the coastal CZ_NAMEs, and (d) CO-OPS exceedances at Battery/Kings Point are unmeasured. Every count keyed to '~70 union events' is provisional until they are.",
+   "NFIP: no ticket owns access (04 covers stormwater/sewer only, not NFIP claims). The map lists 'NFIP block-group claims disaggregated onto segments/stations (spatial support mismatch)' under Not yet specified, and the draft silently resolves it as 'claims count in the asset's block group'. Source, vintage, as-of mechanics and the support-mismatch decision are all unstated.",
+   "'311 sewer-backup density' is undefined: which radius or areal unit, what denominator, what as-of window, and which 311 descriptor literals (01 warns against LIKE '%FLOOD%'-style matching for the SJ/SH case; the same discipline is needed here).",
+   "L2 penalty lambda: never mentioned. Selection procedure (nested CV vs frozen constant) and value must be named, or the reported CV numbers are optimistic.",
+   "Class-imbalance handling: class weights vs unweighted with an in-fold operating point, and the intercept convention for the published eta. The draft names the operating point but not the fit weighting.",
+   "Bootstrap constants: B, the resampling unit (event vs 311 source point vs unit), and the interval type are unspecified; the effort's frozen-constants rule applies.",
+   "Percentile mapping is not published: ticket 10 needs the eta->index empirical CDF in the coefficient JSON to render an index live, and it is not in the artifact's stated contents.",
+   "Observed-negative subset is never sized (units with an active in-radius FloodNet sensor, per kind, per event) and it is unstated whether they enter the fit or only the report.",
+   "Complex and cell gauge assignment: 07's obligation (6) is discharged only for point carriers. Which geometry a complex uses (its centroid never takes the radius per 06) and what a cell uses (centroid?) are unstated, and freeboard is undefined for the 330 asset-less land cells.",
+   "Count of complexes with zero grade_ok children \u2014 07 asked for it explicitly and the draft only says '(zero-ok complexes counted)'; it is measurable once silver/asset_features exists and determines how many of the 445 units survive.",
+   "Entrance-level display rows: 06 makes entrances carriers and 07 hands forward entrance display obligations, but gold/flood_exposure has no entrance rows and no ticket now owns the entrance-grain display export the serving panel will want.",
+   "MRMS-era replication read has no acceptance criterion: pipeline-08 gives the expected scale ratio (MRMS Pass2 = 0.86-0.92 of AORC on both storms) but the draft never says what agreement would count as a passed replication.",
+   "Storage/CRS conventions: gold/flood_exposure and gold/flood_exposure_validation are described in prose without pipeline-09 shape (plain Parquet vs GeoParquet, sort key, single-part rule, byte-identical rebuild gate) beyond 'rebuilt whole; single sorted part file'."
+  ]
+ }
+}

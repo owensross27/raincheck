@@ -36,6 +36,17 @@ One of the 263 NYC taxi zones. A presentation overlay reached through a static
 Cell-to-Zone lookup at serving time — never a first-class key.
 _Avoid_: district, area
 
+**Unit**:
+A flood-scored asset: a subway complex, a bus stop, or a Cell. The only kinds
+that ever publish a flood score; one row each in `ref/assets`, kind-separated.
+_Avoid_: asset (when scoring is meant), target
+
+**Carrier**:
+A station or entrance row in `ref/assets`: it locates, joins, and aggregates
+(entrances carry elevation; stations carry the delay join) but is never scored
+independently — a complex's score is the max over its child entrances.
+_Avoid_: sub-asset, child unit
+
 **Passage**:
 The moment a bus passes a stop, bracketed by the last Ping naming that stop as
 next and the first Ping naming the one after; its midpoint is the arrival. The

@@ -1,0 +1,259 @@
+{
+  "run": "verify-flood-tickets 2026-08-22",
+  "lenses": {
+    "completeness": {
+      "verdict": "needs-fixes",
+      "findings": [
+        {
+          "ticket": "08 (and breakdown)",
+          "severity": "blocking",
+          "claim": "The stormwater features in the training matrix have no producer ticket \u2014 the DEP geodatabase ingest that the spec mandates appears in no ticket.",
+          "evidence": "Spec, Storage and engine conventions: \"the DEP stormwater geodatabase is read once through DuckDB spatial's OpenFileGDB driver (verified in-venv, no new dependency) and snapshotted.\" Ticket 08 consumes the output \u2014 \"stormwater category (4 levels: deep / nuisance / analyzed-none / not-analyzed \u2014 never imputed)\" and \"cell-model features: the three precip terms, stormwater area shares\" \u2014 but grep across all 17 tickets for \"OpenFileGDB\", \"geodatabase\" and \"DEP stormwater\" returns nothing; the only 'stormwater' hits are the two consuming lines in 08.",
+          "fix": "Add the DEP gdb read-and-snapshot as acceptance criteria \u2014 OpenFileGDB via DuckDB spatial, no new dependency, snapshotted for byte-identical rebuild, point-level 4-category assignment and Cell-level area shares \u2014 either as a new ticket ahead of 08 or as criteria on ticket 03, and add it to ticket 08's Blocked-by."
+        },
+        {
+          "ticket": "05, 10, 15",
+          "severity": "blocking",
+          "claim": "The estimand `flooded_reported` \u2014 the spec's central honesty clause, required on every artifact \u2014 is named in no ticket.",
+          "evidence": "Spec, Solution: \"The estimand is named on every artifact: `flooded_reported` \u2014 where flooding was REPORTED, not where water necessarily stood.\" Further Notes, Honesty clauses: \"The estimand is flooded_reported and every public artifact names it.\" grep -rin 'flooded_reported' over the 17 ticket files returns zero hits.",
+          "fix": "Add an acceptance criterion naming the estimand on each artifact that publishes: gold/flood_labels (05), gold/flood_exposure plus the coefficient JSON (10), and the panel/export payloads as a rendered string (15)."
+        },
+        {
+          "ticket": "11",
+          "severity": "blocking",
+          "claim": "The detector core ticket never pins which live precip stamps the forcing reads, so an implementer can wire it to Pass2 or the 2-min trailing stamps the spec explicitly rejects.",
+          "evidence": "Spec, Real-time detector: \"Forcing = the pipeline's live precip table (MRMS RadarOnly :00 stamps only; the 2-min trailing stamps would converge from above and are rejected; Pass2 lags 60\u201390 min and never feeds the live path).\" Ticket 11's criteria say only \"features over [anchor, now]: running max mm_1h and Window total\"; grep for 'RadarOnly', 'MRMS' and 'Pass2' in ticket 11 returns nothing (Pass2 appears only in ticket 08's scale-band line).",
+          "fix": "Add a criterion to ticket 11: forcing is the live precip table at MRMS RadarOnly :00 stamps only; 2-min trailing stamps and Pass2 are rejected inputs to the live path, asserted by a fixture."
+        },
+        {
+          "ticket": "09",
+          "severity": "should-fix",
+          "claim": "The MRMS-era out-of-sample replication is tagged in the training table but never actually run or reported by any ticket.",
+          "evidence": "Spec, Exposure score era rules: \"the MRMS era is out-of-sample replication read against the measured 0.86\u20130.92 Pass2/AORC band\" (user story 20 repeats it). Ticket 08 only tags rows: \"the MRMS era is tagged out-of-sample replication and read against the 0.86\u20130.92 Pass2/AORC scale band\". Ticket 09's validation list runs splits, four baselines, bootstrap, per-event POD, sweeps and the pre/post-2014 split \u2014 no MRMS-era replication result. Ticket 10 only stores the band in the JSON.",
+          "fix": "Add to ticket 09: publish the MRMS-era replication metrics as a build asset alongside the AORC-fit metrics, read under the stated 0.86\u20130.92 scale band with the band caveat stamped on the table."
+        },
+        {
+          "ticket": "09",
+          "severity": "should-fix",
+          "claim": "The FIM expectation band and its order-of-magnitude-only stamp have no home in any ticket.",
+          "evidence": "Spec, Further Notes / Honesty clauses: \"Published FIM systems run CSI 0.26\u20130.45 \u2014 expectations are calibrated to that band, and the FIM comparison is stamped order-of-magnitude-only.\" Ticket 09 publishes \"pooled CSI/POD/FAR at the in-fold operating point\" but grep for 'FIM' and 'order-of-magnitude' across all tickets returns zero hits.",
+          "fix": "Add a criterion to ticket 09: the published CSI table carries the 0.26\u20130.45 FIM reference band and the order-of-magnitude-only stamp on the comparison."
+        },
+        {
+          "ticket": "15",
+          "severity": "should-fix",
+          "claim": "Two of the panel's required honesty strings \u2014 \"trails the storm\" and rank-only/uncalibrated-in-v1 \u2014 are missing from ticket 15's fixed-strings list.",
+          "evidence": "Spec, Solution: the panel \"says plainly that it ranks where a flood report is likely, trails the storm, and is a page you open during a storm, not a service that watches.\" Further Notes: \"The live panel trails the storm, is rank-only and uncalibrated in v1.\" Ticket 15 lists headline, reporting-propensity sentence, Window-in-tier-label, within-Cell note, \"a page you open during a storm, not a service that watches\", and B2 alternates \u2014 grep for 'trails' and 'uncalibrated' across all tickets returns nothing.",
+          "fix": "Add both strings to ticket 15's fixed-claims criterion and to the detector constants artifact string set in ticket 11."
+        },
+        {
+          "ticket": "13",
+          "severity": "should-fix",
+          "claim": "The FloodNet tier omits the network's own caveats (snow, obstruction) that user story 27 requires be shown.",
+          "evidence": "Spec, user story 27: \"I want FloodNet water detections shown as a measured truth tier with the network's own caveats (snow, obstruction), so that the model's guesses sit beside the ground truth that can shame them.\" Ticket 13 carries the rise/persistence rules, the \"sensor-status blacklist\", and \"dry-and-reporting sensors render dim\" \u2014 grep for 'obstruction' returns zero hits and 'snow' hits only tickets 04 and 11 (snowmelt reclass, winter gate).",
+          "fix": "Add to ticket 13 (data) and 15 (render): the FloodNet tier displays the network's own caveats \u2014 snow and obstruction can register as depth \u2014 beside the detections."
+        },
+        {
+          "ticket": "05, 09",
+          "severity": "should-fix",
+          "claim": "The bus-stop-churn correction is only half implemented: the era-restricted negatives landed, the published deltas did not.",
+          "evidence": "Spec, Further Notes corrections table: \"06: bus-stop churn sensitivity method | 08 | unexecutable (no historical Picks locally); replaced by era-restricted negatives + published deltas\". Ticket 05 carries the first half \u2014 \"bus-stop pairs restricted to events from 2020 on\" \u2014 but grep for 'churn' across all tickets returns nothing, and ticket 09's sweep list (\"~25 one-at-a-time configs\", weight sensitivity, radius, 311-threshold) contains no churn deltas.",
+          "fix": "Add to ticket 09's sweeps criterion: publish the bus-stop churn deltas (metrics with and without the era-restricted bus-stop negatives) as a build asset, naming the no-historical-Picks reason the original method was dropped."
+        },
+        {
+          "ticket": "04 (or 11)",
+          "severity": "should-fix",
+          "claim": "The MRMS filename-pattern canary that the spec lists as a build-time canary has no home in any ticket.",
+          "evidence": "Spec, Testing Decisions: \"Canaries run at build time: the four 311 literals have trailing-30-day rows, the MRMS filename pattern resolves, every frozen source literal and endpoint answers.\" Ticket 04 carries the first and third (\"canary: each of the four 311 literals matches trailing-30-day rows, and every frozen source literal and endpoint answers\") but is an AORC/offline ticket; grep for 'filename' across all tickets returns zero hits, and ticket 11 mentions only \"canary patterns\" as a key inside the constants JSON with no criterion that any canary runs.",
+          "fix": "Add an explicit criterion \u2014 the MRMS filename pattern resolves against the live source at build, failing the build otherwise \u2014 to ticket 11 (it owns the live path and the canary patterns constant)."
+        },
+        {
+          "ticket": "03, 07",
+          "severity": "should-fix",
+          "claim": "The gauge minor-flood threshold constants are circular between tickets 03 and 07: 03 asserts a count derived from them, but 07 (which owns and freezes them) is blocked by 03.",
+          "evidence": "Ticket 03: \"datum sanity pinned: the below-minor-flood entrance count reads 3 under NAVD88 discipline, not the naive STND-comparison 103\" \u2014 a count that requires the gauges' minor-flood stages. Ticket 07: \"the threshold stage is frozen ONCE and shared with the detector's coastal tier \u2014 asserted equal at build\", with \"**Blocked by:** 03\". Spec places the freeze under the coastal layer: \"threshold stage frozen once and shared with the detector (asserted equal at build)\".",
+          "fix": "Move the frozen threshold-stage constants into ticket 03 (or a shared constants criterion it owns), and reword tickets 07 and 14 to consume and assert equality against that one definition."
+        },
+        {
+          "ticket": "06, 16",
+          "severity": "should-fix",
+          "claim": "Two tickets depend on ticket 01's registry outputs without declaring it in Blocked-by, so the graph permits them to start before the registry exists.",
+          "evidence": "Ticket 06 states \"**Blocked by:** 04\" yet asserts \"every union-event Window hour has AORC Cell-hour rows for cells_scored, minus the permanently-NULL Pixels asserted disjoint in ticket 01\" \u2014 both cells_scored and that disjointness assertion are ticket 01 deliverables. Ticket 16 states \"**Blocked by:** 04\" yet builds \"service_ratio and max_gap_ratio at complex grain\", and the 445 complexes with corrected ids are defined in ticket 01 (\"445 complexes \u2026 no-hash natural keys: entrance = corrected complex id\").",
+          "fix": "Add 01 to the Blocked-by of tickets 06 and 16."
+        },
+        {
+          "ticket": "03, 08",
+          "severity": "should-fix",
+          "claim": "The DEC/DEP fetch-and-use-but-no-rehosting license constraint is carried by no ticket, though two tickets fetch those services.",
+          "evidence": "Spec, Further Notes / Licenses: \"DEC/DEP services: fetch-and-use fine, rehosting barred.\" Ticket 16 carries the subwaydata constraint and ticket 13 the FloodNet citation, but grep for 'rehost' returns zero hits; ticket 03 fetches \"the 2017 1-m DEM ImageServer\" and the stormwater source feeds ticket 08 with no license criterion on either.",
+          "fix": "Add a criterion to ticket 03 (and to whichever ticket lands the DEP stormwater ingest): DEM/stormwater snapshots stay local, are never rehosted or cold-pushed, mirroring ticket 16's subwaydata clause."
+        },
+        {
+          "ticket": "06",
+          "severity": "nit",
+          "claim": "Ticket 06's coverage assertion contradicts itself: it subtracts a set that ticket 01 asserts is already disjoint.",
+          "evidence": "Ticket 06: \"coverage assertion: every union-event Window hour has AORC Cell-hour rows for cells_scored, minus the permanently-NULL Pixels asserted disjoint in ticket 01\". Ticket 01: \"the permanently-NULL AORC Pixels are asserted disjoint from it\" (it = cells_scored). If disjoint, there is nothing inside cells_scored to subtract.",
+          "fix": "Reword to: coverage is asserted over all of cells_scored, relying on ticket 01's disjointness assertion \u2014 drop the 'minus' clause."
+        },
+        {
+          "ticket": "14",
+          "severity": "nit",
+          "claim": "Ticket 14 adds an NWS `/points` redirect behavior the spec never states.",
+          "evidence": "Ticket 14: \"one Central Park (KNYC) observation per cycle from the frozen NWS endpoint (the /points redirect is handled; endpoints are constants, not discovery)\". Spec says only \"Winter gate: one Central Park observation per cycle\" and, for constants, \"exact query strings are frozen constants\" \u2014 no /points redirect appears anywhere in the spec.",
+          "fix": "Either drop the /points detail or mark it as an implementation note rather than an acceptance criterion, keeping the spec-backed part (endpoints are frozen constants, not discovery)."
+        }
+      ]
+    },
+    "graph": {
+      "findings": [
+        {
+          "ticket": "15",
+          "severity": "blocking",
+          "claim": "Ticket 15's external edge to pipeline-build 14 transitively drags in Kafka and the streaming job, contradicting the spec's explicit sequencing claim that the flood panel needs neither and can ship ahead of the bus live view.",
+          "evidence": "Spec, Further Notes / Sequencing: \"it needs the live-precip job (pipeline build, now amended with the catch-up fetch), the page skeleton and export loop, and the existing ref/precip rails \u2014 and needs neither Kafka nor the streaming job, so the flood panel can ship ahead of the bus live view.\" Ticket 15: \"Blocked by: 11, 13, 14 \u2014 and externally on the pipeline build: 11 (live-precip job...), 13 (page skeleton), 14 (the 30 s export loop this tick joins)\". But /Users/ross/raincheck/.scratch/build/issues/14-live-export-and-live-panel.md: \"**Blocked by:** 12, 13\", and /Users/ross/raincheck/.scratch/build/issues/12-streaming-job.md: \"`make stream` runs one Spark Structured Streaming app over both topics ... **Blocked by:** 10, 11\". So flood-15 \u2192 build-14 \u2192 build-12 \u2192 Kafka topics (build-10), the exact chain the spec says the flood panel does not need.",
+          "fix": "Narrow the external edge: depend on build-13 (page skeleton + the pure-SQL JSON writer / merge-patch path) and build-11 (live-precip, amended), and state that the flood tick joins build-14's loop if it exists but otherwise stands the 30 s loop up itself with the flood keys only \u2014 build-14 merges its bus payload into the same process later. Add an explicit line: \"does not depend on build-12/Kafka; the bus live panel may land after.\""
+        },
+        {
+          "ticket": "15",
+          "severity": "blocking",
+          "claim": "Ticket 15 builds latched tier chips and their fixed strings but is not blocked by ticket 12, the replay that decides whether tiers ship at all \u2014 so the panel can be built against cutpoints ticket 12 may delete.",
+          "evidence": "Spec, Real-time detector: \"Tiers: ELEVATED = top 10% within kind, HIGH = top 2% (provisional until the replay measures per-event flag volumes; if false-positive volume is unacceptable, v1 ships rank-only).\" Ticket 12: \"the tier decision is recorded and applied: cutpoints confirmed, or \u2014 if per-event false-positive volume is unacceptable \u2014 v1 ships rank-only; either way the detector constants JSON updates and detector_version bumps\". Ticket 15 nonetheless lists \"Blocked by: 11, 13, 14\" and checkboxes \"tier chips latched\" and \"export-file seam tests: ... tier chips render from file data alone\". Spec's own slice order also places replay before the panel: \"detector core (window walk + evaluation + replay) \u2192 truth tiers \u2192 panel + exports \u2192 impact overlays.\"",
+          "fix": "Add 12 to ticket 15's Blocked by (12 < 15, so ordering stays valid). Numbering already permits it; the edge is what makes the panel's tier-vs-rank-only branch decided before it is rendered."
+        },
+        {
+          "ticket": "08",
+          "severity": "should-fix",
+          "claim": "The stormwater features ticket 08 requires have no producing ticket anywhere in the breakdown \u2014 the DEP geodatabase read the spec mandates is unowned.",
+          "evidence": "Ticket 08: \"stormwater category (4 levels: deep / nuisance / analyzed-none / not-analyzed \u2014 never imputed)\" and \"cell-model features: the three precip terms, stormwater area shares...\". Spec, Storage and engine conventions: \"the DEP stormwater geodatabase is read once through DuckDB spatial's OpenFileGDB driver (verified in-venv, no new dependency) and snapshotted.\" A grep across all 17 tickets returns \"stormwater\" only in 08-training-table.md, and \"OpenFileGDB\"/\"geodatabase\"/\"DEP\" in none. Ticket 08's blockers (03, 05, 06) produce elevation, labels and precip \u2014 none produce the stormwater attribute join.",
+          "fix": "Give the DEP snapshot + point/area stormwater join an owner: add it to ticket 03 (`silver/asset_features` already spatial-joins point assets and is the natural home for the 4-level category) with the Cell area shares alongside, and cite it in 08 as a consumed input. Otherwise state in 08 that the snapshot is in-scope for that slice and add the OpenFileGDB read to its checklist."
+        },
+        {
+          "ticket": "06",
+          "severity": "should-fix",
+          "claim": "Ticket 06's coverage assertion consumes `cells_scored` from ticket 01, but 01 is neither a listed nor a transitive blocker of 06.",
+          "evidence": "Ticket 06: \"**Blocked by:** 04\" and \"coverage assertion: every union-event Window hour has AORC Cell-hour rows for cells_scored, minus the permanently-NULL Pixels asserted disjoint in ticket 01\". Ticket 01 is the producer: \"`cells_scored` = Cells intersecting a non-EWR taxi Zone UNION Cells containing a scored point asset (~1,351...); the count freezes at build; the permanently-NULL AORC Pixels are asserted disjoint from it\". The chain 06 \u2190 04 \u2190 02 \u2190 (none) never reaches 01, so an implementer can start 06 with no cells_scored to assert against and ships the slice untestable.",
+          "fix": "Change ticket 06 to \"**Blocked by:** 01, 04\"."
+        },
+        {
+          "ticket": "16",
+          "severity": "should-fix",
+          "claim": "Ticket 16 aggregates at complex grain and asserts against extractor-flagged complexes, but the registry that defines the 445 complexes and their corrected ids is not upstream of it.",
+          "evidence": "Ticket 16: \"**Blocked by:** 04\", and \"subway: service_ratio and max_gap_ratio at complex grain from subwaydata.nyc per-day CSVs\" plus \"fixture assertion: on 2023-09-29 the combined metrics catch 5/7 of the extractor-flagged complexes\". Ticket 01 owns that universe: \"20,544 rows = 445 complexes + ... no-hash natural keys: entrance = corrected complex id + 6-dp coordinates\". 16 \u2190 04 \u2190 02 has no path to 01.",
+          "fix": "Change ticket 16 to \"**Blocked by:** 01, 04\" (01 < 16, ordering unaffected)."
+        },
+        {
+          "ticket": "12",
+          "severity": "should-fix",
+          "claim": "Ticket 12 drops the spec's stated precondition that replay depends on the live-precip catch-up fetch, and lists no external pipeline-build dependency at all.",
+          "evidence": "Spec, Real-time detector (logging): \"Replay is conditional on the catch-up fetch; capped or insufficient-data Windows are not replayable and say so.\" Ticket 12 carries only the second half \u2014 \"capped or insufficient-data Windows are excluded from the replay and counted ... (they are not replayable and say so)\" \u2014 and states \"**Blocked by:** 06, 11\" with no external edge. The pipeline ticket itself names 12 as a dependent: /Users/ross/raincheck/.scratch/build/issues/11-mrms-live-and-batch-precip.md comment \u2014 \"The flood detector's Window walk and replay harness (flood-build tickets 11\u201312) depend on this catch-up; a latest-only tick leaves permanent HOLES the panel must then display forever.\"",
+          "fix": "Add to ticket 12: \"\u2014 and externally on the pipeline build: 11 (live-precip job, as amended with the catch-up fetch)\", and restore the \"replay is conditional on the catch-up fetch\" clause to the first checkbox."
+        },
+        {
+          "ticket": "02, 13",
+          "severity": "should-fix",
+          "claim": "Tickets 02 and 13 both consume \"the spine dedupe keys\" as if ticket 04 produced them, but 04 is blocked by 02 \u2014 the wording describes a cycle and leaves the keys unowned.",
+          "evidence": "Ticket 02: \"output is station-named alert flood events deduped by the spine keys\" with \"**Blocked by:** None \u2014 can start immediately\". Ticket 13: \"one chip per incident via the spine dedupe keys\", \"**Blocked by:** 02\". Ticket 04, which builds `silver/flood_events`, is \"**Blocked by:** 02\". So the only ticket that could produce a \"spine key\" is downstream of both consumers; an implementer of 02 or 13 who reads this literally blocks on 04 and deadlocks.",
+          "fix": "State in ticket 02 that it DEFINES the alert-incident dedupe keys (as named constants alongside the live vocabulary) which the spine in 04 then consumes, and reword 13 to \"ticket 02's incident dedupe keys\". No graph edge changes; the ownership sentence does."
+        },
+        {
+          "ticket": "09",
+          "severity": "should-fix",
+          "claim": "Ticket 09 carries the 311-threshold outer replication, which by the spec's own definition redefines the event universe and therefore requires re-running 04 \u2192 05 \u2192 06 \u2192 08 \u2014 a hidden back-edge and a slice too large for one session.",
+          "evidence": "Ticket 09 checklist: \"the 311-threshold sweep runs as an OUTER replication (it redefines the event universe)\" \u2014 alongside two fits, four baselines, two split schemes, a B=1000 bootstrap, ~25 one-at-a-time configs, the {50,100,200} m in-fold sweep, the weight-sensitivity fit and the pre/post-2014 split. Spec: \"the 311-threshold sweep is an outer replication (it redefines the event universe)\" and ticket 04 freezes those thresholds: \"the daily-count p99 triggers are RE-MEASURED on the union per era-dataset (nearest-rank), frozen as named constants\". Rebuilding the spine at alternate thresholds is a rerun of 04/05/06/08, not a step inside 09.",
+          "fix": "Split the outer replication into its own ticket (e.g. 09b, blocked by 09) whose checklist is \"re-derive the spine at the alternate 311 thresholds, rebuild 05/06/08 under the alternate universe, re-fit, publish the delta table\" \u2014 and leave 09 with the in-fold sweeps and the headline gate only."
+        },
+        {
+          "ticket": "11, 14",
+          "severity": "should-fix",
+          "claim": "The Central Park winter-gate observation fetch is claimed by both ticket 11 and ticket 14, but ticket 11 declares itself network-free \u2014 one of the two will be built twice or built against a network it disavows.",
+          "evidence": "Ticket 11 header: \"everything the panel will call, testable entirely on fixtures with no network and no live table\", yet its checklist says \"winter gate: one Central Park observation per cycle; at or below 0.5 \u00b0C the tiers suppress\". Ticket 14 owns the same work: \"the winter-gate fetch: one Central Park (KNYC) observation per cycle from the frozen NWS endpoint (the /points redirect is handled; endpoints are constants, not discovery)\". Ticket 14 is not a blocker of 11 and 11 is not a blocker of 14.",
+          "fix": "Reword ticket 11's checkbox to \"winter gate as a pure function of a supplied temperature: at or below 0.5 \u00b0C the tiers suppress...\" and leave the per-cycle fetch solely in 14 (whose endpoint constants still fold into 11's detector constants JSON)."
+        },
+        {
+          "ticket": "17",
+          "severity": "nit",
+          "claim": "Ticket 17 names its external pipeline dependencies in prose without ticket numbers, unlike ticket 15 which numbers them \u2014 the reader cannot resolve which pipeline tickets gate it.",
+          "evidence": "Ticket 17: \"**Blocked by:** 15, 16 \u2014 bus data additionally arrives only once the pipeline's live Gold flows (streaming job + live export), and subway live only via the TU capture\". Ticket 15 by contrast: \"externally on the pipeline build: 11 (live-precip job...), 13 (page skeleton), 14 (the 30 s export loop this tick joins)\". The referents exist and are numbered: build-12 (streaming job), build-14 (live export), and the spec's own \"the ticket-15 TU capture is the only live subway path\".",
+          "fix": "Rewrite as \"\u2014 and externally on the pipeline build: 12 (streaming job) + 14 (live export) for bus Gold, and the wayfinder ticket-15 TU capture for subway; the overlay renders greyed until each lands, by design.\""
+        }
+      ],
+      "verdict": "needs-fixes"
+    },
+    "fidelity": {
+      "findings": [
+        {
+          "ticket": "08 / breakdown",
+          "severity": "blocking",
+          "claim": "The stormwater covariate has no producing ticket: ticket 08 requires four-level stormwater category and cell stormwater area shares, but no ticket in the breakdown acquires, reads or snapshots the DEP stormwater geodatabase, and the spec's pinned read method is dropped entirely.",
+          "evidence": "Spec (Storage and engine conventions, binding): \"the DEP stormwater geodatabase is read once through DuckDB spatial's OpenFileGDB driver (verified in-venv, no new dependency) and snapshotted.\" Ticket 08 depends on it \u2014 \"stormwater category (4 levels: deep / nuisance / analyzed-none / not-analyzed \u2014 never imputed)\" and \"cell-model features: the three precip terms, stormwater area shares\" \u2014 yet `grep -n \"stormwater\\|OpenFileGDB\\|geodatabase\\|DEP\"` over all 17 tickets returns only those two ticket-08 feature lines, and ticket 08's Blocked by is \"03, 05, 06\" (elevation, labels, AORC precip). Map ticket 04 confirms the source is File-Geodatabase-only (\"`9i7c-xyvv` is confirmed File-Geodatabase-only (`viewType: blobby`, `/resource` 403s)\"), i.e. not fetchable by any query API.",
+          "fix": "Add a stormwater-snapshot ticket (or a bullet on ticket 01/08) carrying the spec sentence verbatim: read `9i7c-xyvv` once through DuckDB spatial's OpenFileGDB driver, no new dependency, snapshot it, derive the four frozen levels; make ticket 08 Blocked by it."
+        },
+        {
+          "ticket": "11",
+          "severity": "blocking",
+          "claim": "Ticket 11 defines the live evaluation without naming the forcing source or carrying the spec's two explicit rejections, so the detector's most load-bearing constant and its directional rationale are absent from the ticket that owns it.",
+          "evidence": "Spec (Real-time detector): \"Forcing = the pipeline's live precip table (MRMS RadarOnly :00 stamps only; the 2-min trailing stamps would converge from above and are rejected; Pass2 lags 60\u201390 min and never feeds the live path).\" Ticket 11 says only \"features over [anchor, now]: running max mm_1h and Window total\" and `grep` over all 17 tickets for \"RadarOnly\", \"Pass2\" (live sense), \"2-min\", \"precip_live\", \"live/precip\" returns nothing except ticket 08's offline \"0.86\u20130.92 Pass2/AORC scale band\". The omission collides with ticket 11's own acceptance test \"live eta at Window close equals the offline event eta on a replayed fixture event (the converges-from-below contract as an assert)\" \u2014 2-min trailing stamps converge from above and would fail it.",
+          "fix": "Add to ticket 11: forcing is the pipeline's live precip table, MRMS RadarOnly :00 stamps only; 2-min trailing stamps rejected (they converge from above); Pass2 (60\u201390 min lag) never feeds the live path."
+        },
+        {
+          "ticket": "11, 12",
+          "severity": "should-fix",
+          "claim": "Neither the detector core nor the replay harness records its dependency on the amended live-precip catch-up fetch or its ~25 h retention constant, even though the spec makes replay conditional on it and ticket 15 does declare the same external dependency.",
+          "evidence": "Spec: \"The live-precip job is AMENDED: each run fetches every missing :00 stamp within the source's measured ~25 h retention, so sleep holes heal\" and \"Replay is conditional on the catch-up fetch\". Pipeline build ticket 11 records it: \"The flood detector's Window walk and replay harness (flood-build tickets 11\u201312) depend on this catch-up.\" Flood ticket 11 Blocked by: \"10\"; flood ticket 12 Blocked by: \"06, 11\" \u2014 no external pipeline dependency and no mention of \"25 h\" anywhere in the 17 tickets. Only ticket 15 carries it: \"externally on the pipeline build: 11 (live-precip job, as amended with the catch-up fetch)\".",
+          "fix": "Add the same external dependency line to tickets 11 and 12 and state the ~25 h retention window as a named constant; note on 12 that replay is conditional on the catch-up fetch."
+        },
+        {
+          "ticket": "15",
+          "severity": "should-fix",
+          "claim": "Ticket 15 builds latched tier chips unconditionally and does not depend on ticket 12, so the panel can ship tiers that the replay was supposed to be allowed to veto; the rank-only branch has no rendering owner.",
+          "evidence": "Spec: \"Tiers: ELEVATED = top 10% within kind, HIGH = top 2% (provisional until the replay measures per-event flag volumes; if false-positive volume is unacceptable, v1 ships rank-only).\" Ticket 12 owns the decision \u2014 \"cutpoints confirmed, or \u2014 if per-event false-positive volume is unacceptable \u2014 v1 ships rank-only\" \u2014 but ticket 15's Blocked by is \"11, 13, 14\" (no 12) and its panel bullet reads \"an active Window switches to the live within-kind rank; tier chips latched\" with no rank-only alternative, while its claims bullet enumerates only \"the B2-branch alternate strings selected by the shipped model id\".",
+          "fix": "Add 12 to ticket 15's Blocked by and a bullet: if the replay drops v1 to rank-only, the panel renders rank without tier chips and says so."
+        },
+        {
+          "ticket": "breakdown (01\u201317)",
+          "severity": "should-fix",
+          "claim": "The estimand name `flooded_reported` appears in no ticket, so the spec's requirement that every artifact name it has no acceptance criterion anywhere.",
+          "evidence": "Spec (Solution): \"The estimand is named on every artifact: `flooded_reported` \u2014 where flooding was REPORTED, not where water necessarily stood.\" Spec (Honesty clauses that survive to the release): \"The estimand is flooded_reported and every public artifact names it.\" `grep -n \"flooded_reported\"` over all 17 ticket files returns zero hits; ticket 10 (the published exposure object) and ticket 15 (the panel claims strings) both omit it.",
+          "fix": "Add the estimand-naming requirement to ticket 05 (labels), ticket 10 (gold/flood_exposure + coefficient JSON) and ticket 15 (panel strings)."
+        },
+        {
+          "ticket": "09",
+          "severity": "should-fix",
+          "claim": "The FIM calibration band and the order-of-magnitude-only stamp are dropped, so ticket 09 publishes CSI with no stated comparison band.",
+          "evidence": "Spec (Honesty clauses that survive to the release): \"Published FIM systems run CSI 0.26\u20130.45 \u2014 expectations are calibrated to that band, and the FIM comparison is stamped order-of-magnitude-only.\" Ticket 09 states \"metrics: pooled CSI/POD/FAR at the in-fold operating point with an event-cluster bootstrap (B=1000)\" and `grep` for \"0.26\" / \"FIM\" over all tickets returns nothing.",
+          "fix": "Add to ticket 09: the published CSI is read against the 0.26\u20130.45 FIM band and the comparison is stamped order-of-magnitude-only."
+        },
+        {
+          "ticket": "04",
+          "severity": "nit",
+          "claim": "The p99 re-measure rationale keeps the direction but drops the era range over which the legacy-only thresholds are biased.",
+          "evidence": "Spec: \"the original 97/84 were measured on the legacy literals alone and are biased low across the 2023-09..2026 overlap\". Ticket 04: \"the original 97/84 were legacy-literal-only and biased low\" \u2014 the \"2023-09..2026 overlap\" range, and the 2023-09 date of the renames themselves, are absent from the ticket.",
+          "fix": "Restore \"biased low across the 2023-09..2026 overlap\" and tag the two new literals as the 2023-09 renames."
+        },
+        {
+          "ticket": "13",
+          "severity": "nit",
+          "claim": "The FloodNet tier omits the network's own caveats that the spec requires the tier to display.",
+          "evidence": "Spec (User story 27): \"I want FloodNet water detections shown as a measured truth tier with the network's own caveats (snow, obstruction)\". Ticket 13 carries the dim-state string and the citation \u2014 \"dry-and-reporting sensors render dim as 'dry above curb height at the signpost'; API errors grey the tier\" \u2014 but names neither snow nor obstruction.",
+          "fix": "Add the snow/obstruction caveats to ticket 13's tier-rendering bullet."
+        },
+        {
+          "ticket": "15",
+          "severity": "nit",
+          "claim": "Two of the panel's fixed honesty strings are missing from the claims bullet.",
+          "evidence": "Spec (Honesty clauses): \"The live panel trails the storm, is rank-only and uncalibrated in v1, and is a page you open during a storm, not a service that watches.\" Ticket 15's claims bullet lists the headline, the propensity sentence, the Window in the tier label, the within-Cell note, \"a page you open during a storm, not a service that watches\" and the B2 strings \u2014 but not \"trails the storm\" or \"rank-only and uncalibrated in v1\".",
+          "fix": "Add both strings to ticket 15's fixed-claims bullet."
+        },
+        {
+          "ticket": "14",
+          "severity": "nit",
+          "claim": "Ticket 14 introduces a station id and an endpoint behavior the spec does not state.",
+          "evidence": "Spec (Real-time detector): \"Winter gate: one Central Park observation per cycle\". Ticket 14: \"one Central Park (KNYC) observation per cycle from the frozen NWS endpoint (the /points redirect is handled; endpoints are constants, not discovery)\" \u2014 KNYC and the /points redirect appear nowhere in the spec.",
+          "fix": "Either cite where KNYC and the /points redirect were measured, or drop them to \"the frozen NWS Central Park observation endpoint\" and let ticket 11's constants artifact pin the exact string."
+        }
+      ],
+      "verdict": "needs-fixes"
+    }
+  },
+  "tokens": 280088
+}

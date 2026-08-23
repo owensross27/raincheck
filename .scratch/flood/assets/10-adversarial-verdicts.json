@@ -1,0 +1,456 @@
+{
+ "lenses": [
+  {
+   "lens": "statistical honesty and upstream-contract fidelity",
+   "verdicts": [
+    {
+     "decision": "D1",
+     "verdict": "REFUTE",
+     "severity": "high",
+     "finding": "The displayed number is not a rank and violates 08 obligation 3. 08's eta->percentile CDF is the cross-unit distribution of eta AT A FROZEN FORCING (score_ref = median fit-era trigger-storm precip); its spread comes from static covariates only. Feeding a LIVE eta (static covariates PLUS live forcing) through that CDF produces a quantity with no live cross-sectional meaning: pre-storm, every unit's window total is ~0, so live eta sits below every unit's score_ref eta and essentially the whole city reads 0-5; mid-storm above median forcing, every unit's eta shifts up together and the whole city reads high simultaneously. '80' therefore does not mean 'top 20% of units right now' \u2014 it means 'this unit's current eta equals what the 80th-percentile unit would score under a typical trigger storm'. The display is a common-mode storm-intensity gauge wearing a rank's clothes. The '99+' cap makes it worse exactly when it matters: above roughly score_severe forcing a large share of units exceed max_u eta(u, score_ref) and tie at the ceiling, destroying the within-kind ordering during the severe storm the panel exists for (magnitude unverified \u2014 depends on the fitted precip-vs-static coefficient split, which does not exist yet).",
+     "fix": "Split the two numbers. (a) LIVE RANK = within-kind rank of live eta across the ~17K units computed at export time (a sort, microseconds) \u2014 that is an actual rank and is what 08 obligation 3 asked for; display as 'rank 812 of 13,370' or a quintile band. (b) Keep the score_ref-CDF number as a separate, differently-labelled 'vs a typical trigger storm' gauge, and state that it saturates. Never call the score_ref-CDF number a percentile of anything live. Also state the cap rate: publish, from the D3/D5 replay, what fraction of units hit 99+ during Ida."
+    },
+    {
+     "decision": "D2",
+     "verdict": "AMEND",
+     "severity": "medium",
+     "finding": "The core is sound and survives attack: RadarOnly_QPE_01H at :00 stamps is exactly the clock-hour bin (a trailing 1-h accumulation ending at :00), so it matches 08's hour-ending mm_1h, and the rejection of 2-min sub-hourly is correctly reasoned (a trailing window at :26 straddles bins and reads above both, which would break converges-from-below). What fails is the scale handling. The draft routes a known, signed bias (Pass2/AORC 0.86-0.92 from 08, PLUS an unmeasured RadarOnly/Pass2 gap in the same direction) into a display and then discharges it with a footer sentence. A footer is adequate for a pure rank; it is NOT adequate once D5 thresholds that same quantity at 80/95 and gates on 2.0 mm, because a threshold is a calibration act and this bias moves flags one way (fewer, later) by an unknown amount.",
+     "fix": "Either (a) apply 08's constant \u2014 divide live mm_1h by the band, and render the tier only where the 0.86 and 0.92 ends agree (a two-line change, and it is the honest reading of 'the JSON carries it as a constant'), or (b) suppress the flag tiers entirely until the wet-month RadarOnly/Pass2 ratio (build item 4) is measured, and ship v1 as rank-only with no tiers. Do not ship thresholds on an unadjusted biased input behind a footer."
+    },
+    {
+     "decision": "D3",
+     "verdict": "REFUTE",
+     "severity": "high",
+     "finding": "The day-anchored window plus 03:00 dryness reset does not converge to 01's geometry, and it breaks 08's converges-from-below contract in a direction the draft asserts is impossible. Four concrete failures. (1) PAD-HOUR OVER-WINDOW: A only rolls forward at 03:00 NY, so between 00:00 and 03:00 of day D, A is still 21:00 of D-2 \u2014 an unconditional 27+ hour window. Counterexample: 20 mm falls at 15:00 on D-1 (not an event day), evening dry, flash storm at 01:30 on D. Offline, D triggers and the window is [21:00 D-1, ...] with 0 mm antecedent-side carry-in; live at 01:30 the window still contains D-1's 20 mm, so live total EXCEEDS the offline event total. That is convergence from ABOVE, and D3 states the convergence claim as exact for single-day events. It is exact only if the extra hours are dry, and the reset rule checks dryness only after those hours have already been displayed. (2) THE 03:00 CHECK CANNOT READ ITS OWN INPUT: the draft's own M2/D2 say the :00 stamp lands ~3.5 min after the hour and precip_live polls at 300 s, so the hour is visible ~:07-:09. At exactly 03:00 NY the 02:00 stamp does not exist in data/live/precip_cell; the 'trailing 3 stamps (00,01,02)' is actually (23,00,01). Off by one every single day. (3) STUCK WINDOW, NO CAP: the reset gate is CITYWIDE MAX cell mm_1h over ~1,336 cells \u2014 a max over a thousand samples of a radar-only QPE with documented non-meteorological artifacts. One spurious cell >= 1.0 mm in any of three hours blocks the reset; block it a few days running and A drifts past the 7-day RadarOnly retention, the window total accumulates weeks of rain, every unit saturates at 99+, and the antecedent becomes uncomputable. No maximum window length, no failsafe, no stated behavior past retention. (4) ANTECEDENT BLOCK MISALIGNED AND DISCONTINUOUS: antecedent = [A-24h, A] jumps a full day at 03:00 (from [21:00 D-3, 21:00 D-2] to [21:00 D-2, 21:00 D-1]) while the panel is live, and during the pad hours it is measured over a 24 h block ending two days before the storm. (5) DST UNDEFINED: 01 explicitly flags 23/25 h NY days. On spring-forward 02:00 NY does not exist (the three-stamp check has two stamps); on fall-back 01:00 occurs twice; and 'A - 24h' is ambiguous between wall-clock and absolute hours, which differ by one hour on those days. 07 also warns the JVM/driver TZ trap \u2014 no clock authority is named.",
+     "fix": "Replace the stateful daily reset with a stateless backwards search, which is both lazier and correct: A(t) = the most recent 21:00-America/New_York boundary <= t such that the three hourly stamps preceding it are all < 1.0 mm citywide; if not, walk back one day; HARD CAP at 6 days (the retention limit) and mark the window 'capped, features partial' when the cap binds. This is a pure function of the precip series \u2014 no reset history, no 03:00 evaluation timing, fully replayable, and it fixes the pad-hour case (at 01:30 on D it evaluates 18/19/20 of D-1, finds them dry, and sets A = 21:00 D-1, matching 01 exactly), while still holding A back when D-1 was genuinely wet into the evening (matching 01's merge). Replace citywide MAX with an artifact-resistant statistic (areal mean, or >= N cells above 1.0 mm) and freeze N. Pin every boundary to absolute UTC hours derived once from the NY-local date, and state the DST rule explicitly. Keep the AORC-era replay, and publish the SIGNED disagreement (live minus offline) per feature, not just a disagreement rate \u2014 the from-above tail is the one that breaks 08."
+    },
+    {
+     "decision": "D4",
+     "verdict": "AMEND",
+     "severity": "high",
+     "finding": "The staleness budgets only observe the NEWEST stamp; nothing observes holes INSIDE [A, now]. Both running features are aggregates over the window, and both silently treat missing hours as zero (SUM ignores NULL; MAX over an absent row is just the max of what is present; 07 additionally writes NULL for any negative RadarOnly value). The Mac sleeps on lid close, launchd COALESCES several missed StartInterval firings into one (07 states this verbatim), and precip_live is a 300 s agent \u2014 so the normal, expected condition after an overnight or a lid-close is a window with interior holes. In that state max(valid_ts) can be minutes old and the panel renders fresh-and-green while the window total is missing the storm's peak hours and every rank reads low. That is a fresh-looking underestimate during exactly the event the tool exists for, which is worse than showing nothing.",
+     "fix": "Add a window-coverage feature and gate on it: present_hours / expected_hours over [A, now] and over [A-24h, A]. Grey the model tier below a frozen fraction (e.g. < 0.95), hide it below a lower one, and publish the coverage number in flood_live.json and meta.json beside the ages. Also decide NULL semantics explicitly: a NULL mm_1h hour must count as missing, not as 0 mm."
+    },
+    {
+     "decision": "D5",
+     "verdict": "REFUTE",
+     "severity": "high",
+     "finding": "Both halves fail. (a) THE LATCH ARGUMENT IS INCOMPLETE. Non-negative event-side coefficients plus a fixed window give monotonicity in the FEATURES only if the historical series is immutable. It is not: 07 specifies data/live/precip_cell as append-only with 'latest fetched_at wins per (cell, valid_ts)', so a re-fetched or revised :00 file can lower an already-counted hour, which lowers the running total and un-latches the flag. Monotonicity also relies on the L2 fit producing no negative event-side coefficient, and 08 already documents that running max and window total are strongly collinear ('on Ida max mm_6h ~= window total'); a sign flip under L2 on collinear terms is ordinary, not exotic. The draft's fallback \u2014 'flags then follow the score both directions' \u2014 silently deletes the very argument used to justify shipping NO hysteresis, and no hysteresis rule is designed for that branch. (b) THE CUTPOINTS ARE UNGROUNDED. 80 and 95 are quantiles of the score_ref CDF, but per D1 the live value is not distributed like that CDF, so the flag VOLUME is completely unknown: it could be zero units all storm or 12,000 bus stops at once. Nothing in the draft measures it, even though the machinery to measure it (the AORC-era replay already proposed in D3) is sitting right there. The unit gate of 2.0 mm window total is a drizzle and will not restrain anything in a real storm. And 08's measured event-conditional base rates (Ida cells 24.3%, complexes 2.7%, entrances 1.8%) mean a tier that flags even 10% of entrances is mostly false alarms. Refusing to calibrate while still thresholding is the incoherent position: a flag IS a decision at an implied probability.",
+     "fix": "(1) Extend the D3 replay to the tiers: run the detector over the AORC-era spine and publish, per labeled event, how many units of each kind would show ELEVATED and HIGH, with POD and raw FP count at those cutpoints (08's per-event convention). Set 80/95 from that table, or set them to hit a stated flag budget, and print the measured event-conditional flag rate in the legend. (2) State the immutability requirement on live/precip_cell and either freeze an hour once first seen or drop the no-hysteresis claim. (3) Design the hysteresis fallback now (clear only after N consecutive model ticks below the cutpoint) rather than handing it to the build. (4) Latched flags must carry a 'rain last recorded HH:MM' stamp \u2014 the estimand is event-window-level, so a flag persisting 12 hours after the rain stopped is defensible statistically and misleading visually."
+    },
+    {
+     "decision": "D6",
+     "verdict": "AMEND",
+     "severity": "high",
+     "finding": "Three problems. (1) SELF-CONTRADICTION WITH THE PANEL'S OWN FOOTER: D5/D11 commit the panel to 'this view trails the storm, it does not forecast it', and D6 then ships a forecast \u2014 harmonic next-high plus anomaly persistence, projected onto the next two predicted highs, driving an APPROACHING chip and a live recolor of assets. Anomaly persistence is a real method but it has real error (surge anomaly decays and reverses; the persistence horizon here is up to ~12 h), and no error characterization is offered or planned. (2) THRESHOLD STAGE NOT PINNED TO 08: 08 froze surge_margin_ft = elev_ft - assigned_gauge_threshold without naming the stage; D6 unilaterally picks nws_minor for both the chip and the recolor. If 08's static margin used a different stage, the live layer and the static layer are measuring against different water levels while the panel presents the recolor as 'the rule layer visualized live'. (3) 05's research flags that Kings Point's nws_moderate (23.39) sits BELOW its own nos_moderate (23.55) \u2014 an inversion \u2014 and that only Battery and Sandy Hook have an action stage; any cross-station threshold logic that assumes monotone ordering will misbehave at Kings Point. Also M5's obs carry q:'p' (preliminary, not QC'd) and that is not surfaced.",
+     "fix": "Name the stage once, in detector.json, as the SAME constant 08 froze, and assert equality at build. Either drop the persistence nowcast to obs-only (fully deterministic, matches 08 obligation 4 and the footer) or amend the footer to 'the rainfall view trails the storm; the coastal chip includes a short tide forecast' and publish a one-off persistence-error measurement over a past nor'easter before shipping the APPROACHING state. Surface q:'p' as 'preliminary'."
+    },
+    {
+     "decision": "D7",
+     "verdict": "AMEND",
+     "severity": "high",
+     "finding": "The rule will mint false positives on the TRUTH tier, which is the most damaging place to put one \u2014 01 made FloodNet truth precisely so it could arbitrate, and a panel marker labelled 'observed' carries more weight with a reader than any model tier. 'latest depth_proc_mm >= 15 mm AND rise >= 15 mm over the sensor's own trailing-12h p10 AND newest sample <= 10 min old' is exactly the signature of FloodNet's documented 'box' failure (a parked car, garbage bag or bike under the sensor: a sudden jump that then HOLDS). FloodNet's own box filter is documented to apply only to excursions starting at depth zero \u2014 and M4 measured 8+ sensors on a dry night sitting at steady 18-528 mm offsets, i.e. exactly the non-zero baselines where their filter abstains. A 12 h trailing p10 also straddles the documented nightly 23:30 auto-recalibration (baseline = median of the previous three nights' 22:00-05:00 window, with the previous day's baseline reused when that window's SD > 5 mm), so the reference point can step mid-window. And the draft never filters on sensor_status even though it already caches the deployments metadata that carries it (03 measured 18 noisy, 17 signal, 10 low_charge, 6 dead among 440).",
+     "fix": "Add three cheap guards: require the rise to be sustained across >= 3 consecutive samples (FloodNet's own blip/box logic, reimplemented for non-zero baselines); exclude sensors whose cached sensor_status is in {noisy, signal, dead, low_charge, hardware_issue}; and prefer depth_filt_mm/depth_proc_mm agreement over depth_proc_mm alone. Also display the observed-DRY state, in 01's exact words ('dry above curb height at the signpost', never plain 'dry') \u2014 showing only detections lets a reader infer that absence of markers means a dry city, which is the same inference 01 forbade in the label set."
+    },
+    {
+     "decision": "D8",
+     "verdict": "AMEND",
+     "severity": "medium",
+     "finding": "Display-only placement is correct and 02's 1.000 precision is real, but two things are carried across a boundary they were never measured on. (1) 02's extractor was validated against the Socrata-era alert corpus; the live path reads archiver parquets, a different capture and serialization (M10 notes header text present, fetched_at epoch). Precision/recall on the live serialization is unmeasured, and the draft presents 1.000 as if it transfers. (2) The map's own measured caveat \u2014 alert rows inflate distinct incidents 4.4x post-2020 via event_id, and ~19% of events acquire flood wording only after update 0 \u2014 means one water condition can mint several chips and can appear late. No dedupe key or first-seen rule is stated, so the panel will show duplicate chips for one incident.",
+     "fix": "State the live-path precision as unmeasured and add it as a build check (re-run 02's frozen-rule holdout against archiver parquets). Reuse 01's measured dedupe keys (event_id post-2020 / status_id pre-2020) to collapse chips to one per incident, and display first-seen time rather than latest-update time."
+    },
+    {
+     "decision": "D9",
+     "verdict": "AMEND",
+     "severity": "medium",
+     "finding": "Three contract slips. (1) GRAIN DRIFT: D1 evaluates the point model on 'entrances + bus stops' and D9 publishes per-unit rows keyed (asset_id, kind), which would put ~2,120 entrance-grain ranks on a public panel. 06 made entrances CARRIERS and complex/bus_stop/cell the score units, and 08's published object (gold/flood_exposure) is score-units-only with complex = max over children; 01's amendment (d) says entrances inherit for display only. Publishing per-entrance ranks creates a live artifact with no offline counterpart and no validation. (2) BASE-RATE ADJACENCY: 08's cross-kind obligation was for the STATIC index; printing '24.3%' next to an uncalibrated live number is the single strongest invitation to read that number as a probability, which 08 obligation 3 forbids. (3) No dry-weather behavior is specified for the model tier (see missing items).",
+     "fix": "Publish score-unit rows only (complex, bus_stop, cell); entrances render as inheriting their complex's value with no independent number. Reword the base rate so it cannot be read as this unit's chance today: 'in the fit era, X% of units of this kind were reported flooded during a trigger event \u2014 not a probability for this unit'. Size the export payload against pipeline-14's measured budget (14 measured 599 KB / 2.1-2.5 MB for the hex layer alone)."
+    },
+    {
+     "decision": "D10",
+     "verdict": "AMEND",
+     "severity": "medium",
+     "finding": "The logging estimate is off by roughly two orders of magnitude and collides with an upstream budget. 'Every export cycle appends its computed unit states ... ~KB/cycle' \u2014 but a cycle is ~17K unit rows; even well-compressed that is order 100 KB, and at the D4 cadence of 60 s that is ~1,440 cycles/day, i.e. order 100+ MB/day and multiple GB over the stated 30-day retention. 05's Bronze budget is a 10 GB loud stop covering all of data/, and 07 measured the internal SSD at ~14 GiB free and falling. It is also 60x redundant: D4 itself says the model tier only recomputes hourly, so 59 of every 60 appended snapshots are identical.",
+     "fix": "Append the model tier only when max(valid_ts) advances (hourly: ~24 snapshots/day, ~2-3 MB/day, ~70-90 MB/month) and append truth snapshots on change; keep the 60 s cycle for display only. Restate the byte estimate with the arithmetic shown and check it against 05's 10 GB stop. Also bound the replay claim honestly: replay depth is min(7-day retention, window length + 24 h), so a capped or stuck window is NOT replayable \u2014 say so."
+    },
+    {
+     "decision": "D11",
+     "verdict": "REFUTE",
+     "severity": "high",
+     "finding": "The vocabulary omits the estimand's defining confound and reintroduces probability language. (1) REPORTING PROPENSITY IS NEVER MENTIONED. flooded_reported is P(a report is generated), and 08 deliberately EXCLUDED borough as a feature precisely because a reporting-propensity control 'would enter the published map' \u2014 meaning the shipped model does not control for reporting propensity at all. Combined with 08's own measurements (B3 density-only beats every precip feature, AUC 0.704; B2 unit climatology ties precip, CSI 0.258 vs 0.264) and the map's note that weekend reporting runs 0.55x weekday, the honest reading is that a large share of the ranking is 'where people call 311', not 'where water goes'. The tooltip says 'flooding would be REPORTED' but never says that units in higher-reporting areas rank higher for that reason. That is the one sentence a reader most needs and it is absent. (2) 'flood-report LIKELIHOOD rank' printed as an integer 0-100 will be read as a percent by every user regardless of the '(uncalibrated)' suffix \u2014 08 obligation 3 says never present live numbers as probabilities, and a 0-100 integer beside the word 'likelihood' is a probability in the reader's head. (3) 'under the rain so far' is factually false whenever the live window disagrees with 01's geometry (D3), and the panel offers no way to see that it does. (4) No provision for 08's honesty clause: if B2 wins the location-blocked comparison, v1 ships B2 as the score, and the panel text would then have to say 'this is where flooding has been reported before, scaled by current rain' \u2014 a completely different claim with no draft vocabulary.",
+     "fix": "Add a fixed, always-visible sentence: 'This ranks where a flood REPORT is likely, not where water is deepest. Areas whose residents report more \u2014 and places with more bus stops, more people, more prior 311 calls \u2014 rank higher for that reason.' Drop 'likelihood' from the headline label (use 'flood-report exposure rank') and stop printing a bare 0-100 integer: show a band or an explicit 'rank N of M'. Add the window-disagreement state to the panel (D3 replay rate + a flag when the live window is capped or held). Draft the B2-wins panel text now, as an alternate string in detector.json selected by the shipped model id."
+    },
+    {
+     "decision": "D12",
+     "verdict": "AMEND",
+     "severity": "low",
+     "finding": "detector_version binds the coefficient JSON's score_version but not the live forcing's identity. 08's own score_version deliberately includes 'precip identity (src + grid sha256 + partition-set hash)'; the live analog has no equivalent, so a change to the MRMS product name, to ref/cell_pixel[grid_id='mrms'], or to precip_live's retention/negative-to-NULL rule would silently change every displayed number with an unchanged detector_version. No behavior is defined for a coefficient-JSON swap mid-window (the latch and A carry across).",
+     "fix": "Add to detector.json: the MRMS product string, the mrms cell_pixel crosswalk sha, the precip_live retention constant, and the NULL rule; fold them into detector_version. On a score_version change, force a window reset and stamp both versions in the export."
+    }
+   ],
+   "missing": [
+    {
+     "item": "Winter / frozen precipitation has no gate on the MODEL tier",
+     "severity": "high",
+     "why": "08 fits pluvial events only and 01 reclasses Dec-Mar days with spine t2m_c <= 0 as snowmelt, excluded from training. Live, t2m_c is NULL for src=mrms (the pipeline map lists a phase source for MRMS Cell-hours as still-unspecified fog), and RadarOnly QPE reports liquid-equivalent for snow. So in winter the detector will feed snow accumulation into a rain-fitted model and rank units confidently, with the model evaluated entirely off its training manifold. D7 has a FloodNet snow chip; the model tier has nothing. Minimum: a winter caveat banner plus a stated limitation in D11; better: suppress the model tier when a phase source (MRMS PrecipFlag, or a citywide ASOS temperature) indicates frozen."
+    },
+    {
+     "item": "No measured flag volume or false-alarm rate for the tiers",
+     "severity": "high",
+     "why": "The panel makes a decision (ELEVATED / HIGH) with no idea how many units it will decide on. The replay machinery is already proposed in D3; extending it to the tiers costs nothing and is the only thing that turns 80/95 from arbitrary numbers into constants. Without it the first real storm is the first measurement, in front of a user."
+    },
+    {
+     "item": "No dry-weather / dormant behavior for the model tier",
+     "severity": "medium",
+     "why": "D3 gives a 'quiet' banner but every unit still carries a near-zero live number, because the window total is ~0 and 08's model is precip-driven. Ranking 17K units on noise is meaningless and invites the reader to treat a 3 vs a 7 as signal. The obvious lazy answer \u2014 display gold/flood_exposure's static score_index (which IS the score_ref percentile, and is meaningful) in dry weather and switch to the live rank once the window has forcing \u2014 is never decided, and it would also dissolve most of D1's incoherence."
+    },
+    {
+     "item": "The panel never says that within a Cell the live ordering is purely static",
+     "severity": "medium",
+     "why": "06 measured 13,370 bus stops in 1,035 Cells (mean 12.9, max 67 per Cell) and every unit in a Cell shares one RadarOnly forcing. So the live rank inside a Cell is the static rank, unchanged storm to storm; all the live variation is a per-Cell offset. A reader watching the same stops light up in the same order every storm will over-trust it. This is the clearest statement of what the live layer actually adds over the static score, and it is absent."
+    },
+    {
+     "item": "No coverage assertion for the MRMS cell crosswalk over cells_scored",
+     "severity": "medium",
+     "why": "08 carefully asserts that its 168 permanently-NULL AORC cells are disjoint from cells_scored, retiring the NULL-precip caveat for the cell model. There is no equivalent assertion for grid_id='mrms' (07: 4,868 -> 4,113 crosswalk), so a scored cell with no MRMS pixel weight would silently read 0 mm forever and rank at the floor during every storm \u2014 indistinguishable from 'it did not rain there'."
+    },
+    {
+     "item": "No cold-start / retention-boundary rule for the antecedent",
+     "severity": "medium",
+     "why": "antecedent mm_24h = sum over [A-24h, A]. On first deploy, after a long sleep, or whenever A is more than ~6 days back, that block is partly or wholly outside the 7-day retention. A SUM over missing hours returns 0, i.e. 'bone dry the day before the storm' \u2014 a confident wrong value for a fitted feature, with no flag. Decide: NULL the antecedent and hide the model tier, or impute and mark it."
+    },
+    {
+     "item": "Provenance of the complex-kind CDF is unstated",
+     "severity": "low",
+     "why": "D1 computes complex eta as max over child-entrance etas and then maps it through 'the JSON's published eta->CDF'. That is only coherent if 08's complex CDF was itself built on score_ref-evaluated max-over-children etas rather than on a complex-level fit (there is none). Cheap to assert at build; silently wrong if not."
+    },
+    {
+     "item": "No tie / ceiling handling stated for the 99+ cap",
+     "severity": "low",
+     "why": "If a storm pushes many units past the CDF support they all display 99+, which is a tie, not a rank. The export should carry the uncapped eta and the count of capped units so the tie is visible rather than hidden behind a label."
+    }
+   ]
+  },
+  {
+   "lens": "Live operations and failure modes \u2014 what this detector does at 03:00 on a Sunday when the Mac slept, a feed went quiet, or a gauge died. All claims below re-probed live 2026-08-23 00:38-00:55Z unless marked unverified.",
+   "verdicts": [
+    {
+     "decision": "D1",
+     "verdict": "AMEND",
+     "severity": "high",
+     "finding": "The live display value is the percentile of the live eta read off a CDF built at score_ref (a single frozen 'typical trigger storm' forcing). That CDF is a cross-unit distribution AT FIXED FORCING, so feeding it a live eta conflates 'where' with 'how hard it is raining right now'. In a sub-typical storm every unit lands near 0 and nothing ever flags; in a severe storm every unit exceeds CDF support and D1's own '99+' cap fires citywide, so both D5 tiers light up everywhere at once. The number is then a citywide-rainfall readout wearing a spatial-rank costume \u2014 exactly the misleading-user case. Separately, D1 never states the live fallback when a complex has zero grade_ok child entrances (08 counts these and guarantees NO NULL scores); the live path needs the same fallback or those complexes vanish from the panel.",
+     "fix": "Compute the displayed percentile within kind over the CURRENT live eta vector each cycle (self-normalizing, always spreads 0-100, still rank-only, still converges from below as the window fills). Keep the score_ref CDF for the static exposure page where it is correct. Inherit 08's zero-ok-children fallback explicitly and carry the flag column onto the live row."
+    },
+    {
+     "decision": "D2",
+     "verdict": "AMEND",
+     "severity": "high",
+     "finding": "The :00-stamp assumption holds \u2014 I re-listed https://mrms.ncep.noaa.gov/2D/RadarOnly_QPE_01H/ at 00:38Z: 769 files, 2-min cadence, newest 20260823-003600 (~2.5 min lag), and all 26 hourly :00 stamps present across the retained span. But the draft missed the number that matters for live ops: the directory retains only 2026-08-21 22:58Z through 2026-08-23 00:36Z, i.e. ~25.6 h. Combined with 07's precip_live design (one GET at ~:05-:10 past the hour, newest only, no catch-up), every Mac sleep or agent gap punches a PERMANENT hole in precip_cell. D3's running max and window total then silently under-count for the rest of the event \u2014 the score converges from below to the wrong number, with no signal on the panel \u2014 and D10's replay guarantee is false for those hours. This is the single highest-value live-ops fix in the draft and it is nearly free precisely because retention is a day.",
+     "fix": "On each precip_live run: list the directory, diff against existing valid_ts= dirs, fetch every missing :00 stamp inside the retention horizon (~24 h). Record n_missing_hours and the missing hour list in the window state; the panel must distinguish 'fresh table with holes' from 'stale table'. Freeze the retention horizon in detector.json as the constant the catch-up depends on."
+    },
+    {
+     "decision": "D3",
+     "verdict": "REFUTE",
+     "severity": "high",
+     "finding": "The reset rule is undefined precisely in the case the lens asks about, and both natural implementations fail. If the 00/01/02 NY pad stamps are MISSING, 'citywide max cell mm_1h' is a max over an empty set = NULL; NULL < 1.0 is not TRUE, so the 'otherwise KEEP the old A' branch fires \u2014 a data-less night latches the window open, and with D5's 'flags clear at window reset, never mid-window' the panel can sit at ELEVATED/HIGH on dry days indefinitely. COALESCE-to-zero is the mirror failure: a poller death mid-storm rolls A forward and collapses the running max/total, breaking 08's converges-from-below contract and D5's monotone latch. Three further holes: (a) 'evaluated once daily at 03:00 NY' makes window state depend on whether the on-demand loop happened to be running at 03:00, contradicting D10's determinism claim; (b) DST \u2014 02:00 NY does not exist on spring-forward and 01:00 occurs twice on fall-back, so 'the trailing 3 hourly stamps (00:00, 01:00, 02:00 NY)' is 2 stamps one day a year and 4 another, while 01 explicitly flags 23/25 h days; (c) the 1.0 mm threshold is applied to the CITYWIDE MAX over 1,336+ cells of an uncorrected radar-only QPE \u2014 a single clutter/AP/sea-return cell keeps the window open forever (unverified here: precip_live is unbuilt, so I could not measure RadarOnly clutter rates, but the extreme-value form of the statistic is the risk).",
+     "fix": "Make A a pure function A = f(series, now) rescanned every cycle (fixes (a) and makes D10's determinism true). Add a third reset state INSUFFICIENT_DATA: hold A, mark the window degraded, suppress the latch claim, show the gap. Cap window age hard (A never older than retention minus the 24 h antecedent lookback, ~6 d) so it cannot latch forever. Define the pad as a tz-aware interval on UTC hour_end, not an enumerated list of local hours. Replace the citywide-max dryness test with a wet-cell count (e.g. < K cells >= 1.0 mm) or a high quantile, and measure the constant on a real dry week before freezing it. Also: persist the frozen antecedent mm_24h in the window state \u2014 recomputing it from the series fails when A is 6 d old and [A-24h, A] has aged past the 7-day retention edge, and 08 forbids NULL scores."
+    },
+    {
+     "decision": "D4",
+     "verdict": "AMEND",
+     "severity": "medium",
+     "finding": "The precip staleness budget is thinner than the pipeline's own measured cadence. valid_ts=H:00 appears at ~H:03.5 (re-measured: newest stamp 00:36 at 00:38Z) plus up to a 300 s poll = visible by ~H:08.5, so on a perfectly healthy system now - max(valid_ts) reaches ~68.5 min just before the next stamp lands. A 75 min 'fresh' ceiling leaves ~6 min of headroom: one skipped agent run during a sleep/wake, or MRMS running 10 min late, greys the model tier and fires the banner on a system that is working. The draft also never says whether 'age' is measured from valid_ts or fetched_at (they differ by an hour), and the budget cannot see the failure mode that actually matters \u2014 a 6-hour hole followed by one fresh stamp reads FRESH. CO-OPS: `date=latest` returns the last point whatever its age (re-verified: Battery 00:30 obs at 00:38Z, q:\"p\", 0.07-0.16 s), so age must come from the returned `t`, never from fetch time; the draft defines no gauge-outage chip state at all. NWS zone-list form re-verified 200 in 0.156 s.",
+     "fix": "fresh <= 90 min, stale 90-180, down > 180; state age is measured from valid_ts. Add a separate HOLES indicator driven by D2's n_missing_hours. Define CO-OPS/FloodNet/NWS outage states explicitly (chip greys, shows last-good time, never falls back to a stale value silently)."
+    },
+    {
+     "decision": "D5",
+     "verdict": "AMEND",
+     "severity": "high",
+     "finding": "Internal contradiction that reintroduces the exact flap the latch was written to prevent. The tier gate ('unit's own cell running window total >= 2.0 mm') is NOT latched, but precip_cell is append-only with latest-fetched_at-wins per (cell, valid_ts) \u2014 a re-fetched RadarOnly value can be revised DOWN, dropping the running total back under 2.0 mm and clearing a flag mid-window, which D5 forbids one line earlier. The monotone argument also quietly assumes the series is never revised; latest-wins is the designed read, so revision is the normal case, not an edge. And the 80/95 cutpoints inherit D1's saturation: on a score_ref CDF they are effectively citywide-rainfall thresholds, not per-unit ones.",
+     "fix": "Latch the forcing gate too (once satisfied within a window it stays satisfied until reset). State the revision case explicitly in the monotone claim \u2014 'nondecreasing given a non-revising series; a downward revision is logged and does not clear a flag'. Re-derive the cutpoints against whatever percentile basis D1 lands on."
+    },
+    {
+     "decision": "D6",
+     "verdict": "REFUTE",
+     "severity": "high",
+     "finding": "The forecast query does not do what M5 says. Measured at 00:38Z: `predictions&interval=hilo&range=36&datum=NAVD` with no begin_date returned 2026-08-21 13:43 through 2026-08-22 20:52 \u2014 the PAST 36 hours, ending ~4 h before now. `range` alone means 'hours back from now'. An APPROACHING state built on this compares yesterday's tides to today's threshold and would silently never fire when it should. The forward forms do work: `begin_date=<now UTC>&range=36` returns 2026-08-23 03:37 .. 2026-08-24 10:26, and `date=today` returns today's four hilos only (so after ~21:00 local it misses tomorrow's morning high \u2014 use begin_date+range). Anomaly mechanics upheld: 6-min prediction stamps align exactly with obs stamps (Battery 00:30 obs 0.669 NAVD vs predicted -0.021 = anomaly +0.690 ft), so 'obs minus predicted at the same minute' costs one extra call. Threshold arithmetic checks out (Battery 10.49-6.063 = 4.43, KP 22.89-17.09 = 5.80, SH 9.21-5.33 = 3.88 NAVD). Remaining defects: persisting the anomaly onto the SECOND next high (12-25 h out) has no skill; a single 6-min sample carries seiche/wave noise (Battery sigma 0.144 ft at that reading); 05 measured a NOS/NWS inversion at Kings Point and SH's nws_minor sits below its nos_minor, so the threshold family must be frozen per station; no gauge-outage state; and P-Surge's prod directory being non-empty is an ATLANTIC-BASIN signal \u2014 a storm threatening Florida populates it, so using it as an NYC storm-mode trigger (and displaying it as a signal) misleads.",
+     "fix": "Use begin_date=<now>&range=36 (freeze the exact query string in detector.json). Smooth the anomaly over the last 30-60 min. Persist only onto the next high within ~12 h, or label the second high low-confidence. Freeze the per-station threshold family with the inversion noted. Gate storm-mode on the NWS UGC watch alone (or P-Surge AND an NYC-relevant NHC cone). Ponytail: a rank-only v1 that already has anomaly persistence plus free NWS watches gets nothing from STOFS \u2014 cut it and its two build items (points.cwl.nc station inventory, storm-mode wiring) to fog."
+    },
+    {
+     "decision": "D7",
+     "verdict": "AMEND",
+     "severity": "medium",
+     "finding": "Computable \u2014 re-measured a 12 h single-sensor window: 719 rows in 0.10 s, no nulls, far under any cap (the 10k cap only binds if sensors are batched, ~13 sensors/request, so per-sensor is right). The rule also correctly rejects a STEADY box: noticeably-safe-swine p10 321 / latest 335 = rise 14 mm < 15. What it does not catch is the box that ARRIVES INSIDE the window: 9 h of zeros then a parked car at 500 mm gives p10 ~ 0 and rise ~ 500 -> a false 'water detected' marker on the truth-styled tier, the worst place in the panel to be wrong. Three more: (a) the 12 h baseline straddles FloodNet's nightly 23:30 recalibration against a 3-night rolling median (research 03), so a recalibration step inside the window shifts p10 and can mint a rise; (b) depth_proc_mm nulls are documented normal dropouts and must be excluded from both p10 and 'latest', which the draft does not say; (c) the candidate set is asserted 'short' \u2014 on a DRY night my 35-min bounded window already returned 12 sensors >= 10 mm (reproducing M4, including one deployment_id:null family at 529 mm), so in a real storm it is not short and there is no per-cycle fetch budget or API-down behavior.",
+     "fix": "Add a shape/persistence test (require the rise to have begun within the last N min, or to recede) and use concurrent rain in the sensor's own cell as a DISPLAY gate (legal \u2014 it gates display, not eta). Exclude samples across a recalibration boundary or use a 6 h pre-event baseline. Say nulls are dropped. Cap per-cycle baseline fetches and cache each sensor's baseline for the cycle; on API error the tier greys and never falls back to absolute depth."
+    },
+    {
+     "decision": "D8",
+     "verdict": "REFUTE",
+     "severity": "high",
+     "finding": "Run as specified, the MTA chip never fires. Measured over the archiver's own capture (data/archive/subway_alerts, 449,737 rows, 2026-08-20..23): the literals 01 froze \u2014 'flood' and 'water cond' \u2014 appear in ZERO alerts, in header OR description. The only flood phrasing present is the 'while we remove water from the tracks near X' family (10 distinct alert_ids, e.g. '[E] trains are delayed in both directions while we remove water from the tracks near World Trade Center.'). 02's extractor keys on FLOOD_KW = /FLOOD|WATER COND/ and ANCHOR = /FLOOD[A-Z]*|WATER CONDITIONS?|WATER MAIN BREAK/ (research/flood-02-station-prototype/matcher.py), so it matches nothing here. This is not a live-feed artifact: on Socrata 7kct-peq7, 35 distinct event_ids use the 'remove water' phrasing and NONE of the 35 contain 'flood' or 'water cond' in the header (vs 19 for 'water cond', 457 for 'flood') \u2014 so 02's 0.970 recall was estimated on a sample selected BY that vocabulary and is structurally blind to this family. Two supporting measurements: the informed-entity shortcut does not exist for these alerts (104/104 water-alert rows have stop_id NULL and route_id populated; cause and effect are 100% NULL across the whole capture), so the text extractor genuinely is required \u2014 say so, or it reads as an avoidable choice; and the live text distinguishes active ('while we remove') from cleared ('after we removed'), which the draft's single chip string ignores.",
+     "fix": "Re-measure the vocabulary on the archiver corpus and freeze a LIVE vocabulary in detector.json anchored on 'water from the tracks'; scan description as well as header (measured: 'removing water' hits 1 alert by header, 10 by description). Extend 02's ANCHOR/BRIDGE set to the remove-water clause and re-measure precision on the new family before the chip ships. Show cleared alerts distinctly (or not at all). Post a comment on 01/02 \u2014 this is a label-set recall hole, not only a display bug."
+    },
+    {
+     "decision": "D9",
+     "verdict": "AMEND",
+     "severity": "medium",
+     "finding": "Three files (flood_live.json, flood_truth.json, meta.json) are rewritten every cycle with no atomicity rule restated \u2014 pipeline-14 adopted an atomic swap for exactly this reason. A crash or Ctrl-C between writes serves a new live file against an old meta (wrong ages, wrong versions, wrong score_version) or a truth file from a different cycle, and the 09 impact-overlay slot adds a fourth publisher on its own clock. The draft also never says what the page renders when flood_live.json is absent (first run) or when the model tier is 'down' at >150 min \u2014 the per-kind legends and event-conditional base rates still have to render, and a blank panel with no explanation is its own misleading state.",
+     "fix": "Stamp one cycle_id into every file and have the page reject a mismatched set, or write one file and swap once. Define the empty/down render explicitly (truth tiers plus an explicit 'model tier unavailable since T' line)."
+    },
+    {
+     "decision": "D10",
+     "verdict": "REFUTE",
+     "severity": "medium",
+     "finding": "The log volume is off by roughly three orders of magnitude and lands on a disk that is already the project's binding constraint. 'Every export cycle appends its computed unit states ... (~KB/cycle), 30-day retention' at a 60 s cycle over ~17K scored units is 1,440 x 17,000 rows/day; even at 40 B/row that is ~1 GB/day and ~30 GB retained, against 05's 10 GB data/ loud-stop budget and 07's measured ~14 GiB free and falling. Three smaller defects: no format or atomicity is named \u2014 an appended Parquet part cut off mid-write makes the whole partition unreadable, the exact failure 07 refuted for the precip Bronze append; the replay guarantee is false as written, because it presumes a hole-free precip_cell that D2's newest-only fetch cannot deliver; and retention deletion is owned by an on-demand loop, so nothing is pruned during an idle fortnight.",
+     "fix": "Log the full unit-state vector only when the model tier actually recomputes (hourly, ~24 snapshots/day) plus the flagged subset per cycle, and put the resulting byte estimate in the ticket. Use one NDJSON file per day (a torn last line costs one row). Restate the replay guarantee conditional on D2's catch-up fetch. Prune on loop start as well as on cycle."
+    },
+    {
+     "decision": "D11",
+     "verdict": "UPHOLD",
+     "severity": "low",
+     "finding": "The vocabulary is right, the estimand phrasing is inherited correctly, and the two footer notes are the two that matter. Genuinely tried to break it: 'flood-report likelihood rank (uncalibrated)' plus the fitted-on-reported-flooding tooltip survives the no-ground-truth test. One live-ops gap: a greyed tier tells the reader the number is OLD; it does not tell them the number is LOW because rainfall hours are missing (D2/D3). And the FloodNet caption carries a snow chip but no box/parked-car caveat, which is the failure D7 cannot filter.",
+     "fix": "Add a degraded-window sentence ('ranks computed on N of M rainfall hours') and extend the FloodNet caption to name obstruction under the sensor alongside snow."
+    },
+    {
+     "decision": "D12",
+     "verdict": "UPHOLD",
+     "severity": "medium",
+     "finding": "detector.json is the right object and the sha-binding to score_version is right. It is missing the constants this review shows are live-variable and would otherwise get hard-coded into the loop, which is where they rot silently.",
+     "fix": "Add to detector.json: the frozen LIVE alert vocabulary and which text fields are scanned (D8); the per-station threshold family, NAVD offsets and the NOS/NWS inversion note (D6); the exact CO-OPS query string including begin_date+range (D6); the missing-hour policy, window-age cap and MRMS retention horizon the catch-up fetch relies on (D2/D3); and the reset dryness statistic once it is a wet-cell count rather than a citywide max. State the failure behavior when detector.json's score_version does not match the coefficient JSON present on disk."
+    },
+    {
+     "decision": "M1",
+     "verdict": "AMEND",
+     "severity": "medium",
+     "finding": "Understates the build gap. data/live/ does not merely sit empty \u2014 it does not exist. Neither does web/. The Makefile has no export, live-export, web, stream or precip-live targets (measured: targets are warm/ref/nbp/picks/precip-hourly/precip-cell/schedule/events/gold/baseline/gates/slice/test/coldpush/coldcheck), and silver/precip_cell_hourly holds src=aorc only. So pipeline-14's export loop and static page \u2014 which D4 and D9 describe the detector as 'riding' \u2014 are a second unbuilt dependency, not an existing rail. The archiver is confirmed running (pid 8070 + caffeinate).",
+     "fix": "State both unbuilt dependencies in D2/D4/D9 (precip_live AND 14's export loop + page), so /to-spec sequences them ahead of the flood-export job."
+    },
+    {
+     "decision": "M2",
+     "verdict": "AMEND",
+     "severity": "medium",
+     "finding": "Reproduced independently at 00:38Z and correct as far as it goes (2-min stamps, newest 20260823-003600, ~2.5-3.5 min lag; Pass2 unusable live). It omits the number the design actually needs: the RadarOnly directory retains 769 files spanning 2026-08-21 22:58Z to 2026-08-23 00:36Z, i.e. ~25.6 h, and all 26 hourly :00 stamps in that span are present.",
+     "fix": "Record the ~25 h retention as a measured constant \u2014 it is what makes D2's gap-healing catch-up fetch free rather than a new source."
+    },
+    {
+     "decision": "M3",
+     "verdict": "UPHOLD",
+     "severity": "low",
+     "finding": "Reproduced exactly: unbounded `depth_data(order_by: {time: desc}, limit: 3)` returns only_wise_mule at 2080-02-06T00:47Z. The bounded-window mitigation in D7 is the right response."
+    },
+    {
+     "decision": "M4",
+     "verdict": "UPHOLD",
+     "severity": "low",
+     "finding": "Reproduced on a dry night: bounded window [00:10Z, 00:45Z] with depth_proc_mm >= 10 returned 210 rows across 12 sensors, steady values 11-529 mm, including a deployment_id:null family at 529 mm; query 0.10-0.16 s; freshest sample ~1 min old. Absolute depth is confirmed useless as a flooding signal."
+    },
+    {
+     "decision": "M5",
+     "verdict": "REFUTE",
+     "severity": "high",
+     "finding": "'predictions&interval=hilo&range=36&datum=NAVD works \u2014 next highs directly comparable to thresholds' is wrong as parameterized. Measured at 00:38Z, that exact query returned 2026-08-21 13:43 through 2026-08-22 20:52 \u2014 the trailing 36 hours. CO-OPS `range` means hours BACK from now. The rest of M5 is confirmed (date=latest 8 min old, q:\"p\", 0.07-0.16 s, datum=NAVD direct, Battery 0.669 / KP 3.442 NAVD).",
+     "fix": "Correct M5 to `begin_date=<now UTC>&range=36` (verified forward: 2026-08-23 03:37 .. 2026-08-24 10:26) and re-derive D6's APPROACHING band on that."
+    },
+    {
+     "decision": "M6",
+     "verdict": "UPHOLD",
+     "severity": "low",
+     "finding": "Partially re-verified: keyless with User-Agent, alerts/active?zone=NYZ072,073,075,176,074 returned 200 with 0 active alerts, point form 200 in 0.156 s. The specific UGC anchors and the zone-list freeze remain the draft's measurement, not re-checked here."
+    },
+    {
+     "decision": "M7",
+     "verdict": "UPHOLD",
+     "severity": "low",
+     "finding": "Not re-probed this session \u2014 the 25.2 MB/cycle figure is carried on the draft's own measurement and I flag it as unverified by me. It does not change D6's recommendation, which is to cut STOFS from v1 regardless of its size."
+    },
+    {
+     "decision": "M8",
+     "verdict": "REFUTE",
+     "severity": "high",
+     "finding": "The diagnosis is wrong and the real cause is worse than a dead feed. erm2-nwe9 is alive: overall max(created_date) is 2026-08-21T02:05. The SJ/SH tail stops because the DESCRIPTORS WERE RENAMED. Measured: 'Street Flooding (SJ)' 21,536 rows 2020-01-01 .. 2026-07-29; 'Highway Flooding (SH)' 531 rows .. 2026-07-21; while 'Flooding on Street' (1,352 rows, 2023-09-28 .. 2026-08-21) and 'Flooding on Highway' (39 rows, 2023-09-29 .. 2026-08-20) run to now. So 01's frozen exact literals lose every 311 label from 2026-07-29 forward AND already miss ~1,391 rows back to 2023-09-28 \u2014 including rows dated 2023-09-28/29, the pipeline's own reference flood day. The frozen p99 day-count thresholds (97/84) were computed on the old literal alone and are therefore biased low across the whole overlap era, which shifts the event spine 08 fits on.",
+     "fix": "Escalate to 01 as an amendment, not a map footnote: the literal set becomes four descriptors with an era note, the p99 thresholds are re-measured on the union, and the spine is re-derived. Add the descriptor canary listed under missing items."
+    },
+    {
+     "decision": "M10",
+     "verdict": "REFUTE",
+     "severity": "high",
+     "finding": "'<= 5 min fresh' is not what the data shows, and the reason breaks D4's and D8's freshness reasoning. Measured with the archiver confirmed running (pid 8070): the newest subway_alerts part is date=2026-08-23/hour=00/part-00.parquet and max(fetched_at) across the ENTIRE capture is 1787443615 \u2014 33.7 minutes before now. The archiver dedupes on header.timestamp, so it writes nothing while the alert feed is unchanged (that part held 3,541 rows across exactly 2 distinct fetched_at values, 302 s apart, confirming the 300 s cadence). A quiet alert feed and a dead archiver are therefore indistinguishable from file mtime or from max(fetched_at) \u2014 while subway_tu, which always changes, is current (part-20 present).",
+     "fix": "Do not key MTA-tier staleness on the newest alert parquet. Take liveness from a stream that always writes (subway_tu) or from an archiver heartbeat, and label the chip's age as 'alert last changed', not 'data age'."
+    }
+   ],
+   "missing": [
+    {
+     "item": "Behavior for a precip_cell HOLE as distinct from staleness",
+     "severity": "high",
+     "why": "D4 has fresh/stale/down keyed on max(valid_ts) only. A window missing 5 of 19 hours reads FRESH, the ranks are computed on incomplete rainfall, and the panel has no way to say so. This is the failure a Mac sleep produces and it is invisible in the current design."
+    },
+    {
+     "item": "Snow / non-pluvial event handling in the live tier",
+     "severity": "high",
+     "why": "08 fits pluvial events only and 01 reclasses Dec-Mar days with t2m_c <= 0 as snowmelt and excludes them. Live there is no temperature at all \u2014 precip_live's table is (cell, mm_1h, fetched_at) and 08 records t2m_c as NULL in the MRMS era \u2014 so the detector cannot tell it is in a frozen event and will rank cells on snow using a rain-fitted model, while FloodNet's own snow false positives light the truth tier beside it. The draft decides nothing here beyond a FloodNet caveat chip."
+    },
+    {
+     "item": "311 descriptor-literal canary",
+     "severity": "high",
+     "why": "A build-time assertion that every frozen descriptor literal still has rows in the trailing 30 days would have caught the 2026-07 rename that M8 misread as a dead feed. Same class of check belongs on the alert vocabulary (D8) and on the MRMS filename pattern."
+    },
+    {
+     "item": "Cycle overlap policy for the 60 s export loop",
+     "severity": "medium",
+     "why": "A storm-sized FloodNet candidate set (per-sensor 12 h baselines at ~0.1 s each) plus three CO-OPS calls plus an NWS call can exceed 60 s. The draft never says whether cycles overlap, queue, or skip \u2014 and overlapping cycles racing on the same three JSON files is how the D9 atomicity bug actually manifests."
+    },
+    {
+     "item": "Cold start / first cycle",
+     "severity": "medium",
+     "why": "Nothing defines what A is, what the panel shows, or what the flags do on the first cycle after the loop starts \u2014 which after a laptop reboot is also the cycle whose window state has to be rebuilt from a possibly holed series."
+    },
+    {
+     "item": "Detector log disk budget checked against 05's 10 GB loud stop",
+     "severity": "medium",
+     "why": "D10's '~KB/cycle' was never reconciled with the unit count or the retention window; 07 measured ~14 GiB free and falling, and the Bronze budget is already pressing on it. The number belongs in the ticket, not in an adjective."
+    },
+    {
+     "item": "Truth-source error and timeout behavior",
+     "severity": "medium",
+     "why": "FloodNet, CO-OPS and api.weather.gov all fail sometimes (api.weather.gov rate-limits and 500s). The draft gives staleness budgets but no retry, backoff, or chip state for an errored fetch, and no rule against showing the last good value as if it were current."
+    },
+    {
+     "item": "Clock trust after sleep",
+     "severity": "low",
+     "why": "Window boundaries are America/New_York wall clock and D10 lists 'clock' as an input to its determinism claim, but nothing says the clock is validated after wake \u2014 a wrong clock silently moves A and the 03:00 evaluation."
+    }
+   ]
+  },
+  {
+   "lens": "repo rails and ponytail minimality \u2014 consistency with pipeline 07 (precip_live, export-loop shape, no-daemon rule), 14 (web/files contract, meta.json, STALE, atomic swap, pure-SQL absent-keys writer), 15 (archiver untouchable), plus over-engineering cuts and verification of asserted repo facts against /Users/ross/raincheck",
+   "verdicts": [
+    {
+     "decision": "D1",
+     "verdict": "AMEND",
+     "severity": "high",
+     "finding": "The live display number is the percentile of the live eta against 08's score_ref CDF \u2014 a fixed-forcing, cross-unit distribution built at the MEDIAN fit-era trigger storm. In any above-median storm every unit's eta exceeds most of that CDF's support and the panel saturates at 99+; in light rain everything reads near 0. Ordering survives (monotone map) but the displayed 0-100 value carries no information, and every cutpoint built on it (D5) inherits the saturation. The draft notices the saturation only as a '99+ display cap' and does not notice it destroys the scale.",
+     "fix": "Display the within-kind rank of the live eta among the live eta vector at the current instant: always spreads 0-100, needs no CDF at all, is rank-only by construction (08 obligation 3), and makes the flagged count controllable. Keep 08's published eta->CDF for the STATIC exposure map only. Put cross-time severity in a separate, explained number (citywide max mm_1h / window total), not inside the rank."
+    },
+    {
+     "decision": "D2",
+     "verdict": "AMEND",
+     "severity": "high",
+     "finding": "The live forcing has silent interior holes and nothing detects them. 07's precip_live (research/07-execution-model.md \u00a74) does 'one HEAD/GET at ~:05-:10 past the hour' per 300 s run and launchd coalesces missed StartInterval runs into one, so every laptop sleep (the pipeline map's own documented condition) permanently loses those hours. D3's running max / window total / antecedent sum then undercount by an unknown amount, and D4's staleness budget only inspects max(valid_ts) \u2014 a window missing 6 of its 14 hours reads 'fresh'. That converts 08 obligation 2's converges-from-below contract into 'arbitrarily low, unsignalled'. Verified just now: https://mrms.ncep.noaa.gov/2D/RadarOnly_QPE_01H/ lists 770 files spanning 20260821-225800..20260823-003600 (~25.6 h), so recent missing hours are still fetchable. The rest of D2 stands: RadarOnly :00-only matches 07 \u00a74 verbatim, Pass2's 60-90 min lag rightly bars it from the live path, and rejecting a trailing 1-h accumulation for v1 is the correct ponytail call and matches the pipeline map's 'sub-hourly is a distinct feature' fog.",
+     "fix": "Two lines: (a) precip_live fetches every :00 stamp missing from the last 24 h, not just the newest (one directory listing + N GETs, files persist ~25 h); (b) the detector counts present-vs-expected hourly stamps in [A, now], publishes n_missing_hours in meta, and greys or hides the model tier when any interior hour is absent \u2014 a hole is a different failure from staleness and needs its own state."
+    },
+    {
+     "decision": "D3",
+     "verdict": "AMEND",
+     "severity": "high",
+     "finding": "'Otherwise KEEP the old A' makes the window anchor loop-maintained state evaluated once daily at 03:00 NY \u2014 by a loop that D4/D10 declare on-demand and foreground. If nobody runs the exporter at 03:00, A never rolls, the window grows without bound, and running max/total accumulate across unrelated storms. This directly contradicts D10's claim that the model tier is 'deterministic from (precip_cell series, JSONs, clock)'. Second gap: the window can be up to 6 days plus a 24 h antecedent lookback, which exceeds precip_live's 7-day retention, and the draft never says what A or the antecedent term are when the walk hits the retention edge. Third, minor: 'A = 21:00 of the previous NY day' is only true after the 03:00 roll \u2014 between 00:00 and 03:00 NY, A is 21:00 two days back (which is correct behaviour, but the prose states the rule wrongly).",
+     "fix": "Make A a pure backward walk recomputed every cycle: the most recent 03:00 NY boundary whose three pad hours are all citywide < 1.0 mm. No stored state, no 'reset history' field in the export, and the determinism claim in D10 becomes true. Define the retention-edge case explicitly (clamp A, publish window_truncated, and either hold the antecedent at its reference value or hide the model tier)."
+    },
+    {
+     "decision": "D4",
+     "verdict": "AMEND",
+     "severity": "medium",
+     "finding": "Three mismatches with 14's actual loop. (i) 14's live-export is a 30 s foreground DuckDB loop (raincheck/live_export.py per research/14-serving-surface.md); the draft picks 60 s and a 'flood-export sibling', so one page needs two processes on two clocks. (ii) 14's exporter touches no network \u2014 the draft puts FloodNet/CO-OPS/NWS HTTP inside the display loop with no timeout, no retry, and no last-good policy, so one hung socket stalls the bus panel as well. (iii) the staleness budgets are invented free-standing; 14's convention is an age threshold plus stale/error keys in meta.json, and the draft never says which meta key each budget writes or what the page does with it.",
+     "fix": "Fold the flood tick into 14's existing 30 s loop and skip work when max(valid_ts) has not advanced \u2014 one file, one Ctrl-C. Give every fetch a hard ~3 s timeout (all four sources measured 0.06-0.24 s), keep the last snapshot on failure, mark only that source stale, never block the tick. Express each budget as a named meta.json key with the page rule beside it."
+    },
+    {
+     "decision": "D5",
+     "verdict": "AMEND",
+     "severity": "high",
+     "finding": "The monotone latch plus D1's fixed-CDF percentile combine into a panel that is uniformly red all evening. After a median-plus storm at 14:00, most units sit above 95, the latch holds them there because eta is nondecreasing, and flags 'clear at window reset (03:00 NY) \u2014 never mid-window' \u2014 so a dry 21:00 shows HIGH everywhere while the destination asks the panel to flag what is likely flooding now. The 2.0 mm unit-forcing gate does not bound this: in a citywide storm every unit passes it. The latch argument is internally sound; it is the tier definition it is applied to that is unbounded.",
+     "fix": "Define tiers on the live-instant within-kind rank (D1 fix) so the flagged count is bounded by construction. Then grey/soften flags when citywide trailing-3h max mm_1h < 1.0 mm \u2014 the draft already computes exactly this quantity for its 'quiet' banner \u2014 and label them 'rain ended Xh ago' rather than holding full-strength flags to 03:00."
+    },
+    {
+     "decision": "D6",
+     "verdict": "AMEND",
+     "severity": "medium",
+     "finding": "Over-built for the destination. 08 obligation 4 asks only for live CO-OPS obs compared to the same per-station NAVD88 thresholds \u2014 two keyless calls, already measured in M5. Bolted on top are STOFS-2D-Global storm mode, a P-Surge directory probe, and a frozen NWS UGC watch list: three build items (draft items 2 and 6) whose entire output is an extra chip during a hurricane, and one of them is gated on points.cwl.nc, which research/flood-05-tide-surge.md explicitly lists as never fetched or inspected ('named in NCO's file inventory... not fetched'). The 'UGC zone list freeze script' is a script to write ten constants the draft's own M6 already measured (NYZ072/073/075/176/074, NYC061/005/047/081/085).",
+     "fix": "Cut STOFS, P-Surge and the UGC freeze script from v1; record them as fog with the trigger 'when a coastal event actually needs forecast lead time'. Keep obs-vs-threshold and the three-gauge assignment. Optionally also cut the anomaly-persistence APPROACHING state \u2014 plain harmonic next-high vs threshold answers the destination and drops a rule."
+    },
+    {
+     "decision": "D7",
+     "verdict": "AMEND",
+     "severity": "medium",
+     "finding": "The 'p10 of its trailing 12 h, fetched per candidate sensor' baseline fans a single display tick into one GraphQL call per wet sensor \u2014 M4 saw 8+ on a DRY night, so a real storm is dozens \u2014 inside the loop that must not block (D4). It also re-derives what FloodNet already does: depth_proc_mm is the vendor's filtered field, blips and boxes are already removed, and each sensor re-baselines nightly against a 3-night rolling median (research/flood-03-floodnet.md \u00a77). The bounded-window guard against the 2080-clock sensor and the deployment_id-null drop are both measured and correct \u2014 keep them.",
+     "fix": "Widen the single bounded query to [now-60m, now+2m] and compute everything inside that one response: latest depth_proc_mm >= 15 mm, a >= 15 mm rise within the window, and >= 3 consecutive samples above 15 mm (kills the residual box noise M4 measured). Zero extra calls, no per-sensor fan-out, no re-implementation of the vendor's filter chain."
+    },
+    {
+     "decision": "D8",
+     "verdict": "UPHOLD",
+     "severity": "low",
+     "finding": "Cheapest tier in the draft and the only one that adds nothing anywhere: it reads ticket-15's Bronze read-only (verified: com.raincheck.archiver pid 8070 live, newest partition data/archive/subway_alerts/date=2026-08-23), puts nothing inside the archiver's 30 s loop, and reuses 02's already-measured extractor. Display-only framing honours 08's bar on alert-derived features. One unverified edge: 02's precision 1.000 was measured on historical alert text, and the extractor has never been run against the archiver's parquet column shape.",
+     "fix": "No change to the decision. Name one check: 02's extractor over the newest archiver subway_alerts parquet returns the same station set as the same rows via the historical path."
+    },
+    {
+     "decision": "D9",
+     "verdict": "AMEND",
+     "severity": "high",
+     "finding": "Four breaks against 14's actual serving contract (research/14-serving-surface.md). (i) meta.json is ONE file written by 14's loop via os.replace; a 'flood-export sibling' that also writes it clobbers the bus loop's keys on every tick and silently breaks 14's STALE logic. (ii) 14's absent-keys-not-nulls rule is implemented by the pure-SQL writer's json_merge_patch('{}', json_object(...)) precisely because a null-emitting writer breaks MapLibre's grey guard \u2014 a numpy/DuckDB detector payload (D10) serialised with json.dump reintroduces exactly that bug; the draft says 'exactly as 14 does' without saying which mechanism carries over, and never restates the os.replace ordering or 14's 'a failed tick leaves the payload alone, only meta.json goes stale' rule. (iii) flood_live.json is named .json but claims joined geometry; 14 ships live.geojson / cells.geojson because MapLibre sources take GeoJSON. (iv) the payload is unbounded \u2014 'per-unit' with no filter is ~17.9K score units (445 complexes + 13,370 bus stops + 4,113 cells) plus 2,120 entrance carriers, against 14's measured 599 KB for ~1,300 cell footprints and 2.1-2.5 MB with the full property set, re-exported and re-parsed every tick by a python -m http.server that does no gzip and no Range \u2014 for a model tier that only changes hourly.",
+     "fix": "One loop writes one meta.json (D4), or the flood files carry flood_meta.json. State the writer: materialise computed unit states into a DuckDB temp table and export through the same pure-SQL json_merge_patch path (preferred, zero new mechanism), else state explicitly that the Python writer omits keys rather than nulling them, writes payload-then-meta by os.replace, and leaves the payload untouched on a failed tick. Rename to .geojson. Bound the payload: all cells, point assets only at ELEVATED+, and rewrite the model file only when max(valid_ts) advances."
+    },
+    {
+     "decision": "D10",
+     "verdict": "AMEND",
+     "severity": "medium",
+     "finding": "The detector log is redundant with the guarantee stated in the same paragraph: the model tier is deterministic from (precip_cell series, JSONs, clock) over exactly the 7-day RadarOnly retention the log would cover, and the truth tiers replay only when the loop ran \u2014 so the log buys nothing for the tier that replays and cannot help the tiers that don't. It also invents a third retention convention under data/live (48 h for topics, 7 d for precip_cell, 30 d here) against the single byte budget 07 \u00a71 puts over all of data/. Build item 7 exists to serve it. The no-new-daemon claim itself is verified and correct: the only standing process is com.raincheck.archiver (pid 8070), and the precip_live LaunchAgent is already approved (pipeline map decision 07: 'both agents and the Docker VM -> 4 GB approved').",
+     "fix": "Drop the model-tier log and build item 7. If any capture is wanted, append only the truth-tier snapshots (KB/day) and reuse the existing 7-day precip retention rather than a new 30-day one."
+    },
+    {
+     "decision": "D11",
+     "verdict": "AMEND",
+     "severity": "low",
+     "finding": "The vocabulary and the 'never' list are right and inherit 08 obligation 6 correctly, but every string is instantaneous ('likelihood rank') while the quantity is cumulative over a window that can be 27+ hours old (D3) and can be missing hours (D2). A latched flag therefore reads as 'now' to any user.",
+     "fix": "Put the window in the tier label itself \u2014 'rank under the rain since <A> (local)' \u2014 and add a fixed string for the missing-hours state ('this window is missing N hours of radar'), not just the RadarOnly-uncalibrated footer."
+    },
+    {
+     "decision": "D12",
+     "verdict": "AMEND",
+     "severity": "medium",
+     "finding": "A second JSON is defensible on change-cadence grounds (display cutpoints should not force a score_version bump), so the file itself is not the problem \u2014 the chaining is. detector.json hand-copies the coefficient JSON's score_version, so any model rebuild not followed by a manual edit stamps every export and every log row with a stale, wrong score_version, and nothing detects the drift. Separately, the endpoint list and the UGC list are code constants that never vary by deployment; putting them in a hashed data file adds a version bump for editing a URL.",
+     "fix": "Do not copy score_version. The exporter loads both files and stamps both digests \u2014 the chain becomes structural instead of clerical. Move the endpoint list into the exporter module and delete the UGC list with D6."
+    }
+   ],
+   "missing": [
+    {
+     "item": "No runnable checks anywhere in the draft",
+     "severity": "high",
+     "why": "Both maps' Notes carry 'one runnable check per slice', and every sibling design ships them (07 \u00a75 checks 1-6; 14's four checks; 08's build assertions). Without them /to-spec collapses a detector spec with zero acceptance criteria. The most load-bearing untested claim is 08 obligation 2 itself: name a check that replays one event and asserts live eta at window close equals the offline event score. Also needed: the live window rule reproduces 01's offline window on a fixture day; deleting one hour from live/precip_cell trips the missing-hour state; the export emits absent keys not nulls and survives a deleted live root with error+stale set."
+    },
+    {
+     "item": "No snow / frozen-precip gate on the model tier",
+     "severity": "medium",
+     "why": "RadarOnly QPE reports snow water equivalent as mm. 01 reclasses snowmelt days out of the pluvial fit, and the pipeline map's own open item says t2m_c is NULL in the MRMS era with 'a phase source for src=mrms' still unspecified. So in winter the model tier will rank a snowstorm as a rainstorm. The draft puts a snow caveat only on FloodNet (D7). Decide a citywide temperature gate that suppresses or labels the model tier below freezing \u2014 api.weather.gov is already being called for alerts, so it is one more keyless field."
+    },
+    {
+     "item": "NULL mm_1h is undefined in the running statistics",
+     "severity": "medium",
+     "why": "07 \u00a74 maps any negative MRMS value to NULL, so NULLs exist in live/precip_cell by design. The draft never says whether a NULL hour is a zero, a hole counted against window coverage (D2), or voids the cell for that window \u2014 three answers that give three different ranks."
+    },
+    {
+     "item": "No branch for 08's honesty clause (if B2 wins, v1 ships B2)",
+     "severity": "medium",
+     "why": "08 states plainly that if unit climatology beats the fitted model, v1 ships B2 as the score and the release says so \u2014 and 08's own measurements make that outcome live (CSI 0.258 vs 0.264, AUC 0.630 vs 0.642). The entire detector design \u2014 forcing gate, converges-from-below, rising-trajectory tiers, the 2.0 mm gate \u2014 assumes a precip-driven fitted model. Decide now what the live panel is when the shipped score is 'where it was reported before': essentially a static map with a rain gate, needing a different tier label and a different honesty string."
+    },
+    {
+     "item": "The impact-signal overlay has no contract",
+     "severity": "medium",
+     "why": "'The panel reserves an overlay slot that renders whatever files 09 publishes, greyed when absent' is not an interface \u2014 neither ticket can build a connectable thing from it. Name the file path under web/files/, the join key (cell + hour_end_utc is the only grain both sides share), and which side writes it. Metric definitions stay 09's; the file name and key must be agreed."
+    },
+    {
+     "item": "Build ordering understates what does not yet exist, and overstates what the panel needs",
+     "severity": "medium",
+     "why": "Verified against the repo: there is no web/ directory, no vendor/export/live-export/web targets (Makefile at /Users/ross/raincheck/Makefile ends at gates/slice/test/coldpush), no data/live/ at all, no flood tables (data/silver has no flood_obs/flood_events, data/gold has no flood_labels, data/ref has no assets), and silver precip carries src=aorc only. Build item 2 ('flood-export job + third panel') silently presumes 14's page. Worth stating the short critical path: the flood panel needs precip_live + 08's JSON + ref/assets + a page skeleton, and needs neither Kafka nor the streaming job nor data/live/vp|tu \u2014 so it can ship ahead of 14's bus live view rather than behind it."
+    },
+    {
+     "item": "Ownership of the third panel's files is unassigned",
+     "severity": "low",
+     "why": "14's deliverable is one index.html with two panels plus one web/export.sql. A third panel means editing files owned by a different map's ticket. Say whether the flood view is a section inside 14's page (cross-map edits, one make web) or its own page served by the same server \u2014 otherwise two efforts write the same index.html."
+    },
+    {
+     "item": "The honest operating limitation is never stated",
+     "severity": "low",
+     "why": "Under the no-daemon rule nothing computes unless the loop is running, so a 4 a.m. storm produces no live output and no truth-tier record at all. D10 concedes this for truth tiers in passing. One sentence in D11's fixed vocabulary should say the product is a page you open during a storm, not a service that watches \u2014 otherwise 'real-time detector' oversells what the rules permit."
+    }
+   ]
+  }
+ ]
+}

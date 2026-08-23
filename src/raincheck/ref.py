@@ -15,6 +15,7 @@ Run: make ref   (python -m raincheck.ref)
 import csv
 import hashlib
 import io
+import json
 import shutil
 import sys
 import urllib.request
@@ -52,6 +53,30 @@ HOLIDAYS = {date(2021, 9, 6), date(2021, 10, 11), date(2023, 9, 4), date(2023, 1
 UNGA = ((date(2021, 9, 21), date(2021, 9, 27)), (date(2023, 9, 19), date(2023, 9, 26)))
 
 TS = pa.timestamp("us", tz="UTC")
+
+# ---- ref/assets (flood-build 01): every flood Unit and Carrier in one registry ----
+# Score Units: complex, bus_stop, cell. Carriers (located and aggregated, never scored
+# independently): station, entrance. Design: flood wayfinder ticket 06.
+SODA_BASE = "https://data.ny.gov/resource"
+STATIONS_SNAPSHOT = "39hk-dx4f_2026-08-22.json"   # MTA subway stations
+ENTRANCES_SNAPSHOT = "i9wp-a4ja_2026-08-22.json"  # MTA subway entrances and exits
+SNAPSHOT_ASOF = date(2026, 8, 22)
+ASSETS_FROZEN = datetime(2026, 8, 22, tzinfo=timezone.utc)
+EWR_ZONE_ID = 1  # Newark Airport, the one non-NYC taxi zone: excluded from cells_scored
+BUS_PICKS = {  # the static zips behind silver/stops, pinned by sha1 (five feeds
+    # 2026-06-23, staten_island 2026-07-28); make ref never re-reads the zips for stops
+    "bronx": "1e05b66603f781491ba2f9e6c3a012ed68e599f3",
+    "brooklyn": "c05b9aefc277ec4e766c07ea5ea9c26faa7bcbfc",
+    "busco": "3d84ded191bcc80d82a6653655b1064fc495bb6a",
+    "manhattan": "e19457c845680d939472dfb801c1a35bed1479fd",
+    "queens": "1382a2eba797e7257b197a360e0396ac5e2ed812",
+    "staten_island": "2df7eee4c96825d3418ba604958122875c6182ea",
+}
+SUBWAY_PICK = "5116d5c7bc4afeddf53f34dcbc2c29363e84b2a2"  # subway static 2026-08-07
+# frozen real-data counts, asserted blocking on the real build (tests pass expect=None);
+# cells_scored measured 1,351 on the first real build 2026-08-22
+ASSETS_EXPECT = {"complex": 445, "station": 496, "entrance": 2120, "bus_stop": 13370,
+                 "cell": 4113, "total": 20544, "cells_scored": 1351}
 
 
 def write(root: Path, name: str, table: pa.Table) -> None:
@@ -267,6 +292,225 @@ def build_picks(root: Path) -> None:
     write(root, "picks", pa.Table.from_pylist(rows, schema=schema))
 
 
+def subway_snapshot(root: Path, name: str) -> list[dict]:
+    """A pinned Socrata snapshot under archive/subway, fetched only when missing —
+    a present snapshot means make ref never calls SODA."""
+    path = root / "archive" / "subway" / name
+    if not path.exists():
+        url = f"{SODA_BASE}/{name.split('_')[0]}.json?$limit=5000"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        print(f"downloading {url}", flush=True)
+        urllib.request.urlretrieve(url, path)
+    rows = json.loads(path.read_text())
+    if len(rows) >= 5000:  # SODA truncates silently at $limit
+        raise RuntimeError(f"{name}: {len(rows)} rows hit the $limit — snapshot truncated")
+    return rows
+
+
+def assets_version(root: Path) -> str:
+    """sha1 over sorted (asset_id, kind, lat, lon) — the label_version chain ingredient."""
+    t = pq.read_table(root / "ref" / "assets", columns=["asset_id", "kind", "lat", "lon"])
+    h = hashlib.sha1()
+    for row in sorted(zip(t.column("asset_id").to_pylist(), t.column("kind").to_pylist(),
+                          t.column("lat").to_pylist(), t.column("lon").to_pylist())):
+        h.update(repr(row).encode())
+    return h.hexdigest()
+
+
+def assets_key_diff(old: dict[str, tuple], new: dict[str, tuple]) -> dict[str, list[str]]:
+    """The key-stability contract: what a rebuild added, removed, or moved."""
+    return {"added": sorted(new.keys() - old.keys()),
+            "removed": sorted(old.keys() - new.keys()),
+            "moved": sorted(k for k in old.keys() & new.keys() if old[k] != new[k])}
+
+
+def build_assets(root: Path, spark, bus_picks: dict[str, str] | None = None,
+                 subway_pick: str | None = None, expect: dict | None = ASSETS_EXPECT) -> None:
+    bus_picks = BUS_PICKS if bus_picks is None else bus_picks
+    subway_pick = SUBWAY_PICK if subway_pick is None else subway_pick
+    stations = subway_snapshot(root, STATIONS_SNAPSHOT)
+    entrances = subway_snapshot(root, ENTRANCES_SNAPSHOT)
+    sta_by_gtfs = {s["gtfs_stop_id"]: s for s in stations}
+    if len(sta_by_gtfs) != len(stations):
+        raise RuntimeError("stations snapshot: gtfs_stop_id not unique")
+
+    def row(**kw) -> dict:
+        base = dict.fromkeys(("name", "complex_id", "parent_asset_id", "gtfs_stop_id",
+                              "daytime_routes", "line", "structure", "borough", "entrance_type",
+                              "entry_allowed", "exit_allowed", "feeds", "pick_id", "src_asof"))
+        return {**base, "scored": False, "frozen_at": ASSETS_FROZEN, **kw}
+
+    rows = []
+    for s in stations:
+        rows.append(row(asset_id=f"sta:{s['gtfs_stop_id']}", kind="station", name=s["stop_name"],
+                        lon=float(s["gtfs_longitude"]), lat=float(s["gtfs_latitude"]),
+                        complex_id=s["complex_id"], parent_asset_id=f"stn:{s['complex_id']}",
+                        gtfs_stop_id=[s["gtfs_stop_id"]], daytime_routes=s.get("daytime_routes"),
+                        line=s.get("line"), structure=s.get("structure"),
+                        borough=s.get("borough"), src_asof=SNAPSHOT_ASOF))
+    by_cx: dict[str, list[dict]] = {}
+    for s in stations:
+        by_cx.setdefault(s["complex_id"], []).append(s)
+    for cx, members in sorted(by_cx.items()):
+        names = sorted({m["stop_name"] for m in members})
+        boroughs = {m.get("borough") for m in members}
+        rows.append(row(asset_id=f"stn:{cx}", kind="complex", name=" / ".join(names),
+                        lon=sum(float(m["gtfs_longitude"]) for m in members) / len(members),
+                        lat=sum(float(m["gtfs_latitude"]) for m in members) / len(members),
+                        complex_id=cx, borough=boroughs.pop() if len(boroughs) == 1 else None,
+                        scored=True, src_asof=SNAPSHOT_ASOF))
+    for e in entrances:
+        ids = [g.strip() for g in e.get("gtfs_stop_id", "").split(";") if g.strip()]
+        missing = [g for g in ids if g not in sta_by_gtfs]
+        if not ids or missing:
+            raise RuntimeError(f"entrance gtfs_stop_id orphaned from stations: {missing or e}")
+        # complex_id comes from the stations join, never the row's own field (10 misfiled rows)
+        cxs = {sta_by_gtfs[g]["complex_id"] for g in ids}
+        if len(cxs) != 1:
+            raise RuntimeError(f"entrance maps to multiple complexes: {e}")
+        cx = cxs.pop()
+        lat, lon = float(e["entrance_latitude"]), float(e["entrance_longitude"])
+        rows.append(row(asset_id=f"ent:{cx}:{lat:.6f}:{lon:.6f}", kind="entrance",
+                        name=e["stop_name"], lon=lon, lat=lat, complex_id=cx,
+                        parent_asset_id=f"stn:{cx}", gtfs_stop_id=ids,
+                        entrance_type=e.get("entrance_type"), entry_allowed=e.get("entry_allowed"),
+                        exit_allowed=e.get("exit_allowed"), src_asof=SNAPSHOT_ASOF))
+
+    published = {r["pick_id"]: r["published"] for r in pq.read_table(root / "ref" / "picks").to_pylist()}
+    per_stop: dict[str, list[tuple]] = {}
+    for feed, pick in sorted(bus_picks.items()):
+        t = pq.read_table(root / "silver" / "stops" / f"pick_id={pick}",
+                          columns=["stop_id", "stop_name", "lon", "lat"])
+        for sid, nm, lo, la in zip(*(t.column(c).to_pylist() for c in t.column_names)):
+            per_stop.setdefault(sid, []).append((feed, pick, nm, lo, la))
+    for sid, srcs in sorted(per_stop.items()):
+        srcs.sort()  # by feed name; the lexicographically-first feed names the stop
+        rows.append(row(asset_id=f"bus:{sid}", kind="bus_stop", name=srcs[0][2],
+                        lon=sum(s[3] for s in srcs) / len(srcs),
+                        lat=sum(s[4] for s in srcs) / len(srcs),
+                        feeds=[s[0] for s in srcs], pick_id=[s[1] for s in srcs], scored=True,
+                        src_asof=max(published[s[1]].date() for s in srcs)))
+
+    if subway_pick:  # 1:1 against the pick's parent stations, zero orphans both ways
+        with zipfile.ZipFile(root / pick_row_path(root, subway_pick)) as z:
+            parents = {r["stop_id"].strip()
+                       for r in csv.DictReader(io.TextIOWrapper(z.open("stops.txt"), "utf-8-sig"))
+                       if r.get("location_type", "").strip() == "1"}
+        if parents != set(sta_by_gtfs):
+            raise RuntimeError(f"stations<->subway pick mismatch: pick-only="
+                               f"{sorted(parents - set(sta_by_gtfs))} stations-only="
+                               f"{sorted(set(sta_by_gtfs) - parents)}")
+
+    # point -> Cell through the pipeline's own idiom; membership in ref/cells is blocking
+    pdf = spark.createDataFrame([(r["asset_id"], r["lon"], r["lat"]) for r in rows],
+                                "asset_id string, lon double, lat double")
+    cell_of = dict(pdf.selectExpr("asset_id",
+                                  "ST_H3CellIDs(ST_Point(lon, lat), 8, false)[0] AS cell").collect())
+    cells = read_ref(root, "cells", ["cell", "geometry", "centroid_lon", "centroid_lat"])
+    known = set(cells["cell"])
+    for r in rows:
+        r["cell"] = cell_of[r["asset_id"]]
+    lost = sorted(r["asset_id"] for r in rows if r["cell"] not in known)
+    if lost:
+        raise RuntimeError(f"assets outside ref/cells (fail, never null): {lost[:10]}")
+
+    # cells_scored: intersects a non-EWR taxi Zone, UNION holds a scored point asset
+    zones = read_ref(root, "zones", ["zone_id", "geometry"])
+    zgeoms = [shapely.from_wkb(g) for zid, g in zip(zones["zone_id"], zones["geometry"])
+              if zid != EWR_ZONE_ID]
+    tree = STRtree(zgeoms)
+    scored_cells = {r["cell"] for r in rows if r["scored"]}
+    for cell, wkb in zip(cells["cell"], cells["geometry"]):
+        poly = shapely.from_wkb(wkb)
+        if any(zgeoms[k].intersects(poly) for k in tree.query(poly)):
+            scored_cells.add(cell)
+    for cell, clon, clat in zip(cells["cell"], cells["centroid_lon"], cells["centroid_lat"]):
+        rows.append(row(asset_id=f"cell:{cell:x}", kind="cell", lon=clon, lat=clat,
+                        cell=cell, scored=cell in scored_cells))
+
+    # coverage gates: both precip crosswalks reach every scored Cell, and the Cells whose
+    # AORC Pixels never report stay out of the score universe (skipped where absent: the
+    # fixture roots; the real root has both)
+    if (root / "ref" / "cell_pixel").exists():
+        cp = pq.read_table(root / "ref" / "cell_pixel", columns=["grid_id", "cell"])
+        for grid in ("aorc", "mrms"):
+            covered = {c for g, c in zip(cp.column("grid_id").to_pylist(),
+                                         cp.column("cell").to_pylist()) if g == grid}
+            gap = sorted(scored_cells - covered)
+            if gap:
+                raise RuntimeError(f"cells_scored not covered by the {grid} crosswalk: {gap[:5]}")
+    else:
+        print("ref/assets: cell_pixel absent, crosswalk coverage gate SKIPPED", flush=True)
+    pch = root / "silver" / "precip_cell_hourly" / "src=aorc"
+    if pch.exists():
+        import duckdb  # heavy path only where the table exists
+
+        (live,) = duckdb.connect().execute(
+            "SELECT coalesce(list(cell), []) FROM (SELECT cell FROM read_parquet(?) "
+            "GROUP BY cell HAVING count(mm_1h) > 0)", [f"{pch}/*/*.parquet"]).fetchone()
+        # absent-entirely and present-but-all-NULL are both permanently-NULL for scoring
+        bad = sorted(scored_cells - set(live))
+        if bad:
+            raise RuntimeError(f"permanently-NULL AORC cells inside cells_scored: {bad[:5]}")
+    else:
+        print("ref/assets: precip_cell_hourly absent, permanently-NULL gate SKIPPED", flush=True)
+
+    ids = [r["asset_id"] for r in rows]
+    if len(ids) != len(set(ids)):
+        raise RuntimeError("asset_id not unique")
+    if any(not r["name"] for r in rows if r["kind"] != "cell"):
+        raise RuntimeError("NULL name outside cell rows")
+    counts = {k: sum(r["kind"] == k for r in rows) for k in
+              ("complex", "station", "entrance", "bus_stop", "cell")}
+    print(f"ref/assets: {counts}, cells_scored={len(scored_cells)}", flush=True)
+    if expect:
+        got = {**counts, "total": len(rows), "cells_scored": len(scored_cells)}
+        bad = {k: (got[k], v) for k, v in expect.items() if v is not None and got[k] != v}
+        if bad:
+            raise RuntimeError(f"frozen count mismatch (got, expected): {bad}")
+
+    out = root / "ref" / "assets" / "part-00000.parquet"
+    new_keys = {r["asset_id"]: (r["lat"], r["lon"]) for r in rows}
+    if out.exists():  # the key-stability contract
+        t = pq.read_table(out, columns=["asset_id", "lat", "lon"])
+        old_keys = {a: (la, lo) for a, la, lo in zip(t.column("asset_id").to_pylist(),
+                                                     t.column("lat").to_pylist(),
+                                                     t.column("lon").to_pylist())}
+        diff = assets_key_diff(old_keys, new_keys)
+        print(f"ref/assets key-diff: +{len(diff['added'])} -{len(diff['removed'])} "
+              f"~{len(diff['moved'])}", flush=True)
+        for tbl in ("gold/flood_labels", "silver/asset_features"):
+            if diff["removed"] and (root / tbl).exists():
+                refd = set(pq.read_table(root / tbl, columns=["asset_id"])
+                           .column("asset_id").to_pylist())
+                orphans = sorted(refd & set(diff["removed"]))
+                if orphans:
+                    raise RuntimeError(f"rebuild would orphan {tbl} rows: {orphans[:10]}")
+
+    order = ("asset_id", "kind", "name", "lon", "lat", "cell", "complex_id", "parent_asset_id",
+             "gtfs_stop_id", "daytime_routes", "line", "structure", "borough", "entrance_type",
+             "entry_allowed", "exit_allowed", "feeds", "pick_id", "scored", "src_asof", "frozen_at")
+    schema = ("asset_id string, kind string, name string, lon double, lat double, cell long, "
+              "complex_id string, parent_asset_id string, gtfs_stop_id array<string>, "
+              "daytime_routes string, line string, structure string, borough string, "
+              "entrance_type string, entry_allowed string, exit_allowed string, "
+              "feeds array<string>, pick_id array<string>, scored boolean, src_asof date, "
+              "frozen_at timestamp")
+    df = spark.createDataFrame([tuple(r[c] for c in order) for r in rows], schema)
+    df = df.selectExpr("asset_id", "kind", "name",
+                       "ST_SetSRID(ST_Point(lon, lat), 4326) AS geometry",
+                       *order[3:]).coalesce(1).sortWithinPartitions("asset_id")
+    spark_write(root, "assets", df)
+
+
+def pick_row_path(root: Path, pick_id: str) -> str:
+    t = pq.read_table(root / "ref" / "picks").to_pylist()
+    rows = [r for r in t if r["pick_id"] == pick_id]
+    if not rows:
+        raise RuntimeError(f"pick {pick_id} not in ref/picks - run make ref after landing the zip")
+    return rows[0]["path"]
+
+
 def build(root: Path, spark) -> None:
     build_grids(root)
     build_cells(root, spark)
@@ -280,7 +524,9 @@ def build(root: Path, spark) -> None:
 def main() -> None:
     from raincheck.spark import session
 
-    build(data_root(), session())
+    root, spark = data_root(), session()
+    build(root, spark)
+    build_assets(root, spark)
 
 
 if __name__ == "__main__":

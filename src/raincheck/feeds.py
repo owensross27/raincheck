@@ -33,11 +33,27 @@ def fetch(name: str, timeout: int = 20) -> gtfs_realtime_pb2.FeedMessage:
     return feed
 
 
+# Canonical bus row shapes (ticket 10): the decoders emit exactly these keys, the census
+# test asserts it, and spark.topic_schema derives the Kafka StructTypes from them.
+VP_COLS = ("vehicle_id", "trip_id", "route_id", "direction_id", "start_date",
+           "schedule_relationship", "lat", "lon", "bearing", "stop_id", "ts", "occupancy",
+           "header_ts", "fetched_at")
+TU_COLS = ("trip_id", "route_id", "start_date", "direction_id", "vehicle_id",
+           "trip_delay_s", "trip_ts", "stop_id", "stop_sequence", "arrival_time",
+           "departure_time", "header_ts", "fetched_at")
+
+
+def _header_ts(feed) -> int | None:
+    """None (matching nbp's archive-era NULL), never 0, when the optional header field is absent."""
+    return int(feed.header.timestamp) if feed.header.HasField("timestamp") else None
+
+
 def decode_vp(feed) -> list[dict]:
     """One flat dict per vehicle with a position. occupancy is None when absent
     (41% coverage, skewed to empty buses; never divide by total vehicles)."""
     rows = []
     fetched_at = int(time.time())
+    header_ts = _header_ts(feed)
     for e in feed.entity:
         v = e.vehicle
         if not (e.HasField("vehicle") and v.HasField("position")):
@@ -58,31 +74,42 @@ def decode_vp(feed) -> list[dict]:
             "ts": int(v.timestamp),
             "occupancy": OCCUPANCY.Name(v.occupancy_status)
             if v.HasField("occupancy_status") else None,
+            "header_ts": header_ts,
             "fetched_at": fetched_at,
         })
     return rows
 
 
 def decode_tu(feed) -> list[dict]:
-    """One flat dict per StopTimeUpdate. arrival.delay is never populated by MTA
-    (0/37,697 measured); arrival_time is the absolute predicted epoch."""
+    """One flat dict per StopTimeUpdate. Stop-level arrival.delay is never populated by
+    MTA (0/37,697 measured); arrival_time is the absolute predicted epoch. trip_delay_s
+    is the feed's own trip-level trip_update.delay, captured verbatim - it is never the
+    project's schedule-derived Delay (spec C)."""
     rows = []
     fetched_at = int(time.time())
+    header_ts = _header_ts(feed)
     for e in feed.entity:
         if not e.HasField("trip_update"):
             continue
         tu = e.trip_update
         vehicle_id = tu.vehicle.id if tu.HasField("vehicle") else None
+        base = {
+            "trip_id": tu.trip.trip_id or None,
+            "route_id": tu.trip.route_id or None,
+            "start_date": tu.trip.start_date or None,
+            "direction_id": tu.trip.direction_id if tu.trip.HasField("direction_id") else None,
+            "vehicle_id": vehicle_id,
+            "trip_delay_s": tu.delay if tu.HasField("delay") else None,
+            "trip_ts": int(tu.timestamp) if tu.HasField("timestamp") else None,
+        }
         for s in tu.stop_time_update:
             rows.append({
-                "trip_id": tu.trip.trip_id or None,
-                "route_id": tu.trip.route_id or None,
-                "start_date": tu.trip.start_date or None,
-                "vehicle_id": vehicle_id,
+                **base,
                 "stop_id": s.stop_id or None,
                 "stop_sequence": s.stop_sequence if s.HasField("stop_sequence") else None,
                 "arrival_time": int(s.arrival.time) if s.HasField("arrival") and s.arrival.HasField("time") else None,
                 "departure_time": int(s.departure.time) if s.HasField("departure") and s.departure.HasField("time") else None,
+                "header_ts": header_ts,
                 "fetched_at": fetched_at,
             })
     return rows
@@ -143,7 +170,7 @@ def decode_subway_tu(feed, feed_key: str) -> list[dict]:
     (scheduled_track on every row, actual_track only near-term)."""
     rows = []
     fetched_at = int(time.time())
-    header_ts = int(feed.header.timestamp)
+    header_ts = _header_ts(feed)
     for e in feed.entity:
         if not e.HasField("trip_update"):
             continue
