@@ -91,3 +91,8 @@ gapcheck:  ## hour-completeness per kind x closed day (exit 1 while any closed d
 
 gapverify:  ## sanity: filled hours vs adjacent archiver hours (rows, key coverage, schema)
 	$(PY) -m raincheck.gapfill verify $(if $(FEED),--feed $(FEED))
+
+# --- ticket 11: MRMS live precip ---------------------------------------------------
+.PHONY: precip-live
+precip-live:  ## one live RadarOnly tick -> live/precip_cell (the 300 s LaunchAgent runs this)
+	$(PY) -m raincheck.precip_live

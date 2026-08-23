@@ -14,13 +14,16 @@ silver/precip_cell_hourly/src=/month= one file, sorted (cell, hour_end_utc), den
 
 The AORC NYC slice is materialised into Bronze `archive/precip/aorc/<YYYY-MM>.zarr` on
 first touch (the fidelity copy and the rolling-sum test oracle) and read from Bronze
-thereafter. SRC=mrms lands with ticket 11.
+thereafter. SRC=mrms (ticket 11) lands each published Pass2 hour from NODD into the
+decoded footprint-only Bronze copy `archive/precip/mrms/date=/hour=HH` (raw values,
+negatives intact) from 2026-08-14T00Z, then rebuilds the month partition from Bronze;
+t2m_k is NULL for mrms. The Cell build is src-generic and needs no mrms branch.
 """
 import argparse
 import calendar
 import shutil
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import numpy as np
@@ -31,6 +34,7 @@ import pyarrow.parquet as pq
 from raincheck.paths import data_root
 
 AORC_STORE = "s3://noaa-nws-aorc-v1-1-1km/{year}.zarr"
+MRMS_START = datetime(2026, 8, 14, tzinfo=timezone.utc)  # research 08 section 2: 24 h before the first bus Snapshot
 TS = pa.timestamp("us", tz="UTC")
 
 
@@ -76,9 +80,81 @@ def bronze_aorc(root: Path, month: str) -> Path:
     return out
 
 
+def write_month(root: Path, src: str, month: str, i_px: np.ndarray, j_px: np.ndarray,
+                times: np.ndarray, mm: np.ndarray, t2m: np.ndarray | None = None) -> None:
+    """The month partition, one file, sorted (i, j, hour_end_utc), dense over footprint x
+    published hours; mm/t2m are (T, P); negative sentinels stored as NULL rows; t2m None
+    (mrms) writes an all-NULL t2m_k column."""
+    n_t, n_p = mm.shape
+    # sorted (i, j, hour_end_utc): pixel-major, hours within pixel
+    order_t = times.astype("datetime64[us]").astype(np.int64)
+    table = pa.table({
+        "i": pa.array(np.repeat(i_px, n_t), pa.int16()),
+        "j": pa.array(np.repeat(j_px, n_t), pa.int16()),
+        "hour_end_utc": pa.array(np.tile(order_t, n_p), TS),
+        "mm": pa.array(np.where(mm.T < 0, np.nan, mm.T).ravel(), pa.float32(),
+                       from_pandas=True),  # NaN -> NULL; negative sentinel -> NULL row
+        "t2m_k": (pa.array(t2m.T.ravel(), pa.float32(), from_pandas=True) if t2m is not None
+                  else pa.nulls(n_t * n_p, pa.float32())),
+    })
+    out = root / "silver" / "precip_hourly" / f"src={src}" / f"month={month}" / "part-00000.parquet"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    pq.write_table(table, out, compression="zstd")
+    print(f"precip_hourly src={src} month={month}: {table.num_rows} rows "
+          f"({n_p} pixels x {n_t} hours)", flush=True)
+
+
+def bronze_mrms_hour(root: Path, h: datetime) -> Path:
+    return (root / "archive" / "precip" / "mrms"
+            / f"date={h:%Y-%m-%d}" / f"hour={h:%H}" / "part-00000.parquet")
+
+
+def hourly_mrms(root: Path, month: str) -> None:
+    """Land each published-but-unlanded Pass2 hour of the month into the decoded Bronze
+    copy (footprint only, raw values), then rebuild the month partition from Bronze."""
+    from raincheck import precip_live  # here, not top-level: aorc runs never import requests/eccodes
+
+    fp = footprint(root, "mrms")
+    i_px, j_px = fp.column("i").to_numpy(), fp.column("j").to_numpy()
+    lo, hi = month_span(month)
+    now_hour = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+    hours: list[datetime] = []
+    h = max(lo, MRMS_START)
+    while h <= min(hi, now_hour):
+        out = bronze_mrms_hour(root, h)
+        if not out.exists():
+            grid = precip_live.fetch_conus(precip_live.PASS2, h)
+            if grid is None:  # not on NODD yet (Pass2 lags ~1 h; older gaps are real gaps)
+                print(f"precip_hourly mrms {month}: {h:%Y-%m-%dT%H}Z not published, skipped", flush=True)
+                h += timedelta(hours=1)
+                continue
+            out.parent.mkdir(parents=True, exist_ok=True)
+            tmp = out.with_name(out.name + ".tmp")  # a killed run must not leave a torn part
+            pq.write_table(pa.table({
+                "i": pa.array(i_px, pa.int16()),
+                "j": pa.array(j_px, pa.int16()),
+                "mm": pa.array(grid[j_px, i_px].astype(np.float32), pa.float32()),
+            }), tmp, compression="zstd")
+            tmp.replace(out)
+        hours.append(h)
+        h += timedelta(hours=1)
+    if not hours:
+        sys.exit(f"precip-hourly mrms {month}: no published hours "
+                 f"(mrms ingest starts {MRMS_START:%Y-%m-%dT%H}Z)")
+    mm = np.empty((len(hours), i_px.size), np.float32)
+    for k, hh in enumerate(hours):
+        t = pq.read_table(bronze_mrms_hour(root, hh))
+        if not ((t.column("i").to_numpy() == i_px).all() and (t.column("j").to_numpy() == j_px).all()):
+            sys.exit(f"precip-hourly mrms {month}: Bronze {hh:%Y-%m-%dT%H}Z footprint "
+                     "does not match the crosswalk")
+        mm[k] = t.column("mm").to_numpy()
+    times = np.array([np.datetime64(hh.replace(tzinfo=None)) for hh in hours])
+    write_month(root, "mrms", month, i_px, j_px, times, mm)
+
+
 def hourly(root: Path, src: str, month: str) -> None:
-    if src != "aorc":
-        sys.exit("precip-hourly SRC=mrms lands with ticket 11")
+    if src == "mrms":
+        return hourly_mrms(root, month)
     import xarray as xr
 
     ds = xr.open_zarr(bronze_aorc(root, month), consolidated=True)
@@ -102,22 +178,7 @@ def hourly(root: Path, src: str, month: str) -> None:
     times = times[keep]
     mm = ds.APCP_surface.values[keep][:, j_rel, i_rel]      # (T, P)
     t2m = ds.TMP_2maboveground.values[keep][:, j_rel, i_rel]
-    n_t, n_p = mm.shape
-    # sorted (i, j, hour_end_utc): pixel-major, hours within pixel
-    order_t = times.astype("datetime64[us]").astype(np.int64)
-    table = pa.table({
-        "i": pa.array(np.repeat(i_px, n_t), pa.int16()),
-        "j": pa.array(np.repeat(j_px, n_t), pa.int16()),
-        "hour_end_utc": pa.array(np.tile(order_t, n_p), TS),
-        "mm": pa.array(np.where(mm.T < 0, np.nan, mm.T).ravel(), pa.float32(),
-                       from_pandas=True),  # NaN -> NULL; negative sentinel -> NULL row
-        "t2m_k": pa.array(t2m.T.ravel(), pa.float32(), from_pandas=True),
-    })
-    out = root / "silver" / "precip_hourly" / f"src={src}" / f"month={month}" / "part-00000.parquet"
-    out.parent.mkdir(parents=True, exist_ok=True)
-    pq.write_table(table, out, compression="zstd")
-    print(f"precip_hourly src={src} month={month}: {table.num_rows} rows "
-          f"({n_p} pixels x {n_t} hours)", flush=True)
+    write_month(root, src, month, i_px, j_px, times, mm, t2m)
 
 
 def cell_hourly(root: Path, spark, src: str, month: str) -> None:

@@ -22,6 +22,7 @@ dependencies = [
     "pyproj",
     "duckdb",
     "pytz",  # DuckDB hands back tz-aware timestamps through pytz
+    "eccodes>=2.48",  # MRMS GRIB2 decode (ticket 11); self-contained wheels since 2.48
 ]
 
 [build-system]

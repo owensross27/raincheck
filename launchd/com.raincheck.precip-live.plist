@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- ticket 11: one live RadarOnly precip tick every 300 s (runs for seconds and exits;
+       spec H/K - never the archiver loop, never the stream).
+       install: cp launchd/com.raincheck.precip-live.plist ~/Library/LaunchAgents/ &&
+                launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.raincheck.precip-live.plist
+       stop:    launchctl bootout gui/$(id -u)/com.raincheck.precip-live
+       status:  launchctl print gui/$(id -u)/com.raincheck.precip-live | grep -E "state|pid|last exit"
+       log:     tail -f data/logs/precip-live.log -->
+  <key>Label</key><string>com.raincheck.precip-live</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/ross/raincheck/.venv/bin/python</string><string>-m</string><string>raincheck.precip_live</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/ross/raincheck</string>
+  <!-- spec A, the SSD move: add the same EnvironmentVariables dict as the archiver plist
+       (RAINCHECK_ARCHIVE_ROOT) and bootout/bootstrap. -->
+  <key>RunAtLoad</key><true/>
+  <key>StartInterval</key><integer>300</integer>
+  <key>StandardOutPath</key><string>/Users/ross/raincheck/data/logs/precip-live.log</string>
+  <key>StandardErrorPath</key><string>/Users/ross/raincheck/data/logs/precip-live.log</string>
+</dict>
+</plist>
