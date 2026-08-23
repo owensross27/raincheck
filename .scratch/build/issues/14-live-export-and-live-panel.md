@@ -8,7 +8,7 @@ demo fallback. Spec: L (live view); Testing 14-3, 14-4.
 
 **Blocked by:** 12, 13
 
-**Status:** in-review, rebased onto master @ 9872c78 (branch `claude/kind-dijkstra-a7c03f`); ready to land
+**Status:** done — landed on master as fbc5145 + 83a911a + 99cc06a (2026-08-23)
 
 - [x] the loop reads live/vp with `fetched_at >= now() - 10 min` on the wall clock and `date IN (today, yesterday) AND hour IN (HH, HH-1)` literals (max probe over the same set), latest Ping per vehicle, left-joined to the latest live/tu row per (trip_id, vehicle_id); no precip join; pure-SQL JSON writer with absent keys; writes live.geojson then meta.json by atomic replace; a failed tick writes meta with error + stale and leaves live.geojson alone; Ctrl-C stops it
 - [x] meta.json carries as_of_utc, source, window_min, error, stale, vp/tu fetched_at + ages, precip_valid_ts + age, n_vehicles, n_with_prediction, n_with_trip_delay, n_in_rain_cells, stream_progress from the progress file, export_s
