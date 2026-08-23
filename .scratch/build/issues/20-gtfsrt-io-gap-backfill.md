@@ -122,8 +122,8 @@ next has budget. Refill go/no-go stays Ross's call.
 
 ## Scope amendment: 167-day bus-history backfill (2026-08-23, measured; IN PROGRESS)
 
-> Progress: March, April, May and June COMPLETE and verified in R2 (chunk logs below).
-> Remaining: 2026-07-01..08-14. Verify chunks with `scripts/backfill-verify.py`, NOT
+> Progress: March, April, May, June and July COMPLETE and verified in R2 (chunk logs below).
+> Remaining: 2026-08-01..08-14. Verify chunks with `scripts/backfill-verify.py`, NOT
 > `make gapverify` - see the April log for why gapverify cannot see this range.
 
 `START = date(2026, 8, 15)` was "capture began", a deliberate scope line, not a source
@@ -405,3 +405,36 @@ bytes), and this one ("no output for 06-25" read as "nothing to report", without
 whether the probe ran for it). **Every one is trusting an absence without checking the
 thing that was supposed to produce presence.** When a check comes back empty here, the next
 question is always whether the producer ran - not what the emptiness means.
+
+### Chunk log: July 2026 COMPLETE (2026-08-23)
+
+**Verified in R2, rc=0:**
+
+    A (07-01..07-15)  vp 360/360  tu 360/360                alerts 360/360   clean first pass
+    B (07-16..07-31)  vp 384/384  tu 382/384 (+2 dead)      alerts 384/384
+
+**Dead at source: tu 2026-07-30 h00-h01** - the only tu dead hours in the whole backfill,
+and they deserved extra scrutiny because they surfaced in the chunk that was running when
+the Mac crashed, where a torn fill was the obvious hypothesis. It was tested and rejected:
+gtfsrt.io holds zero snapshots for both hours, and h02 returns at 100 snapshots against the
+~120 norm - the tapering recovery a source outage ending mid-hour produces. The fill said
+`filled 22/24`; 24-2 agrees. vp and alerts both filled 24/24 that day, so the outage hit tu
+alone, the same shape as 2026-04-27 where only vp lost an hour.
+
+**A machine crash mid-chunk cost nothing.** The chunk driver survived it and July B's fill
+completed intact (16/16 days x 3 feeds). Re-verified afterwards rather than assumed:
+March, April, May, June and July A all returned OK against R2. The design reason it was
+survivable is that R2 already held every completed day and local was already pruned - there
+was very little in flight to lose.
+
+**A transient listing failure looked exactly like a data gap.** July B's unattended verify
+exited 1 because `aws s3 ls` returned 255. Nothing was wrong with the data; re-running gave
+OK. But rc=1 is what a real gap looks like, so the driver log recorded a clean chunk as a
+failure. Fixed: a failed listing now exits **2** with an explicit `INCONCLUSIVE ... NOT a
+data gap`, distinct from rc=1 meaning "I looked and data is missing".
+
+That is the same mistake as the empty pending list, in the verifier instead of the pruner:
+there an absent listing meant *delete everything*, here it meant *report gaps*. **Treating
+the FAILURE of a check as a RESULT of the check.** The family rule, now covering five
+instances: *absence of evidence needs its producer checked, and inability-to-check needs
+its own exit code.*
