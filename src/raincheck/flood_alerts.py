@@ -94,9 +94,15 @@ FORMER_NAMES = {
 # Live alert ids are "lmm:alert:<event>:<update>": one physical incident keeps its event
 # component across updates (264026 seen as updates 26/29/30/34), mirroring the Socrata
 # new era's event_id/update_number.
-ALERT_ID_RE = re.compile(r"^lmm:alert:(?P<event>\d+):(?P<update>\d+)$")
+# The event component is a TOKEN, not a number (widened by ticket 04, 2026-08-23): the
+# 2012-2020 Socrata archive keys its incidents by a status_id GUID, and rendering that era
+# into this grammar is what lets ONE extractor, with one measured precision, serve all
+# three eras. The live feed's ids stay a strict subset.
+ALERT_ID_RE = re.compile(r"^lmm:alert:(?P<event>[^:]+):(?P<update>\d+)$")
 INCIDENT_KEY = ("event_id",)                # one panel chip per incident (13)
-OBSERVATION_KEY = ("event_id", "complex_id")  # one flood_obs row per pair (04)
+# the grain THIS module mints. Ticket 04 then merges concurrent events naming one complex
+# into a single flood_obs row — reconciling them is the spine's job, not this module's.
+OBSERVATION_KEY = ("event_id", "complex_id")
 # alert_id is NOT a stable text key — see revisions(). The text belongs in the key.
 REVISION_KEY = ("alert_id", "header", "description")
 
