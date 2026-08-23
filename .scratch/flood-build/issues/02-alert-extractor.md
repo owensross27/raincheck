@@ -260,3 +260,69 @@ of its own newest revision, and reconciling across events is again 04's job.
 
 **Suite:** 244 passed / 0 failed (`make test`), of which 20 are this ticket's. The 216
 baseline in the session brief was stale; this worktree branched at `c4bfdb2` with 224.
+
+---
+
+## 2026-08-23 — closing notes (brave-davinci session, post-landing)
+
+Landed on master as f518f9e (prototype) + f29aa87 (module); both verified byte-identical
+to the branch. Re-ran the suite on the main checkout after landing: **284 passed / 0
+failed**, this ticket's 20 among them. (The orchestrator's check-in mentioned one failing
+test at 282; it does not reproduce here and none of the 20 is it — if it resurfaces it is
+not from this module.)
+
+### Fixture provenance — how to recut, and what cannot be recut
+
+The four fixtures were cut on 2026-08-23 from `<root>/archive/subway_alerts` (1,929,727
+rows at the time) and `<root>/ref/assets`. Three are mechanical; the fourth is not.
+
+- `flood_alerts_water.parquet` — every captured row whose header or description contains
+  `WATER`, uppercased, written through the archiver's **own** schema construction
+  (`pa.schema([(c, TYPES.get(c, pa.string())) for c in cols])` + `compression="zstd"`,
+  copied from `archiver.flush`) so the gate is measured on the real serialization. Row
+  order is `fetched_at, alert_id, coalesce(route_id,'')`. Columns are the archiver's 14
+  (the hive `date`/`hour` keys are not included).
+- `flood_alerts_stations.json` — `kind='station'` rows from `ref/assets`, ordered by
+  `asset_id`: `asset_id, name, complex_id, coalesce(daytime_routes,'')`.
+- `flood_alerts_holdout.json` — the prototype's `holdout_full.json` joined to
+  `holdout_labels.json` by index, keeping only `affected`, `text`, `flood_stations` and
+  the three flags. Source of both is `research/flood-02-station-prototype/`.
+- `flood_alerts_truth.json` — **NOT mechanically reproducible.** It is a human-protocol
+  artifact: two agents labeling 50 revisions blind and independently, forbidden from
+  reading the module, the prototype, or each other, then checked for exact agreement on
+  every revision and pair (they agreed on all 50 / all 71) and hand-adjudicated to
+  complexes. Regenerating it means re-running that protocol, not running a script. Keyed
+  by `(alert_id, sha1(header + "\x00" + description)[:12])`.
+
+Recutting the first three is a few lines of DuckDB plus `pyarrow`; the working script was
+scratch and deliberately not committed, because a committed builder that silently
+regenerates three fixtures while the fourth needs a labeling protocol invites exactly the
+mistake this ticket already made twice (measuring against a truth set that quietly no
+longer matches the data).
+
+### Debt beyond what is recorded above
+
+1. **The stations fixture is a frozen snapshot with no drift check.** It is currently
+   byte-for-byte the live registry (verified: 496 rows identical), but nothing asserts
+   that. A `ref/assets` rebuild that renames or adds a station leaves the tests passing
+   against the old registry — and `load_aliases()`, the production path, would then
+   disagree with every measurement here. Ticket 01's key-stability contract is the natural
+   place to hang a cross-check; there is none today.
+2. **`measure()` and `load_aliases()` are untested.** Everything asserted here is the pure
+   functions on fixtures; the DuckDB read of the archive and the read of `ref/assets` have
+   no coverage. `load_aliases()` failing would be loud (the FORMER_NAMES guard raises), but
+   `measure()`'s filter predicate is a hand-written SQL regex that no test exercises.
+3. **`live_only=False` has no consumer.** It exists for the Socrata history the spine (04)
+   will replay through the legacy anchors, and it is unexercised — deleting the whole
+   filter is green. Whoever wires 04's replay is its first real caller and should test it
+   there rather than trusting it.
+4. **Two flaws in the holdout scorer, both latent.** It uses greedy first-fit matching, so
+   one prediction can consume a truth set another needed and undercount TP (not triggered
+   at FP 0). And holdout row 4 credits a TP to an **ambiguous** prediction `{152,438}` —
+   the holdout is therefore scored under a looser rule than `observations()` actually
+   ships, contradicting its own docstring. The frozen `(14,0,4)` is the prototype's
+   comparable number, which is why it was left as-is; anyone re-deriving it should score
+   under the shipped drop rule instead and expect a different, stricter figure.
+
+None of these is load-bearing for the >= 0.90 gate, which stands on the live truth set.
+They are the honest edges of it.
