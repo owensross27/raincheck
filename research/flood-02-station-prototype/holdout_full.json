@@ -1,0 +1,2312 @@
+[
+ {
+  "era": "new",
+  "event_id": "121648",
+  "update_number": "5",
+  "alert_id": "256811",
+  "date": "2023-09-29T15:22:00.000",
+  "affected": "F | G",
+  "text": "No F service between Coney Island-Stillwell Av and Jay St-MetroTech in either direction.\n\nG service is suspended in both directions. Some F trains will only run between Jamaica-179 St and 2 Av to alleviate congestion between Manhattan and Brooklyn.\n\nWe are working to address heavy flooding in Brooklyn.\n\nPlease stay home if you don't need to travel.",
+  "norm_text": "NO F SERVICE BETWEEN CONEY ISLAND STILLWELL AV AND JAY ST METROTECH IN EITHER DIRECTION G SERVICE IS SUSPENDED IN BOTH DIRECTIONS SOME F TRAINS WILL ONLY RUN BETWEEN JAMAICA 179 ST AND 2 AV TO ALLEVIATE CONGESTION BETWEEN MANHATTAN AND BROOKLYN WE ARE WORKING TO ADDRESS HEAVY FLOODING IN BROOKLYN PLEASE STAY HOME IF YOU DONT NEED TO TRAVEL",
+  "flags": {
+   "system_wide": true,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "CONEY ISLAND STILLWELL AV",
+    "span": [
+     21,
+     46
+    ],
+    "cause": false,
+    "complex_ids": [
+     "58"
+    ],
+    "names": [
+     "Coney Island-Stillwell Av"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "JAY ST METROTECH",
+    "span": [
+     51,
+     67
+    ],
+    "cause": false,
+    "complex_ids": [
+     "636"
+    ],
+    "names": [
+     "Jay St-MetroTech"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "JAMAICA 179 ST",
+    "span": [
+     166,
+     180
+    ],
+    "cause": false,
+    "complex_ids": [
+     "254"
+    ],
+    "names": [
+     "Jamaica-179 St"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "2 AV",
+    "span": [
+     185,
+     189
+    ],
+    "cause": false,
+    "complex_ids": [
+     "232"
+    ],
+    "names": [
+     "2 Av"
+    ],
+    "ambiguous": false
+   }
+  ]
+ },
+ {
+  "era": "new",
+  "event_id": "121652",
+  "update_number": "12",
+  "alert_id": "257027",
+  "date": "2023-09-29T23:39:00.000",
+  "affected": "2 | 5",
+  "text": "There is no 2 5 service between Franklin Av-Medgar Evers College and Flatbush Av-Brooklyn College. 2 trains will run via the 3 line between Franklin Av-Medgar Evers College and New Lots Av.\n\n5 trains will run via the 4 line between Franklin Av-Medgar Evers College and Crown Hts-Utica Av.\n\nWhat's Happening?\n\nWe're continuing to remove water from the tracks caused by flooding from rainfall at various stations in Brooklyn.\n\nPlease stay home if you don't need to travel.",
+  "norm_text": "THERE IS NO 2 5 SERVICE BETWEEN FRANKLIN AV MEDGAR EVERS COLLEGE AND FLATBUSH AV BROOKLYN COLLEGE 2 TRAINS WILL RUN VIA THE 3 LINE BETWEEN FRANKLIN AV MEDGAR EVERS COLLEGE AND NEW LOTS AV 5 TRAINS WILL RUN VIA THE 4 LINE BETWEEN FRANKLIN AV MEDGAR EVERS COLLEGE AND CROWN HTS UTICA AV WHATS HAPPENING WERE CONTINUING TO REMOVE WATER FROM THE TRACKS CAUSED BY FLOODING FROM RAINFALL AT VARIOUS STATIONS IN BROOKLYN PLEASE STAY HOME IF YOU DONT NEED TO TRAVEL",
+  "flags": {
+   "system_wide": true,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "FRANKLIN AV MEDGAR EVERS COLLEGE",
+    "span": [
+     32,
+     64
+    ],
+    "cause": false,
+    "complex_ids": [
+     "626"
+    ],
+    "names": [
+     "Franklin Av-Medgar Evers College"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "FRANKLIN AV MEDGAR EVERS COLLEGE",
+    "span": [
+     139,
+     171
+    ],
+    "cause": false,
+    "complex_ids": [
+     "626"
+    ],
+    "names": [
+     "Franklin Av-Medgar Evers College"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "FRANKLIN AV MEDGAR EVERS COLLEGE",
+    "span": [
+     229,
+     261
+    ],
+    "cause": false,
+    "complex_ids": [
+     "626"
+    ],
+    "names": [
+     "Franklin Av-Medgar Evers College"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "FLATBUSH AV BROOKLYN COLLEGE",
+    "span": [
+     69,
+     97
+    ],
+    "cause": false,
+    "complex_ids": [
+     "359"
+    ],
+    "names": [
+     "Flatbush Av-Brooklyn College"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "CROWN HTS UTICA AV",
+    "span": [
+     266,
+     284
+    ],
+    "cause": false,
+    "complex_ids": [
+     "345"
+    ],
+    "names": [
+     "Crown Hts-Utica Av"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "NEW LOTS AV",
+    "span": [
+     176,
+     187
+    ],
+    "cause": false,
+    "complex_ids": [
+     "136",
+     "352"
+    ],
+    "names": [
+     "New Lots Av"
+    ],
+    "ambiguous": true
+   }
+  ]
+ },
+ {
+  "era": "new",
+  "event_id": "209190",
+  "update_number": "3",
+  "alert_id": "428916",
+  "date": "2025-07-15T01:26:00.000",
+  "affected": "1",
+  "text": "There is no 1 train service in most of Manhattan while we address a signal problem that is caused by flooding near 96 St. There is no 1 train service between 168 St-Washington Hts and South Ferry.\nConsider alternate travel.",
+  "norm_text": "THERE IS NO 1 TRAIN SERVICE IN MOST OF MANHATTAN WHILE WE ADDRESS A SIGNAL PROBLEM THAT IS CAUSED BY FLOODING NEAR 96 ST THERE IS NO 1 TRAIN SERVICE BETWEEN 168 ST WASHINGTON HTS AND SOUTH FERRY CONSIDER ALTERNATE TRAVEL",
+  "flags": {
+   "system_wide": false,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "168 ST WASHINGTON HTS",
+    "span": [
+     157,
+     178
+    ],
+    "cause": false,
+    "complex_ids": [
+     "605"
+    ],
+    "names": [
+     "168 St-Washington Hts"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "SOUTH FERRY",
+    "span": [
+     183,
+     194
+    ],
+    "cause": false,
+    "complex_ids": [
+     "635"
+    ],
+    "names": [
+     "South Ferry"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "96 ST",
+    "span": [
+     115,
+     120
+    ],
+    "cause": true,
+    "complex_ids": [
+     "157",
+     "310",
+     "396",
+     "475"
+    ],
+    "names": [
+     "96 St"
+    ],
+    "ambiguous": true
+   }
+  ]
+ },
+ {
+  "era": "new",
+  "event_id": "29649",
+  "update_number": "3",
+  "alert_id": "88333",
+  "date": "2021-09-02T15:40:00.000",
+  "affected": "Q",
+  "text": "Q service is extremely limited because of flooding across New York City. \n\nPlease avoid non-essential travel until further notice.",
+  "norm_text": "Q SERVICE IS EXTREMELY LIMITED BECAUSE OF FLOODING ACROSS NEW YORK CITY PLEASE AVOID NON ESSENTIAL TRAVEL UNTIL FURTHER NOTICE",
+  "flags": {
+   "system_wide": true,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": []
+ },
+ {
+  "era": "new",
+  "event_id": "217765",
+  "update_number": "10",
+  "alert_id": "444881",
+  "date": "2025-09-11T07:33:00.000",
+  "affected": "A | D",
+  "text": "A/D trains are running with delays in both directions after we addressed a signal problem caused by a water condition near 135 St. Uptown A/D trains have resumed running local from 125 St to 145 St.",
+  "norm_text": "A D TRAINS ARE RUNNING WITH DELAYS IN BOTH DIRECTIONS AFTER WE ADDRESSED A SIGNAL PROBLEM CAUSED BY A WATER CONDITION NEAR 135 ST UPTOWN A D TRAINS HAVE RESUMED RUNNING LOCAL FROM 125 ST TO 145 ST",
+  "flags": {
+   "system_wide": false,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "135 ST",
+    "span": [
+     123,
+     129
+    ],
+    "cause": true,
+    "complex_ids": [
+     "152",
+     "438"
+    ],
+    "names": [
+     "135 St"
+    ],
+    "ambiguous": true
+   },
+   {
+    "alias": "125 ST",
+    "span": [
+     180,
+     186
+    ],
+    "cause": false,
+    "complex_ids": [
+     "153",
+     "306",
+     "392",
+     "439"
+    ],
+    "names": [
+     "125 St"
+    ],
+    "ambiguous": true
+   },
+   {
+    "alias": "145 ST",
+    "span": [
+     190,
+     196
+    ],
+    "cause": false,
+    "complex_ids": [
+     "151",
+     "304",
+     "437"
+    ],
+    "names": [
+     "145 St"
+    ],
+    "ambiguous": true
+   }
+  ]
+ },
+ {
+  "era": "new",
+  "event_id": "209179",
+  "update_number": "1",
+  "alert_id": "428944",
+  "date": "2025-07-15T02:15:00.000",
+  "affected": "SI",
+  "text": "SIR trains are running with delays between Huguenot and Tottenville in both directions after we addressed flooding. SIR trains have resumed regular service between Huguenot and Tottenville.",
+  "norm_text": "SIR TRAINS ARE RUNNING WITH DELAYS BETWEEN HUGUENOT AND TOTTENVILLE IN BOTH DIRECTIONS AFTER WE ADDRESSED FLOODING SIR TRAINS HAVE RESUMED REGULAR SERVICE BETWEEN HUGUENOT AND TOTTENVILLE",
+  "flags": {
+   "system_wide": false,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "TOTTENVILLE",
+    "span": [
+     56,
+     67
+    ],
+    "cause": false,
+    "complex_ids": [
+     "522"
+    ],
+    "names": [
+     "Tottenville"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "TOTTENVILLE",
+    "span": [
+     176,
+     187
+    ],
+    "cause": false,
+    "complex_ids": [
+     "522"
+    ],
+    "names": [
+     "Tottenville"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "HUGUENOT",
+    "span": [
+     43,
+     51
+    ],
+    "cause": false,
+    "complex_ids": [
+     "516"
+    ],
+    "names": [
+     "Huguenot"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "HUGUENOT",
+    "span": [
+     163,
+     171
+    ],
+    "cause": false,
+    "complex_ids": [
+     "516"
+    ],
+    "names": [
+     "Huguenot"
+    ],
+    "ambiguous": false
+   }
+  ]
+ },
+ {
+  "era": "new",
+  "event_id": "121835",
+  "update_number": "0",
+  "alert_id": "257237",
+  "date": "2023-09-30T16:51:00.000",
+  "affected": "N",
+  "text": "N trains are running local between DeKalb Av and 59 St in both directions. What's Happening?\nWe're storing trains on the express tracks after our train storage facilities were impacted by heavy flooding.\n\nFor express service between Atlantic Av-Barclays Ctr and 36 St, take a D train.",
+  "norm_text": "N TRAINS ARE RUNNING LOCAL BETWEEN DEKALB AV AND 59 ST IN BOTH DIRECTIONS WHATS HAPPENING WERE STORING TRAINS ON THE EXPRESS TRACKS AFTER OUR TRAIN STORAGE FACILITIES WERE IMPACTED BY HEAVY FLOODING FOR EXPRESS SERVICE BETWEEN ATLANTIC AV BARCLAYS CTR AND 36 ST TAKE A D TRAIN",
+  "flags": {
+   "system_wide": false,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "ATLANTIC AV BARCLAYS CTR",
+    "span": [
+     227,
+     251
+    ],
+    "cause": false,
+    "complex_ids": [
+     "617"
+    ],
+    "names": [
+     "Atlantic Av-Barclays Ctr"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "DEKALB AV",
+    "span": [
+     35,
+     44
+    ],
+    "cause": false,
+    "complex_ids": [
+     "127",
+     "26"
+    ],
+    "names": [
+     "DeKalb Av"
+    ],
+    "ambiguous": true
+   },
+   {
+    "alias": "59 ST",
+    "span": [
+     49,
+     54
+    ],
+    "cause": false,
+    "complex_ids": [
+     "35",
+     "613",
+     "614"
+    ],
+    "names": [
+     "59 St",
+     "59 St-Columbus Circle"
+    ],
+    "ambiguous": true
+   },
+   {
+    "alias": "36 ST",
+    "span": [
+     256,
+     261
+    ],
+    "cause": false,
+    "complex_ids": [
+     "272",
+     "32"
+    ],
+    "names": [
+     "36 St"
+    ],
+    "ambiguous": true
+   }
+  ]
+ },
+ {
+  "era": "old",
+  "status_id": "5EA12533-BA27-4398-8B22-6F706F7A1228",
+  "date": "2018-07-27T19:48:25.000",
+  "affected": "SIR",
+  "text": "[SIR] train service has resumed following earlier flooding condition between St. George and Tottenville. [SIR] train service has resumed following earlier flooding between St.George and Tottenville.",
+  "norm_text": "SIR TRAIN SERVICE HAS RESUMED FOLLOWING EARLIER FLOODING CONDITION BETWEEN ST GEORGE AND TOTTENVILLE SIR TRAIN SERVICE HAS RESUMED FOLLOWING EARLIER FLOODING BETWEEN ST GEORGE AND TOTTENVILLE",
+  "flags": {
+   "system_wide": false,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "TOTTENVILLE",
+    "span": [
+     89,
+     100
+    ],
+    "cause": false,
+    "complex_ids": [
+     "522"
+    ],
+    "names": [
+     "Tottenville"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "TOTTENVILLE",
+    "span": [
+     180,
+     191
+    ],
+    "cause": true,
+    "complex_ids": [
+     "522"
+    ],
+    "names": [
+     "Tottenville"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "ST GEORGE",
+    "span": [
+     75,
+     84
+    ],
+    "cause": false,
+    "complex_ids": [
+     "501"
+    ],
+    "names": [
+     "St George"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "ST GEORGE",
+    "span": [
+     166,
+     175
+    ],
+    "cause": true,
+    "complex_ids": [
+     "501"
+    ],
+    "names": [
+     "St George"
+    ],
+    "ambiguous": false
+   }
+  ]
+ },
+ {
+  "era": "new",
+  "event_id": "117595",
+  "update_number": "6",
+  "alert_id": "248689",
+  "date": "2023-08-29T11:42:00.000",
+  "affected": "1",
+  "text": "No 1 between Chambers St and 96 St.\nAvoid taking 1 2 3 trains.\nTake A C D.\nWe expect this to last at least thru the AM rush hour. What's Happening?\n\nWe are working to clear water from the tracks after a water main break at Times Sq-42 St.\nOur crews are also inspecting the tracks that were flooded.\n\nAdditional service changes:\n1 service is running in two sections:\nbetween South Ferry and Chambers St (extremely limited service)\nbetween Van Cortlandt Park-242 St and 96 St\nNorthbound 1 trains are running on the express track from 96 St to 137 St-City College.\nFor service to/from bypassed stations, take a southbound train.\n\nAs an alternative to local 1 service from 96 St to 137 St-City College, take an M104 bus.\n\nListen for announcements to hear how your train will operate.\n\nLIRR is cross-honoring MetroCard/OMNY users between Penn Station/Grand Central & Main St/Jamaica.",
+  "norm_text": "NO 1 BETWEEN CHAMBERS ST AND 96 ST AVOID TAKING 1 2 3 TRAINS TAKE A C D WE EXPECT THIS TO LAST AT LEAST THRU THE AM RUSH HOUR WHATS HAPPENING WE ARE WORKING TO CLEAR WATER FROM THE TRACKS AFTER A WATER MAIN BREAK AT TIMES SQ 42 ST OUR CREWS ARE ALSO INSPECTING THE TRACKS THAT WERE FLOODED ADDITIONAL SERVICE CHANGES 1 SERVICE IS RUNNING IN TWO SECTIONS BETWEEN SOUTH FERRY AND CHAMBERS ST EXTREMELY LIMITED SERVICE BETWEEN VAN CORTLANDT PARK 242 ST AND 96 ST NORTHBOUND 1 TRAINS ARE RUNNING ON THE EXPRESS TRACK FROM 96 ST TO 137 ST CITY COLLEGE FOR SERVICE TO FROM BYPASSED STATIONS TAKE A SOUTHBOUND TRAIN AS AN ALTERNATIVE TO LOCAL 1 SERVICE FROM 96 ST TO 137 ST CITY COLLEGE TAKE AN M104 BUS LISTEN FOR ANNOUNCEMENTS TO HEAR HOW YOUR TRAIN WILL OPERATE LIRR IS CROSS HONORING METROCARD OMNY USERS BETWEEN PENN STATION GRAND CENTRAL MAIN ST JAMAICA",
+  "flags": {
+   "system_wide": false,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "VAN CORTLANDT PARK 242 ST",
+    "span": [
+     424,
+     449
+    ],
+    "cause": false,
+    "complex_ids": [
+     "293"
+    ],
+    "names": [
+     "Van Cortlandt Park-242 St"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "137 ST CITY COLLEGE",
+    "span": [
+     527,
+     546
+    ],
+    "cause": false,
+    "complex_ids": [
+     "305"
+    ],
+    "names": [
+     "137 St-City College"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "137 ST CITY COLLEGE",
+    "span": [
+     660,
+     679
+    ],
+    "cause": false,
+    "complex_ids": [
+     "305"
+    ],
+    "names": [
+     "137 St-City College"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "TIMES SQ 42 ST",
+    "span": [
+     216,
+     230
+    ],
+    "cause": true,
+    "complex_ids": [
+     "611"
+    ],
+    "names": [
+     "Times Sq-42 St"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "GRAND CENTRAL",
+    "span": [
+     823,
+     836
+    ],
+    "cause": false,
+    "complex_ids": [
+     "610"
+    ],
+    "names": [
+     "Grand Central-42 St"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "PENN STATION",
+    "span": [
+     810,
+     822
+    ],
+    "cause": false,
+    "complex_ids": [
+     "164",
+     "318"
+    ],
+    "names": [
+     "34 St-Penn Station"
+    ],
+    "ambiguous": true
+   },
+   {
+    "alias": "CHAMBERS ST",
+    "span": [
+     13,
+     24
+    ],
+    "cause": false,
+    "complex_ids": [
+     "327",
+     "622",
+     "624"
+    ],
+    "names": [
+     "Chambers St"
+    ],
+    "ambiguous": true
+   },
+   {
+    "alias": "SOUTH FERRY",
+    "span": [
+     362,
+     373
+    ],
+    "cause": false,
+    "complex_ids": [
+     "635"
+    ],
+    "names": [
+     "South Ferry"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "CHAMBERS ST",
+    "span": [
+     378,
+     389
+    ],
+    "cause": false,
+    "complex_ids": [
+     "327",
+     "622",
+     "624"
+    ],
+    "names": [
+     "Chambers St"
+    ],
+    "ambiguous": true
+   },
+   {
+    "alias": "MAIN ST",
+    "span": [
+     837,
+     844
+    ],
+    "cause": false,
+    "complex_ids": [
+     "447"
+    ],
+    "names": [
+     "Flushing-Main St"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "96 ST",
+    "span": [
+     29,
+     34
+    ],
+    "cause": false,
+    "complex_ids": [
+     "157",
+     "310",
+     "396",
+     "475"
+    ],
+    "names": [
+     "96 St"
+    ],
+    "ambiguous": true
+   },
+   {
+    "alias": "96 ST",
+    "span": [
+     454,
+     459
+    ],
+    "cause": false,
+    "complex_ids": [
+     "157",
+     "310",
+     "396",
+     "475"
+    ],
+    "names": [
+     "96 St"
+    ],
+    "ambiguous": true
+   },
+   {
+    "alias": "96 ST",
+    "span": [
+     518,
+     523
+    ],
+    "cause": false,
+    "complex_ids": [
+     "157",
+     "310",
+     "396",
+     "475"
+    ],
+    "names": [
+     "96 St"
+    ],
+    "ambiguous": true
+   },
+   {
+    "alias": "96 ST",
+    "span": [
+     651,
+     656
+    ],
+    "cause": false,
+    "complex_ids": [
+     "157",
+     "310",
+     "396",
+     "475"
+    ],
+    "names": [
+     "96 St"
+    ],
+    "ambiguous": true
+   }
+  ]
+ },
+ {
+  "era": "old",
+  "status_id": "B52ABA92-5821-4D91-B738-BD17F86C08C5",
+  "date": "2017-08-02T19:52:40.000",
+  "affected": "D",
+  "text": "[B] and [D] train service changes and delays, due to a water conditions at 174-175 Sts and Tremont Av. See mta.info Due to a water condition at 174-175 Sts and Tremont Av, the following service changes are in effect: Northbound [B] and [D] trains are running with delays. Northbound [D] trains are running express from 167 St to Bedford Pk Blvd. Allow additional travel time.",
+  "norm_text": "B AND D TRAIN SERVICE CHANGES AND DELAYS DUE TO A WATER CONDITIONS AT 174 175 STS AND TREMONT AV SEE MTA INFO DUE TO A WATER CONDITION AT 174 175 STS AND TREMONT AV THE FOLLOWING SERVICE CHANGES ARE IN EFFECT NORTHBOUND B AND D TRAINS ARE RUNNING WITH DELAYS NORTHBOUND D TRAINS ARE RUNNING EXPRESS FROM 167 ST TO BEDFORD PK BLVD ALLOW ADDITIONAL TRAVEL TIME",
+  "flags": {
+   "system_wide": false,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "174 175 STS",
+    "span": [
+     70,
+     81
+    ],
+    "cause": true,
+    "complex_ids": [
+     "216"
+    ],
+    "names": [
+     "174-175 Sts"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "174 175 STS",
+    "span": [
+     138,
+     149
+    ],
+    "cause": true,
+    "complex_ids": [
+     "216"
+    ],
+    "names": [
+     "174-175 Sts"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "TREMONT AV",
+    "span": [
+     86,
+     96
+    ],
+    "cause": false,
+    "complex_ids": [
+     "215"
+    ],
+    "names": [
+     "Tremont Av"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "TREMONT AV",
+    "span": [
+     154,
+     164
+    ],
+    "cause": false,
+    "complex_ids": [
+     "215"
+    ],
+    "names": [
+     "Tremont Av"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "167 ST",
+    "span": [
+     304,
+     310
+    ],
+    "cause": false,
+    "complex_ids": [
+     "218",
+     "388"
+    ],
+    "names": [
+     "167 St"
+    ],
+    "ambiguous": true
+   }
+  ]
+ },
+ {
+  "era": "new",
+  "event_id": "121769",
+  "update_number": "0",
+  "alert_id": "257058",
+  "date": "2023-09-30T01:21:00.000",
+  "affected": "5",
+  "text": "5 trains are running with delays between Eastchester-Dyre Av and Bowling Green. What Happened?\n\nWe removed water from the tracks caused by flooding from rainfall at various stations in Brooklyn.",
+  "norm_text": "5 TRAINS ARE RUNNING WITH DELAYS BETWEEN EASTCHESTER DYRE AV AND BOWLING GREEN WHAT HAPPENED WE REMOVED WATER FROM THE TRACKS CAUSED BY FLOODING FROM RAINFALL AT VARIOUS STATIONS IN BROOKLYN",
+  "flags": {
+   "system_wide": true,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "EASTCHESTER DYRE AV",
+    "span": [
+     41,
+     60
+    ],
+    "cause": false,
+    "complex_ids": [
+     "442"
+    ],
+    "names": [
+     "Eastchester-Dyre Av"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "BOWLING GREEN",
+    "span": [
+     65,
+     78
+    ],
+    "cause": false,
+    "complex_ids": [
+     "414"
+    ],
+    "names": [
+     "Bowling Green"
+    ],
+    "ambiguous": false
+   }
+  ]
+ },
+ {
+  "era": "new",
+  "event_id": "29609",
+  "update_number": "17",
+  "alert_id": "88056",
+  "date": "2021-09-02T08:35:00.000",
+  "affected": "3 | 5 | 6 | 6X | A | B | C | E | FS | FX | G | GS | H | J | M | SI | W | Z",
+  "text": "Subway service is extremely limited or temporarily suspended because of heavy rainfall and flooding across New York City.\n\nAvoid traveling until further notice",
+  "norm_text": "SUBWAY SERVICE IS EXTREMELY LIMITED OR TEMPORARILY SUSPENDED BECAUSE OF HEAVY RAINFALL AND FLOODING ACROSS NEW YORK CITY AVOID TRAVELING UNTIL FURTHER NOTICE",
+  "flags": {
+   "system_wide": true,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": []
+ },
+ {
+  "era": "new",
+  "event_id": "121652",
+  "update_number": "15",
+  "alert_id": "257050",
+  "date": "2023-09-30T01:00:00.000",
+  "affected": "2 | 5",
+  "text": "No 2 train service between Franklin Av and Flatbush Av.\n\n5 trains are operating between Bowling Green and Eastchester-Dyre Av in both directions. 2 trains will run via the 3 line between Franklin Av-Medgar Evers College and New Lots Av.\n\nWhat's Happening?\n\nWe're continuing to remove water from the tracks caused by flooding from rainfall at various stations in Brooklyn.\n\nPlease stay home if you don't need to travel.",
+  "norm_text": "NO 2 TRAIN SERVICE BETWEEN FRANKLIN AV AND FLATBUSH AV 5 TRAINS ARE OPERATING BETWEEN BOWLING GREEN AND EASTCHESTER DYRE AV IN BOTH DIRECTIONS 2 TRAINS WILL RUN VIA THE 3 LINE BETWEEN FRANKLIN AV MEDGAR EVERS COLLEGE AND NEW LOTS AV WHATS HAPPENING WERE CONTINUING TO REMOVE WATER FROM THE TRACKS CAUSED BY FLOODING FROM RAINFALL AT VARIOUS STATIONS IN BROOKLYN PLEASE STAY HOME IF YOU DONT NEED TO TRAVEL",
+  "flags": {
+   "system_wide": true,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "FRANKLIN AV MEDGAR EVERS COLLEGE",
+    "span": [
+     184,
+     216
+    ],
+    "cause": false,
+    "complex_ids": [
+     "626"
+    ],
+    "names": [
+     "Franklin Av-Medgar Evers College"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "EASTCHESTER DYRE AV",
+    "span": [
+     104,
+     123
+    ],
+    "cause": false,
+    "complex_ids": [
+     "442"
+    ],
+    "names": [
+     "Eastchester-Dyre Av"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "BOWLING GREEN",
+    "span": [
+     86,
+     99
+    ],
+    "cause": false,
+    "complex_ids": [
+     "414"
+    ],
+    "names": [
+     "Bowling Green"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "FRANKLIN AV",
+    "span": [
+     27,
+     38
+    ],
+    "cause": false,
+    "complex_ids": [
+     "626",
+     "627"
+    ],
+    "names": [
+     "Franklin Av",
+     "Franklin Av-Medgar Evers College"
+    ],
+    "ambiguous": true
+   },
+   {
+    "alias": "FLATBUSH AV",
+    "span": [
+     43,
+     54
+    ],
+    "cause": false,
+    "complex_ids": [
+     "359"
+    ],
+    "names": [
+     "Flatbush Av-Brooklyn College"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "NEW LOTS AV",
+    "span": [
+     221,
+     232
+    ],
+    "cause": false,
+    "complex_ids": [
+     "136",
+     "352"
+    ],
+    "names": [
+     "New Lots Av"
+    ],
+    "ambiguous": true
+   }
+  ]
+ },
+ {
+  "era": "new",
+  "event_id": "29688",
+  "update_number": "0",
+  "alert_id": "88110",
+  "date": "2021-09-02T10:17:00.000",
+  "affected": "G",
+  "text": "G service is extremely limited and partially suspended because of heavy rainfall and flooding across New York City. Trains are running only between Church Av and 4 Av-9 St. However please avoid non-essential travel until further notice.",
+  "norm_text": "G SERVICE IS EXTREMELY LIMITED AND PARTIALLY SUSPENDED BECAUSE OF HEAVY RAINFALL AND FLOODING ACROSS NEW YORK CITY TRAINS ARE RUNNING ONLY BETWEEN CHURCH AV AND 4 AV 9 ST HOWEVER PLEASE AVOID NON ESSENTIAL TRAVEL UNTIL FURTHER NOTICE",
+  "flags": {
+   "system_wide": true,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "CHURCH AV",
+    "span": [
+     147,
+     156
+    ],
+    "cause": false,
+    "complex_ids": [
+     "243",
+     "356",
+     "44"
+    ],
+    "names": [
+     "Church Av"
+    ],
+    "ambiguous": true
+   },
+   {
+    "alias": "4 AV 9 ST",
+    "span": [
+     161,
+     170
+    ],
+    "cause": false,
+    "complex_ids": [
+     "608"
+    ],
+    "names": [
+     "4 Av-9 St"
+    ],
+    "ambiguous": false
+   }
+  ]
+ },
+ {
+  "era": "new",
+  "event_id": "29639",
+  "update_number": "7",
+  "alert_id": "88406",
+  "date": "2021-09-02T18:49:00.000",
+  "affected": "L",
+  "text": "L service is extremely limited because of flooding across New York City.\n\nPlease avoid non-essential travel until further notice.",
+  "norm_text": "L SERVICE IS EXTREMELY LIMITED BECAUSE OF FLOODING ACROSS NEW YORK CITY PLEASE AVOID NON ESSENTIAL TRAVEL UNTIL FURTHER NOTICE",
+  "flags": {
+   "system_wide": true,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": []
+ },
+ {
+  "era": "new",
+  "event_id": "29609",
+  "update_number": "0",
+  "alert_id": "87965",
+  "date": "2021-09-02T02:31:00.000",
+  "affected": "1 | 2 | 3 | 4 | 5 | 6 | 6X | 7 | 7X | A | B | C | D | E | F | FS | FX | G | GS | H | J | L | M | N | Q | R | SI | W | Z",
+  "text": "Train service is extremely limited, if not even suspended, because of heavy rainfall and flooding across the region. We strongly recommend you avoid traveling at this time, if you can. Check http://mta.info before you travel.",
+  "norm_text": "TRAIN SERVICE IS EXTREMELY LIMITED IF NOT EVEN SUSPENDED BECAUSE OF HEAVY RAINFALL AND FLOODING ACROSS THE REGION WE STRONGLY RECOMMEND YOU AVOID TRAVELING AT THIS TIME IF YOU CAN CHECK HTTP MTA INFO BEFORE YOU TRAVEL",
+  "flags": {
+   "system_wide": true,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": []
+ },
+ {
+  "era": "new",
+  "event_id": "29681",
+  "update_number": "4",
+  "alert_id": "88334",
+  "date": "2021-09-02T15:41:00.000",
+  "affected": "M",
+  "text": "M service is extremely limited because of flooding across New York City.\nTrains are running only between Middle Village-Metropolitan Av and Delancey St-Essex St.\nPlease avoid non-essential travel until further notice.",
+  "norm_text": "M SERVICE IS EXTREMELY LIMITED BECAUSE OF FLOODING ACROSS NEW YORK CITY TRAINS ARE RUNNING ONLY BETWEEN MIDDLE VILLAGE METROPOLITAN AV AND DELANCEY ST ESSEX ST PLEASE AVOID NON ESSENTIAL TRAVEL UNTIL FURTHER NOTICE",
+  "flags": {
+   "system_wide": true,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "MIDDLE VILLAGE METROPOLITAN AV",
+    "span": [
+     104,
+     134
+    ],
+    "cause": false,
+    "complex_ids": [
+     "108"
+    ],
+    "names": [
+     "Middle Village-Metropolitan Av"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "DELANCEY ST ESSEX ST",
+    "span": [
+     139,
+     159
+    ],
+    "cause": false,
+    "complex_ids": [
+     "625"
+    ],
+    "names": [
+     "Delancey St-Essex St"
+    ],
+    "ambiguous": false
+   }
+  ]
+ },
+ {
+  "era": "old",
+  "status_id": "B52ABA92-5821-4D91-B738-BD17F86C08C5",
+  "date": "2017-08-02T19:52:40.000",
+  "affected": "D",
+  "text": "Following an earlier incident involving a water condition at 174-175 Sts and Tremont Av, [D] train service has resumed with delays. Following an earlier incident involving a water condition at 174-175 Sts and Tremont Av, [D] train service has resumed with delays.",
+  "norm_text": "FOLLOWING AN EARLIER INCIDENT INVOLVING A WATER CONDITION AT 174 175 STS AND TREMONT AV D TRAIN SERVICE HAS RESUMED WITH DELAYS FOLLOWING AN EARLIER INCIDENT INVOLVING A WATER CONDITION AT 174 175 STS AND TREMONT AV D TRAIN SERVICE HAS RESUMED WITH DELAYS",
+  "flags": {
+   "system_wide": false,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "174 175 STS",
+    "span": [
+     61,
+     72
+    ],
+    "cause": true,
+    "complex_ids": [
+     "216"
+    ],
+    "names": [
+     "174-175 Sts"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "174 175 STS",
+    "span": [
+     189,
+     200
+    ],
+    "cause": true,
+    "complex_ids": [
+     "216"
+    ],
+    "names": [
+     "174-175 Sts"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "TREMONT AV",
+    "span": [
+     77,
+     87
+    ],
+    "cause": false,
+    "complex_ids": [
+     "215"
+    ],
+    "names": [
+     "Tremont Av"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "TREMONT AV",
+    "span": [
+     205,
+     215
+    ],
+    "cause": false,
+    "complex_ids": [
+     "215"
+    ],
+    "names": [
+     "Tremont Av"
+    ],
+    "ambiguous": false
+   }
+  ]
+ },
+ {
+  "era": "new",
+  "event_id": "29647",
+  "update_number": "0",
+  "alert_id": "88029",
+  "date": "2021-09-02T06:56:00.000",
+  "affected": "R",
+  "text": "R service is extremely limited because of heavy rainfall and flooding across New York City. Trains are running only between Whitehall St-South Ferry and Bay Ridge-95 St.\nHowever, please avoid non-essential travel until further notice.",
+  "norm_text": "R SERVICE IS EXTREMELY LIMITED BECAUSE OF HEAVY RAINFALL AND FLOODING ACROSS NEW YORK CITY TRAINS ARE RUNNING ONLY BETWEEN WHITEHALL ST SOUTH FERRY AND BAY RIDGE 95 ST HOWEVER PLEASE AVOID NON ESSENTIAL TRAVEL UNTIL FURTHER NOTICE",
+  "flags": {
+   "system_wide": true,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "WHITEHALL ST SOUTH FERRY",
+    "span": [
+     123,
+     147
+    ],
+    "cause": false,
+    "complex_ids": [
+     "635"
+    ],
+    "names": [
+     "Whitehall St-South Ferry"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "BAY RIDGE 95 ST",
+    "span": [
+     152,
+     167
+    ],
+    "cause": false,
+    "complex_ids": [
+     "39"
+    ],
+    "names": [
+     "Bay Ridge-95 St"
+    ],
+    "ambiguous": false
+   }
+  ]
+ },
+ {
+  "era": "new",
+  "event_id": "29755",
+  "update_number": "2",
+  "alert_id": "88404",
+  "date": "2021-09-02T18:47:00.000",
+  "affected": "C",
+  "text": "C service is extremely limited because of flooding across New York City.\nPlease avoid non-essential traveling until further notice.",
+  "norm_text": "C SERVICE IS EXTREMELY LIMITED BECAUSE OF FLOODING ACROSS NEW YORK CITY PLEASE AVOID NON ESSENTIAL TRAVELING UNTIL FURTHER NOTICE",
+  "flags": {
+   "system_wide": true,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": []
+ },
+ {
+  "era": "new",
+  "event_id": "117605",
+  "update_number": "2",
+  "alert_id": "248653",
+  "date": "2023-08-29T10:47:00.000",
+  "affected": "5",
+  "text": "5 trains are running locally in Brooklyn and the Bronx to provide additional service.\n\n5 service to/from 238 St is not running. Expect delays on 2 3 and use 5 instead.\n\nAlso, we've reduced 5 train service to make room for rerouted 2 trains.\n\nWhat's Happening?\n\nWe are working to clear water from the tracks after a water main break at Times Sq-42 St.\nOur crews are also inspecting the tracks that were flooded.",
+  "norm_text": "5 TRAINS ARE RUNNING LOCALLY IN BROOKLYN AND THE BRONX TO PROVIDE ADDITIONAL SERVICE 5 SERVICE TO FROM 238 ST IS NOT RUNNING EXPECT DELAYS ON 2 3 AND USE 5 INSTEAD ALSO WEVE REDUCED 5 TRAIN SERVICE TO MAKE ROOM FOR REROUTED 2 TRAINS WHATS HAPPENING WE ARE WORKING TO CLEAR WATER FROM THE TRACKS AFTER A WATER MAIN BREAK AT TIMES SQ 42 ST OUR CREWS ARE ALSO INSPECTING THE TRACKS THAT WERE FLOODED",
+  "flags": {
+   "system_wide": false,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "TIMES SQ 42 ST",
+    "span": [
+     323,
+     337
+    ],
+    "cause": true,
+    "complex_ids": [
+     "611"
+    ],
+    "names": [
+     "Times Sq-42 St"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "238 ST",
+    "span": [
+     103,
+     109
+    ],
+    "cause": false,
+    "complex_ids": [
+     "294"
+    ],
+    "names": [
+     "238 St"
+    ],
+    "ambiguous": false
+   }
+  ]
+ },
+ {
+  "era": "new",
+  "event_id": "29609",
+  "update_number": "11",
+  "alert_id": "88018",
+  "date": "2021-09-02T05:52:00.000",
+  "affected": "1 | 3 | 5 | 7 | A | B | C | D | E | FS | G | GS | H | J | M | N | Q | R | SI | W | Z",
+  "text": "Subway service is extremely limited or temporarily suspended because of heavy rainfall and flooding across New York City.\n\nAvoid traveling until further notice.",
+  "norm_text": "SUBWAY SERVICE IS EXTREMELY LIMITED OR TEMPORARILY SUSPENDED BECAUSE OF HEAVY RAINFALL AND FLOODING ACROSS NEW YORK CITY AVOID TRAVELING UNTIL FURTHER NOTICE",
+  "flags": {
+   "system_wide": true,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": []
+ },
+ {
+  "era": "new",
+  "event_id": "29648",
+  "update_number": "0",
+  "alert_id": "88030",
+  "date": "2021-09-02T06:57:00.000",
+  "affected": "D",
+  "text": "D service is extremely limited and partially suspended because of heavy rainfall and flooding across New York City. Trains are running only between Atlantic Av-Barclays Ctr and Coney Island-Stillwell Av. However, please avoid non-essential travel until further notice.",
+  "norm_text": "D SERVICE IS EXTREMELY LIMITED AND PARTIALLY SUSPENDED BECAUSE OF HEAVY RAINFALL AND FLOODING ACROSS NEW YORK CITY TRAINS ARE RUNNING ONLY BETWEEN ATLANTIC AV BARCLAYS CTR AND CONEY ISLAND STILLWELL AV HOWEVER PLEASE AVOID NON ESSENTIAL TRAVEL UNTIL FURTHER NOTICE",
+  "flags": {
+   "system_wide": true,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "CONEY ISLAND STILLWELL AV",
+    "span": [
+     176,
+     201
+    ],
+    "cause": false,
+    "complex_ids": [
+     "58"
+    ],
+    "names": [
+     "Coney Island-Stillwell Av"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "ATLANTIC AV BARCLAYS CTR",
+    "span": [
+     147,
+     171
+    ],
+    "cause": false,
+    "complex_ids": [
+     "617"
+    ],
+    "names": [
+     "Atlantic Av-Barclays Ctr"
+    ],
+    "ambiguous": false
+   }
+  ]
+ },
+ {
+  "era": "new",
+  "event_id": "29660",
+  "update_number": "2",
+  "alert_id": "88303",
+  "date": "2021-09-02T14:28:00.000",
+  "affected": "7",
+  "text": "7 service is extremely limited because of flooding across New York City.\nPlease avoid non-essential travel until further notice.",
+  "norm_text": "7 SERVICE IS EXTREMELY LIMITED BECAUSE OF FLOODING ACROSS NEW YORK CITY PLEASE AVOID NON ESSENTIAL TRAVEL UNTIL FURTHER NOTICE",
+  "flags": {
+   "system_wide": true,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": []
+ },
+ {
+  "era": "new",
+  "event_id": "209186",
+  "update_number": "6",
+  "alert_id": "428938",
+  "date": "2025-07-15T01:58:00.000",
+  "affected": "E | F | R",
+  "text": "E/F/R trains are running with delays in both directions.\nTake 7/N  trains instead. What's Happening?\nWe're addressing flooding that is causing a signal problem at Queens Plaza.",
+  "norm_text": "E F R TRAINS ARE RUNNING WITH DELAYS IN BOTH DIRECTIONS TAKE 7 N TRAINS INSTEAD WHATS HAPPENING WERE ADDRESSING FLOODING THAT IS CAUSING A SIGNAL PROBLEM AT QUEENS PLAZA",
+  "flags": {
+   "system_wide": false,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "QUEENS PLAZA",
+    "span": [
+     157,
+     169
+    ],
+    "cause": true,
+    "complex_ids": [
+     "273"
+    ],
+    "names": [
+     "Queens Plaza"
+    ],
+    "ambiguous": false
+   }
+  ]
+ },
+ {
+  "era": "new",
+  "event_id": "119215",
+  "update_number": "1",
+  "alert_id": "252226",
+  "date": "2023-09-11T22:49:00.000",
+  "affected": "SI",
+  "text": "There is no SIR service between Tottenville and Huguenot because of flooding near Prince's Bay. The last stop for Tottenville-bound SIR trains will be Huguenot.\n\nFor service between Tottenville and Huguenot, consider taking an S59 or S78 bus.",
+  "norm_text": "THERE IS NO SIR SERVICE BETWEEN TOTTENVILLE AND HUGUENOT BECAUSE OF FLOODING NEAR PRINCES BAY THE LAST STOP FOR TOTTENVILLE BOUND SIR TRAINS WILL BE HUGUENOT FOR SERVICE BETWEEN TOTTENVILLE AND HUGUENOT CONSIDER TAKING AN S59 OR S78 BUS",
+  "flags": {
+   "system_wide": false,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "TOTTENVILLE",
+    "span": [
+     32,
+     43
+    ],
+    "cause": false,
+    "complex_ids": [
+     "522"
+    ],
+    "names": [
+     "Tottenville"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "PRINCES BAY",
+    "span": [
+     82,
+     93
+    ],
+    "cause": true,
+    "complex_ids": [
+     "517"
+    ],
+    "names": [
+     "Prince's Bay"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "TOTTENVILLE",
+    "span": [
+     112,
+     123
+    ],
+    "cause": false,
+    "complex_ids": [
+     "522"
+    ],
+    "names": [
+     "Tottenville"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "TOTTENVILLE",
+    "span": [
+     178,
+     189
+    ],
+    "cause": false,
+    "complex_ids": [
+     "522"
+    ],
+    "names": [
+     "Tottenville"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "HUGUENOT",
+    "span": [
+     48,
+     56
+    ],
+    "cause": false,
+    "complex_ids": [
+     "516"
+    ],
+    "names": [
+     "Huguenot"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "HUGUENOT",
+    "span": [
+     149,
+     157
+    ],
+    "cause": false,
+    "complex_ids": [
+     "516"
+    ],
+    "names": [
+     "Huguenot"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "HUGUENOT",
+    "span": [
+     194,
+     202
+    ],
+    "cause": false,
+    "complex_ids": [
+     "516"
+    ],
+    "names": [
+     "Huguenot"
+    ],
+    "ambiguous": false
+   }
+  ]
+ },
+ {
+  "era": "new",
+  "event_id": "18208",
+  "update_number": "1",
+  "alert_id": "62951",
+  "date": "2021-03-25T01:18:00.000",
+  "affected": "SI",
+  "text": "SIR trains have resumed making regular station stops between Prince's Bay and Tottenville following earlier flooding.",
+  "norm_text": "SIR TRAINS HAVE RESUMED MAKING REGULAR STATION STOPS BETWEEN PRINCES BAY AND TOTTENVILLE FOLLOWING EARLIER FLOODING",
+  "flags": {
+   "system_wide": false,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "PRINCES BAY",
+    "span": [
+     61,
+     72
+    ],
+    "cause": false,
+    "complex_ids": [
+     "517"
+    ],
+    "names": [
+     "Prince's Bay"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "TOTTENVILLE",
+    "span": [
+     77,
+     88
+    ],
+    "cause": false,
+    "complex_ids": [
+     "522"
+    ],
+    "names": [
+     "Tottenville"
+    ],
+    "ambiguous": false
+   }
+  ]
+ },
+ {
+  "era": "new",
+  "event_id": "121652",
+  "update_number": "7",
+  "alert_id": "256864",
+  "date": "2023-09-29T17:36:00.000",
+  "affected": "4 | 5",
+  "text": "4 service is suspended in most of Brooklyn.\n\n5 service is suspended in Brooklyn, Manhattan and most of The Bronx.\n\nPlease stay home if you don't need to travel. There is no 4 train service between Bowling Green and Crown Hts-Utica Av. 4 trains running in two sections:\nbetween Bowling Green and Woodlawn\nbetween New Lots Av and Crown Hts-Utica Av\n\n5 trains are only running between Eastchester-Dyre Av and E 180 St.\n\nWhat's Happening?\nWe're working to address flooding on the tracks.",
+  "norm_text": "4 SERVICE IS SUSPENDED IN MOST OF BROOKLYN 5 SERVICE IS SUSPENDED IN BROOKLYN MANHATTAN AND MOST OF THE BRONX PLEASE STAY HOME IF YOU DONT NEED TO TRAVEL THERE IS NO 4 TRAIN SERVICE BETWEEN BOWLING GREEN AND CROWN HTS UTICA AV 4 TRAINS RUNNING IN TWO SECTIONS BETWEEN BOWLING GREEN AND WOODLAWN BETWEEN NEW LOTS AV AND CROWN HTS UTICA AV 5 TRAINS ARE ONLY RUNNING BETWEEN EASTCHESTER DYRE AV AND E 180 ST WHATS HAPPENING WERE WORKING TO ADDRESS FLOODING ON THE TRACKS",
+  "flags": {
+   "system_wide": false,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "EASTCHESTER DYRE AV",
+    "span": [
+     372,
+     391
+    ],
+    "cause": false,
+    "complex_ids": [
+     "442"
+    ],
+    "names": [
+     "Eastchester-Dyre Av"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "CROWN HTS UTICA AV",
+    "span": [
+     208,
+     226
+    ],
+    "cause": false,
+    "complex_ids": [
+     "345"
+    ],
+    "names": [
+     "Crown Hts-Utica Av"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "CROWN HTS UTICA AV",
+    "span": [
+     319,
+     337
+    ],
+    "cause": false,
+    "complex_ids": [
+     "345"
+    ],
+    "names": [
+     "Crown Hts-Utica Av"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "BOWLING GREEN",
+    "span": [
+     190,
+     203
+    ],
+    "cause": false,
+    "complex_ids": [
+     "414"
+    ],
+    "names": [
+     "Bowling Green"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "BOWLING GREEN",
+    "span": [
+     268,
+     281
+    ],
+    "cause": false,
+    "complex_ids": [
+     "414"
+    ],
+    "names": [
+     "Bowling Green"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "NEW LOTS AV",
+    "span": [
+     303,
+     314
+    ],
+    "cause": false,
+    "complex_ids": [
+     "136",
+     "352"
+    ],
+    "names": [
+     "New Lots Av"
+    ],
+    "ambiguous": true
+   },
+   {
+    "alias": "WOODLAWN",
+    "span": [
+     286,
+     294
+    ],
+    "cause": false,
+    "complex_ids": [
+     "378"
+    ],
+    "names": [
+     "Woodlawn"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "E 180 ST",
+    "span": [
+     396,
+     404
+    ],
+    "cause": false,
+    "complex_ids": [
+     "426"
+    ],
+    "names": [
+     "E 180 St"
+    ],
+    "ambiguous": false
+   }
+  ]
+ },
+ {
+  "era": "new",
+  "event_id": "36007",
+  "update_number": "0",
+  "alert_id": "99479",
+  "date": "2021-10-26T11:22:00.000",
+  "affected": "SI",
+  "text": "SIR service is suspended between Pleasant Plains and Tottenville in both directions because of flooding.",
+  "norm_text": "SIR SERVICE IS SUSPENDED BETWEEN PLEASANT PLAINS AND TOTTENVILLE IN BOTH DIRECTIONS BECAUSE OF FLOODING",
+  "flags": {
+   "system_wide": false,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "PLEASANT PLAINS",
+    "span": [
+     33,
+     48
+    ],
+    "cause": false,
+    "complex_ids": [
+     "518"
+    ],
+    "names": [
+     "Pleasant Plains"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "TOTTENVILLE",
+    "span": [
+     53,
+     64
+    ],
+    "cause": false,
+    "complex_ids": [
+     "522"
+    ],
+    "names": [
+     "Tottenville"
+    ],
+    "ambiguous": false
+   }
+  ]
+ },
+ {
+  "era": "new",
+  "event_id": "120097",
+  "update_number": "1",
+  "alert_id": "253911",
+  "date": "2023-09-18T18:49:00.000",
+  "affected": "2 | 5",
+  "text": "2 5  trains are delayed in both directions after we addressed a water condition on the tracks at Newkirk Av-Little Haiti. 2 5 trains have resumed making regular stops between Wall St/Bowling Green and Flatbush Av-Brooklyn College.",
+  "norm_text": "2 5 TRAINS ARE DELAYED IN BOTH DIRECTIONS AFTER WE ADDRESSED A WATER CONDITION ON THE TRACKS AT NEWKIRK AV LITTLE HAITI 2 5 TRAINS HAVE RESUMED MAKING REGULAR STOPS BETWEEN WALL ST BOWLING GREEN AND FLATBUSH AV BROOKLYN COLLEGE",
+  "flags": {
+   "system_wide": false,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "FLATBUSH AV BROOKLYN COLLEGE",
+    "span": [
+     199,
+     227
+    ],
+    "cause": false,
+    "complex_ids": [
+     "359"
+    ],
+    "names": [
+     "Flatbush Av-Brooklyn College"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "NEWKIRK AV LITTLE HAITI",
+    "span": [
+     96,
+     119
+    ],
+    "cause": true,
+    "complex_ids": [
+     "358"
+    ],
+    "names": [
+     "Newkirk Av-Little Haiti"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "BOWLING GREEN",
+    "span": [
+     181,
+     194
+    ],
+    "cause": false,
+    "complex_ids": [
+     "414"
+    ],
+    "names": [
+     "Bowling Green"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "WALL ST",
+    "span": [
+     173,
+     180
+    ],
+    "cause": false,
+    "complex_ids": [
+     "333",
+     "413"
+    ],
+    "names": [
+     "Wall St"
+    ],
+    "ambiguous": true
+   }
+  ]
+ },
+ {
+  "era": "new",
+  "event_id": "29639",
+  "update_number": "3",
+  "alert_id": "88023",
+  "date": "2021-09-02T06:45:00.000",
+  "affected": "L",
+  "text": "L service is extremely limited because of heavy rainfall and flooding across New York City. Trains are running only between 8 Av and Canarsie-Rockaway Pkwy.\n\nHowever, please avoid non-essential travel until further notice.",
+  "norm_text": "L SERVICE IS EXTREMELY LIMITED BECAUSE OF HEAVY RAINFALL AND FLOODING ACROSS NEW YORK CITY TRAINS ARE RUNNING ONLY BETWEEN 8 AV AND CANARSIE ROCKAWAY PKWY HOWEVER PLEASE AVOID NON ESSENTIAL TRAVEL UNTIL FURTHER NOTICE",
+  "flags": {
+   "system_wide": true,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "CANARSIE ROCKAWAY PKWY",
+    "span": [
+     132,
+     154
+    ],
+    "cause": false,
+    "complex_ids": [
+     "138"
+    ],
+    "names": [
+     "Canarsie-Rockaway Pkwy"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "8 AV",
+    "span": [
+     123,
+     127
+    ],
+    "cause": false,
+    "complex_ids": [
+     "618"
+    ],
+    "names": [
+     "8 Av"
+    ],
+    "ambiguous": false
+   }
+  ]
+ },
+ {
+  "era": "new",
+  "event_id": "209186",
+  "update_number": "4",
+  "alert_id": "428909",
+  "date": "2025-07-15T01:18:00.000",
+  "affected": "E | F | M | R",
+  "text": "E/F/M/R trains are running with delays in both directions.\n Downtown M trains are rerouted from Queens to Manhattan. \nTake 7/N/W trains instead. What's Happening?\nWe're addressing flooding that is causing a signal problem at Queens Plaza.\n\nDetailed Service Changes\nDowntown M trains are running on the F line from 21 St-Queensbridge to 47-50 Sts-Rockefeller Ctr.",
+  "norm_text": "E F M R TRAINS ARE RUNNING WITH DELAYS IN BOTH DIRECTIONS DOWNTOWN M TRAINS ARE REROUTED FROM QUEENS TO MANHATTAN TAKE 7 N W TRAINS INSTEAD WHATS HAPPENING WERE ADDRESSING FLOODING THAT IS CAUSING A SIGNAL PROBLEM AT QUEENS PLAZA DETAILED SERVICE CHANGES DOWNTOWN M TRAINS ARE RUNNING ON THE F LINE FROM 21 ST QUEENSBRIDGE TO 47 50 STS ROCKEFELLER CTR",
+  "flags": {
+   "system_wide": false,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "47 50 STS ROCKEFELLER CTR",
+    "span": [
+     326,
+     351
+    ],
+    "cause": false,
+    "complex_ids": [
+     "225"
+    ],
+    "names": [
+     "47-50 Sts-Rockefeller Ctr"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "21 ST QUEENSBRIDGE",
+    "span": [
+     304,
+     322
+    ],
+    "cause": false,
+    "complex_ids": [
+     "221"
+    ],
+    "names": [
+     "21 St-Queensbridge"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "QUEENS PLAZA",
+    "span": [
+     217,
+     229
+    ],
+    "cause": true,
+    "complex_ids": [
+     "273"
+    ],
+    "names": [
+     "Queens Plaza"
+    ],
+    "ambiguous": false
+   }
+  ]
+ },
+ {
+  "era": "new",
+  "event_id": "165983",
+  "update_number": "1",
+  "alert_id": "343017",
+  "date": "2024-08-19T01:55:00.000",
+  "affected": "1",
+  "text": "Northbound 1 trains are bypassing 137 St-City College due to a water condition on the platform at that station. For service to/from 137 St-City College, take a southbound train.",
+  "norm_text": "NORTHBOUND 1 TRAINS ARE BYPASSING 137 ST CITY COLLEGE DUE TO A WATER CONDITION ON THE PLATFORM AT THAT STATION FOR SERVICE TO FROM 137 ST CITY COLLEGE TAKE A SOUTHBOUND TRAIN",
+  "flags": {
+   "system_wide": false,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "137 ST CITY COLLEGE",
+    "span": [
+     34,
+     53
+    ],
+    "cause": true,
+    "complex_ids": [
+     "305"
+    ],
+    "names": [
+     "137 St-City College"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "137 ST CITY COLLEGE",
+    "span": [
+     131,
+     150
+    ],
+    "cause": false,
+    "complex_ids": [
+     "305"
+    ],
+    "names": [
+     "137 St-City College"
+    ],
+    "ambiguous": false
+   }
+  ]
+ },
+ {
+  "era": "new",
+  "event_id": "29773",
+  "update_number": "0",
+  "alert_id": "88268",
+  "date": "2021-09-02T13:35:00.000",
+  "affected": "FS",
+  "text": "No Franklin Av Shuttle at this station because of heavy rainfall and flooding across New York City.\n\nPlease avoid non-essential travel until further notice. Please avoid non-essential travel until further notice.",
+  "norm_text": "NO FRANKLIN AV SHUTTLE AT THIS STATION BECAUSE OF HEAVY RAINFALL AND FLOODING ACROSS NEW YORK CITY PLEASE AVOID NON ESSENTIAL TRAVEL UNTIL FURTHER NOTICE PLEASE AVOID NON ESSENTIAL TRAVEL UNTIL FURTHER NOTICE",
+  "flags": {
+   "system_wide": true,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "FRANKLIN AV",
+    "span": [
+     3,
+     14
+    ],
+    "cause": false,
+    "complex_ids": [
+     "626",
+     "627"
+    ],
+    "names": [
+     "Franklin Av",
+     "Franklin Av-Medgar Evers College"
+    ],
+    "ambiguous": true
+   }
+  ]
+ },
+ {
+  "era": "new",
+  "event_id": "29641",
+  "update_number": "1",
+  "alert_id": "88187",
+  "date": "2021-09-02T11:51:00.000",
+  "affected": "4",
+  "text": "4 trains have resumed making stops between The Bronx, Manhattan and Brooklyn.\nTrains are running between Crown Hts-Utica Av and New Lots Av while 3 service is suspended.\nExpect extensive delays in both directions due to rainfall and flooding across New York City. \nPlease avoid non-essential travel until further notice.",
+  "norm_text": "4 TRAINS HAVE RESUMED MAKING STOPS BETWEEN THE BRONX MANHATTAN AND BROOKLYN TRAINS ARE RUNNING BETWEEN CROWN HTS UTICA AV AND NEW LOTS AV WHILE 3 SERVICE IS SUSPENDED EXPECT EXTENSIVE DELAYS IN BOTH DIRECTIONS DUE TO RAINFALL AND FLOODING ACROSS NEW YORK CITY PLEASE AVOID NON ESSENTIAL TRAVEL UNTIL FURTHER NOTICE",
+  "flags": {
+   "system_wide": true,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "CROWN HTS UTICA AV",
+    "span": [
+     103,
+     121
+    ],
+    "cause": false,
+    "complex_ids": [
+     "345"
+    ],
+    "names": [
+     "Crown Hts-Utica Av"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "NEW LOTS AV",
+    "span": [
+     126,
+     137
+    ],
+    "cause": false,
+    "complex_ids": [
+     "136",
+     "352"
+    ],
+    "names": [
+     "New Lots Av"
+    ],
+    "ambiguous": true
+   }
+  ]
+ },
+ {
+  "era": "new",
+  "event_id": "29666",
+  "update_number": "5",
+  "alert_id": "88316",
+  "date": "2021-09-02T15:09:00.000",
+  "affected": "A",
+  "text": "A service is limited because of heavy flooding across New York City.\nPlease avoid non-essential travel until further notice.",
+  "norm_text": "A SERVICE IS LIMITED BECAUSE OF HEAVY FLOODING ACROSS NEW YORK CITY PLEASE AVOID NON ESSENTIAL TRAVEL UNTIL FURTHER NOTICE",
+  "flags": {
+   "system_wide": true,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": []
+ },
+ {
+  "era": "new",
+  "event_id": "121664",
+  "update_number": "4",
+  "alert_id": "256827",
+  "date": "2023-09-29T16:07:00.000",
+  "affected": "Q",
+  "text": "No Q service in Brooklyn or most of Manhattan.\n\nQ trains are only running between 96 St and 57 St-7 Av.\n\nPlease stay home if you don't need to travel. What's Happening?\nWe're working to address heavy flooding.",
+  "norm_text": "NO Q SERVICE IN BROOKLYN OR MOST OF MANHATTAN Q TRAINS ARE ONLY RUNNING BETWEEN 96 ST AND 57 ST 7 AV PLEASE STAY HOME IF YOU DONT NEED TO TRAVEL WHATS HAPPENING WERE WORKING TO ADDRESS HEAVY FLOODING",
+  "flags": {
+   "system_wide": false,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "57 ST 7 AV",
+    "span": [
+     90,
+     100
+    ],
+    "cause": false,
+    "complex_ids": [
+     "9"
+    ],
+    "names": [
+     "57 St-7 Av"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "96 ST",
+    "span": [
+     80,
+     85
+    ],
+    "cause": false,
+    "complex_ids": [
+     "475"
+    ],
+    "names": [
+     "96 St"
+    ],
+    "ambiguous": false
+   }
+  ]
+ },
+ {
+  "era": "old",
+  "status_id": "98D1EF0F-21CB-446D-B6F5-BB2FFFB46211",
+  "date": "2017-08-02T18:07:48.000",
+  "affected": "B | D",
+  "text": "Following an earlier water condition at 174-175 Sts, [B] and [D] train service has resumed. Following an earlier water condition at 174-175 Sts, [B] and [D] train service has resumed.",
+  "norm_text": "FOLLOWING AN EARLIER WATER CONDITION AT 174 175 STS B AND D TRAIN SERVICE HAS RESUMED FOLLOWING AN EARLIER WATER CONDITION AT 174 175 STS B AND D TRAIN SERVICE HAS RESUMED",
+  "flags": {
+   "system_wide": false,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": [
+   {
+    "alias": "174 175 STS",
+    "span": [
+     40,
+     51
+    ],
+    "cause": true,
+    "complex_ids": [
+     "216"
+    ],
+    "names": [
+     "174-175 Sts"
+    ],
+    "ambiguous": false
+   },
+   {
+    "alias": "174 175 STS",
+    "span": [
+     126,
+     137
+    ],
+    "cause": true,
+    "complex_ids": [
+     "216"
+    ],
+    "names": [
+     "174-175 Sts"
+    ],
+    "ambiguous": false
+   }
+  ]
+ },
+ {
+  "era": "new",
+  "event_id": "29609",
+  "update_number": "8",
+  "alert_id": "88012",
+  "date": "2021-09-02T05:46:00.000",
+  "affected": "1 | 3 | 4 | 5 | 6 | 6X | 7 | A | B | C | D | E | FS | FX | G | GS | H | J | L | M | N | Q | R | SI | W | Z",
+  "text": "Subway service is extremely limited or temporarily suspended because of heavy rainfall and flooding across New York City.\n\nAvoid traveling until further notice.",
+  "norm_text": "SUBWAY SERVICE IS EXTREMELY LIMITED OR TEMPORARILY SUSPENDED BECAUSE OF HEAVY RAINFALL AND FLOODING ACROSS NEW YORK CITY AVOID TRAVELING UNTIL FURTHER NOTICE",
+  "flags": {
+   "system_wide": true,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": []
+ },
+ {
+  "era": "new",
+  "event_id": "29688",
+  "update_number": "4",
+  "alert_id": "88345",
+  "date": "2021-09-02T16:23:00.000",
+  "affected": "G",
+  "text": "G service is extremely limited because of flooding across New York City.\n\nPlease avoid non-essential travel until further notice.",
+  "norm_text": "G SERVICE IS EXTREMELY LIMITED BECAUSE OF FLOODING ACROSS NEW YORK CITY PLEASE AVOID NON ESSENTIAL TRAVEL UNTIL FURTHER NOTICE",
+  "flags": {
+   "system_wide": true,
+   "planned_work": false,
+   "footer_only": false
+  },
+  "matches": []
+ }
+]

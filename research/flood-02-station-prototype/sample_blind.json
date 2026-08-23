@@ -1,0 +1,602 @@
+[
+ {
+  "i": 0,
+  "text": "[A] trains are bypassing 181 St in both directions because of a water condition at 181 St. [A] trains are bypassing 181 St in both directions because of a water condition at 181 St.",
+  "affected": "1"
+ },
+ {
+  "i": 1,
+  "text": "[A] delays some [A] terminate at 125 St & some terminate at 168 St due to a water condition at 207 St. See mta.info Due to a water condition at Inwood-207 St, the following service changes are in effect: [A] trains are running with delays in both directions. Some northbound [A] trains will terminate at 125 St, and some northbound trains will terminate at 168 St. As an alternative for service to and from Inwood-207 St, customers may use [1] train service. Allow additonal travel time.",
+  "affected": "A"
+ },
+ {
+  "i": 2,
+  "text": "[F] via [E] Roosevelt Av to W 4 St, [M] via [E] 36 St (QNS) to W 4 St, due to a water condition at W 4 St. Allow additional travel time. Due to a water condition at W 4 St-Washington Sq, the following service changes are in effect: Southbound [F] trains are running on the [E] line from Jackson Heights-Roosevelt Av to W 4 St-Washington Sq. Southbound [M] trains are running on the [E] line from 36 St (QNS) to W 4 St-Washington Sq. Expect delays in [E][F] and [M] trains. Allow additional travel time.",
+  "affected": "A | B | C | D | E | F | G | M | R"
+ },
+ {
+  "i": 3,
+  "text": "There is no [6] train service between 125 St and Hunts Point Av in both directions because of flooding at 3 Av-138 St. There is no [6] train service between 125 St and Hunts Point Av in both directions because of flooding at 3 Av-138 St. Some northbound [6] trains are stopping along the [4] line from 125 St and end at 149 St-Grand Concourse or Burnside Av. As an alternative, customers can use the Bx15 bus at 125 St or the Bx19 bus at 149 St-Grand Concourse for continuing service. See a station agent for a courtesy ticket for continuing service.",
+  "affected": "6"
+ },
+ {
+  "i": 4,
+  "text": "Bay Ridge-95 St-bound [R] trains are skipping 86 St while we correct a water condition on the platform at that station. Bay Ridge-95 St-bound [R] trains are skipping 86 St while we correct a water condition on the platform at that station.For service to/from 86 St, take a northbound train.",
+  "affected": "R"
+ },
+ {
+  "i": 5,
+  "text": "[F] via [E] Roosevelt Av to W 4 St, no [M] b/t 71 Av & Essex St, due to a water condition at W 4 St. mta.info Due to a water condition at W 4 St-Washington Sq, the following service changes are in effect: Some southbound [B] and [D] trains are running on the [A] line from 59 St-Columbus Circle to W 4 St-Washington Sq. Southbound [F] trains are running on the [E] line from Jackson Heights-Roosevelt Av to W 4 St-Washington Sq. Some southbound [F] are running on the [G] line from Court Sq to Bergen St. There is no [M] train service between Forest Hills-71 Av and Essex St in both directions. Expect delays in [A],[B], [C], [D], [E], [F] and [M] train service. Allow additional travel time.",
+  "affected": "A | B | C | D | E | F | G | M | R"
+ },
+ {
+  "i": 6,
+  "text": "Expect longer waits for northbound [Q] trains after a train was delayed traveling from the storage facility to the first stop because of flood protection work. Expect longer waits for northbound [Q] trains after a train was delayed traveling from the storage facility to the first stop because of flood protection work.",
+  "affected": "R"
+ },
+ {
+  "i": 7,
+  "text": "Due to water condition at the 23 St Station, [B], [N], [Q] and [R] rerouted and [D] trains delayed. Details at www.mta.info Due to water condition at the 23 St Station: Some southbound [B] trains are running local from Prospect Pk Station to Brighton Beach Station. [D] trains are running with delays in both directions. [N] trains are operating in two sections, Coney Island-Stillwell Av Station and Whitehall St Station then between Astoria-Ditmars Blvd Station and 34 St-Herald Sq Station. [Q] trains are operating from Canal St Station to Coney Island-Stillwell Av Station running on the [R] line in both directions between Canal St Station and DeKalb Av Station. [R] trains are running on the [F] line in both directions between 36 St Station (Qns) and 47-50 Sts-Rockefeller Ctr Station and DeKalb Av. Allow additional travel time.",
+  "affected": "B | D | F | N | Q | R"
+ },
+ {
+  "i": 8,
+  "text": "no [7] trains between Willets Pt and Main St, [7] delays due to a smoke and water condition at Flushing-Main St. Allow additional travel time. Due to FDNY activity on Roosevelt Av between Main St and Prince St causing smoke and water conditions at Flushing-Main St, the following service changes are in effect: There is no [7] train service between Mets-Willets Point and Flushing-Main St in both directions. [7] trains are running local with delays in both directions. LIRR will cross honor at the following stations: Penn Station, Woodside, Mets-Willets Point and Flushing. FDNY activity in the Flushing area is impacting 7 line service as well as area buses, with limited travel alternatives available. We apologize for the inconvenience. Allow additional travel time.",
+  "affected": "7"
+ },
+ {
+  "i": 9,
+  "text": "[6] trains are running express from 3 Av-138 St to Hunts Point Av, due to a water condition at E 143 St. Allow additional travel time. Due to a water condition at E 143 St-St Mary's St, northbound [6] trains are running express from 3 Av-138 St to Hunts Point Av. Allow additional travel time.",
+  "affected": "6"
+ },
+ {
+  "i": 10,
+  "text": "[4] and [5] train service has resumed following an earlier water condition at 96 St and signal problems at 86 St. [4] and [5] train service has resumed following an earlier water condition at 96 St and signal problems at 86 St.",
+  "affected": "4 | 5"
+ },
+ {
+  "i": 11,
+  "text": "There is no [D] service b/t 59 St & 205 St due to a water condition at 163 St. Allow additional travel time. Due to a water condition at 163 St-Amsterdam Av, there is no [D] train service between 59 St-Columbus Circle and Norwood-205 St in both directions. Allow additional travel time.",
+  "affected": "D"
+ },
+ {
+  "i": 12,
+  "text": "[SIR] trains delays due to flood prevention measures. Trains picking up on track. Details at www.mta.info [SIR] trains are running with delays in both directions. Customers will board trains on the westbound track between Stapleton and Grasmere. This service change is due to flood prevention measures taken to protect equipment in vulnerable areas. We apologize for any inconvenience. Allow additional travel time.",
+  "affected": "SIR"
+ },
+ {
+  "i": 13,
+  "text": "[Q] trains are running with delays in both directions because of a water condition at Coney Island-Stillwell Av. Allow additional travel time. [Q] trains are running with delays in both directions because of a water condition at Coney Island-Stillwell Av. Allow additional travel time.",
+  "affected": "D | N | Q | R"
+ },
+ {
+  "i": 14,
+  "text": "[1] trains are bypassing 181 St in both directions because of a water condition at 181 St. [1] trains are bypassing 181 St in both directions because of a water condition at 181 St. Our crews are on site to fix it ASAP and we'll follow up soon. Stay tuned fir updates.",
+  "affected": "1"
+ },
+ {
+  "i": 15,
+  "text": "[J] trains are no longer delayed after maintenance crews assessed an earlier water condition at Jamaica Center-Parsons/Archer. [J] trains are no longer delayed after maintenance crews assessed an earlier water condition at Jamaica Center-Parsons/Archer.",
+  "affected": "J"
+ },
+ {
+  "i": 16,
+  "text": "There is extremely limited service between Manhattan and Queens on the [N], [R] and [W] lines because of a water condition between Queensboro Plaza and Lexin There is extremely limited service between Manhattan and Queens on the [N], [R] and [W] lines because of a water condition between Queensboro Plaza and Lexington Av/59 St. We have crews on the scene now investigating the cause. Expect reroutes and delays in both directions.",
+  "affected": "N | R | W"
+ },
+ {
+  "i": 17,
+  "text": "[N] trains are running with delays, due to a water condition at Whitehall St. Allow additional travel time. Due to a water condition at Whitehall St-South Ferry, [N] trains are running with delays in both directions. Allow additional travel time.",
+  "affected": "N"
+ },
+ {
+  "i": 18,
+  "text": "Update on Water Condition: Maintenance Personnel is on-scene working to correct problem. Service changes remain. We will keep you posted. nan",
+  "affected": "E | F | M | R"
+ },
+ {
+  "i": 19,
+  "text": "[B] and [D] trains are running express from Bedford Pk Blvd to 167 St, due to a water condition at 182-183 Sts. Allow additional travel time. Due to a water condition at 182-183 Sts, southbound [B] and [D] trains are running express from Bedford Pk Blvd to 167 St. Allow additional travel time.",
+  "affected": "B | D"
+ },
+ {
+  "i": 20,
+  "text": "[J] trains are running with delays in both directions while maintenance crews assess a water condition at Jamaica Center-Parsons/Archer. [J] trains are running with delays in both directions while maintenance crews assess a water condition at Jamaica Center-Parsons/Archer.",
+  "affected": "J"
+ },
+ {
+  "i": 21,
+  "text": "[B] & [D] service changes & delays due to signal problems/water condition at 59 St-Columbus Circle. Details at mta.info Due to signal problems/water condition at 59 St-Columbus Circle, the following service changes are in effect: There is no [B] train service from Bedford Park Blvd to Brighton Beach in both directions. Southbound [A] and [C] trains are running express from 59 St-Columbus Circle to Canal St. Southbound [D] trains are running on the [A] line from 59 St-Columbus Circle to W 4 St-Wash Sq and then on the [F] line to Coney Island-Stillwell Av. Some southbound [F] trains will run on the [D] line from W 4-Wash Sq to Coney Island-Stillwell Av. Some [R] trains are running on the [D] line from 36 St-(BKLYN) to Coney Island-Stillwell Av. Expect delays in [A], [B], [C], [D], [F], [M] and [R] train service in both directions. Allow additional travel time.",
+  "affected": "A | B | C | D | E | F | M | R"
+ },
+ {
+  "i": 22,
+  "text": "Euclid Av-bound [A] trains are running on the express track from Broadway Junction to Euclid Av because of a water condition at Liberty Av. Euclid Av-bound [A] trains are running on the express track from Broadway Junction to Euclid Av because of a water condition at Liberty Av. For service to/from bypassed stations, take a Manhattan-bound train.",
+  "affected": "A"
+ },
+ {
+  "i": 23,
+  "text": "[L] trains are holding in stations in both directions because of a water condition at Bedford Av caused by a water main break on the street level. [L] trains are holding in stations in both directions because of a water condition at Bedford Av caused by a water main break on the street level.",
+  "affected": "L"
+ },
+ {
+  "i": 24,
+  "text": "Southbound [R] and [W] trains are bypassing 28 St because of a water condition on the platform at that station. Southbound [R] and [W] trains are bypassing 28 St because of a water condition on the platform at that station.",
+  "affected": "R | W"
+ },
+ {
+  "i": 25,
+  "text": "[A] trains are running with delays due to a water condition at 207 St. Allow additonal travel time. Due to a water condition at Inwood-207 St, [A] trains are running with delays in both directions. Allow additonal travel time.",
+  "affected": "A"
+ },
+ {
+  "i": 26,
+  "text": "no [7] trains between Willets Pt and Main St, [7] delays due to a smoke and water condition at Flushing-Main St. Allow additional travel time. Due to a smoke and water condition at Flushing-Main St, the following service changes are in effect: There is no [7] train service between Mets-Willets Point and Flushing-Main St in both directions. [7] trains are running with delays in both directions. LIRR will cross honor at the following stations:Penn Station, Hunters Point Av, Woodside, Mets-Willets Point and Flushing. Allow additional travel time.",
+  "affected": "7"
+ },
+ {
+  "i": 27,
+  "text": "[1] trains are bypassing 181 St in both directions because of a water condition at 181 St. [1] trains are bypassing 181 St in both directions because of a water condition at 181 St. Our crews are on site to fix it ASAP and we'll follow up soon. Stay tuned for updates.",
+  "affected": "1"
+ },
+ {
+  "i": 28,
+  "text": "[6] trains are bypassing 3 Av-138 St, due to a water condition at 3 Av-138 St. Allow additional travel time. Due to a water condition at 3 Av-138 St, [6] trains are bypassing 3 Av-138 St in both directions. Allow additional travel time.",
+  "affected": "6"
+ },
+ {
+  "i": 29,
+  "text": "Following an earlier water condition at 182-183 Sts, [B] and [D] train service has resumed with delays. Following an earlier water condition at 182-183 Sts, [B] and [D] train service has resumed with delays.",
+  "affected": "B | D"
+ },
+ {
+  "i": 30,
+  "text": "[Q] trains are running local from Canal St to 57 St-7 Av, due to a water condition at 34 St. Allow additional travel time. Due to a water condition at 34 St-Herald Sq, [Q] trains are running local from Canal St to 57 St-7 Av in both directions. Expect delays on the [N] and [R] trains in both directions. Allow additional travel time.",
+  "affected": "N | Q | R"
+ },
+ {
+  "i": 31,
+  "text": "no [SIR] trains b/t Tottenville and Huguenot, due to flooding conditions b/t Prince's Bay and Richmond Valley. Allow additional travel time. Due to flooding conditions between Prince's Bay and Richmond Valley, there is no [SIR] train service between Tottenville and Huguenot in both directions. As an alternate customers are advised to use the S78 bus making nearby station stops. Allow additional travel time.",
+  "affected": "SIR"
+ },
+ {
+  "i": 32,
+  "text": "There are service changes and delays in [D][N][Q] and [R] train service because of a water condition at DeKalb Av. Details at mta.info There are service changes and delays in [D][N][Q] and [R] train service because of a water condition at DeKalb Av. This is also causing signal problems. We're draining the water and expect to resume regular service soon. Manhattan-bound [D] and [N] trains are running express from 36 St (BKLYN) to Atlantic Av-Barclays Ctr and then bypassing Dekalb Av. Manhattan-bound [N] and [R] trains are running on the [Q] line from Atlantic Av-Barclays Ctr to Canal St.Expect delays on northbound [D] [N] [Q] and [R] train service.",
+  "affected": "D | N | R"
+ },
+ {
+  "i": 33,
+  "text": "[6] trains are running express from 3 Av-138 St to Hunts Point Av due to a water condition at E 143 St-St Mary's. Allow additional travel time. Due to a water condition at E 143 St-St Mary's, northbound [6] trains are running express from 3 Av-138 St to Hunts Point Av. Allow additional travel time.",
+  "affected": "6"
+ },
+ {
+  "i": 34,
+  "text": "[A] and [C] service changes and delays due to a water condition at 163 St. Allow additional travel time. Due to a water condition at 163 St-Amsterdam Av, the following service changes are in effect: There is no [A] or [C] train service between 145 St and 175 St in both directions. There is a [A] Shuttle train between 175 St and Inwood-207 St. Some northbound [A] and [C] trains terminate at 59 St-Columbus Circle, 125 St or 145 St. As an alternative, take the M4 and M5 buses. Allow additional travel time.",
+  "affected": "A"
+ },
+ {
+  "i": 35,
+  "text": "Northbound [R] trains are running with delays because of a signal problem caused by a water condition at DeKalb Av. Northbound [R] trains are running with delays because of a signal problem caused by a water condition at DeKalb Av.Expect delays on [D], [N], [Q], [N] and [R] trains.",
+  "affected": "D | N | R"
+ },
+ {
+  "i": 36,
+  "text": "There is no [SIR] train service between Tottenville and Huguenot in both directions because of flooding at Richmond Valley. There is no [SIR] train service between Tottenville and Huguenot in both directions because of flooding at Richmond Valley.",
+  "affected": "SIR"
+ },
+ {
+  "i": 37,
+  "text": "[R] via [Q] from Canal St to DeKalb Av, due to a water condition at Court St. Allow additional travel time. Due to a water condition at Court St, [R] trains are running on the [Q] line from Canal St to DeKalb Av in both directions. Allow additional travel time.",
+  "affected": "R | W"
+ },
+ {
+  "i": 38,
+  "text": "[F] via [E] Roosevelt Av to W 4 St, no [M] b/t 71 Av & Essex St, due to a water condition at W 4 St. Due to a water condition at W 4 St-Washington Sq, the following service changes are in effect: Southbound [F] trains are running on the [E] line from Jackson Heights-Roosevelt Av to W 4 St-Washington Sq. There is no [M] train service between Forest Hills-71 Av and Essex St in both directions. Expect delays in [E], [F] and [M] train service. Allow additional travel time.",
+  "affected": "A | B | C | D | E | F | G | M | R"
+ },
+ {
+  "i": 39,
+  "text": "no [SIR] trains b/t Tottenville and Huguenot, flooding conditions b/t Prince's Bay & Richmond Valley. See mta.info Due to flooding conditions between Prince's Bay and Richmond Valley, there is no [SIR] train service between Tottenville and Huguenot in both directions. Shuttle buses are running between Huguenot and Tottenville in both directions. As an alternative, passengers may also use S78 bus service making nearby station stops. Allow additional travel time",
+  "affected": "SIR"
+ },
+ {
+  "i": 40,
+  "text": "A service is limited because of heavy flooding across New York City.\nTrains are running local in both directions.\nPlease avoid non-essential travel until further notice.",
+  "affected": "A"
+ },
+ {
+  "i": 41,
+  "text": "Downtown E running with severe delays. Downtown M/R trains are rerouted from Queens to Manhattan. Take F/7/N/W trains instead. What's Happening?\nWe're addressing flooding that is causing a signal problem at Queens Plaza.\n\nDetailed Service Changes\nDowntown M trains are running on the F line from 21 St-Queensbridge to 47-50 Sts-Rockefeller Ctr.\n\nDowntown R trains are running on the F line from 21 St-Queensbridge to Lexington Av/63 St and then on the Q line to 57 St-7 Av.",
+  "affected": "E | M | R"
+ },
+ {
+  "i": 42,
+  "text": "There is no N service between Lexington Av/59 St  and Queensboro Plaza.\n\nN  trains are running in two sections:\nBetween Lexington Av/59 St  and Coney Island-Stillwell Av.\nBetween Astoria-Ditmars Blvd  and Queensboro Plaza .\n\nAs an alternative, take a 7 train.\n\nService is extremely limited and partially suspended because of flooding across New York City.\nPlease avoid non-essential travel until further notice.",
+  "affected": "N"
+ },
+ {
+  "i": 43,
+  "text": "No downtown 2/3 service in Manhattan.\n\nThere is extremely limited uptown 2/3 service in Manhattan while we address flooding in multiple stations. Downtown 2 trains are running via the 5 line from 149 St-Grand Concourse to Nevins St.\n\nFor alternate service, consider A/C/D/E/N/Q/R  trains making nearby station stops.",
+  "affected": "2 | 3"
+ },
+ {
+  "i": 44,
+  "text": "B service is extremely limited because of heavy rainfall and flooding across New York City.\nPlease avoid non-essential travel until further notice.",
+  "affected": "B"
+ },
+ {
+  "i": 45,
+  "text": "B service is extremely limited because of heavy rainfall and flooding across New York City. However, please avoid non-essential travel until further notice.",
+  "affected": "B"
+ },
+ {
+  "i": 46,
+  "text": "No Franklin Av Shuttle at this station because of flooding across New York City.\n\nPlease avoid non-essential travel until further notice.",
+  "affected": "FS"
+ },
+ {
+  "i": 47,
+  "text": "C train service is suspended because of heavy flooding.\n\nA trains are running local to provide additional local service.",
+  "affected": "A | C"
+ },
+ {
+  "i": 48,
+  "text": "Northbound N Q trains are running via the R line from DeKalb Av to Canal St because of flooding on the tracks at Canal St.",
+  "affected": "N | Q"
+ },
+ {
+  "i": 49,
+  "text": "Only extremely limited subway service available because of heavy flooding.\n\nService is suspended at many stations.\n\nPlease stay home if you don't need to travel. Check other alerts in the service status box to see if service is running at your station.\n\nLong Island Rail Road is cross-honoring MetroCard holders between Jamaica and Grand Central Madison/Penn Station.",
+  "affected": "1 | 2 | 3 | 4 | 5 | 6 | 6X | A | C | D | E | F | FX | GS | L | M | N | Q | R"
+ },
+ {
+  "i": 50,
+  "text": "2 via 5 between Nevins St and 149 St-Grand Concourse in both directions.\nAvoid 1 2 3 trains.\nWe expect this to last at least thru the AM rush hour. What's happening?\nWe are working to clear water from the tracks after a water main break at Times Sq-42 St.\nOur crews are also inspecting the tracks that were flooded.\n\nFor service between the Bronx and the West side of Manhattan:\nUse the Bx12 SBS at Pelham Pkwy to connect with A  trains.\nUse the Bx6 SBS at Intervale Av to connect with D  trains.\nUse Bx19 at 3 Av-149 St or 149 St-Grand Concourse to connect with A B C D trains.\n\nLIRR is cross-honoring MetroCard/OMNY users between Penn Station/Grand Central & Jamaica.\nListen for announcements to hear how your train will operate.",
+  "affected": "2"
+ },
+ {
+  "i": 51,
+  "text": "D trains are suspended in Brooklyn in both directions while we address flooding caused by heavy rainfall.",
+  "affected": "D"
+ },
+ {
+  "i": 52,
+  "text": "Subway service is extremely limited or temporarily suspended because of heavy rainfall and flooding across New York City.\n\nAvoid traveling until further notice.",
+  "affected": "3 | 5 | 7 | A | B | C | D | E | FS | G | GS | H | J | M | N | Q | R | SI | W | Z"
+ },
+ {
+  "i": 53,
+  "text": "Rockaway Park Shuttle service is running with delays in both directions after we addressed heavy flooding.",
+  "affected": "H"
+ },
+ {
+  "i": 54,
+  "text": "5 service is suspended between Bowling Green and Flatbush Av-Brooklyn College.\n\nSouthbound 5 trains end at E 180 St, Bowling Green , or 149 St-Grand Concourse. \n\nService is extremely limited and partially suspended because of flooding across New York City.\n\nPlease avoid non-essential travel until further notice.",
+  "affected": "5"
+ },
+ {
+  "i": 55,
+  "text": "W service is suspended while we work to address heavy flooding.\n\nTake R trains in Manhattan or N trains in Queens.",
+  "affected": "W"
+ },
+ {
+  "i": 56,
+  "text": "Northbound 4 trains are bypassing 138 St-Grand Concourse while we investigate a water condition on the tracks at that station. For service to/from 138 St-Grand Concourse, take a northbound train.",
+  "affected": "4"
+ },
+ {
+  "i": 57,
+  "text": "Southbound E trains are running with delays after we addressed a flood on the tracks near 7 Av/53 St. Southbound E trains have resumed making scheduled stops in Manhattan.\n\nExpect delays on southbound F trains while service gets back on schedule.",
+  "affected": "E | F"
+ },
+ {
+  "i": 58,
+  "text": "W trains are suspended between because of flooding across New York City.",
+  "affected": "W"
+ },
+ {
+  "i": 59,
+  "text": "4 service is suspended in most of Brooklyn.\n\n5 service is suspended in Brooklyn, Manhattan and most of The Bronx.\n\nPlease stay home if you don't need to travel. There is no 4 train service between Bowling Green and Crown Hts-Utica Av. 4 trains running in two sections:\nbetween Bowling Green and Woodlawn\nbetween New Lots Av and Crown Hts-Utica Av\n\n5 trains are only running between Eastchester-Dyre Av and E 180 St.\n\nWhat's Happening?\nWe're working to address flooding on the tracks.",
+  "affected": "4 | 5"
+ },
+ {
+  "i": 60,
+  "text": "L service is extremely limited and partially suspended because of heavy rainfall and flooding across New York City. Trains are running only between Broadway Junction and Canarsie-Rockaway Pkwy.\n\nHowever, please avoid non-essential travel until further notice.",
+  "affected": "L"
+ },
+ {
+  "i": 61,
+  "text": "No 3 train service between Chambers St and 96 St.\nAvoid 1 2 3 trains. What's Happening?\n\nWe are working to clear water from the tracks after a water main break at Times Sq-42 St.\nOur crews are also inspecting the tracks that were flooded.\n\nAdditional service changes:\n\n3 service is running in two sections:\nbetween New Lots Av and Chambers St (extremely limited service)\nbetween 96 St and Harlem-148 St\n\n5 trains are running locally in Brooklyn between Franklin Av-Medgar Evers College and Atlantic Av-Barclays Ctr to provide additional service.\n\nAs an alternative for service in Upper Manhattan, consider taking A C D trains or M7, M10, and M102 buses.\nAs an alternative for service to Brooklyn, consider taking nearby A C D 4 5 trains.\nLIRR is cross-honoring MetroCard/OMNY users between Penn Station/Grand Central &Jamaica.\n\nListen for announcements to hear how your train will operate.",
+  "affected": "3"
+ },
+ {
+  "i": 62,
+  "text": "There are major disruptions to subway service, especially in Brooklyn, because of flooding caused by heavy rainfall. Check mta.info for the latest information on how your train is traveling.",
+  "affected": "1"
+ },
+ {
+  "i": 63,
+  "text": "1 service is extremely limited and partially suspended because of heavy rainfall and flooding across New York City.\nTrains are running only between Van Cortlandt Park-242 St and 168 St-Washington Hts.\nHowever, please avoid non-essential travel until further notice.",
+  "affected": "1"
+ },
+ {
+  "i": 64,
+  "text": "F trains have resumed making regular station stops between Jamaica-179 St and Coney Island-Stillwell Av.\n\nG service suspended in both directions. What's Happening?\n\nWe are working to address heavy flooding in Brooklyn.\n\nPlease stay home if you don't need to travel.",
+  "affected": "F | G"
+ },
+ {
+  "i": 65,
+  "text": "There is no 1 train service between 96 St and 168 St-Washington Hts. What's Happening?\nWe're addressing flooding that is causing a signal problem at 145 St.\n\nFor alternate service, consider A/B/C/D trains.",
+  "affected": "1"
+ },
+ {
+  "i": 66,
+  "text": "Franklin Av Shuttle trains are running with delays in both directions after we addressed flooding at Botanic Garden.",
+  "affected": "FS"
+ },
+ {
+  "i": 67,
+  "text": "3 service is suspended between Times Sq-42 St and New Lots Av.\nTrains are running between Harlem-148 St and Times Sq-42 St.\nService is extremely limited and partially suspended because of heavy rainfall and flooding across New York City.\nTake the A N Q or 4 train for service to/from Brooklyn.\nPlease avoid non-essential travel until further notice.",
+  "affected": "3"
+ },
+ {
+  "i": 68,
+  "text": "No 3 train service between Chambers St and 96 St.\nAvoid 1 2 3 trains.\nWe expect this to last at least thru the AM rush hour. What's Happening?\n\nWe are working to clear water from the tracks after a water main break at Times Sq-42 St.\nOur crews are also inspecting the tracks that were flooded.\n\nAdditional service changes:\n\n3 service is running in two sections:\nbetween New Lots Av and Chambers St (extremely limited service)\nbetween 96 St and Harlem-148 St\n\n5 trains are running locally in Brooklyn between Franklin Av-Medgar Evers College and Atlantic Av-Barclays Ctr to provide additional service.\n\nAs an alternative for service in Upper Manhattan, consider taking A C D trains or M7, M10, and M102 buses.\nAs an alternative for service to Brooklyn, consider taking nearby A C D 4 5 trains.\nLIRR is cross-honoring MetroCard/OMNY users between Penn Station/Grand Central &Jamaica.\n\nListen for announcements to hear how your train will operate.",
+  "affected": "3"
+ },
+ {
+  "i": 69,
+  "text": "Trains are running only between Great Kills and St George. You may experience delays because of heavy rainfall and flooding.",
+  "affected": "SI"
+ },
+ {
+  "i": 70,
+  "text": "2 trains have resumed making regular station stops between Wakefield-241 St and Flatbush Av-Brooklyn College. Expect delays in both directions while we work to get trains back on schedule.\n\nWhat Happened?\n\nWe removed water from the tracks caused by flooding from rainfall at various stations in Brooklyn.",
+  "affected": "2"
+ },
+ {
+  "i": 71,
+  "text": "6 service is suspended between Parkchester and 125 St.\nService is extremely limited and partially suspended because of flooding across New York City.\nTrains are running in two parts:\nPelham Bay Park to Parkchester\n125 St to Brooklyn Bridge-City Hall.\nTake the BxM6 or BxM8 bus between Parkchester and 125 St.\nPlease avoid non-essential travel until further notice.",
+  "affected": "6"
+ },
+ {
+  "i": 72,
+  "text": "2/3 trains are running with severe delays in both directions after we addressed flooding in multiple stations in Manhattan. Downtown 2 trains have resumed making scheduled stops from 149 St-Grand Concourse to Nevins St.\n\nWhile we work to resume service, consider A/C/D/E/N/Q/R  trains making nearby station stops.",
+  "affected": "2 | 3"
+ },
+ {
+  "i": 73,
+  "text": "There is no street entrance or exit at Howard Beach-JFK Airport A line because of flooding at street level. Customers can still transfer to/from Airtrain-JFK service at Howard Beach-JFK Airport.\n\nAs an alternative, consider using a Q11 bus or Aqueduct-N Conduit Av station.\n\nBecause of flooding, the nearest Q11 bus stop to Howard Beach-JFK Airport is 156th Av/99 St.\n\nQ11 buses will not serve stops in Old Howard Beach or Hamilton Beach.",
+  "affected": "A"
+ },
+ {
+  "i": 74,
+  "text": "4 service is suspended between 149 St-Grand Concourse and 86 St.\nService is extremely limited and partially suspended because of heavy rainfall and flooding across New York City.\nTrains are running in two parts.\nWoodlawn to 149 St-Grand Concourse.\n86 St to New Lots Av.\nTake the M1 or BxM4 bus between 149 St-Grand Concourse and 86 St.\nPlease avoid non-essential travel until further notice.",
+  "affected": "4"
+ },
+ {
+  "i": 75,
+  "text": "Uptown 6 trains are running express from 3 Av-138 St and Hunts Point Av while we address a signal problem caused by flooding at 3 Av-138 St. For service to/from bypassed stations, take a downtown train.",
+  "affected": "6"
+ },
+ {
+  "i": 76,
+  "text": "No D service between Bedford Park Blvd and Norwood-205 St.\nService is extremely limited and partially suspended because of flooding across New York City.\nPlease avoid non-essential travel until further notice.",
+  "affected": "D"
+ },
+ {
+  "i": 77,
+  "text": "2 service is extremely limited and partially suspended because of heavy rainfall and flooding across New York City. Trains are running only between Wakefield-241 St and E 180 St.\n\nHowever, please avoid non-essential travel until further notice.",
+  "affected": "2"
+ },
+ {
+  "i": 78,
+  "text": "2/3 trains are suspended in Manhattan while we address flooding in multiple stations. 2 trains are running via the 5 line in both directions between Nevins St and 149 St-Grand Concourse.\n\nFor alternate service, consider A/B/C/D/E/N/Q/R/W trains making nearby station stops.",
+  "affected": "2 | 3"
+ },
+ {
+  "i": 79,
+  "text": "R trains are stopping along the Q line between Canal St and DeKalb Av in both directions. What's Happening?\n\nWe're addressing heavy flooding.\n\nAdditional Service Changes:\n\nSome southbound R trains will end at Whitehall St-South Ferry.",
+  "affected": "R"
+ },
+ {
+  "i": 80,
+  "text": "1 2 3 trains have resumed scheduled service in Manhattan after someone was struck by a train at 116 St-Columbia University.\n\nExpect delays in both directions as we get trains back on schedule.\n\nReminder: 3 service is suspended between 96 St and Harlem-148 St this weekend while we perform planned flood protection work. 3 trains end at 137 St-City College on the 1 line.",
+  "affected": "1 | 2 | 3"
+ },
+ {
+  "i": 81,
+  "text": "F  service is suspended between 21 St-Queensbridge and Jamaica-179 St\nTrains are running between Coney Island-Stillwell Av and 21 St-Queensbridge\nService is extremely limited and partially suspended because of flooding across New York City.\nPlease avoid non-essential travel until further notice.",
+  "affected": "F"
+ },
+ {
+  "i": 82,
+  "text": "3 service is suspended between Times Sq-42 St and New Lots Av.\nTrains are running between Harlem-148 St and Times Sq-42 St.\nService is extremely limited and partially suspended because of heavy rainfall and flooding across New York City.\nTrains are running in two parts.\nTake the A N Q or 4 train for service to/from Brooklyn.\nPlease avoid non-essential travel until further notice.",
+  "affected": "3"
+ },
+ {
+  "i": 83,
+  "text": "Subway service is extremely limited or temporarily suspended because of heavy rainfall and flooding across New York City.\n\nAvoid traveling until further notice.",
+  "affected": "3 | 5 | B | C | E | FS | G | GS | H | J | M | SI | W | Z"
+ },
+ {
+  "i": 84,
+  "text": "No 1 between Chambers St and 96 St.\nAvoid taking 1 2 3 trains.\nTake A C D.\nWe expect this to last at least thru the AM rush hour. What's Happening?\n\nWe are working to clear water from the tracks after a water main break at Times Sq-42 St.\nOur crews are also inspecting the tracks that were flooded.\n\nAdditional service changes:\n1 service is running in two sections:\nbetween South Ferry and Chambers St (extremely limited service)\nbetween Van Cortlandt Park-242 St and 96 St\nNorthbound 1 trains are running on the express track from 96 St to 137 St-City College.\nFor service to/from bypassed stations, take a southbound train.\n\nLimited shuttle bus service is running between 59 St-Columbus Circle and 96 St.\n\nAs an alternative to local 1 service from 96 St to 137 St-City College, take an M104 bus.\n\nListen for announcements to hear how your train will operate.\n\nLIRR is cross-honoring MetroCard/OMNY users between Penn Station/Grand Central & Main St/Jamaica.",
+  "affected": "1"
+ },
+ {
+  "i": 85,
+  "text": "Franklin Av Shuttle service is suspended because of flooding across New York City.\n\nPlease avoid non-essential travel until further notice.",
+  "affected": "FS"
+ },
+ {
+  "i": 86,
+  "text": "No R service between Whitehall St-South Ferry and Forest Hills-71 Av.\n\nService is extremely limited because of heavy rainfall and flooding across New York City. \nPlease avoid non-essential travel until further notice. Service is extremely limited because of heavy rainfall and flooding across New York City. \n\nPlease avoid non-essential travel until further notice.",
+  "affected": "R"
+ },
+ {
+  "i": 87,
+  "text": "2 via 5 between Nevins St and 149 St-Grand Concourse in both directions.\nAvoid 1 2 3 trains. What's happening?\nWe are working to clear water from the tracks after a water main break at Times Sq-42 St.\nOur crews are also inspecting the tracks that were flooded.\n\nSome southbound 2 trains are running on their normal route from 149 St-Grand Concourse to 96 St where they will end.\nListen to announcements on your train to hear how it will operate.\n\nFor service between the Bronx and the West side of Manhattan:\nUse the Bx12 SBS at Pelham Pkwy to connect with A  trains.\nUse the Bx6 SBS at Intervale Av to connect with D  trains.\nUse Bx19 at 3 Av-149 St or 149 St-Grand Concourse to connect with A B C D trains.\n\nLIRR is cross-honoring MetroCard/OMNY users between Penn Station/Grand Central & Jamaica.\nListen for announcements to hear how your train will operate.",
+  "affected": "2"
+ },
+ {
+  "i": 88,
+  "text": "C train service is suspended because of heavy flooding.\n\nA trains are running local (except between 59 St-Columbus Circle and Canal St). Please stay home if you don't need to travel.",
+  "affected": "A | C"
+ },
+ {
+  "i": 89,
+  "text": "Uptown 6 trains are running express from 3 Av-138 St and Hunts Point Av while we address a signal problem caused by flooding at 3 Av-138 St. For service to/from bypassed stations, take a downtown train.",
+  "affected": "6"
+ },
+ {
+  "i": 90,
+  "text": "No 3 train service between Chambers St and 96 St.\nAvoid 1 2 3 trains.\nWe expect this to last at least thru the AM rush hour. What's Happening?\n\nWe are working to clear water from the tracks after a water main break at Times Sq-42 St.\nOur crews are also inspecting the tracks that were flooded.\n\nAdditional service changes:\nSouthbound 3 trains will end at 96 St and return northbound for service.\nNorthbound 3 trains will end at Chambers St and return southbound for service.\n5 trains are running locally in Brooklyn between Franklin Av-Medgar Evers College and Atlantic Av-Barclays Ctr to provide additional service.\n\nAs an alternative for service in Upper Manhattan, consider taking A C D trains or M7, M10, and M102 buses.\nAs an alternative for service to Brooklyn, consider taking nearby A C D 4 5 trains.\nLIRR is cross-honoring MetroCard/OMNY users between Penn Station/Grand Central &Jamaica.\n\nListen for announcements to hear how your train will operate.",
+  "affected": "3"
+ },
+ {
+  "i": 91,
+  "text": "Q service is suspended between Manhattan and Brooklyn.\nThere is extremely limited service between 96 St and 57 St-7 Av. What's Happening?\nWe are addressing heavy flooding.\n\nPlease stay home if you do not need to travel.",
+  "affected": "Q"
+ },
+ {
+  "i": 92,
+  "text": "1 service is extremely limited because of flooding across New York City. \n\nPlease avoid non-essential travel until further notice.",
+  "affected": "1"
+ },
+ {
+  "i": 93,
+  "text": "L trains are running with delays in both directions after we addressed flooding near Wilson Av. L service has resumed between Halsey St and Broadway Junction in both directions.\n\nPlanned Work Reminder\n\nThere is no L service in either direction between 8 Av and 14 St-Union Sq until Monday morning at 5:00 AM.",
+  "affected": "L"
+ },
+ {
+  "i": 94,
+  "text": "There is no N service between Whitehall St-South Ferry and Coney Island-Stillwell Av while we address heavy flooding. Travel Alternatives:\n\nFor service between Canal St and Atlantic Av-Barclays Ctr, take a Q train.\n\nFor service between Atlantic Av-Barclays Ctr and 36 St, take a D train.\n\nFor service between 36 St and 59 St, take nearby B37 or B63 bus service.\n\nFor service between 59 St and Coney Island-Stillwell Av, use nearby D train or B64 bus service.\n\nPlanned Work Reminder:\n\nThere is no late night R between Whitehall St-South Ferry and 59 St, Brooklyn while we're installing equipment.",
+  "affected": "N"
+ },
+ {
+  "i": 95,
+  "text": "4 service is suspended between Burnside Av and 125 St.\n\n4 service is running in two sections:\n\nBetween Woodlawn and Burnside Av.\nBetween 125 St and New Lots Av.\n\nSouthbound 4 trains end at Burnside Av.\nNorthbound 4 trains end at 125 St.\n\nExpect extensive delays in both directions due to flooding across New York City.\nPlease avoid non-essential travel until further notice.",
+  "affected": "4"
+ },
+ {
+  "i": 96,
+  "text": "SIR service between Huguenot and Tottenville is suspended in both directions because of flooded tracks between those stations.\n\nFree shuttle buses are making all stops between Huguenot and Tottenville.",
+  "affected": "SI"
+ },
+ {
+  "i": 97,
+  "text": "4 trains have resumed making stops between The Bronx, Manhattan and Brooklyn.\nTrains are running between Crown Hts-Utica Av and New Lots Av while 3 service is suspended.'\nSome northbound 4 trains are making local stops from Brooklyn Bridge-City Hall to 125 St.\nExpect extensive delays in both directions due to flooding across New York City.\nPlease avoid non-essential travel until further notice.",
+  "affected": "4"
+ },
+ {
+  "i": 98,
+  "text": "E F trains are running with extensive delays in both directions after we addressed flooding in the facility that controls switches at 179 St. E F trains have resumed making regularly scheduled stops between Forest Hills-71 Av and Jamaica-179 St. \n\nTravel Alternatives: \nWhile trains get back on schedule, consider using 7 A C D R trains. \n\nPlanned work reminder:\nE trains are running via the F line between Kew Gardens-Union Tpke and Jamaica-179 St in both directions.\nSouthbound E F trains are running express from 179 St to Forest Hills-71 Av.\nNote: Long Island Rail Road will accommodate NYCT E customers traveling between Queens and Manhattan for no additional cost at Penn Station, Woodside, Forest Hills, Kew Gardens and Jamaica.",
+  "affected": "E | F"
+ },
+ {
+  "i": 99,
+  "text": "5 trains are running locally in Brooklyn and the Bronx to provide additional service.\n\n5 service to/from 238 St is not running. Expect delays on 2 3 and use 5 instead.\n\nAlso, we've reduced 5 train service to make room for rerouted 2 trains.\n\nWhat's Happening?\n\nWe are working to clear water from the tracks after a water main break at Times Sq-42 St.\nOur crews are also inspecting the tracks that were flooded.",
+  "affected": "5"
+ },
+ {
+  "i": 100,
+  "text": "A service is extremely limited and partially suspended because of heavy rainfall and flooding across New York City. Trains are running only between 168 St and Far Rockaway-Mott Av/Ozone Park-Lefferts Blvd.\nHowever, please avoid non-essential travel until further notice.",
+  "affected": "A"
+ },
+ {
+  "i": 101,
+  "text": "F R trains are running with delays in both directions after we addressed flooding in the facility that controls switches at 179 St. While trains get back on schedule, consider these alternatives:\nFor F train service in Queens, use the E train.\n\nPlanned work reminder:\nE trains are running via the F line between Kew Gardens-Union Tpke and Jamaica-179 St in both directions.\nSouthbound E F trains are running express from 179 St to Forest Hills-71 Av.",
+  "affected": "E | F | R"
+ },
+ {
+  "i": 102,
+  "text": "4 service is suspended in Brooklyn.\n\n5 service is suspended in Brooklyn, Manhattan and most of The Bronx.\n\nPlease stay home if you don't need to travel. 4 trains are only running between Bowling Green and Woodlawn in both directions.\n\n5 trains are only running between Eastchester-Dyre Av and E 180 St.\n\nWhat's Happening?\nWe're working to address flooding on the tracks.",
+  "affected": "4 | 5"
+ },
+ {
+  "i": 103,
+  "text": "F service is suspended between 21 St-Queensbridge and Jamaica-179 St\nTrains are running between Coney Island-Stillwell Av and 21 St-Queensbridge\nService is extremely limited and partially suspended because of flooding across New York City.\nPlease avoid non-essential travel until further notice.\n\nLIRR is cross-honoring MetroCard holders at Penn Station, and Jamaica.\n\nSee a station agent for a free courtesy pass to continue your trip.",
+  "affected": "F"
+ },
+ {
+  "i": 104,
+  "text": "Franklin Av Shuttle trains are suspended in both directions because of flooding at Botanic Garden. Consider taking a B48 bus instead.",
+  "affected": "FS"
+ },
+ {
+  "i": 105,
+  "text": "4 trains have resumed making stops between The Bronx, Manhattan and Brooklyn.\nTrains are running between Crown Hts-Utica Av and New Lots Av while 3 service is suspended.'\nSome northbound 4 trains are making local stops from Brooklyn Bridge-City Hall to 125 St.\nExpect extensive delays in both directions due to rainfall and flooding across New York City.\nPlease avoid non-essential travel until further notice.",
+  "affected": "4"
+ },
+ {
+  "i": 106,
+  "text": "1 2 3 trains holding in stations in Manhattan.\n2 3 service suspended in Brooklyn. What's Happening:\nWe're continuing to remove water from the tracks caused by flooding from rainfall at various stations in Brooklyn and Manhattan.",
+  "affected": "1 | 2 | 3"
+ },
+ {
+  "i": 107,
+  "text": "Subway service is temporarily suspended because of heavy rainfall and flooding across New York City.\n\nAvoid traveling until further notice.",
+  "affected": "1 | 3 | 5 | 6X | B | C | E | FS | FX | G | GS | H | SI | W | Z"
+ },
+ {
+  "i": 108,
+  "text": "Subway service is extremely limited or temporarily suspended because of heavy rainfall and flooding across New York City.\n\nAvoid traveling until further notice.",
+  "affected": "3 | 5 | 6 | 6X | 7 | A | B | C | E | FS | FX | G | GS | H | J | M | N | SI | W | Z"
+ },
+ {
+  "i": 109,
+  "text": "2 service is extremely limited and partially suspended because of flooding across New York City.\n\n2 trains are not running between 149 St-Grand Concourse and Flatbush Av-Brooklyn College.\nTrains are running between Wakefield-241 St and 149 St-Grand Concourse.\n\nSome 2 trains are running on the 5 from 149 St-Grand Concourse to Nevins St, then on the 3 line to Crown Hts-Utica Av.\nPlease avoid non-essential travel until further notice.",
+  "affected": "2"
+ },
+ {
+  "i": 110,
+  "text": "2 via 5 between Nevins St and 149 St-Grand Concourse in both directions.\nAvoid 1 2 3 trains.\nWe expect this to last at least thru the AM rush hour. What's happening?\nWe are working to clear water from the tracks after a water main break at Times Sq-42 St.\nOur crews are also inspecting the tracks that were flooded.\n\nSome southbound 2 trains are running on their normal route from 149 St-Grand Concourse to 96 St where they will end.\nListen to announcements on your train to hear how it will operate.\n\nFor service between the Bronx and the West side of Manhattan:\nUse the Bx12 SBS at Pelham Pkwy to connect with A  trains.\nUse the Bx6 SBS at Intervale Av to connect with D  trains.\nUse Bx19 at 3 Av-149 St or 149 St-Grand Concourse to connect with A B C D trains.\n\nLIRR is cross-honoring MetroCard/OMNY users between Penn Station/Grand Central & Jamaica.\nListen for announcements to hear how your train will operate.",
+  "affected": "2"
+ },
+ {
+  "i": 111,
+  "text": "No D service between Bedford Park Blvd and Norwood-205 St.\nService is extremely limited and partially suspended because of heavy rainfall and flooding across New York City. \n\nHowever, please avoid non-essential travel until further notice. Service is extremely limited and partially suspended because of heavy rainfall and flooding across New York City. \n\nHowever, please avoid non-essential travel until further notice.",
+  "affected": "D"
+ },
+ {
+  "i": 112,
+  "text": "SIR service has resumed between Huguenot and Tottenville after flooding at Richmond Valley has cleared. Expect delays in both directions.",
+  "affected": "SI"
+ },
+ {
+  "i": 113,
+  "text": "There is no 2 5 service between Franklin Av-Medgar Evers College and Flatbush Av-Brooklyn College. 2 trains will run via the 3 line between Franklin Av-Medgar Evers College and New Lots Av.\n5 trains will run via the 4 line between Franklin Av-Medgar Evers College and Crown Hts-Utica Av.\n\n1 3 4 trains have resumed making scheduled stops with delays in both directions.\n\nWhat's Happening?\nWe're continuing to remove water from the tracks caused by flooding from rainfall at various stations in Brooklyn.\n\nPlease stay home if you don't need to travel.",
+  "affected": "1 | 2 | 3 | 4 | 5"
+ },
+ {
+  "i": 114,
+  "text": "5 service is suspended between E 180 St and Flatbush Av-Brooklyn College.\nTrains are running only between Eastchester-Dyre Av and E 180 St.\nService is extremely limited and partially suspended because of flooding across New York City.\nPlease avoid non-essential travel until further notice.",
+  "affected": "5"
+ },
+ {
+  "i": 115,
+  "text": "SIR service is suspended between Pleasant Plains and Tottenville in both directions because of flooding.",
+  "affected": "SI"
+ },
+ {
+  "i": 116,
+  "text": "No 3 train service between Chambers St and 96 St.\nAvoid 1 2 3 trains.\nWe expect this to last at least thru the AM rush hour. What's Happening?\n\nWe are working to clear water from the tracks after a water main break at Times Sq-42 St.\nOur crews are also inspecting the tracks that were flooded.\n\nAdditional service changes:\n\n3 service is running in two sections:\nbetween New Lots Av and Chambers St (extremely limited service)\nbetween 96 St and Harlem-148 St\n\n5 trains are running locally in Brooklyn between Franklin Av-Medgar Evers College and Atlantic Av-Barclays Ctr to provide additional service.\n\nAs an alternative for service in Upper Manhattan, consider taking A C D trains or M7, M10, and M102 buses.\nAs an alternative for service to Brooklyn, consider taking nearby A C D 4 5 trains.\nLIRR is cross-honoring MetroCard/OMNY users between Penn Station/Grand Central &Jamaica.\n\nListen for announcements to hear how your train will operate.",
+  "affected": "3"
+ },
+ {
+  "i": 117,
+  "text": "Subway service is temporarily suspended because of heavy rainfall and flooding across New York City.\n\nAvoid traveling until further notice.",
+  "affected": "1 | 3 | 6X | B | C | E | FS | FX | G | GS | H | SI | W | Z"
+ },
+ {
+  "i": 118,
+  "text": "Subway service is temporarily suspended because of heavy rainfall and flooding across New York City.\n\nAvoid traveling until further notice.",
+  "affected": "3 | 5 | 6 | 6X | A | B | C | E | FS | FX | G | GS | H | SI | W | Z"
+ },
+ {
+  "i": 119,
+  "text": "2 via 5 between Nevins St and 149 St-Grand Concourse in both directions.\nAvoid 1 2 3 trains.\nWe expect this to last at least thru the AM rush hour. What's happening?\nWe are working to clear water from the tracks after a water main break at Times Sq-42 St.\nOur crews are also inspecting the tracks that were flooded.\n\nFor service between the Bronx and the West side of Manhattan:\nUse the Bx12 SBS at Pelham Pkwy to connect with A  trains.\nUse the Bx6 SBS at Intervale Av to connect with D  trains.\nUse Bx19 at 3 Av-149 St or 149 St-Grand Concourse to connect with A B C D trains.\n\nLIRR is cross-honoring MetroCard/OMNY users between Penn Station/Grand Central & Jamaica.\nListen for announcements to hear how your train will operate.",
+  "affected": "2"
+ }
+]

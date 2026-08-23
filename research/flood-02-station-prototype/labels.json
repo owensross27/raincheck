@@ -1,0 +1,963 @@
+[
+ {
+  "i": 0,
+  "flood_stations": ["181 St"],
+  "mentioned_stations": [],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 1,
+  "flood_stations": ["207 St", "Inwood-207 St"],
+  "mentioned_stations": ["125 St", "168 St"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 2,
+  "flood_stations": ["W 4 St", "W 4 St-Washington Sq"],
+  "mentioned_stations": ["Roosevelt Av", "36 St (QNS)", "Jackson Heights-Roosevelt Av"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 3,
+  "flood_stations": ["3 Av-138 St"],
+  "mentioned_stations": ["125 St", "Hunts Point Av", "149 St-Grand Concourse", "Burnside Av"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 4,
+  "flood_stations": ["86 St"],
+  "mentioned_stations": ["Bay Ridge-95 St"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 5,
+  "flood_stations": ["W 4 St", "W 4 St-Washington Sq"],
+  "mentioned_stations": ["Roosevelt Av", "71 Av", "Essex St", "59 St-Columbus Circle", "Jackson Heights-Roosevelt Av", "Court Sq", "Bergen St", "Forest Hills-71 Av"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 6,
+  "flood_stations": [],
+  "mentioned_stations": [],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": true
+ },
+ {
+  "i": 7,
+  "flood_stations": ["23 St"],
+  "mentioned_stations": ["Prospect Pk", "Brighton Beach", "Coney Island-Stillwell Av", "Whitehall St", "Astoria-Ditmars Blvd", "34 St-Herald Sq", "Canal St", "DeKalb Av", "36 St", "47-50 Sts-Rockefeller Ctr"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 8,
+  "flood_stations": ["Flushing-Main St"],
+  "mentioned_stations": ["Willets Pt", "Main St", "Mets-Willets Point", "Penn Station", "Woodside", "Flushing"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 9,
+  "flood_stations": ["E 143 St", "E 143 St-St Mary's St"],
+  "mentioned_stations": ["3 Av-138 St", "Hunts Point Av"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 10,
+  "flood_stations": ["96 St"],
+  "mentioned_stations": ["86 St"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 11,
+  "flood_stations": ["163 St", "163 St-Amsterdam Av"],
+  "mentioned_stations": ["59 St", "205 St", "59 St-Columbus Circle", "Norwood-205 St"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 12,
+  "flood_stations": [],
+  "mentioned_stations": ["Stapleton", "Grasmere"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": true
+ },
+ {
+  "i": 13,
+  "flood_stations": ["Coney Island-Stillwell Av"],
+  "mentioned_stations": [],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 14,
+  "flood_stations": ["181 St"],
+  "mentioned_stations": [],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 15,
+  "flood_stations": ["Jamaica Center-Parsons/Archer"],
+  "mentioned_stations": [],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 16,
+  "flood_stations": ["Queensboro Plaza", "Lexington Av/59 St"],
+  "mentioned_stations": [],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 17,
+  "flood_stations": ["Whitehall St", "Whitehall St-South Ferry"],
+  "mentioned_stations": [],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 18,
+  "flood_stations": [],
+  "mentioned_stations": [],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 19,
+  "flood_stations": ["182-183 Sts"],
+  "mentioned_stations": ["Bedford Pk Blvd", "167 St"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 20,
+  "flood_stations": ["Jamaica Center-Parsons/Archer"],
+  "mentioned_stations": [],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 21,
+  "flood_stations": ["59 St-Columbus Circle"],
+  "mentioned_stations": ["Bedford Park Blvd", "Brighton Beach", "Canal St", "W 4 St-Wash Sq", "Coney Island-Stillwell Av", "W 4-Wash Sq", "36 St"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 22,
+  "flood_stations": ["Liberty Av"],
+  "mentioned_stations": ["Euclid Av", "Broadway Junction"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 23,
+  "flood_stations": ["Bedford Av"],
+  "mentioned_stations": [],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 24,
+  "flood_stations": ["28 St"],
+  "mentioned_stations": [],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 25,
+  "flood_stations": ["207 St", "Inwood-207 St"],
+  "mentioned_stations": [],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 26,
+  "flood_stations": ["Flushing-Main St"],
+  "mentioned_stations": ["Willets Pt", "Main St", "Mets-Willets Point", "Penn Station", "Hunters Point Av", "Woodside", "Flushing"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 27,
+  "flood_stations": ["181 St"],
+  "mentioned_stations": [],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 28,
+  "flood_stations": ["3 Av-138 St"],
+  "mentioned_stations": [],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 29,
+  "flood_stations": ["182-183 Sts"],
+  "mentioned_stations": [],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 30,
+  "flood_stations": ["34 St", "34 St-Herald Sq"],
+  "mentioned_stations": ["Canal St", "57 St-7 Av"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 31,
+  "flood_stations": ["Prince's Bay", "Richmond Valley"],
+  "mentioned_stations": ["Tottenville", "Huguenot"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 32,
+  "flood_stations": ["DeKalb Av"],
+  "mentioned_stations": ["36 St", "Atlantic Av-Barclays Ctr", "Canal St"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 33,
+  "flood_stations": ["E 143 St-St Mary's"],
+  "mentioned_stations": ["3 Av-138 St", "Hunts Point Av"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 34,
+  "flood_stations": ["163 St", "163 St-Amsterdam Av"],
+  "mentioned_stations": ["145 St", "175 St", "Inwood-207 St", "59 St-Columbus Circle", "125 St"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 35,
+  "flood_stations": ["DeKalb Av"],
+  "mentioned_stations": [],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 36,
+  "flood_stations": ["Richmond Valley"],
+  "mentioned_stations": ["Tottenville", "Huguenot"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 37,
+  "flood_stations": ["Court St"],
+  "mentioned_stations": ["Canal St", "DeKalb Av"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 38,
+  "flood_stations": ["W 4 St", "W 4 St-Washington Sq"],
+  "mentioned_stations": ["Roosevelt Av", "71 Av", "Essex St", "Jackson Heights-Roosevelt Av", "Forest Hills-71 Av"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 39,
+  "flood_stations": ["Prince's Bay", "Richmond Valley"],
+  "mentioned_stations": ["Tottenville", "Huguenot"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 40,
+  "flood_stations": [],
+  "mentioned_stations": [],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 41,
+  "flood_stations": ["Queens Plaza"],
+  "mentioned_stations": ["21 St-Queensbridge", "47-50 Sts-Rockefeller Ctr", "Lexington Av/63 St", "57 St-7 Av"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 42,
+  "flood_stations": [],
+  "mentioned_stations": ["Lexington Av/59 St", "Queensboro Plaza", "Coney Island-Stillwell Av", "Astoria-Ditmars Blvd"],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 43,
+  "flood_stations": [],
+  "mentioned_stations": ["149 St-Grand Concourse", "Nevins St"],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 44,
+  "flood_stations": [],
+  "mentioned_stations": [],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 45,
+  "flood_stations": [],
+  "mentioned_stations": [],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 46,
+  "flood_stations": [],
+  "mentioned_stations": [],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 47,
+  "flood_stations": [],
+  "mentioned_stations": [],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 48,
+  "flood_stations": ["Canal St"],
+  "mentioned_stations": ["DeKalb Av"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 49,
+  "flood_stations": [],
+  "mentioned_stations": ["Jamaica", "Grand Central Madison", "Penn Station"],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 50,
+  "flood_stations": ["Times Sq-42 St"],
+  "mentioned_stations": ["Nevins St", "149 St-Grand Concourse", "Pelham Pkwy", "Intervale Av", "3 Av-149 St", "Penn Station", "Grand Central", "Jamaica"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 51,
+  "flood_stations": [],
+  "mentioned_stations": [],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 52,
+  "flood_stations": [],
+  "mentioned_stations": [],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 53,
+  "flood_stations": [],
+  "mentioned_stations": [],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 54,
+  "flood_stations": [],
+  "mentioned_stations": ["Bowling Green", "Flatbush Av-Brooklyn College", "E 180 St", "149 St-Grand Concourse"],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 55,
+  "flood_stations": [],
+  "mentioned_stations": [],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 56,
+  "flood_stations": ["138 St-Grand Concourse"],
+  "mentioned_stations": [],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 57,
+  "flood_stations": ["7 Av/53 St"],
+  "mentioned_stations": [],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 58,
+  "flood_stations": [],
+  "mentioned_stations": [],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 59,
+  "flood_stations": [],
+  "mentioned_stations": ["Bowling Green", "Crown Hts-Utica Av", "Woodlawn", "New Lots Av", "Eastchester-Dyre Av", "E 180 St"],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 60,
+  "flood_stations": [],
+  "mentioned_stations": ["Broadway Junction", "Canarsie-Rockaway Pkwy"],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 61,
+  "flood_stations": ["Times Sq-42 St"],
+  "mentioned_stations": ["Chambers St", "96 St", "New Lots Av", "Harlem-148 St", "Franklin Av-Medgar Evers College", "Atlantic Av-Barclays Ctr", "Penn Station", "Grand Central", "Jamaica"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 62,
+  "flood_stations": [],
+  "mentioned_stations": [],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 63,
+  "flood_stations": [],
+  "mentioned_stations": ["Van Cortlandt Park-242 St", "168 St-Washington Hts"],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 64,
+  "flood_stations": [],
+  "mentioned_stations": ["Jamaica-179 St", "Coney Island-Stillwell Av"],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 65,
+  "flood_stations": ["145 St"],
+  "mentioned_stations": ["96 St", "168 St-Washington Hts"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 66,
+  "flood_stations": ["Botanic Garden"],
+  "mentioned_stations": [],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 67,
+  "flood_stations": [],
+  "mentioned_stations": ["Times Sq-42 St", "New Lots Av", "Harlem-148 St"],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 68,
+  "flood_stations": ["Times Sq-42 St"],
+  "mentioned_stations": ["Chambers St", "96 St", "New Lots Av", "Harlem-148 St", "Franklin Av-Medgar Evers College", "Atlantic Av-Barclays Ctr", "Penn Station", "Grand Central", "Jamaica"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 69,
+  "flood_stations": [],
+  "mentioned_stations": ["Great Kills", "St George"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 70,
+  "flood_stations": [],
+  "mentioned_stations": ["Wakefield-241 St", "Flatbush Av-Brooklyn College"],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 71,
+  "flood_stations": [],
+  "mentioned_stations": ["Parkchester", "125 St", "Pelham Bay Park", "Brooklyn Bridge-City Hall"],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 72,
+  "flood_stations": [],
+  "mentioned_stations": ["149 St-Grand Concourse", "Nevins St"],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 73,
+  "flood_stations": ["Howard Beach-JFK Airport"],
+  "mentioned_stations": ["Aqueduct-N Conduit Av"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 74,
+  "flood_stations": [],
+  "mentioned_stations": ["149 St-Grand Concourse", "86 St", "Woodlawn", "New Lots Av"],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 75,
+  "flood_stations": ["3 Av-138 St"],
+  "mentioned_stations": ["Hunts Point Av"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 76,
+  "flood_stations": [],
+  "mentioned_stations": ["Bedford Park Blvd", "Norwood-205 St"],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 77,
+  "flood_stations": [],
+  "mentioned_stations": ["Wakefield-241 St", "E 180 St"],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 78,
+  "flood_stations": [],
+  "mentioned_stations": ["Nevins St", "149 St-Grand Concourse"],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 79,
+  "flood_stations": [],
+  "mentioned_stations": ["Canal St", "DeKalb Av", "Whitehall St-South Ferry"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 80,
+  "flood_stations": [],
+  "mentioned_stations": ["116 St-Columbia University", "96 St", "Harlem-148 St", "137 St-City College"],
+  "system_wide": false,
+  "footer_only": true,
+  "planned_work": true
+ },
+ {
+  "i": 81,
+  "flood_stations": [],
+  "mentioned_stations": ["21 St-Queensbridge", "Jamaica-179 St", "Coney Island-Stillwell Av"],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 82,
+  "flood_stations": [],
+  "mentioned_stations": ["Times Sq-42 St", "New Lots Av", "Harlem-148 St"],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 83,
+  "flood_stations": [],
+  "mentioned_stations": [],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 84,
+  "flood_stations": ["Times Sq-42 St"],
+  "mentioned_stations": ["Chambers St", "96 St", "South Ferry", "Van Cortlandt Park-242 St", "137 St-City College", "59 St-Columbus Circle", "Penn Station", "Grand Central", "Main St", "Jamaica"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 85,
+  "flood_stations": [],
+  "mentioned_stations": [],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 86,
+  "flood_stations": [],
+  "mentioned_stations": ["Whitehall St-South Ferry", "Forest Hills-71 Av"],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 87,
+  "flood_stations": ["Times Sq-42 St"],
+  "mentioned_stations": ["Nevins St", "149 St-Grand Concourse", "96 St", "Pelham Pkwy", "Intervale Av", "3 Av-149 St", "Penn Station", "Grand Central", "Jamaica"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 88,
+  "flood_stations": [],
+  "mentioned_stations": ["59 St-Columbus Circle", "Canal St"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 89,
+  "flood_stations": ["3 Av-138 St"],
+  "mentioned_stations": ["Hunts Point Av"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 90,
+  "flood_stations": ["Times Sq-42 St"],
+  "mentioned_stations": ["Chambers St", "96 St", "Franklin Av-Medgar Evers College", "Atlantic Av-Barclays Ctr", "Penn Station", "Grand Central", "Jamaica"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 91,
+  "flood_stations": [],
+  "mentioned_stations": ["96 St", "57 St-7 Av"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 92,
+  "flood_stations": [],
+  "mentioned_stations": [],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 93,
+  "flood_stations": ["Wilson Av"],
+  "mentioned_stations": ["Halsey St", "Broadway Junction", "8 Av", "14 St-Union Sq"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 94,
+  "flood_stations": [],
+  "mentioned_stations": ["Whitehall St-South Ferry", "Coney Island-Stillwell Av", "Canal St", "Atlantic Av-Barclays Ctr", "36 St", "59 St"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 95,
+  "flood_stations": [],
+  "mentioned_stations": ["Burnside Av", "125 St", "Woodlawn", "New Lots Av"],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 96,
+  "flood_stations": ["Huguenot", "Tottenville"],
+  "mentioned_stations": [],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false,
+  "uncertain": true
+ },
+ {
+  "i": 97,
+  "flood_stations": [],
+  "mentioned_stations": ["Crown Hts-Utica Av", "New Lots Av", "Brooklyn Bridge-City Hall", "125 St"],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 98,
+  "flood_stations": ["179 St"],
+  "mentioned_stations": ["Forest Hills-71 Av", "Jamaica-179 St", "Kew Gardens-Union Tpke", "Penn Station", "Woodside", "Forest Hills", "Kew Gardens", "Jamaica"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 99,
+  "flood_stations": ["Times Sq-42 St"],
+  "mentioned_stations": ["238 St"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 100,
+  "flood_stations": [],
+  "mentioned_stations": ["168 St", "Far Rockaway-Mott Av", "Ozone Park-Lefferts Blvd"],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 101,
+  "flood_stations": ["179 St"],
+  "mentioned_stations": ["Kew Gardens-Union Tpke", "Jamaica-179 St", "Forest Hills-71 Av"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 102,
+  "flood_stations": [],
+  "mentioned_stations": ["Bowling Green", "Woodlawn", "Eastchester-Dyre Av", "E 180 St"],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 103,
+  "flood_stations": [],
+  "mentioned_stations": ["21 St-Queensbridge", "Jamaica-179 St", "Coney Island-Stillwell Av", "Penn Station", "Jamaica"],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 104,
+  "flood_stations": ["Botanic Garden"],
+  "mentioned_stations": [],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 105,
+  "flood_stations": [],
+  "mentioned_stations": ["Crown Hts-Utica Av", "New Lots Av", "Brooklyn Bridge-City Hall", "125 St"],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 106,
+  "flood_stations": [],
+  "mentioned_stations": [],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 107,
+  "flood_stations": [],
+  "mentioned_stations": [],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 108,
+  "flood_stations": [],
+  "mentioned_stations": [],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 109,
+  "flood_stations": [],
+  "mentioned_stations": ["149 St-Grand Concourse", "Flatbush Av-Brooklyn College", "Wakefield-241 St", "Nevins St", "Crown Hts-Utica Av"],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 110,
+  "flood_stations": ["Times Sq-42 St"],
+  "mentioned_stations": ["Nevins St", "149 St-Grand Concourse", "96 St", "Pelham Pkwy", "Intervale Av", "3 Av-149 St", "Penn Station", "Grand Central", "Jamaica"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 111,
+  "flood_stations": [],
+  "mentioned_stations": ["Bedford Park Blvd", "Norwood-205 St"],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 112,
+  "flood_stations": ["Richmond Valley"],
+  "mentioned_stations": ["Huguenot", "Tottenville"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 113,
+  "flood_stations": [],
+  "mentioned_stations": ["Franklin Av-Medgar Evers College", "Flatbush Av-Brooklyn College", "New Lots Av", "Crown Hts-Utica Av"],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 114,
+  "flood_stations": [],
+  "mentioned_stations": ["E 180 St", "Flatbush Av-Brooklyn College", "Eastchester-Dyre Av"],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 115,
+  "flood_stations": [],
+  "mentioned_stations": ["Pleasant Plains", "Tottenville"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 116,
+  "flood_stations": ["Times Sq-42 St"],
+  "mentioned_stations": ["Chambers St", "96 St", "New Lots Av", "Harlem-148 St", "Franklin Av-Medgar Evers College", "Atlantic Av-Barclays Ctr", "Penn Station", "Grand Central", "Jamaica"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 117,
+  "flood_stations": [],
+  "mentioned_stations": [],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 118,
+  "flood_stations": [],
+  "mentioned_stations": [],
+  "system_wide": true,
+  "footer_only": false,
+  "planned_work": false
+ },
+ {
+  "i": 119,
+  "flood_stations": ["Times Sq-42 St"],
+  "mentioned_stations": ["Nevins St", "149 St-Grand Concourse", "Pelham Pkwy", "Intervale Av", "3 Av-149 St", "Penn Station", "Grand Central", "Jamaica"],
+  "system_wide": false,
+  "footer_only": false,
+  "planned_work": false
+ }
+]
