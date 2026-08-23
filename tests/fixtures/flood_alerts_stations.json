@@ -1,0 +1,2978 @@
+[
+{
+"asset_id": "sta:101",
+"name": "Van Cortlandt Park-242 St",
+"complex_id": "293",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:103",
+"name": "238 St",
+"complex_id": "294",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:104",
+"name": "231 St",
+"complex_id": "295",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:106",
+"name": "Marble Hill-225 St",
+"complex_id": "296",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:107",
+"name": "215 St",
+"complex_id": "297",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:108",
+"name": "207 St",
+"complex_id": "298",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:109",
+"name": "Dyckman St",
+"complex_id": "299",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:110",
+"name": "191 St",
+"complex_id": "300",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:111",
+"name": "181 St",
+"complex_id": "301",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:112",
+"name": "168 St-Washington Hts",
+"complex_id": "605",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:113",
+"name": "157 St",
+"complex_id": "303",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:114",
+"name": "145 St",
+"complex_id": "304",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:115",
+"name": "137 St-City College",
+"complex_id": "305",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:116",
+"name": "125 St",
+"complex_id": "306",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:117",
+"name": "116 St-Columbia University",
+"complex_id": "307",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:118",
+"name": "Cathedral Pkwy (110 St)",
+"complex_id": "308",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:119",
+"name": "103 St",
+"complex_id": "309",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:120",
+"name": "96 St",
+"complex_id": "310",
+"daytime_routes": "1 2 3"
+},
+{
+"asset_id": "sta:121",
+"name": "86 St",
+"complex_id": "311",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:122",
+"name": "79 St",
+"complex_id": "312",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:123",
+"name": "72 St",
+"complex_id": "313",
+"daytime_routes": "1 2 3"
+},
+{
+"asset_id": "sta:124",
+"name": "66 St-Lincoln Center",
+"complex_id": "314",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:125",
+"name": "59 St-Columbus Circle",
+"complex_id": "614",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:126",
+"name": "50 St",
+"complex_id": "316",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:127",
+"name": "Times Sq-42 St",
+"complex_id": "611",
+"daytime_routes": "1 2 3"
+},
+{
+"asset_id": "sta:128",
+"name": "34 St-Penn Station",
+"complex_id": "318",
+"daytime_routes": "1 2 3"
+},
+{
+"asset_id": "sta:129",
+"name": "28 St",
+"complex_id": "319",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:130",
+"name": "23 St",
+"complex_id": "320",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:131",
+"name": "18 St",
+"complex_id": "321",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:132",
+"name": "14 St",
+"complex_id": "601",
+"daytime_routes": "1 2 3"
+},
+{
+"asset_id": "sta:133",
+"name": "Christopher St-Stonewall",
+"complex_id": "323",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:134",
+"name": "Houston St",
+"complex_id": "324",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:135",
+"name": "Canal St",
+"complex_id": "325",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:136",
+"name": "Franklin St",
+"complex_id": "326",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:137",
+"name": "Chambers St",
+"complex_id": "327",
+"daytime_routes": "1 2 3"
+},
+{
+"asset_id": "sta:138",
+"name": "WTC Cortlandt",
+"complex_id": "328",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:139",
+"name": "Rector St",
+"complex_id": "329",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:142",
+"name": "South Ferry",
+"complex_id": "635",
+"daytime_routes": "1"
+},
+{
+"asset_id": "sta:201",
+"name": "Wakefield-241 St",
+"complex_id": "416",
+"daytime_routes": "2"
+},
+{
+"asset_id": "sta:204",
+"name": "Nereid Av",
+"complex_id": "417",
+"daytime_routes": "2 5"
+},
+{
+"asset_id": "sta:205",
+"name": "233 St",
+"complex_id": "418",
+"daytime_routes": "2 5"
+},
+{
+"asset_id": "sta:206",
+"name": "225 St",
+"complex_id": "419",
+"daytime_routes": "2 5"
+},
+{
+"asset_id": "sta:207",
+"name": "219 St",
+"complex_id": "420",
+"daytime_routes": "2 5"
+},
+{
+"asset_id": "sta:208",
+"name": "Gun Hill Rd",
+"complex_id": "421",
+"daytime_routes": "2 5"
+},
+{
+"asset_id": "sta:209",
+"name": "Burke Av",
+"complex_id": "422",
+"daytime_routes": "2 5"
+},
+{
+"asset_id": "sta:210",
+"name": "Allerton Av",
+"complex_id": "423",
+"daytime_routes": "2 5"
+},
+{
+"asset_id": "sta:211",
+"name": "Pelham Pkwy",
+"complex_id": "424",
+"daytime_routes": "2 5"
+},
+{
+"asset_id": "sta:212",
+"name": "Bronx Park East",
+"complex_id": "425",
+"daytime_routes": "2 5"
+},
+{
+"asset_id": "sta:213",
+"name": "E 180 St",
+"complex_id": "426",
+"daytime_routes": "2 5"
+},
+{
+"asset_id": "sta:214",
+"name": "West Farms Sq-E Tremont Av",
+"complex_id": "427",
+"daytime_routes": "2 5"
+},
+{
+"asset_id": "sta:215",
+"name": "174 St",
+"complex_id": "428",
+"daytime_routes": "2 5"
+},
+{
+"asset_id": "sta:216",
+"name": "Freeman St",
+"complex_id": "429",
+"daytime_routes": "2 5"
+},
+{
+"asset_id": "sta:217",
+"name": "Simpson St",
+"complex_id": "430",
+"daytime_routes": "2 5"
+},
+{
+"asset_id": "sta:218",
+"name": "Intervale Av",
+"complex_id": "431",
+"daytime_routes": "2 5"
+},
+{
+"asset_id": "sta:219",
+"name": "Prospect Av",
+"complex_id": "432",
+"daytime_routes": "2 5"
+},
+{
+"asset_id": "sta:220",
+"name": "Jackson Av",
+"complex_id": "433",
+"daytime_routes": "2 5"
+},
+{
+"asset_id": "sta:221",
+"name": "3 Av-149 St",
+"complex_id": "434",
+"daytime_routes": "2 5"
+},
+{
+"asset_id": "sta:222",
+"name": "149 St-Hostos",
+"complex_id": "603",
+"daytime_routes": "2 5"
+},
+{
+"asset_id": "sta:224",
+"name": "135 St",
+"complex_id": "438",
+"daytime_routes": "2 3"
+},
+{
+"asset_id": "sta:225",
+"name": "125 St",
+"complex_id": "439",
+"daytime_routes": "2 3"
+},
+{
+"asset_id": "sta:226",
+"name": "116 St",
+"complex_id": "440",
+"daytime_routes": "2 3"
+},
+{
+"asset_id": "sta:227",
+"name": "110 St-Malcolm X Plaza",
+"complex_id": "441",
+"daytime_routes": "2 3"
+},
+{
+"asset_id": "sta:228",
+"name": "Park Place",
+"complex_id": "624",
+"daytime_routes": "2 3"
+},
+{
+"asset_id": "sta:229",
+"name": "Fulton St",
+"complex_id": "628",
+"daytime_routes": "2 3"
+},
+{
+"asset_id": "sta:230",
+"name": "Wall St",
+"complex_id": "333",
+"daytime_routes": "2 3"
+},
+{
+"asset_id": "sta:231",
+"name": "Clark St",
+"complex_id": "334",
+"daytime_routes": "2 3"
+},
+{
+"asset_id": "sta:232",
+"name": "Borough Hall",
+"complex_id": "620",
+"daytime_routes": "2 3"
+},
+{
+"asset_id": "sta:233",
+"name": "Hoyt St",
+"complex_id": "336",
+"daytime_routes": "2 3"
+},
+{
+"asset_id": "sta:234",
+"name": "Nevins St",
+"complex_id": "337",
+"daytime_routes": "2 3 4 5"
+},
+{
+"asset_id": "sta:235",
+"name": "Atlantic Av-Barclays Ctr",
+"complex_id": "617",
+"daytime_routes": "2 3 4 5"
+},
+{
+"asset_id": "sta:236",
+"name": "Bergen St",
+"complex_id": "339",
+"daytime_routes": "2 3"
+},
+{
+"asset_id": "sta:237",
+"name": "Grand Army Plaza",
+"complex_id": "340",
+"daytime_routes": "2 3"
+},
+{
+"asset_id": "sta:238",
+"name": "Eastern Pkwy-Brooklyn Museum",
+"complex_id": "341",
+"daytime_routes": "2 3"
+},
+{
+"asset_id": "sta:239",
+"name": "Franklin Av-Medgar Evers College",
+"complex_id": "626",
+"daytime_routes": "2 3 4 5"
+},
+{
+"asset_id": "sta:241",
+"name": "President St-Medgar Evers College",
+"complex_id": "353",
+"daytime_routes": "2 5"
+},
+{
+"asset_id": "sta:242",
+"name": "Sterling St",
+"complex_id": "354",
+"daytime_routes": "2 5"
+},
+{
+"asset_id": "sta:243",
+"name": "Winthrop St",
+"complex_id": "355",
+"daytime_routes": "2 5"
+},
+{
+"asset_id": "sta:244",
+"name": "Church Av",
+"complex_id": "356",
+"daytime_routes": "2 5"
+},
+{
+"asset_id": "sta:245",
+"name": "Beverly Rd",
+"complex_id": "357",
+"daytime_routes": "2 5"
+},
+{
+"asset_id": "sta:246",
+"name": "Newkirk Av-Little Haiti",
+"complex_id": "358",
+"daytime_routes": "2 5"
+},
+{
+"asset_id": "sta:247",
+"name": "Flatbush Av-Brooklyn College",
+"complex_id": "359",
+"daytime_routes": "2 5"
+},
+{
+"asset_id": "sta:248",
+"name": "Nostrand Av",
+"complex_id": "343",
+"daytime_routes": "3"
+},
+{
+"asset_id": "sta:249",
+"name": "Kingston Av",
+"complex_id": "344",
+"daytime_routes": "3"
+},
+{
+"asset_id": "sta:250",
+"name": "Crown Hts-Utica Av",
+"complex_id": "345",
+"daytime_routes": "3 4"
+},
+{
+"asset_id": "sta:251",
+"name": "Sutter Av-Rutland Rd",
+"complex_id": "346",
+"daytime_routes": "3"
+},
+{
+"asset_id": "sta:252",
+"name": "Saratoga Av",
+"complex_id": "347",
+"daytime_routes": "3"
+},
+{
+"asset_id": "sta:253",
+"name": "Rockaway Av",
+"complex_id": "348",
+"daytime_routes": "3"
+},
+{
+"asset_id": "sta:254",
+"name": "Junius St",
+"complex_id": "349",
+"daytime_routes": "3"
+},
+{
+"asset_id": "sta:255",
+"name": "Pennsylvania Av",
+"complex_id": "350",
+"daytime_routes": "3"
+},
+{
+"asset_id": "sta:256",
+"name": "Van Siclen Av",
+"complex_id": "351",
+"daytime_routes": "3"
+},
+{
+"asset_id": "sta:257",
+"name": "New Lots Av",
+"complex_id": "352",
+"daytime_routes": "3"
+},
+{
+"asset_id": "sta:301",
+"name": "Harlem-148 St",
+"complex_id": "436",
+"daytime_routes": "3"
+},
+{
+"asset_id": "sta:302",
+"name": "145 St",
+"complex_id": "437",
+"daytime_routes": "3"
+},
+{
+"asset_id": "sta:401",
+"name": "Woodlawn",
+"complex_id": "378",
+"daytime_routes": "4"
+},
+{
+"asset_id": "sta:402",
+"name": "Mosholu Pkwy",
+"complex_id": "379",
+"daytime_routes": "4"
+},
+{
+"asset_id": "sta:405",
+"name": "Bedford Park Blvd-Lehman College",
+"complex_id": "380",
+"daytime_routes": "4"
+},
+{
+"asset_id": "sta:406",
+"name": "Kingsbridge Rd",
+"complex_id": "381",
+"daytime_routes": "4"
+},
+{
+"asset_id": "sta:407",
+"name": "Fordham Rd",
+"complex_id": "382",
+"daytime_routes": "4"
+},
+{
+"asset_id": "sta:408",
+"name": "183 St",
+"complex_id": "383",
+"daytime_routes": "4"
+},
+{
+"asset_id": "sta:409",
+"name": "Burnside Av",
+"complex_id": "384",
+"daytime_routes": "4"
+},
+{
+"asset_id": "sta:410",
+"name": "176 St",
+"complex_id": "385",
+"daytime_routes": "4"
+},
+{
+"asset_id": "sta:411",
+"name": "Mt Eden Av",
+"complex_id": "386",
+"daytime_routes": "4"
+},
+{
+"asset_id": "sta:412",
+"name": "170 St",
+"complex_id": "387",
+"daytime_routes": "4"
+},
+{
+"asset_id": "sta:413",
+"name": "167 St",
+"complex_id": "388",
+"daytime_routes": "4"
+},
+{
+"asset_id": "sta:414",
+"name": "161 St-Yankee Stadium",
+"complex_id": "604",
+"daytime_routes": "4"
+},
+{
+"asset_id": "sta:415",
+"name": "149 St-Hostos",
+"complex_id": "603",
+"daytime_routes": "4"
+},
+{
+"asset_id": "sta:416",
+"name": "138 St-Grand Concourse",
+"complex_id": "391",
+"daytime_routes": "4 5"
+},
+{
+"asset_id": "sta:418",
+"name": "Fulton St",
+"complex_id": "628",
+"daytime_routes": "4 5"
+},
+{
+"asset_id": "sta:419",
+"name": "Wall St",
+"complex_id": "413",
+"daytime_routes": "4 5"
+},
+{
+"asset_id": "sta:420",
+"name": "Bowling Green",
+"complex_id": "414",
+"daytime_routes": "4 5"
+},
+{
+"asset_id": "sta:423",
+"name": "Borough Hall",
+"complex_id": "620",
+"daytime_routes": "4 5"
+},
+{
+"asset_id": "sta:501",
+"name": "Eastchester-Dyre Av",
+"complex_id": "442",
+"daytime_routes": "5"
+},
+{
+"asset_id": "sta:502",
+"name": "Baychester Av",
+"complex_id": "443",
+"daytime_routes": "5"
+},
+{
+"asset_id": "sta:503",
+"name": "Gun Hill Rd",
+"complex_id": "444",
+"daytime_routes": "5"
+},
+{
+"asset_id": "sta:504",
+"name": "Pelham Pkwy",
+"complex_id": "445",
+"daytime_routes": "5"
+},
+{
+"asset_id": "sta:505",
+"name": "Morris Park",
+"complex_id": "446",
+"daytime_routes": "5"
+},
+{
+"asset_id": "sta:601",
+"name": "Pelham Bay Park",
+"complex_id": "360",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:602",
+"name": "Buhre Av",
+"complex_id": "361",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:603",
+"name": "Middletown Rd",
+"complex_id": "362",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:604",
+"name": "Westchester Sq-E Tremont Av",
+"complex_id": "363",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:606",
+"name": "Zerega Av",
+"complex_id": "364",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:607",
+"name": "Castle Hill Av",
+"complex_id": "365",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:608",
+"name": "Parkchester",
+"complex_id": "366",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:609",
+"name": "St Lawrence Av",
+"complex_id": "367",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:610",
+"name": "Morrison Av-Soundview",
+"complex_id": "368",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:611",
+"name": "Elder Av",
+"complex_id": "369",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:612",
+"name": "Whitlock Av",
+"complex_id": "370",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:613",
+"name": "Hunts Point Av",
+"complex_id": "371",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:614",
+"name": "Longwood Av",
+"complex_id": "372",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:615",
+"name": "E 149 St",
+"complex_id": "373",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:616",
+"name": "E 143 St-St Mary's St",
+"complex_id": "374",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:617",
+"name": "Cypress Av",
+"complex_id": "375",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:618",
+"name": "Brook Av",
+"complex_id": "376",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:619",
+"name": "3 Av-138 St",
+"complex_id": "377",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:621",
+"name": "125 St",
+"complex_id": "392",
+"daytime_routes": "4 5 6"
+},
+{
+"asset_id": "sta:622",
+"name": "116 St",
+"complex_id": "393",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:623",
+"name": "110 St",
+"complex_id": "394",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:624",
+"name": "103 St",
+"complex_id": "395",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:625",
+"name": "96 St",
+"complex_id": "396",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:626",
+"name": "86 St",
+"complex_id": "397",
+"daytime_routes": "4 5 6"
+},
+{
+"asset_id": "sta:627",
+"name": "77 St",
+"complex_id": "398",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:628",
+"name": "68 St-Hunter College",
+"complex_id": "399",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:629",
+"name": "59 St",
+"complex_id": "613",
+"daytime_routes": "4 5 6"
+},
+{
+"asset_id": "sta:630",
+"name": "51 St",
+"complex_id": "612",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:631",
+"name": "Grand Central-42 St",
+"complex_id": "610",
+"daytime_routes": "4 5 6"
+},
+{
+"asset_id": "sta:632",
+"name": "33 St",
+"complex_id": "403",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:633",
+"name": "28 St",
+"complex_id": "404",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:634",
+"name": "23 St-Baruch College",
+"complex_id": "405",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:635",
+"name": "14 St-Union Sq",
+"complex_id": "602",
+"daytime_routes": "4 5 6"
+},
+{
+"asset_id": "sta:636",
+"name": "Astor Pl",
+"complex_id": "407",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:637",
+"name": "Bleecker St",
+"complex_id": "619",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:638",
+"name": "Spring St",
+"complex_id": "409",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:639",
+"name": "Canal St",
+"complex_id": "623",
+"daytime_routes": "6"
+},
+{
+"asset_id": "sta:640",
+"name": "Brooklyn Bridge-City Hall",
+"complex_id": "622",
+"daytime_routes": "4 5 6"
+},
+{
+"asset_id": "sta:701",
+"name": "Flushing-Main St",
+"complex_id": "447",
+"daytime_routes": "7"
+},
+{
+"asset_id": "sta:702",
+"name": "Mets-Willets Point",
+"complex_id": "448",
+"daytime_routes": "7"
+},
+{
+"asset_id": "sta:705",
+"name": "111 St",
+"complex_id": "449",
+"daytime_routes": "7"
+},
+{
+"asset_id": "sta:706",
+"name": "103 St-Corona Plaza",
+"complex_id": "450",
+"daytime_routes": "7"
+},
+{
+"asset_id": "sta:707",
+"name": "Junction Blvd",
+"complex_id": "451",
+"daytime_routes": "7"
+},
+{
+"asset_id": "sta:708",
+"name": "90 St-Elmhurst Av",
+"complex_id": "452",
+"daytime_routes": "7"
+},
+{
+"asset_id": "sta:709",
+"name": "82 St-Jackson Hts",
+"complex_id": "453",
+"daytime_routes": "7"
+},
+{
+"asset_id": "sta:710",
+"name": "74 St-Broadway",
+"complex_id": "616",
+"daytime_routes": "7"
+},
+{
+"asset_id": "sta:711",
+"name": "69 St",
+"complex_id": "455",
+"daytime_routes": "7"
+},
+{
+"asset_id": "sta:712",
+"name": "61 St-Woodside",
+"complex_id": "456",
+"daytime_routes": "7"
+},
+{
+"asset_id": "sta:713",
+"name": "52 St",
+"complex_id": "457",
+"daytime_routes": "7"
+},
+{
+"asset_id": "sta:714",
+"name": "46 St-Bliss St",
+"complex_id": "458",
+"daytime_routes": "7"
+},
+{
+"asset_id": "sta:715",
+"name": "40 St-Lowery St",
+"complex_id": "459",
+"daytime_routes": "7"
+},
+{
+"asset_id": "sta:716",
+"name": "33 St-Rawson St",
+"complex_id": "460",
+"daytime_routes": "7"
+},
+{
+"asset_id": "sta:718",
+"name": "Queensboro Plaza",
+"complex_id": "461",
+"daytime_routes": "7"
+},
+{
+"asset_id": "sta:719",
+"name": "Court Sq",
+"complex_id": "606",
+"daytime_routes": "7"
+},
+{
+"asset_id": "sta:720",
+"name": "Hunters Point Av",
+"complex_id": "463",
+"daytime_routes": "7"
+},
+{
+"asset_id": "sta:721",
+"name": "Vernon Blvd-Jackson Av",
+"complex_id": "464",
+"daytime_routes": "7"
+},
+{
+"asset_id": "sta:723",
+"name": "Grand Central-42 St",
+"complex_id": "610",
+"daytime_routes": "7"
+},
+{
+"asset_id": "sta:724",
+"name": "5 Av",
+"complex_id": "609",
+"daytime_routes": "7"
+},
+{
+"asset_id": "sta:725",
+"name": "Times Sq-42 St",
+"complex_id": "611",
+"daytime_routes": "7"
+},
+{
+"asset_id": "sta:726",
+"name": "34 St-Hudson Yards",
+"complex_id": "471",
+"daytime_routes": "7"
+},
+{
+"asset_id": "sta:901",
+"name": "Grand Central-42 St",
+"complex_id": "610",
+"daytime_routes": "S"
+},
+{
+"asset_id": "sta:902",
+"name": "Times Sq-42 St",
+"complex_id": "611",
+"daytime_routes": "S"
+},
+{
+"asset_id": "sta:A02",
+"name": "Inwood-207 St",
+"complex_id": "143",
+"daytime_routes": "A"
+},
+{
+"asset_id": "sta:A03",
+"name": "Dyckman St",
+"complex_id": "144",
+"daytime_routes": "A"
+},
+{
+"asset_id": "sta:A05",
+"name": "190 St",
+"complex_id": "145",
+"daytime_routes": "A"
+},
+{
+"asset_id": "sta:A06",
+"name": "181 St",
+"complex_id": "146",
+"daytime_routes": "A"
+},
+{
+"asset_id": "sta:A07",
+"name": "175 St",
+"complex_id": "147",
+"daytime_routes": "A"
+},
+{
+"asset_id": "sta:A09",
+"name": "168 St",
+"complex_id": "605",
+"daytime_routes": "A C"
+},
+{
+"asset_id": "sta:A10",
+"name": "163 St-Amsterdam Av",
+"complex_id": "149",
+"daytime_routes": "C"
+},
+{
+"asset_id": "sta:A11",
+"name": "155 St",
+"complex_id": "150",
+"daytime_routes": "C"
+},
+{
+"asset_id": "sta:A12",
+"name": "145 St",
+"complex_id": "151",
+"daytime_routes": "A C"
+},
+{
+"asset_id": "sta:A14",
+"name": "135 St",
+"complex_id": "152",
+"daytime_routes": "C B"
+},
+{
+"asset_id": "sta:A15",
+"name": "125 St",
+"complex_id": "153",
+"daytime_routes": "A C B D"
+},
+{
+"asset_id": "sta:A16",
+"name": "116 St",
+"complex_id": "154",
+"daytime_routes": "C B"
+},
+{
+"asset_id": "sta:A17",
+"name": "Cathedral Pkwy (110 St)",
+"complex_id": "155",
+"daytime_routes": "C B"
+},
+{
+"asset_id": "sta:A18",
+"name": "103 St",
+"complex_id": "156",
+"daytime_routes": "C B"
+},
+{
+"asset_id": "sta:A19",
+"name": "96 St",
+"complex_id": "157",
+"daytime_routes": "C B"
+},
+{
+"asset_id": "sta:A20",
+"name": "86 St",
+"complex_id": "158",
+"daytime_routes": "C B"
+},
+{
+"asset_id": "sta:A21",
+"name": "81 St-Museum of Natural History",
+"complex_id": "159",
+"daytime_routes": "C B"
+},
+{
+"asset_id": "sta:A22",
+"name": "72 St",
+"complex_id": "160",
+"daytime_routes": "C B"
+},
+{
+"asset_id": "sta:A24",
+"name": "59 St-Columbus Circle",
+"complex_id": "614",
+"daytime_routes": "A C B D"
+},
+{
+"asset_id": "sta:A25",
+"name": "50 St",
+"complex_id": "162",
+"daytime_routes": "C E"
+},
+{
+"asset_id": "sta:A27",
+"name": "42 St-Port Authority Bus Terminal",
+"complex_id": "611",
+"daytime_routes": "A C E"
+},
+{
+"asset_id": "sta:A28",
+"name": "34 St-Penn Station",
+"complex_id": "164",
+"daytime_routes": "A C E"
+},
+{
+"asset_id": "sta:A30",
+"name": "23 St",
+"complex_id": "165",
+"daytime_routes": "C E"
+},
+{
+"asset_id": "sta:A31",
+"name": "14 St",
+"complex_id": "618",
+"daytime_routes": "A C E"
+},
+{
+"asset_id": "sta:A32",
+"name": "W 4 St-Wash Sq",
+"complex_id": "167",
+"daytime_routes": "A C E"
+},
+{
+"asset_id": "sta:A33",
+"name": "Spring St",
+"complex_id": "168",
+"daytime_routes": "C E"
+},
+{
+"asset_id": "sta:A34",
+"name": "Canal St",
+"complex_id": "169",
+"daytime_routes": "A C E"
+},
+{
+"asset_id": "sta:A36",
+"name": "Chambers St",
+"complex_id": "624",
+"daytime_routes": "A C"
+},
+{
+"asset_id": "sta:A38",
+"name": "Fulton St",
+"complex_id": "628",
+"daytime_routes": "A C"
+},
+{
+"asset_id": "sta:A40",
+"name": "High St",
+"complex_id": "173",
+"daytime_routes": "A C"
+},
+{
+"asset_id": "sta:A41",
+"name": "Jay St-MetroTech",
+"complex_id": "636",
+"daytime_routes": "A C F"
+},
+{
+"asset_id": "sta:A42",
+"name": "Hoyt-Schermerhorn Sts",
+"complex_id": "175",
+"daytime_routes": "A C G"
+},
+{
+"asset_id": "sta:A43",
+"name": "Lafayette Av",
+"complex_id": "176",
+"daytime_routes": "C"
+},
+{
+"asset_id": "sta:A44",
+"name": "Clinton-Washington Avs",
+"complex_id": "177",
+"daytime_routes": "C"
+},
+{
+"asset_id": "sta:A45",
+"name": "Franklin Av",
+"complex_id": "627",
+"daytime_routes": "C"
+},
+{
+"asset_id": "sta:A46",
+"name": "Nostrand Av",
+"complex_id": "179",
+"daytime_routes": "A C"
+},
+{
+"asset_id": "sta:A47",
+"name": "Kingston-Throop Avs",
+"complex_id": "180",
+"daytime_routes": "C"
+},
+{
+"asset_id": "sta:A48",
+"name": "Utica Av",
+"complex_id": "181",
+"daytime_routes": "A C"
+},
+{
+"asset_id": "sta:A49",
+"name": "Ralph Av",
+"complex_id": "182",
+"daytime_routes": "C"
+},
+{
+"asset_id": "sta:A50",
+"name": "Rockaway Av",
+"complex_id": "183",
+"daytime_routes": "C"
+},
+{
+"asset_id": "sta:A51",
+"name": "Broadway Junction",
+"complex_id": "621",
+"daytime_routes": "A C"
+},
+{
+"asset_id": "sta:A52",
+"name": "Liberty Av",
+"complex_id": "185",
+"daytime_routes": "C"
+},
+{
+"asset_id": "sta:A53",
+"name": "Van Siclen Av",
+"complex_id": "186",
+"daytime_routes": "C"
+},
+{
+"asset_id": "sta:A54",
+"name": "Shepherd Av",
+"complex_id": "187",
+"daytime_routes": "C"
+},
+{
+"asset_id": "sta:A55",
+"name": "Euclid Av",
+"complex_id": "188",
+"daytime_routes": "A C"
+},
+{
+"asset_id": "sta:A57",
+"name": "Grant Av",
+"complex_id": "189",
+"daytime_routes": "A"
+},
+{
+"asset_id": "sta:A59",
+"name": "80 St",
+"complex_id": "190",
+"daytime_routes": "A"
+},
+{
+"asset_id": "sta:A60",
+"name": "88 St",
+"complex_id": "191",
+"daytime_routes": "A"
+},
+{
+"asset_id": "sta:A61",
+"name": "Rockaway Blvd",
+"complex_id": "192",
+"daytime_routes": "A"
+},
+{
+"asset_id": "sta:A63",
+"name": "104 St",
+"complex_id": "193",
+"daytime_routes": "A"
+},
+{
+"asset_id": "sta:A64",
+"name": "111 St",
+"complex_id": "194",
+"daytime_routes": "A"
+},
+{
+"asset_id": "sta:A65",
+"name": "Ozone Park-Lefferts Blvd",
+"complex_id": "195",
+"daytime_routes": "A"
+},
+{
+"asset_id": "sta:B04",
+"name": "21 St-Queensbridge",
+"complex_id": "221",
+"daytime_routes": "M"
+},
+{
+"asset_id": "sta:B06",
+"name": "Roosevelt Island",
+"complex_id": "222",
+"daytime_routes": "M"
+},
+{
+"asset_id": "sta:B08",
+"name": "Lexington Av/63 St",
+"complex_id": "223",
+"daytime_routes": "M Q"
+},
+{
+"asset_id": "sta:B10",
+"name": "57 St",
+"complex_id": "224",
+"daytime_routes": "M"
+},
+{
+"asset_id": "sta:B12",
+"name": "9 Av",
+"complex_id": "59",
+"daytime_routes": "D"
+},
+{
+"asset_id": "sta:B13",
+"name": "Fort Hamilton Pkwy",
+"complex_id": "60",
+"daytime_routes": "D"
+},
+{
+"asset_id": "sta:B14",
+"name": "50 St",
+"complex_id": "61",
+"daytime_routes": "D"
+},
+{
+"asset_id": "sta:B15",
+"name": "55 St",
+"complex_id": "62",
+"daytime_routes": "D"
+},
+{
+"asset_id": "sta:B16",
+"name": "62 St",
+"complex_id": "615",
+"daytime_routes": "D"
+},
+{
+"asset_id": "sta:B17",
+"name": "71 St",
+"complex_id": "64",
+"daytime_routes": "D"
+},
+{
+"asset_id": "sta:B18",
+"name": "79 St",
+"complex_id": "65",
+"daytime_routes": "D"
+},
+{
+"asset_id": "sta:B19",
+"name": "18 Av",
+"complex_id": "66",
+"daytime_routes": "D"
+},
+{
+"asset_id": "sta:B20",
+"name": "20 Av",
+"complex_id": "67",
+"daytime_routes": "D"
+},
+{
+"asset_id": "sta:B21",
+"name": "Bay Pkwy",
+"complex_id": "68",
+"daytime_routes": "D"
+},
+{
+"asset_id": "sta:B22",
+"name": "25 Av",
+"complex_id": "69",
+"daytime_routes": "D"
+},
+{
+"asset_id": "sta:B23",
+"name": "Bay 50 St",
+"complex_id": "70",
+"daytime_routes": "D"
+},
+{
+"asset_id": "sta:D01",
+"name": "Norwood-205 St",
+"complex_id": "210",
+"daytime_routes": "D"
+},
+{
+"asset_id": "sta:D03",
+"name": "Bedford Park Blvd",
+"complex_id": "211",
+"daytime_routes": "B D"
+},
+{
+"asset_id": "sta:D04",
+"name": "Kingsbridge Rd",
+"complex_id": "212",
+"daytime_routes": "B D"
+},
+{
+"asset_id": "sta:D05",
+"name": "Fordham Rd",
+"complex_id": "213",
+"daytime_routes": "B D"
+},
+{
+"asset_id": "sta:D06",
+"name": "182-183 Sts",
+"complex_id": "214",
+"daytime_routes": "B D"
+},
+{
+"asset_id": "sta:D07",
+"name": "Tremont Av",
+"complex_id": "215",
+"daytime_routes": "B D"
+},
+{
+"asset_id": "sta:D08",
+"name": "174-175 Sts",
+"complex_id": "216",
+"daytime_routes": "B D"
+},
+{
+"asset_id": "sta:D09",
+"name": "170 St",
+"complex_id": "217",
+"daytime_routes": "B D"
+},
+{
+"asset_id": "sta:D10",
+"name": "167 St",
+"complex_id": "218",
+"daytime_routes": "B D"
+},
+{
+"asset_id": "sta:D11",
+"name": "161 St-Yankee Stadium",
+"complex_id": "604",
+"daytime_routes": "B D"
+},
+{
+"asset_id": "sta:D12",
+"name": "155 St",
+"complex_id": "220",
+"daytime_routes": "B D"
+},
+{
+"asset_id": "sta:D13",
+"name": "145 St",
+"complex_id": "151",
+"daytime_routes": "B D"
+},
+{
+"asset_id": "sta:D14",
+"name": "7 Av",
+"complex_id": "277",
+"daytime_routes": "E B D"
+},
+{
+"asset_id": "sta:D15",
+"name": "47-50 Sts-Rockefeller Ctr",
+"complex_id": "225",
+"daytime_routes": "B D F M"
+},
+{
+"asset_id": "sta:D16",
+"name": "42 St-Bryant Pk",
+"complex_id": "609",
+"daytime_routes": "B D F M"
+},
+{
+"asset_id": "sta:D17",
+"name": "34 St-Herald Sq",
+"complex_id": "607",
+"daytime_routes": "B D F M"
+},
+{
+"asset_id": "sta:D18",
+"name": "23 St",
+"complex_id": "228",
+"daytime_routes": "F M"
+},
+{
+"asset_id": "sta:D19",
+"name": "14 St",
+"complex_id": "601",
+"daytime_routes": "F M"
+},
+{
+"asset_id": "sta:D20",
+"name": "W 4 St-Wash Sq",
+"complex_id": "167",
+"daytime_routes": "B D F M"
+},
+{
+"asset_id": "sta:D21",
+"name": "Broadway-Lafayette St",
+"complex_id": "619",
+"daytime_routes": "B D F M"
+},
+{
+"asset_id": "sta:D22",
+"name": "Grand St",
+"complex_id": "231",
+"daytime_routes": "B D"
+},
+{
+"asset_id": "sta:D24",
+"name": "Atlantic Av-Barclays Ctr",
+"complex_id": "617",
+"daytime_routes": "B Q"
+},
+{
+"asset_id": "sta:D25",
+"name": "7 Av",
+"complex_id": "41",
+"daytime_routes": "B Q"
+},
+{
+"asset_id": "sta:D26",
+"name": "Prospect Park",
+"complex_id": "42",
+"daytime_routes": "B Q S"
+},
+{
+"asset_id": "sta:D27",
+"name": "Parkside Av",
+"complex_id": "43",
+"daytime_routes": "Q"
+},
+{
+"asset_id": "sta:D28",
+"name": "Church Av",
+"complex_id": "44",
+"daytime_routes": "B Q"
+},
+{
+"asset_id": "sta:D29",
+"name": "Beverley Rd",
+"complex_id": "45",
+"daytime_routes": "Q"
+},
+{
+"asset_id": "sta:D30",
+"name": "Cortelyou Rd",
+"complex_id": "46",
+"daytime_routes": "Q"
+},
+{
+"asset_id": "sta:D31",
+"name": "Newkirk Plaza",
+"complex_id": "47",
+"daytime_routes": "B Q"
+},
+{
+"asset_id": "sta:D32",
+"name": "Avenue H",
+"complex_id": "48",
+"daytime_routes": "Q"
+},
+{
+"asset_id": "sta:D33",
+"name": "Avenue J",
+"complex_id": "49",
+"daytime_routes": "Q"
+},
+{
+"asset_id": "sta:D34",
+"name": "Avenue M",
+"complex_id": "50",
+"daytime_routes": "Q"
+},
+{
+"asset_id": "sta:D35",
+"name": "Kings Hwy",
+"complex_id": "51",
+"daytime_routes": "B Q"
+},
+{
+"asset_id": "sta:D37",
+"name": "Avenue U",
+"complex_id": "52",
+"daytime_routes": "Q"
+},
+{
+"asset_id": "sta:D38",
+"name": "Neck Rd",
+"complex_id": "53",
+"daytime_routes": "Q"
+},
+{
+"asset_id": "sta:D39",
+"name": "Sheepshead Bay",
+"complex_id": "54",
+"daytime_routes": "B Q"
+},
+{
+"asset_id": "sta:D40",
+"name": "Brighton Beach",
+"complex_id": "55",
+"daytime_routes": "B Q"
+},
+{
+"asset_id": "sta:D41",
+"name": "Ocean Pkwy",
+"complex_id": "56",
+"daytime_routes": "Q"
+},
+{
+"asset_id": "sta:D42",
+"name": "W 8 St-NY Aquarium",
+"complex_id": "57",
+"daytime_routes": "F Q"
+},
+{
+"asset_id": "sta:D43",
+"name": "Coney Island-Stillwell Av",
+"complex_id": "58",
+"daytime_routes": "D F N Q"
+},
+{
+"asset_id": "sta:E01",
+"name": "World Trade Center",
+"complex_id": "624",
+"daytime_routes": "E"
+},
+{
+"asset_id": "sta:F01",
+"name": "Jamaica-179 St",
+"complex_id": "254",
+"daytime_routes": "F"
+},
+{
+"asset_id": "sta:F02",
+"name": "169 St",
+"complex_id": "255",
+"daytime_routes": "F"
+},
+{
+"asset_id": "sta:F03",
+"name": "Parsons Blvd",
+"complex_id": "256",
+"daytime_routes": "F"
+},
+{
+"asset_id": "sta:F04",
+"name": "Sutphin Blvd",
+"complex_id": "257",
+"daytime_routes": "F"
+},
+{
+"asset_id": "sta:F05",
+"name": "Briarwood",
+"complex_id": "258",
+"daytime_routes": "E F"
+},
+{
+"asset_id": "sta:F06",
+"name": "Kew Gardens-Union Tpke",
+"complex_id": "259",
+"daytime_routes": "E F"
+},
+{
+"asset_id": "sta:F07",
+"name": "75 Av",
+"complex_id": "260",
+"daytime_routes": "E F"
+},
+{
+"asset_id": "sta:F09",
+"name": "Court Sq-23 St",
+"complex_id": "606",
+"daytime_routes": "E F"
+},
+{
+"asset_id": "sta:F11",
+"name": "Lexington Av/53 St",
+"complex_id": "612",
+"daytime_routes": "E F"
+},
+{
+"asset_id": "sta:F12",
+"name": "5 Av/53 St",
+"complex_id": "276",
+"daytime_routes": "E F"
+},
+{
+"asset_id": "sta:F14",
+"name": "2 Av",
+"complex_id": "232",
+"daytime_routes": "F"
+},
+{
+"asset_id": "sta:F15",
+"name": "Delancey St-Essex St",
+"complex_id": "625",
+"daytime_routes": "F"
+},
+{
+"asset_id": "sta:F16",
+"name": "East Broadway",
+"complex_id": "234",
+"daytime_routes": "F"
+},
+{
+"asset_id": "sta:F18",
+"name": "York St",
+"complex_id": "235",
+"daytime_routes": "F"
+},
+{
+"asset_id": "sta:F20",
+"name": "Bergen St",
+"complex_id": "236",
+"daytime_routes": "F G"
+},
+{
+"asset_id": "sta:F21",
+"name": "Carroll St",
+"complex_id": "237",
+"daytime_routes": "F G"
+},
+{
+"asset_id": "sta:F22",
+"name": "Smith-9 Sts",
+"complex_id": "238",
+"daytime_routes": "F G"
+},
+{
+"asset_id": "sta:F23",
+"name": "4 Av-9 St",
+"complex_id": "608",
+"daytime_routes": "F G"
+},
+{
+"asset_id": "sta:F24",
+"name": "7 Av",
+"complex_id": "240",
+"daytime_routes": "F G"
+},
+{
+"asset_id": "sta:F25",
+"name": "15 St-Prospect Park",
+"complex_id": "241",
+"daytime_routes": "F G"
+},
+{
+"asset_id": "sta:F26",
+"name": "Fort Hamilton Pkwy",
+"complex_id": "242",
+"daytime_routes": "F G"
+},
+{
+"asset_id": "sta:F27",
+"name": "Church Av",
+"complex_id": "243",
+"daytime_routes": "F G"
+},
+{
+"asset_id": "sta:F29",
+"name": "Ditmas Av",
+"complex_id": "244",
+"daytime_routes": "F"
+},
+{
+"asset_id": "sta:F30",
+"name": "18 Av",
+"complex_id": "245",
+"daytime_routes": "F"
+},
+{
+"asset_id": "sta:F31",
+"name": "Avenue I",
+"complex_id": "246",
+"daytime_routes": "F"
+},
+{
+"asset_id": "sta:F32",
+"name": "Bay Pkwy",
+"complex_id": "247",
+"daytime_routes": "F"
+},
+{
+"asset_id": "sta:F33",
+"name": "Avenue N",
+"complex_id": "248",
+"daytime_routes": "F"
+},
+{
+"asset_id": "sta:F34",
+"name": "Avenue P",
+"complex_id": "249",
+"daytime_routes": "F"
+},
+{
+"asset_id": "sta:F35",
+"name": "Kings Hwy",
+"complex_id": "250",
+"daytime_routes": "F"
+},
+{
+"asset_id": "sta:F36",
+"name": "Avenue U",
+"complex_id": "251",
+"daytime_routes": "F"
+},
+{
+"asset_id": "sta:F38",
+"name": "Avenue X",
+"complex_id": "252",
+"daytime_routes": "F"
+},
+{
+"asset_id": "sta:F39",
+"name": "Neptune Av",
+"complex_id": "253",
+"daytime_routes": "F"
+},
+{
+"asset_id": "sta:G05",
+"name": "Jamaica Center-Parsons/Archer",
+"complex_id": "278",
+"daytime_routes": "E J Z"
+},
+{
+"asset_id": "sta:G06",
+"name": "Sutphin Blvd-Archer Av-JFK Airport",
+"complex_id": "279",
+"daytime_routes": "E J Z"
+},
+{
+"asset_id": "sta:G07",
+"name": "Jamaica-Van Wyck",
+"complex_id": "280",
+"daytime_routes": "E"
+},
+{
+"asset_id": "sta:G08",
+"name": "Forest Hills-71 Av",
+"complex_id": "261",
+"daytime_routes": "E F M R"
+},
+{
+"asset_id": "sta:G09",
+"name": "67 Av",
+"complex_id": "262",
+"daytime_routes": "M R"
+},
+{
+"asset_id": "sta:G10",
+"name": "63 Dr-Rego Park",
+"complex_id": "263",
+"daytime_routes": "M R"
+},
+{
+"asset_id": "sta:G11",
+"name": "Woodhaven Blvd",
+"complex_id": "264",
+"daytime_routes": "M R"
+},
+{
+"asset_id": "sta:G12",
+"name": "Grand Av-Newtown",
+"complex_id": "265",
+"daytime_routes": "M R"
+},
+{
+"asset_id": "sta:G13",
+"name": "Elmhurst Av",
+"complex_id": "266",
+"daytime_routes": "M R"
+},
+{
+"asset_id": "sta:G14",
+"name": "Jackson Hts-Roosevelt Av",
+"complex_id": "616",
+"daytime_routes": "E F M R"
+},
+{
+"asset_id": "sta:G15",
+"name": "65 St",
+"complex_id": "268",
+"daytime_routes": "M R"
+},
+{
+"asset_id": "sta:G16",
+"name": "Northern Blvd",
+"complex_id": "269",
+"daytime_routes": "M R"
+},
+{
+"asset_id": "sta:G18",
+"name": "46 St",
+"complex_id": "270",
+"daytime_routes": "M R"
+},
+{
+"asset_id": "sta:G19",
+"name": "Steinway St",
+"complex_id": "271",
+"daytime_routes": "M R"
+},
+{
+"asset_id": "sta:G20",
+"name": "36 St",
+"complex_id": "272",
+"daytime_routes": "M R"
+},
+{
+"asset_id": "sta:G21",
+"name": "Queens Plaza",
+"complex_id": "273",
+"daytime_routes": "E F R"
+},
+{
+"asset_id": "sta:G22",
+"name": "Court Sq",
+"complex_id": "606",
+"daytime_routes": "G"
+},
+{
+"asset_id": "sta:G24",
+"name": "21 St",
+"complex_id": "282",
+"daytime_routes": "G"
+},
+{
+"asset_id": "sta:G26",
+"name": "Greenpoint Av",
+"complex_id": "283",
+"daytime_routes": "G"
+},
+{
+"asset_id": "sta:G28",
+"name": "Nassau Av",
+"complex_id": "284",
+"daytime_routes": "G"
+},
+{
+"asset_id": "sta:G29",
+"name": "Metropolitan Av",
+"complex_id": "629",
+"daytime_routes": "G"
+},
+{
+"asset_id": "sta:G30",
+"name": "Broadway",
+"complex_id": "286",
+"daytime_routes": "G"
+},
+{
+"asset_id": "sta:G31",
+"name": "Flushing Av",
+"complex_id": "287",
+"daytime_routes": "G"
+},
+{
+"asset_id": "sta:G32",
+"name": "Myrtle-Willoughby Avs",
+"complex_id": "288",
+"daytime_routes": "G"
+},
+{
+"asset_id": "sta:G33",
+"name": "Bedford-Nostrand Avs",
+"complex_id": "289",
+"daytime_routes": "G"
+},
+{
+"asset_id": "sta:G34",
+"name": "Classon Av",
+"complex_id": "290",
+"daytime_routes": "G"
+},
+{
+"asset_id": "sta:G35",
+"name": "Clinton-Washington Avs",
+"complex_id": "291",
+"daytime_routes": "G"
+},
+{
+"asset_id": "sta:G36",
+"name": "Fulton St",
+"complex_id": "292",
+"daytime_routes": "G"
+},
+{
+"asset_id": "sta:H01",
+"name": "Aqueduct Racetrack",
+"complex_id": "196",
+"daytime_routes": "A"
+},
+{
+"asset_id": "sta:H02",
+"name": "Aqueduct-N Conduit Av",
+"complex_id": "197",
+"daytime_routes": "A"
+},
+{
+"asset_id": "sta:H03",
+"name": "Howard Beach-JFK Airport",
+"complex_id": "198",
+"daytime_routes": "A"
+},
+{
+"asset_id": "sta:H04",
+"name": "Broad Channel",
+"complex_id": "199",
+"daytime_routes": "A S"
+},
+{
+"asset_id": "sta:H06",
+"name": "Beach 67 St",
+"complex_id": "204",
+"daytime_routes": "A"
+},
+{
+"asset_id": "sta:H07",
+"name": "Beach 60 St",
+"complex_id": "205",
+"daytime_routes": "A"
+},
+{
+"asset_id": "sta:H08",
+"name": "Beach 44 St",
+"complex_id": "206",
+"daytime_routes": "A"
+},
+{
+"asset_id": "sta:H09",
+"name": "Beach 36 St",
+"complex_id": "207",
+"daytime_routes": "A"
+},
+{
+"asset_id": "sta:H10",
+"name": "Beach 25 St",
+"complex_id": "208",
+"daytime_routes": "A"
+},
+{
+"asset_id": "sta:H11",
+"name": "Far Rockaway-Mott Av",
+"complex_id": "209",
+"daytime_routes": "A"
+},
+{
+"asset_id": "sta:H12",
+"name": "Beach 90 St",
+"complex_id": "200",
+"daytime_routes": "A S"
+},
+{
+"asset_id": "sta:H13",
+"name": "Beach 98 St",
+"complex_id": "201",
+"daytime_routes": "A S"
+},
+{
+"asset_id": "sta:H14",
+"name": "Beach 105 St",
+"complex_id": "202",
+"daytime_routes": "A S"
+},
+{
+"asset_id": "sta:H15",
+"name": "Rockaway Park-Beach 116 St",
+"complex_id": "203",
+"daytime_routes": "A S"
+},
+{
+"asset_id": "sta:J12",
+"name": "121 St",
+"complex_id": "80",
+"daytime_routes": "J Z"
+},
+{
+"asset_id": "sta:J13",
+"name": "111 St",
+"complex_id": "81",
+"daytime_routes": "J"
+},
+{
+"asset_id": "sta:J14",
+"name": "104 St",
+"complex_id": "82",
+"daytime_routes": "J Z"
+},
+{
+"asset_id": "sta:J15",
+"name": "Woodhaven Blvd",
+"complex_id": "83",
+"daytime_routes": "J Z"
+},
+{
+"asset_id": "sta:J16",
+"name": "85 St-Forest Pkwy",
+"complex_id": "84",
+"daytime_routes": "J"
+},
+{
+"asset_id": "sta:J17",
+"name": "75 St-Elderts Ln",
+"complex_id": "85",
+"daytime_routes": "J Z"
+},
+{
+"asset_id": "sta:J19",
+"name": "Cypress Hills",
+"complex_id": "86",
+"daytime_routes": "J"
+},
+{
+"asset_id": "sta:J20",
+"name": "Crescent St",
+"complex_id": "87",
+"daytime_routes": "J Z"
+},
+{
+"asset_id": "sta:J21",
+"name": "Norwood Av",
+"complex_id": "88",
+"daytime_routes": "J Z"
+},
+{
+"asset_id": "sta:J22",
+"name": "Cleveland St",
+"complex_id": "89",
+"daytime_routes": "J"
+},
+{
+"asset_id": "sta:J23",
+"name": "Van Siclen Av",
+"complex_id": "90",
+"daytime_routes": "J Z"
+},
+{
+"asset_id": "sta:J24",
+"name": "Alabama Av",
+"complex_id": "91",
+"daytime_routes": "J Z"
+},
+{
+"asset_id": "sta:J27",
+"name": "Broadway Junction",
+"complex_id": "621",
+"daytime_routes": "J Z"
+},
+{
+"asset_id": "sta:J28",
+"name": "Chauncey St",
+"complex_id": "93",
+"daytime_routes": "J Z"
+},
+{
+"asset_id": "sta:J29",
+"name": "Halsey St",
+"complex_id": "94",
+"daytime_routes": "J"
+},
+{
+"asset_id": "sta:J30",
+"name": "Gates Av",
+"complex_id": "95",
+"daytime_routes": "J Z"
+},
+{
+"asset_id": "sta:J31",
+"name": "Kosciuszko St",
+"complex_id": "96",
+"daytime_routes": "J"
+},
+{
+"asset_id": "sta:L01",
+"name": "8 Av",
+"complex_id": "618",
+"daytime_routes": "L"
+},
+{
+"asset_id": "sta:L02",
+"name": "6 Av",
+"complex_id": "601",
+"daytime_routes": "L"
+},
+{
+"asset_id": "sta:L03",
+"name": "14 St-Union Sq",
+"complex_id": "602",
+"daytime_routes": "L"
+},
+{
+"asset_id": "sta:L05",
+"name": "3 Av",
+"complex_id": "118",
+"daytime_routes": "L"
+},
+{
+"asset_id": "sta:L06",
+"name": "1 Av",
+"complex_id": "119",
+"daytime_routes": "L"
+},
+{
+"asset_id": "sta:L08",
+"name": "Bedford Av",
+"complex_id": "120",
+"daytime_routes": "L"
+},
+{
+"asset_id": "sta:L10",
+"name": "Lorimer St",
+"complex_id": "629",
+"daytime_routes": "L"
+},
+{
+"asset_id": "sta:L11",
+"name": "Graham Av",
+"complex_id": "122",
+"daytime_routes": "L"
+},
+{
+"asset_id": "sta:L12",
+"name": "Grand St",
+"complex_id": "123",
+"daytime_routes": "L"
+},
+{
+"asset_id": "sta:L13",
+"name": "Montrose Av",
+"complex_id": "124",
+"daytime_routes": "L"
+},
+{
+"asset_id": "sta:L14",
+"name": "Morgan Av",
+"complex_id": "125",
+"daytime_routes": "L"
+},
+{
+"asset_id": "sta:L15",
+"name": "Jefferson St",
+"complex_id": "126",
+"daytime_routes": "L"
+},
+{
+"asset_id": "sta:L16",
+"name": "DeKalb Av",
+"complex_id": "127",
+"daytime_routes": "L"
+},
+{
+"asset_id": "sta:L17",
+"name": "Myrtle-Wyckoff Avs",
+"complex_id": "630",
+"daytime_routes": "L"
+},
+{
+"asset_id": "sta:L19",
+"name": "Halsey St",
+"complex_id": "129",
+"daytime_routes": "L"
+},
+{
+"asset_id": "sta:L20",
+"name": "Wilson Av",
+"complex_id": "130",
+"daytime_routes": "L"
+},
+{
+"asset_id": "sta:L21",
+"name": "Bushwick Av-Aberdeen St",
+"complex_id": "131",
+"daytime_routes": "L"
+},
+{
+"asset_id": "sta:L22",
+"name": "Broadway Junction",
+"complex_id": "621",
+"daytime_routes": "L"
+},
+{
+"asset_id": "sta:L24",
+"name": "Atlantic Av",
+"complex_id": "133",
+"daytime_routes": "L"
+},
+{
+"asset_id": "sta:L25",
+"name": "Sutter Av",
+"complex_id": "134",
+"daytime_routes": "L"
+},
+{
+"asset_id": "sta:L26",
+"name": "Livonia Av",
+"complex_id": "135",
+"daytime_routes": "L"
+},
+{
+"asset_id": "sta:L27",
+"name": "New Lots Av",
+"complex_id": "136",
+"daytime_routes": "L"
+},
+{
+"asset_id": "sta:L28",
+"name": "East 105 St",
+"complex_id": "137",
+"daytime_routes": "L"
+},
+{
+"asset_id": "sta:L29",
+"name": "Canarsie-Rockaway Pkwy",
+"complex_id": "138",
+"daytime_routes": "L"
+},
+{
+"asset_id": "sta:M01",
+"name": "Middle Village-Metropolitan Av",
+"complex_id": "108",
+"daytime_routes": "M"
+},
+{
+"asset_id": "sta:M04",
+"name": "Fresh Pond Rd",
+"complex_id": "109",
+"daytime_routes": "M"
+},
+{
+"asset_id": "sta:M05",
+"name": "Forest Av",
+"complex_id": "110",
+"daytime_routes": "M"
+},
+{
+"asset_id": "sta:M06",
+"name": "Seneca Av",
+"complex_id": "111",
+"daytime_routes": "M"
+},
+{
+"asset_id": "sta:M08",
+"name": "Myrtle-Wyckoff Avs",
+"complex_id": "630",
+"daytime_routes": "M"
+},
+{
+"asset_id": "sta:M09",
+"name": "Knickerbocker Av",
+"complex_id": "113",
+"daytime_routes": "M"
+},
+{
+"asset_id": "sta:M10",
+"name": "Central Av",
+"complex_id": "114",
+"daytime_routes": "M"
+},
+{
+"asset_id": "sta:M11",
+"name": "Myrtle Av",
+"complex_id": "97",
+"daytime_routes": "M J Z"
+},
+{
+"asset_id": "sta:M12",
+"name": "Flushing Av",
+"complex_id": "98",
+"daytime_routes": "M J"
+},
+{
+"asset_id": "sta:M13",
+"name": "Lorimer St",
+"complex_id": "99",
+"daytime_routes": "M J"
+},
+{
+"asset_id": "sta:M14",
+"name": "Hewes St",
+"complex_id": "100",
+"daytime_routes": "M J"
+},
+{
+"asset_id": "sta:M16",
+"name": "Marcy Av",
+"complex_id": "101",
+"daytime_routes": "M J Z"
+},
+{
+"asset_id": "sta:M18",
+"name": "Delancey St-Essex St",
+"complex_id": "625",
+"daytime_routes": "M J Z"
+},
+{
+"asset_id": "sta:M19",
+"name": "Bowery",
+"complex_id": "103",
+"daytime_routes": "J Z"
+},
+{
+"asset_id": "sta:M20",
+"name": "Canal St",
+"complex_id": "623",
+"daytime_routes": "J Z"
+},
+{
+"asset_id": "sta:M21",
+"name": "Chambers St",
+"complex_id": "622",
+"daytime_routes": "J Z"
+},
+{
+"asset_id": "sta:M22",
+"name": "Fulton St",
+"complex_id": "628",
+"daytime_routes": "J Z"
+},
+{
+"asset_id": "sta:M23",
+"name": "Broad St",
+"complex_id": "107",
+"daytime_routes": "J Z"
+},
+{
+"asset_id": "sta:N02",
+"name": "8 Av",
+"complex_id": "71",
+"daytime_routes": "N"
+},
+{
+"asset_id": "sta:N03",
+"name": "Fort Hamilton Pkwy",
+"complex_id": "72",
+"daytime_routes": "N"
+},
+{
+"asset_id": "sta:N04",
+"name": "New Utrecht Av",
+"complex_id": "615",
+"daytime_routes": "N"
+},
+{
+"asset_id": "sta:N05",
+"name": "18 Av",
+"complex_id": "74",
+"daytime_routes": "N"
+},
+{
+"asset_id": "sta:N06",
+"name": "20 Av",
+"complex_id": "75",
+"daytime_routes": "N"
+},
+{
+"asset_id": "sta:N07",
+"name": "Bay Pkwy",
+"complex_id": "76",
+"daytime_routes": "N"
+},
+{
+"asset_id": "sta:N08",
+"name": "Kings Hwy",
+"complex_id": "77",
+"daytime_routes": "N"
+},
+{
+"asset_id": "sta:N09",
+"name": "Avenue U",
+"complex_id": "78",
+"daytime_routes": "N"
+},
+{
+"asset_id": "sta:N10",
+"name": "86 St",
+"complex_id": "79",
+"daytime_routes": "N"
+},
+{
+"asset_id": "sta:Q01",
+"name": "Canal St",
+"complex_id": "623",
+"daytime_routes": "N Q"
+},
+{
+"asset_id": "sta:Q03",
+"name": "72 St",
+"complex_id": "477",
+"daytime_routes": "Q"
+},
+{
+"asset_id": "sta:Q04",
+"name": "86 St",
+"complex_id": "476",
+"daytime_routes": "Q"
+},
+{
+"asset_id": "sta:Q05",
+"name": "96 St",
+"complex_id": "475",
+"daytime_routes": "Q"
+},
+{
+"asset_id": "sta:R01",
+"name": "Astoria-Ditmars Blvd",
+"complex_id": "1",
+"daytime_routes": "N W"
+},
+{
+"asset_id": "sta:R03",
+"name": "Astoria Blvd",
+"complex_id": "2",
+"daytime_routes": "N W"
+},
+{
+"asset_id": "sta:R04",
+"name": "30 Av",
+"complex_id": "3",
+"daytime_routes": "N W"
+},
+{
+"asset_id": "sta:R05",
+"name": "Broadway",
+"complex_id": "4",
+"daytime_routes": "N W"
+},
+{
+"asset_id": "sta:R06",
+"name": "36 Av",
+"complex_id": "5",
+"daytime_routes": "N W"
+},
+{
+"asset_id": "sta:R08",
+"name": "39 Av-Dutch Kills",
+"complex_id": "6",
+"daytime_routes": "N W"
+},
+{
+"asset_id": "sta:R09",
+"name": "Queensboro Plaza",
+"complex_id": "461",
+"daytime_routes": "N W"
+},
+{
+"asset_id": "sta:R11",
+"name": "Lexington Av/59 St",
+"complex_id": "613",
+"daytime_routes": "N R W"
+},
+{
+"asset_id": "sta:R13",
+"name": "5 Av/59 St",
+"complex_id": "8",
+"daytime_routes": "N R W"
+},
+{
+"asset_id": "sta:R14",
+"name": "57 St-7 Av",
+"complex_id": "9",
+"daytime_routes": "N Q R W"
+},
+{
+"asset_id": "sta:R15",
+"name": "49 St",
+"complex_id": "10",
+"daytime_routes": "N R W"
+},
+{
+"asset_id": "sta:R16",
+"name": "Times Sq-42 St",
+"complex_id": "611",
+"daytime_routes": "N Q R W"
+},
+{
+"asset_id": "sta:R17",
+"name": "34 St-Herald Sq",
+"complex_id": "607",
+"daytime_routes": "N Q R W"
+},
+{
+"asset_id": "sta:R18",
+"name": "28 St",
+"complex_id": "13",
+"daytime_routes": "R W"
+},
+{
+"asset_id": "sta:R19",
+"name": "23 St",
+"complex_id": "14",
+"daytime_routes": "R W"
+},
+{
+"asset_id": "sta:R20",
+"name": "14 St-Union Sq",
+"complex_id": "602",
+"daytime_routes": "N Q R W"
+},
+{
+"asset_id": "sta:R21",
+"name": "8 St-NYU",
+"complex_id": "16",
+"daytime_routes": "R W"
+},
+{
+"asset_id": "sta:R22",
+"name": "Prince St",
+"complex_id": "17",
+"daytime_routes": "R W"
+},
+{
+"asset_id": "sta:R23",
+"name": "Canal St",
+"complex_id": "623",
+"daytime_routes": "R W"
+},
+{
+"asset_id": "sta:R24",
+"name": "City Hall",
+"complex_id": "20",
+"daytime_routes": "R W"
+},
+{
+"asset_id": "sta:R25",
+"name": "Cortlandt St",
+"complex_id": "624",
+"daytime_routes": "R W"
+},
+{
+"asset_id": "sta:R26",
+"name": "Rector St",
+"complex_id": "22",
+"daytime_routes": "R W"
+},
+{
+"asset_id": "sta:R27",
+"name": "Whitehall St-South Ferry",
+"complex_id": "635",
+"daytime_routes": "R W"
+},
+{
+"asset_id": "sta:R28",
+"name": "Court St",
+"complex_id": "620",
+"daytime_routes": "R"
+},
+{
+"asset_id": "sta:R29",
+"name": "Jay St-MetroTech",
+"complex_id": "636",
+"daytime_routes": "R"
+},
+{
+"asset_id": "sta:R30",
+"name": "DeKalb Av",
+"complex_id": "26",
+"daytime_routes": "B Q R"
+},
+{
+"asset_id": "sta:R31",
+"name": "Atlantic Av-Barclays Ctr",
+"complex_id": "617",
+"daytime_routes": "D N R"
+},
+{
+"asset_id": "sta:R32",
+"name": "Union St",
+"complex_id": "28",
+"daytime_routes": "R"
+},
+{
+"asset_id": "sta:R33",
+"name": "4 Av-9 St",
+"complex_id": "608",
+"daytime_routes": "R"
+},
+{
+"asset_id": "sta:R34",
+"name": "Prospect Av",
+"complex_id": "30",
+"daytime_routes": "R"
+},
+{
+"asset_id": "sta:R35",
+"name": "25 St",
+"complex_id": "31",
+"daytime_routes": "R"
+},
+{
+"asset_id": "sta:R36",
+"name": "36 St",
+"complex_id": "32",
+"daytime_routes": "D N R"
+},
+{
+"asset_id": "sta:R39",
+"name": "45 St",
+"complex_id": "33",
+"daytime_routes": "R"
+},
+{
+"asset_id": "sta:R40",
+"name": "53 St",
+"complex_id": "34",
+"daytime_routes": "R"
+},
+{
+"asset_id": "sta:R41",
+"name": "59 St",
+"complex_id": "35",
+"daytime_routes": "N R"
+},
+{
+"asset_id": "sta:R42",
+"name": "Bay Ridge Av",
+"complex_id": "36",
+"daytime_routes": "R"
+},
+{
+"asset_id": "sta:R43",
+"name": "77 St",
+"complex_id": "37",
+"daytime_routes": "R"
+},
+{
+"asset_id": "sta:R44",
+"name": "86 St",
+"complex_id": "38",
+"daytime_routes": "R"
+},
+{
+"asset_id": "sta:R45",
+"name": "Bay Ridge-95 St",
+"complex_id": "39",
+"daytime_routes": "R"
+},
+{
+"asset_id": "sta:S01",
+"name": "Franklin Av",
+"complex_id": "627",
+"daytime_routes": "S"
+},
+{
+"asset_id": "sta:S03",
+"name": "Park Pl",
+"complex_id": "141",
+"daytime_routes": "S"
+},
+{
+"asset_id": "sta:S04",
+"name": "Botanic Garden",
+"complex_id": "626",
+"daytime_routes": "S"
+},
+{
+"asset_id": "sta:S09",
+"name": "Tottenville",
+"complex_id": "522",
+"daytime_routes": "SIR"
+},
+{
+"asset_id": "sta:S11",
+"name": "Arthur Kill",
+"complex_id": "523",
+"daytime_routes": "SIR"
+},
+{
+"asset_id": "sta:S13",
+"name": "Richmond Valley",
+"complex_id": "519",
+"daytime_routes": "SIR"
+},
+{
+"asset_id": "sta:S14",
+"name": "Pleasant Plains",
+"complex_id": "518",
+"daytime_routes": "SIR"
+},
+{
+"asset_id": "sta:S15",
+"name": "Prince's Bay",
+"complex_id": "517",
+"daytime_routes": "SIR"
+},
+{
+"asset_id": "sta:S16",
+"name": "Huguenot",
+"complex_id": "516",
+"daytime_routes": "SIR"
+},
+{
+"asset_id": "sta:S17",
+"name": "Annadale",
+"complex_id": "515",
+"daytime_routes": "SIR"
+},
+{
+"asset_id": "sta:S18",
+"name": "Eltingville",
+"complex_id": "514",
+"daytime_routes": "SIR"
+},
+{
+"asset_id": "sta:S19",
+"name": "Great Kills",
+"complex_id": "513",
+"daytime_routes": "SIR"
+},
+{
+"asset_id": "sta:S20",
+"name": "Bay Terrace",
+"complex_id": "512",
+"daytime_routes": "SIR"
+},
+{
+"asset_id": "sta:S21",
+"name": "Oakwood Heights",
+"complex_id": "511",
+"daytime_routes": "SIR"
+},
+{
+"asset_id": "sta:S22",
+"name": "New Dorp",
+"complex_id": "510",
+"daytime_routes": "SIR"
+},
+{
+"asset_id": "sta:S23",
+"name": "Grant City",
+"complex_id": "509",
+"daytime_routes": "SIR"
+},
+{
+"asset_id": "sta:S24",
+"name": "Jefferson Av",
+"complex_id": "508",
+"daytime_routes": "SIR"
+},
+{
+"asset_id": "sta:S25",
+"name": "Dongan Hills",
+"complex_id": "507",
+"daytime_routes": "SIR"
+},
+{
+"asset_id": "sta:S26",
+"name": "Old Town",
+"complex_id": "506",
+"daytime_routes": "SIR"
+},
+{
+"asset_id": "sta:S27",
+"name": "Grasmere",
+"complex_id": "505",
+"daytime_routes": "SIR"
+},
+{
+"asset_id": "sta:S28",
+"name": "Clifton",
+"complex_id": "504",
+"daytime_routes": "SIR"
+},
+{
+"asset_id": "sta:S29",
+"name": "Stapleton",
+"complex_id": "503",
+"daytime_routes": "SIR"
+},
+{
+"asset_id": "sta:S30",
+"name": "Tompkinsville",
+"complex_id": "502",
+"daytime_routes": "SIR"
+},
+{
+"asset_id": "sta:S31",
+"name": "St George",
+"complex_id": "501",
+"daytime_routes": "SIR"
+}
+]
