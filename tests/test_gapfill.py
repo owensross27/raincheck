@@ -3,6 +3,7 @@ file:// tree of parquet files written one row group per poll snapshot (the real 
 verified shape), and mapper schemas are censused against archiver.flush on the same pb
 fixtures the feeds tests use."""
 import hashlib
+import sys
 from datetime import date
 from pathlib import Path
 
@@ -220,9 +221,39 @@ def test_no_poll_clock_snapshot_is_skipped_not_fatal(tmp_path, fake_gcs, capsys)
 
 def test_fill_day_missing_remote_file_is_loud_but_clean(tmp_path, fake_gcs, capsys):
     root = tmp_path / "root"
-    gapfill.fill_day(root, "tu", DAY)  # nothing published for DAY
+    ok = gapfill.fill_day(root, "tu", DAY)  # nothing published for DAY
     assert "not published" in capsys.readouterr().out
     assert not (root / "archive" / "tu").exists()
+    assert ok is False, "an unpublished day must report failure, not success"
+
+
+def test_fill_reports_failure_when_it_filled_nothing(tmp_path, fake_gcs, monkeypatch, capsys):
+    """A run that accomplished nothing must not exit 0.
+
+    August 1-14 once reported all 42 day-feed combinations 'not published yet' in the same
+    second - no network after a crash - and still exited 0, so its driver logged success.
+    """
+    monkeypatch.setattr(gapfill, "data_root", lambda: tmp_path / "root")
+    monkeypatch.setattr(sys, "argv", ["gapfill", "fill", "--feed", "tu", "--date", DAY])
+    with pytest.raises(SystemExit) as e:
+        gapfill.main()
+    assert e.value.code, "exit code must be truthy when nothing was filled"
+    assert "nothing filled" in str(e.value.code)
+
+
+def test_fill_tolerates_one_unpublished_day_among_good_ones(tmp_path, fake_gcs, monkeypatch):
+    """gtfsrt.io lags 1-2 days, so the newest day of a default span is routinely
+    unpublished. Failing on that would page every morning about a hole that fills itself
+    tomorrow - one good day proves the source was reachable."""
+    root = tmp_path / "root"
+    v = {"vehicle_id": "MTA NYCT_1", "trip_id": "t1", "route_id": "B1", "latitude": 40.7,
+         "longitude": -73.9, "timestamp": D0, "occupancy_status": 1, "start_date": "20260819"}
+    remote(fake_gcs, "vehicle_positions", gapfill.FEEDS["vp"], DAY, [(D0 + 10, D0 + 9, [v])])
+    nxt = "2026-08-20"                      # deliberately NOT published
+    monkeypatch.setattr(gapfill, "data_root", lambda: root)
+    monkeypatch.setattr(sys, "argv",
+                        ["gapfill", "fill", "--feed", "vp", "--date", f"{DAY}:{nxt}"])
+    gapfill.main()                          # must NOT raise: one day filled, one lagging
 
 
 def test_subway_tu_fill_writes_one_part_per_feed(tmp_path, fake_gcs):

@@ -225,13 +225,13 @@ def missing_hours(date_dir: Path) -> list[str]:
     return out
 
 
-def fill_day(root: Path, kind: str, day: str) -> None:
+def fill_day(root: Path, kind: str, day: str) -> bool:
     feed_type, feed_maps = SOURCES[kind]
     date_dir = root / "archive" / kind / f"date={day}"
     hours = missing_hours(date_dir)
     if not hours:
         print(f"gapfill {kind} {day}: no missing hours", flush=True)
-        return
+        return True
     written: dict[str, int] = {}
     all_ok = True
     for feed_key, mapper in feed_maps:
@@ -295,6 +295,7 @@ def fill_day(root: Path, kind: str, day: str) -> None:
     print(f"gapfill {kind} {day}: filled {len(written)}/{len(hours)} missing hours"
           + ("" if all_ok else " (partial: unpublished feeds above, no markers written)"),
           flush=True)
+    return all_ok
 
 
 def days(start: date | None = None, end: date | None = None):
@@ -381,9 +382,25 @@ def main() -> None:
         span = list(days(date.fromisoformat(a), date.fromisoformat(b or a)))
     else:
         span = list(days())
+    # A run that accomplished NOTHING must not exit 0. On 2026-08-23 a fill of
+    # 2026-08-01..14 reported every one of its 42 day-feed combinations as "not published
+    # yet" within the same second - the machine had no network after a crash - and still
+    # exited 0, so its driver logged the chunk as done. Only a separate check against R2
+    # caught it (ticket 20; orchestration map ticket 6).
+    #
+    # The bar is deliberately "nothing at all worked", not "something failed": gtfsrt.io
+    # lags 1-2 days, so the newest day in a default span is routinely unpublished, and
+    # failing on that would page every morning about a hole that fills itself tomorrow -
+    # the failure mode gapfill.DEAD exists to avoid. One good day in the span is enough to
+    # prove the source was reachable.
+    attempted = failed = 0
     for kind in [args.feed] if args.feed else KINDS:
         for day in span:
-            fill_day(root, kind, day)
+            attempted += 1
+            failed += not fill_day(root, kind, day)
+    if attempted and failed == attempted:
+        sys.exit(f"gapfill: FAILED - nothing filled across all {attempted} day-feed "
+                 f"attempt(s); source unreachable or unpublished, not a partial run")
 
 
 if __name__ == "__main__":
