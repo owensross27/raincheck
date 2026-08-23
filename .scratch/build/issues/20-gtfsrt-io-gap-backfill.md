@@ -105,3 +105,17 @@ entry ONLY after probing gtfsrt.io and confirming zero snapshots for that hour �
 quiet a fill that merely failed. Note the check still exits 1 for the newest 1-2 days
 until their fill lands; that is correct (it is actionable), so run `gapfill` before
 `gapcheck` in any job.
+
+## Era-scope correction (2026-08-23, schema-era session read-only audit; supersedes dd88f38)
+
+The claim note dd88f38 is stale in three places — verified state:
+- duck.table union_by_name fix: LANDED (143a00a), including BOTH vp era tests
+  (DuckDB + Spark bronze_vp mixed-schema hour-pair).
+- Actual refill scope is 123 old-shape parts (vp 61 + tu 62, dates 08-15..21), not
+  886: alerts/subway_tu/subway_alerts are single-shape with zero drift (their decoders
+  never changed in 07/10) — refilling them would be wasted I/O. The 6 canonical parts
+  are the 08-22 seam run.
+- The one REAL remaining hole: no TU era test (direction_id, trip_delay_s, trip_ts,
+  header_ts). events.tu_rows/baselines set mergeSchema=true so likely safe, unverified.
+Recommendation on record: skip the cosmetic refill; add the TU era test when a session
+next has budget. Refill go/no-go stays Ross's call.
