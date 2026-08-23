@@ -40,3 +40,15 @@ ticket 12's six review findings were). Cheap check: mutate the production line t
 wall-clock version and confirm the test goes red; pin clock-derived assertions on a
 hand-built row at a fixed epoch far from now (see memory fixture-clock-equals-wall-clock
 and the 12-streaming-job review record).
+
+## Contract notes from ticket 13 (2026-08-23, recorded by the orchestrator)
+
+1. The page's live panel is already stubbed by ticket 13: #live / #livemeta / #delaystate /
+   #rainstate / #livetoggle exist, plus an empty `live` GeoJSON source + circle layer that
+   fetches nothing. Wire into those, don't rebuild.
+2. MapLibre 5.9.0 SILENTLY drops a GeoJSON source whose promoteId resolves to a
+   non-integer-like string — zero features, no error event. The Cell id is a hex string,
+   so the cells source carries no promoteId; do not add one to the live source either
+   unless vehicle_id is integer-like.
+3. The tab must be visible for MapLibre to finish loading (rAF throttled when hidden) —
+   headless screenshot checks are misleading.
