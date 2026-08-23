@@ -63,6 +63,11 @@ push_prune() {
   # produces exactly that empty file, and the prune would then delete local parts it
   # never proved remote - with local pruned and R2 never written, that is real data loss.
   # So the listing's exit status gates the prune: no proof, no deletion.
+  # Stamp BEFORE the listing starts. Anything written at or after this instant cannot be
+  # in the listing, so its absence from the pending set proves nothing and the prune must
+  # keep it. Without this, hour 23 - the last part a day writes before its markers appear
+  # - gets deleted having never been uploaded.
+  local snap; snap=$(date +%s)
   local raw="$PENDING.raw"
   if ! aws s3 sync . "$DEST" --endpoint-url "$RAINCHECK_COLD_ENDPOINT" \
         --size-only --dryrun --no-progress > "$raw" 2>/dev/null; then
@@ -73,7 +78,7 @@ push_prune() {
   sed -n 's/^(dryrun) upload: \(.*\) to s3:.*$/\1/p' "$raw" | sed 's|^\./||' > "$PENDING"
   rm -f "$raw"
 
-  "$PY" "$PRUNE_PY" "$LO" "$HI" "$PENDING" "$ROOT"
+  "$PY" "$PRUNE_PY" "$LO" "$HI" "$PENDING" "$ROOT" "$snap"
   say "archive now $(du -sh "$ROOT" | cut -f1)"
   cd /Users/ross/raincheck || return 1
 }

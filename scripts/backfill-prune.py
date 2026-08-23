@@ -15,7 +15,13 @@ from pathlib import Path
 KINDS = ("vp", "tu", "alerts")
 
 
-def prune(root: Path, lo: str, hi: str, pending: set[str]) -> tuple[int, int, int]:
+def prune(root: Path, lo: str, hi: str, pending: set[str],
+          snapshot: float | None = None) -> tuple[int, int, int]:
+    """`snapshot` is when the pending listing STARTED. Absence from `pending` only proves
+    a file is remote if the listing could actually have seen it; a file created after the
+    listing began was never a candidate, so its absence proves nothing and deleting it
+    destroys a part that was never uploaded. Anything at or newer than `snapshot` is held
+    for the next pass."""
     freed = pruned = stuck = 0
     drained: list[Path] = []          # hour-dirs this pass emptied, safe to remove
     for kind in KINDS:
@@ -30,16 +36,23 @@ def prune(root: Path, lo: str, hi: str, pending: set[str]) -> tuple[int, int, in
                 for f in sorted(hour.iterdir()):
                     if not f.is_file() or f.name == "_gapfill":
                         continue
+                    try:
+                        st = f.stat()
+                    except FileNotFoundError:
+                        continue                  # a concurrent pass won the race
+                    if snapshot is not None and st.st_mtime >= snapshot:
+                        stuck += 1                # too new for the listing to have seen
+                        held += 1
+                        continue
                     if str(f.relative_to(root)) in pending:
                         stuck += 1                # not yet remote, keep for next pass
                         held += 1
                         continue
                     try:
-                        sz = f.stat().st_size
                         f.unlink()
                     except FileNotFoundError:
-                        continue                  # a concurrent pass won the race
-                    freed += sz
+                        continue
+                    freed += st.st_size
                     pruned += 1
                 # Invariant: a completion marker living inside the directory a sweep
                 # iterates MUST be excluded from that sweep, or it eventually deletes its
@@ -57,7 +70,12 @@ def prune(root: Path, lo: str, hi: str, pending: set[str]) -> tuple[int, int, in
                 # never received it. That is how tu 2026-04-17 ended up in R2 with 22
                 # parts and no markers. If it is still pending, keep it - the next pass
                 # uploads it and then it can go.
-                if held == 0 and str(marker.relative_to(root)) not in pending:
+                # The marker needs the same two tests as a part: proven remote, and old
+                # enough that the listing could have seen it.
+                marker_new = (snapshot is not None
+                              and marker.exists() and marker.stat().st_mtime >= snapshot)
+                if held == 0 and not marker_new \
+                        and str(marker.relative_to(root)) not in pending:
                     marker.unlink(missing_ok=True)
                     drained.append(hour)
                 elif held == 0:
@@ -140,6 +158,31 @@ def demo() -> None:
         assert (late.parent / "_gapfill").exists(), \
             "MARKER-LOSS BUG: deleted a marker that was never uploaded"
 
+        # THE h23 CASE. fill_day writes hour 23's part and only then touches the day's
+        # markers, so h23 can be created after a pass's listing already ran. It is then
+        # absent from `pending` - not because it is remote, but because the listing never
+        # saw it - and a prune trusting `pending` alone deletes a part that was never
+        # uploaded. This is what lost vp 2026-05-14 h23 and, on the evidence, April's two.
+        import os
+        with tempfile.TemporaryDirectory() as td2:
+            r2 = Path(td2)
+            h = r2 / "tu" / "date=2026-04-19" / "hour=23"
+            h.mkdir(parents=True)
+            h23 = h / "part-gapfill-tu.parquet"
+            h23.write_bytes(b"x" * 100)
+            (h / "_gapfill").touch()
+            snap = os.stat(h23).st_mtime - 10       # listing began BEFORE h23 appeared
+            os.utime(h / "_gapfill", (snap - 20, snap - 20))        # marker is older
+            n4, _, _ = prune(r2, "2026-04-01", "2026-04-30", set(), snapshot=snap)
+            assert h23.exists(), \
+                "SNAPSHOT BUG: pruned a part created after the listing that 'proved' it remote"
+            assert n4 == 0, n4
+            # once the listing postdates the file, it prunes normally
+            n5, _, _ = prune(r2, "2026-04-01", "2026-04-30", set(),
+                             snapshot=os.stat(h23).st_mtime + 10)
+            assert not h23.exists(), "should prune once the listing postdates the file"
+            assert n5 == 1, n5
+
         # final pass, everything now uploaded: stragglers prune and both dirs go
         pruned2, _, stuck2 = prune(root, "2026-04-01", "2026-04-30", set())
         assert not mixed_pend.exists(), "STRAND BUG: straggler unprunable on next pass"
@@ -154,6 +197,7 @@ if __name__ == "__main__":
         demo()
         raise SystemExit(0)
     lo, hi, pending_path, root = sys.argv[1], sys.argv[2], sys.argv[3], Path(sys.argv[4])
+    snap = float(sys.argv[5]) if len(sys.argv) > 5 else None
     pend = {l.strip() for l in open(pending_path) if l.strip()}
-    n, freed, stuck = prune(root, lo, hi, pend)
+    n, freed, stuck = prune(root, lo, hi, pend, snap)
     print(f"  pruned {n} files ({freed/1e9:.2f} GB); {stuck} not-yet-remote kept")
