@@ -101,3 +101,8 @@ precip-live:  ## one live RadarOnly tick -> live/precip_cell (the 300 s LaunchAg
 .PHONY: stream
 stream:  ## Kafka -> live/vp + live/tu until Ctrl-C (make stream FRESH=1 discards the checkpoints)
 	FRESH=$(FRESH) $(PY) -m raincheck.stream
+
+# --- ticket 15: the daily catch-up job (its 06:00 America/New_York LaunchAgent) -------
+.PHONY: daily
+daily:  ## catch up what a sleeping Mac missed: gapfill/verify/check, coldpush/check, events+gold, MRMS month, live prune
+	$(PY) -m raincheck.daily

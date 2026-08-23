@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- ticket 15: `make daily` once a day at 06:00 America/New_York = 10:00Z in EDT,
+       11:00Z in EST - both far enough past a service day's last Legs and past Pass2's
+       lag on the day's final MRMS hour. StartCalendarInterval is the Mac's local clock
+       (this Mac is America/New_York), so the agent follows DST by itself; TZ=UTC for the
+       job's own processes comes from the Makefile, which is why the agent runs `make`
+       and not the module (JAVA_HOME and the .env credentials come from there too).
+       A run missed while asleep fires on wake and several missed days coalesce into one
+       run - the job's unit of work is "every gap", so that is the whole recovery story.
+       No RunAtLoad: catch-up is the calendar's job, not every login's.
+       install: cp launchd/com.raincheck.daily.plist ~/Library/LaunchAgents/ &&
+                launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.raincheck.daily.plist
+       stop:    launchctl bootout gui/$(id -u)/com.raincheck.daily
+       run now: launchctl kickstart -k gui/$(id -u)/com.raincheck.daily
+       status:  launchctl print gui/$(id -u)/com.raincheck.daily | grep -E "state|pid|last exit"
+       log:     tail -f data/logs/daily.log -->
+  <key>Label</key><string>com.raincheck.daily</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/make</string><string>-C</string><string>/Users/ross/raincheck</string>
+    <string>daily</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/ross/raincheck</string>
+  <!-- launchd's default PATH has no /opt/homebrew/bin, where the aws CLI that coldpush
+       and coldcheck shell out to lives. -->
+  <key>EnvironmentVariables</key>
+  <dict><key>PATH</key><string>/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string></dict>
+  <key>StartCalendarInterval</key>
+  <dict><key>Hour</key><integer>6</integer><key>Minute</key><integer>0</integer></dict>
+  <key>StandardOutPath</key><string>/Users/ross/raincheck/data/logs/daily.log</string>
+  <key>StandardErrorPath</key><string>/Users/ross/raincheck/data/logs/daily.log</string>
+</dict>
+</plist>
