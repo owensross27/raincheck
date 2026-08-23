@@ -16,7 +16,8 @@ the private R2 bucket. Not public hosting; enrichment/Spark stays local.
 **Blocked by:** None (18 resolved — bucket, credentials and sync conventions exist)
 
 **Status:** deployed 2026-08-23 to Ross's EC2 dev box (vinylpig-dev); capturing and
-pushing on its own. 7-day cutover clock started — see Cutover below.
+pushing on its own. Cutover is automated behind its 7-day gate and fires 2026-08-31 —
+see Cutover below.
 
 - [x] provider pick, one short note: Oracle Always-Free ARM (a1.flex, $0, capacity/signup
       friction risk) vs Hetzner CAX11 (~EUR 3.3/mo, boring and reliable). Default to
@@ -42,8 +43,10 @@ pushing on its own. 7-day cutover clock started — see Cutover below.
 - [ ] cutover note recorded on this ticket: date the box's capture is verified continuous
       for 7 days; decision then whether the Mac LaunchAgent stays as backup or is booted
       out (`launchctl bootout gui/$(id -u)/com.raincheck.archiver`).
-      — first push 2026-08-23 is recorded; the 7-day clock runs to 2026-08-30. Only the
-      verdict is outstanding, and it is Ross's call.
+      — first push 2026-08-23 recorded; gate days are 08-24..08-30 and the verdict lands
+      2026-08-31. Ross delegated the cutover, so it is automated behind the gate in
+      `scripts/cutover.sh` (`make cutover`) and a one-time scheduled run. Only the
+      execution is outstanding — no decision is.
 - [x] one runnable check: an hour-completeness query (24 hour-dirs per feed per closed UTC
       day in the bucket) that is loud on any gap; doubles as the daily health check.
       — `scripts/coldgaps.sh` (6 kinds x 24 hour-dirs, exit 1 + COLDGAPS lines on any
@@ -112,18 +115,61 @@ invisibility. Refuted (no change needed): box-token delete-scope escalation chai
 
 ## Cutover (clock running)
 
-**Box first-push date: 2026-08-23** (14:30:46 UTC, `raincheck-coldpush.service`). After 7
-consecutive clean `coldgaps` days — i.e. through **2026-08-30** — record the verdict here
-and decide: Mac LaunchAgent stays as backup or
-`launchctl bootout gui/$(id -u)/com.raincheck.archiver`. The Mac agent stays ON until then;
-the cutover call is Ross's.
+**Box first-push date: 2026-08-23** (14:30:46 UTC, `raincheck-coldpush.service`).
+
+Ross delegated the whole cutover on 2026-08-23 ("you do the whole cutover"), so it is
+automated behind its gate rather than left as a decision to make later. It could not be
+executed that day: the gate is 7 clean days of evidence and the box had 20 minutes of
+uptime, so retiring the Mac agent then would have removed the only proven capture on no
+evidence.
+
+**Gate — `scripts/cutover.sh` (`make cutover`, `STATUS=1` to dry-run).** Retires
+`com.raincheck.archiver` only when all of these hold, and changes nothing otherwise:
+
+- 7 consecutive clean days, **2026-08-24 through 2026-08-30** (08-23 is a partial box day
+  and does not count — the box started 14:23 UTC with the Mac covering hours 00-14).
+- Each day needs **two independent proofs**, because either alone can be wrong: the bucket
+  is complete (`coldgaps: OK` in the box's journal) AND the box itself flushed 6 kinds ×
+  24 hours that day (its `raincheck-archiver` journal, 144 kind-hours).
+- The box's archiver is active right now and no `raincheck*` unit is failed. A spotless
+  history plus a dead box must not retire the backup.
+- Every failure mode fails CLOSED — unreachable box or unreadable journal means gate not
+  met, Mac agent keeps running.
+
+Earliest possible cutover is therefore **2026-08-31**: coldgaps checks *yesterday*, so
+08-30 is only verified by the 02:15 UTC run on 08-31. A one-time scheduled task
+(`raincheck-ticket19-cutover`, 2026-08-31 09:22 EDT) runs it, records the verdict here and
+commits. `make cutover` is the manual equivalent if that run is blocked.
+
+**Why the gate needs the box's own journal.** The Mac has no coldpush LaunchAgent — it
+captures locally and only pushes when someone runs `make coldpush` by hand — but Ross does
+run it by hand (that is how the bucket holds Mac data through 08-22). One such push during
+the trial would fill a box gap in the bucket and turn `coldgaps` green for a day the box
+actually missed, retiring the backup on the strength of the backup's own work. The box's
+`raincheck-archiver` journal is the half the Mac cannot forge, so the gate requires both.
+Manual pushes from the Mac are now harmless to the gate's honesty.
+
+`com.raincheck.precip-live` stays either way: the box does not capture precip (ticket 11,
+MRMS), so retiring it would silently end that feed. Undo the cutover with
+`launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.raincheck.archiver.plist`.
 
 Daily check from the Mac: `make coldgaps` (defaults to yesterday UTC). On the box the same
 check runs at 02:15 UTC and leaves `raincheck-coldgaps.service` red on a gap.
 
 | Day (UTC) | coldgaps | note |
 |-----------|----------|------|
-| 2026-08-23 | pending — first partial box day (box started 14:23 UTC; Mac covers hours 00-14) | |
+| 2026-08-23 | n/a | partial box day, not part of the gate |
+| 2026-08-24 | | first full box day |
+| 2026-08-25 | | |
+| 2026-08-26 | | |
+| 2026-08-27 | | |
+| 2026-08-28 | | |
+| 2026-08-29 | | |
+| 2026-08-30 | | last gate day; verified by the 08-31 02:15 UTC run |
+
+Baseline for comparison — the Mac's last week in the bucket: 08-18 clean, then **08-19,
+08-20, 08-21 and 08-22 all gappy**. Four consecutive lossy days is the sleep problem this
+ticket exists to end, and the bar the box has to clear.
 
 ## Deployed 2026-08-23 — vinylpig-dev (agent, over ssh)
 
