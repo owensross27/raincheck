@@ -49,8 +49,17 @@ def census(bucket: str, endpoint: str, feed: str, lo: str, hi: str):
             continue
         if not (lo_key <= f"date={day}" <= hi_key):
             continue
-        rec = seen.setdefault((day, hour), {"part": 0, "marker": 0})
-        rec["marker" if path.endswith("_gapfill") else "part"] += 1
+        rec = seen.setdefault((day, hour), {"part": 0, "marker": 0, "bytes": 0})
+        if path.endswith("_gapfill"):
+            rec["marker"] += 1          # markers are legitimately zero-byte
+        else:
+            rec["part"] += 1
+            # Size matters: an object can exist and still be useless. A truncated or
+            # zero-byte part would otherwise count as present and the range would verify
+            # OK, which is the same false-OK trap that makes gapverify useless here.
+            fields = line.split()
+            if len(fields) >= 3 and fields[2].isdigit():
+                rec["bytes"] += int(fields[2])
     return seen
 
 
@@ -69,13 +78,16 @@ def main() -> int:
         missing = [s for s in want if s not in seen and s not in dead]
         no_part = [s for s, r in seen.items() if r["part"] == 0]
         no_mark = [s for s, r in seen.items() if r["marker"] == 0]
+        empty = [s for s, r in seen.items() if r["part"] > 0 and r["bytes"] == 0]
         stale = sorted(s for s in dead if s in seen)
-        ok = not (missing or no_part or no_mark)
+        ok = not (missing or no_part or no_mark or empty)
         bad += not ok
         print(f"{'OK ' if ok else 'BAD'} {feed:7s} {len(seen)}/{len(want)} hours"
               f"{f' (+{len(dead)} dead at source)' if dead else ''}"
-              f"  parts_missing={len(no_part)} markers_missing={len(no_mark)}")
-        for label, rows in (("missing", missing), ("no part", no_part), ("no marker", no_mark)):
+              f"  parts_missing={len(no_part)} markers_missing={len(no_mark)}"
+              f" zero_byte_parts={len(empty)}")
+        for label, rows in (("missing", missing), ("no part", no_part),
+                            ("no marker", no_mark), ("zero-byte part", empty)):
             if rows:
                 head = ", ".join(f"{d} h{h}" for d, h in sorted(rows)[:8])
                 print(f"     {label}: {head}{' ...' if len(rows) > 8 else ''}")
