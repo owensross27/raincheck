@@ -140,3 +140,140 @@ def test_coldgaps_loud_on_budget_stop_marker(tmp_path):
     r = run("coldgaps.sh", coldgaps_env(tmp_path), "2026-08-20")
     assert r.returncode == 1  # 24/24 hours present, but capture is stopped
     assert "STOPPED over budget" in r.stdout
+
+
+# --- cutover.sh: the gate must never retire the Mac agent on thin evidence -------------
+# Stubs mimic the real tools: ssh carries the remote command as its LAST arg, and the
+# box's journal lines are verbatim journald format ("coldgaps: OK — <day> complete for
+# all 6 kinds", em dash, as coldgaps.sh actually prints it).
+CUTOVER_SSH_STUB = """\
+cmd="${@: -1}"
+case "$cmd" in
+  *journalctl*raincheck-coldgaps*)
+      [ "${STUB_UNREACHABLE:-0}" = 1 ] && { echo "ssh: connect: timed out" >&2; exit 255; }
+      cat "$STUB_JOURNAL" 2>/dev/null; exit 0 ;;
+  *journalctl*raincheck-archiver*)
+      cat "$STUB_BOXHOURS" 2>/dev/null; exit 0 ;;
+  *is-active*)   exit "${STUB_INACTIVE:-0}" ;;
+  *list-units*)  printf '%s' "${STUB_FAILED:-}"; exit 0 ;;
+esac
+exit 0
+"""
+
+# `launchctl print` succeeds while loaded; bootout records the call and unloads it.
+CUTOVER_LAUNCHCTL_STUB = """\
+case "$1" in
+  print)   [ -f "$STUB_BOOTED_OUT" ] && exit 1; exit 0 ;;
+  bootout) echo "$2" >> "$STUB_BOOTOUT_LOG"; touch "$STUB_BOOTED_OUT"; exit 0 ;;
+esac
+exit 0
+"""
+
+DAYS7 = [f"2026-08-{d}" for d in range(24, 31)]
+
+
+def cutover_env(tmp_path: Path, **extra: str) -> dict:
+    write_stub(tmp_path / "ssh", CUTOVER_SSH_STUB)
+    write_stub(tmp_path / "launchctl", CUTOVER_LAUNCHCTL_STUB)
+    return {"PATH": f"{tmp_path}:{os.environ['PATH']}",
+            "STUB_JOURNAL": str(tmp_path / "journal"),
+            "STUB_BOXHOURS": str(tmp_path / "boxhours"),
+            "STUB_BOOTOUT_LOG": str(tmp_path / "bootout.log"),
+            "STUB_BOOTED_OUT": str(tmp_path / "booted_out"),
+            "RAINCHECK_CUTOVER_FIRST_DAY": "2026-08-24", **extra}
+
+
+KINDS = ("vp", "tu", "alerts", "subway_tu", "subway_vp", "subway_alerts")
+
+
+def write_journal(tmp_path: Path, clean_days: list[str], *, box_days=None,
+                  drop_hours: int = 0) -> None:
+    """Both evidence sources. `clean_days` are green in the bucket; `box_days` (default
+    the same) are what the BOX's own archiver journal proves, minus `drop_hours` hours."""
+    (tmp_path / "journal").write_text("".join(
+        f"Aug 25 02:15:03 ip-172-31-66-109 coldgaps.sh[9]: "
+        f"coldgaps: OK — {d} complete for all 6 kinds\n" for d in clean_days))
+    # ssh returns what the box's `grep -oE ... | sort -u` already reduced it to
+    (tmp_path / "boxhours").write_text("".join(
+        f"archive/{k}/date={d}/hour={h:02d}\n"
+        for d in (DAYS7 if box_days is None else box_days)
+        for k in KINDS for h in range(24 - drop_hours)))
+
+
+def booted_out(tmp_path: Path) -> bool:
+    return (tmp_path / "bootout.log").exists()
+
+
+def test_cutover_retires_agent_when_all_seven_days_clean(tmp_path):
+    env = cutover_env(tmp_path)
+    write_journal(tmp_path, DAYS7)
+    r = run("cutover.sh", env)
+    assert r.returncode == 0, r.stderr
+    assert booted_out(tmp_path)
+    assert "com.raincheck.archiver" in (tmp_path / "bootout.log").read_text()
+    assert "DONE" in r.stdout
+
+
+def test_cutover_refuses_when_one_day_unproven(tmp_path):
+    env = cutover_env(tmp_path)
+    write_journal(tmp_path, [d for d in DAYS7 if d != "2026-08-27"])  # 6/7 clean
+    r = run("cutover.sh", env)
+    assert r.returncode == 1
+    assert not booted_out(tmp_path), "retired the Mac agent on 6/7 days"
+    assert "2026-08-27" in r.stderr
+
+
+def test_cutover_refuses_when_box_archiver_is_down(tmp_path):
+    env = cutover_env(tmp_path, STUB_INACTIVE="1")
+    write_journal(tmp_path, DAYS7)  # history is spotless, but the box is dead NOW
+    r = run("cutover.sh", env)
+    assert r.returncode == 1
+    assert not booted_out(tmp_path), "retired the Mac agent while the box was down"
+    assert "archiver not active" in r.stderr
+
+
+def test_cutover_refuses_when_a_raincheck_unit_failed(tmp_path):
+    env = cutover_env(tmp_path, STUB_FAILED="  raincheck-coldpush.service loaded failed failed\n")
+    write_journal(tmp_path, DAYS7)
+    r = run("cutover.sh", env)
+    assert r.returncode == 1
+    assert not booted_out(tmp_path)
+    assert "raincheck-coldpush.service" in r.stderr
+
+
+def test_cutover_refuses_when_box_unreachable(tmp_path):
+    env = cutover_env(tmp_path, STUB_UNREACHABLE="1")
+    write_journal(tmp_path, DAYS7)
+    r = run("cutover.sh", env)
+    assert r.returncode == 2
+    assert not booted_out(tmp_path), "retired the Mac agent without reading the box"
+
+
+def test_cutover_refuses_when_bucket_is_green_but_the_box_gapped(tmp_path):
+    # the hole this closes: the Mac still captures locally, so one manual `make coldpush`
+    # can fill a box gap in the bucket and turn coldgaps green. The box's own journal is
+    # the evidence that cannot be forged by the Mac.
+    env = cutover_env(tmp_path)
+    write_journal(tmp_path, DAYS7, drop_hours=3)  # bucket says all 7 clean; box missed 3h/day
+    r = run("cutover.sh", env)
+    assert r.returncode == 1
+    assert not booted_out(tmp_path), "retired the Mac agent on bucket evidence the Mac could have written"
+    assert "126/144" in r.stdout  # 6 kinds x 21 hours
+
+
+def test_cutover_refuses_when_box_journal_has_no_record_of_a_day(tmp_path):
+    env = cutover_env(tmp_path)
+    write_journal(tmp_path, DAYS7, box_days=[d for d in DAYS7 if d != "2026-08-29"])
+    r = run("cutover.sh", env)
+    assert r.returncode == 1
+    assert not booted_out(tmp_path)
+    assert "2026-08-29" in r.stderr
+
+
+def test_cutover_status_never_touches_the_agent(tmp_path):
+    env = cutover_env(tmp_path)
+    write_journal(tmp_path, DAYS7)  # gate MET, but --status must still change nothing
+    r = run("cutover.sh", env, "--status")
+    assert r.returncode == 0
+    assert not booted_out(tmp_path), "--status retired the Mac agent"
+    assert "gate MET" in r.stdout
