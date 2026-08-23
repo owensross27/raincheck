@@ -29,3 +29,14 @@ Two design calls 12 had to make that this ticket consumes:
    exporting; do not "simplify" to now().
 Live VP rows carry mm_1h + precip_valid_ts already joined (from live/precip_cell), so
 the export reads them off the row, no join needed.
+
+## Test-side warning from ticket 12's review (2026-08-23, recorded by the orchestrator)
+
+Any test asserting clock-derived behaviour on a decoded .pb fixture is suspect by
+construction: decode_vp/decode_tu stamp fetched_at at decode time, so the fixture's
+clock IS the wall clock and the assertion cannot tell them apart. This ticket's
+wall-clock window and vp_age_s/precip_age_s assertions are squarely that shape (two of
+ticket 12's six review findings were). Cheap check: mutate the production line to the
+wall-clock version and confirm the test goes red; pin clock-derived assertions on a
+hand-built row at a fixed epoch far from now (see memory fixture-clock-equals-wall-clock
+and the 12-streaming-job review record).
