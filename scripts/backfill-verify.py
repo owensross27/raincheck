@@ -10,7 +10,9 @@ Once a chunk is pushed and pruned, R2 is the only copy, so the check has to run 
 R2. This censuses the remote range and names every missing hour.
 
 Usage: backfill-verify.py <LO> <HI> [--feeds vp,tu,alerts]
-Exit 1 if any hour is missing or any hour lacks its part or its _gapfill marker.
+Exit 0 complete, 1 real gaps, 2 INCONCLUSIVE (the remote listing itself failed).
+2 is deliberately distinct from 1: a listing that did not run tells you nothing
+about the data, and reporting that as a gap sends someone hunting a phantom.
 """
 import os
 import subprocess
@@ -96,7 +98,14 @@ def main() -> int:
     want = [(d, f"{h:02d}") for d in days(lo, hi) for h in range(24)]
     bad = 0
     for feed in feeds:
-        seen = census(bucket, endpoint, feed, lo, hi)
+        try:
+            seen = census(bucket, endpoint, feed, lo, hi)
+        except subprocess.CalledProcessError as e:
+            # The listing failed, so this run proves NOTHING about the range - it is
+            # not evidence of a gap. Same rule as the prune: no listing, no verdict.
+            print(f"INCONCLUSIVE {feed}: remote listing failed (exit {e.returncode}). "
+                  f"NOT a data gap - re-run before drawing any conclusion.")
+            return 2
         dead = {(d, h) for (k, d), hs in DEAD.items()
                 if k == feed and lo <= d <= hi for h in hs}
         missing = [s for s in want if s not in seen and s not in dead]
