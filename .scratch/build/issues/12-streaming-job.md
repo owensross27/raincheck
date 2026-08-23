@@ -68,3 +68,9 @@ For whoever builds this ticket:
   `trip_delay_s`, on every row since ticket 10 (100% coverage measured on the fixture).
 - **`live/_progress.json`**: written after each append — batch_id, batch end timestamp,
   rows; both queries write it, last-writer-wins is fine (it is a liveness rail, spec J).
+
+**Caveat on the prep notes (from their author, signing off 2026-08-23):** they were
+written BEFORE ticket 11 landed. Verify the with_live_precip column expectations
+(valid_ts string key, cell/mm_1h/fetched_at, latest-fetched_at-wins) against what
+60cbc58 actually writes under live/precip_cell — prefer disk over the notes on any
+mismatch.
