@@ -32,11 +32,10 @@ import pyarrow.parquet as pq
 from pyproj import Geod
 
 from raincheck.paths import data_root
+from raincheck.picks import BUSCO_RE, DEPOT_RE
 from raincheck.ref import UTM
 
 GEOD = Geod(ellps="WGS84")
-DEPOT_RE = re.compile(r"^[A-Z0-9-]+_[A-Z]\d+-.+-\d{6}_.+_\d+$")
-BUSCO_RE = re.compile(r"-..P[A-Z]?\d-")
 
 
 def read_txt(z: zipfile.ZipFile, name: str, **kwargs) -> pa.Table:

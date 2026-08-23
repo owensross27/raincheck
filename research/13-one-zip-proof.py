@@ -31,14 +31,32 @@ DEFAULT_SHA1 = "4b8dec91"
 TRIP_ID = re.compile(r"^[A-Z]{2}_([A-Z]\d+)-[A-Za-z]+(?:-[A-Za-z]+)*-\d{6}_[A-Z0-9+]+_\d+$")
 
 
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    # urllib re-sends every header (the apikey) to redirect targets, and the download
+    # endpoint 302s to third-party blob storage - follow one hop with the key stripped
+    def redirect_request(self, *args, **kwargs):
+        return None
+
+
+OPENER = urllib.request.build_opener(NoRedirect)
+
+
 def fetch(url, key):
-    req = urllib.request.Request(url, headers={"apikey": key})
+    headers = {"apikey": key}
+    body, hdr, code = b"redirect loop", {}, 599
     t0 = time.perf_counter()
-    try:
-        with urllib.request.urlopen(req, timeout=300) as r:
-            body, hdr, code = r.read(), dict(r.headers), r.status
-    except urllib.error.HTTPError as e:
-        body, hdr, code = e.read(), dict(e.headers), e.code
+    for _ in range(2):
+        req = urllib.request.Request(url, headers=headers)
+        try:
+            with OPENER.open(req, timeout=300) as r:
+                body, hdr, code = r.read(), dict(r.headers), r.status
+            break
+        except urllib.error.HTTPError as e:
+            if e.code in (301, 302, 303, 307, 308) and e.headers.get("Location"):
+                url, headers = e.headers["Location"], {}
+                continue
+            body, hdr, code = e.read(), dict(e.headers), e.code
+            break
     dt = time.perf_counter() - t0
     quota = {k: v for k, v in hdr.items() if re.search(r"ratelimit|credit|quota|remaining", k, re.I)}
     print(f"HTTP {code}  {len(body):,} B  {dt:.1f}s  {hdr.get('Content-Type')}  {quota}")

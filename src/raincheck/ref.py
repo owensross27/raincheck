@@ -255,7 +255,8 @@ def build_picks(root: Path) -> None:
             "feed_version": version,
             "earliest_calendar_date": earliest,
             "latest_calendar_date": latest,
-            "source": "mta",
+            # ticket 09: the puller leaves a .tl.json sidecar next to Transitland zips
+            "source": "transitland" if zip_path.with_name(zip_path.name + ".tl.json").exists() else "mta",
             "path": zip_path.relative_to(root).as_posix(),
         })
     rows.sort(key=lambda r: (r["feed"], r["published"]))

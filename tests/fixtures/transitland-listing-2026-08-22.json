@@ -1,0 +1,3560 @@
+{
+ "bronx": [
+  {
+   "sha1": "1e05b66603f781491ba2f9e6c3a012ed68e599f3",
+   "fetched_at": "2026-06-24T04:24:39.764464Z",
+   "earliest_calendar_date": "2026-06-27",
+   "latest_calendar_date": "2026-09-05"
+  },
+  {
+   "sha1": "88503bfa60e89f3f4d87b53a35da6c621ffde9ec",
+   "fetched_at": "2026-04-09T03:21:49.476152Z",
+   "earliest_calendar_date": "2026-04-11",
+   "latest_calendar_date": "2026-06-27"
+  },
+  {
+   "sha1": "ae4c778f2c436b1fe73aa6c06c902569af8b1cef",
+   "fetched_at": "2026-03-27T03:09:52.328348Z",
+   "earliest_calendar_date": "2026-01-03",
+   "latest_calendar_date": "2026-04-11"
+  },
+  {
+   "sha1": "a66a768cebad1ae7b51f0463548f5c24cae06cf3",
+   "fetched_at": "2026-01-26T02:15:29.220408Z",
+   "earliest_calendar_date": "2026-01-04",
+   "latest_calendar_date": "2026-03-27"
+  },
+  {
+   "sha1": "81a10a3cbf6c5f5f183aa9d9704b5b02532f3ff5",
+   "fetched_at": "2026-01-09T01:57:54.965047Z",
+   "earliest_calendar_date": "2026-01-03",
+   "latest_calendar_date": "2026-03-28"
+  },
+  {
+   "sha1": "e7f77e7ab0412346e947d415ffc2d923a171159a",
+   "fetched_at": "2025-12-30T01:48:19.460936Z",
+   "earliest_calendar_date": "2026-01-03",
+   "latest_calendar_date": "2026-03-28"
+  },
+  {
+   "sha1": "afcb6883c345771c1b22e8e8ee91ec79395ae931",
+   "fetched_at": "2025-09-15T18:56:38.356038Z",
+   "earliest_calendar_date": "2025-06-28",
+   "latest_calendar_date": "2026-01-03"
+  },
+  {
+   "sha1": "a5118d1d39b7315a67add726ecd6f58c1d92e2a0",
+   "fetched_at": "2025-08-25T16:33:14.820919Z",
+   "earliest_calendar_date": "2025-08-30",
+   "latest_calendar_date": "2026-01-03"
+  },
+  {
+   "sha1": "c9e483a52ff5f5f975dc009ff2cff90a874b9298",
+   "fetched_at": "2025-06-30T16:10:10.20758Z",
+   "earliest_calendar_date": "2025-06-28",
+   "latest_calendar_date": "2025-08-30"
+  },
+  {
+   "sha1": "164c60edeadabe4454b04805241cd5ebc90f662c",
+   "fetched_at": "2025-06-25T15:33:36.381107Z",
+   "earliest_calendar_date": "2025-06-28",
+   "latest_calendar_date": "2025-08-30"
+  },
+  {
+   "sha1": "1655aa280996e3fae82610be2b24f073112aa04c",
+   "fetched_at": "2025-05-15T15:29:41.298572Z",
+   "earliest_calendar_date": "2025-01-29",
+   "latest_calendar_date": "2025-06-28"
+  },
+  {
+   "sha1": "9aafa3a22fa61d382a8ce9af464677297845cda5",
+   "fetched_at": "2025-03-26T22:35:13.14497Z",
+   "earliest_calendar_date": "2025-03-29",
+   "latest_calendar_date": "2025-06-28"
+  },
+  {
+   "sha1": "4dd9d9b03dfdbe5097a3e62383ab6a103d9e71ca",
+   "fetched_at": "2025-02-15T20:07:03.349857Z",
+   "earliest_calendar_date": "2025-02-09",
+   "latest_calendar_date": "2025-03-29"
+  },
+  {
+   "sha1": "5f2a5dd98308df5ef634f683d9ed051c69426609",
+   "fetched_at": "2025-01-01T10:38:46.043273Z",
+   "earliest_calendar_date": "2025-01-04",
+   "latest_calendar_date": "2025-03-29"
+  },
+  {
+   "sha1": "348337b68f9eca4363e04e4d995689808fa3097b",
+   "fetched_at": "2024-12-10T18:23:39.012326Z",
+   "earliest_calendar_date": "2024-08-31",
+   "latest_calendar_date": "2025-01-04"
+  },
+  {
+   "sha1": "c4ed946cb1301390b811c8c009b14b7a3198532f",
+   "fetched_at": "2024-08-29T04:20:13.347431Z",
+   "earliest_calendar_date": "2024-08-31",
+   "latest_calendar_date": "2025-01-04"
+  },
+  {
+   "sha1": "e790c01e25286098b75fdeb107045bf067018f7e",
+   "fetched_at": "2024-06-27T17:45:17.517041Z",
+   "earliest_calendar_date": "2024-06-29",
+   "latest_calendar_date": "2024-08-31"
+  },
+  {
+   "sha1": "8bfbb531cd5ad128810aa7f0e47fbc26ec6aa6a2",
+   "fetched_at": "2024-03-27T13:43:24.47579Z",
+   "earliest_calendar_date": "2024-03-30",
+   "latest_calendar_date": "2024-06-29"
+  },
+  {
+   "sha1": "fc3663e699d3f6cd35b8c17ff62aa525c68dd0a5",
+   "fetched_at": "2024-01-24T13:55:09.06646Z",
+   "earliest_calendar_date": "2023-01-06",
+   "latest_calendar_date": "2024-03-30"
+  },
+  {
+   "sha1": "0ba2003fbdb040082075cec4d2336aad470b3b95",
+   "fetched_at": "2023-12-26T22:56:17.996433Z",
+   "earliest_calendar_date": "2024-01-06",
+   "latest_calendar_date": "2024-03-30"
+  },
+  {
+   "sha1": "4c9d0a9afb7cf1b54f2d29e31bd7a38d5cbbac4a",
+   "fetched_at": "2023-09-18T15:24:29.406833Z",
+   "earliest_calendar_date": "2023-09-02",
+   "latest_calendar_date": "2024-01-06"
+  },
+  {
+   "sha1": "2ad541f0d7e1f1a594cf8b445b50501f622f8d80",
+   "fetched_at": "2023-08-30T15:11:00.170468Z",
+   "earliest_calendar_date": "2023-09-02",
+   "latest_calendar_date": "2024-01-06"
+  },
+  {
+   "sha1": "96d2eff6d5a9552cc414fed87df88eef52fefb8f",
+   "fetched_at": "2023-06-29T14:00:50.403509Z",
+   "earliest_calendar_date": "2023-07-01",
+   "latest_calendar_date": "2023-09-02"
+  },
+  {
+   "sha1": "abeed08710e46b26c600f23f88404078a17a1006",
+   "fetched_at": "2023-03-30T19:00:43.883111Z",
+   "earliest_calendar_date": "2023-04-01",
+   "latest_calendar_date": "2023-07-01"
+  },
+  {
+   "sha1": "8db12ce415d8b6e2d3c298385aa4bcdb79827357",
+   "fetched_at": "2023-01-04T17:00:42.1267Z",
+   "earliest_calendar_date": "2023-01-07",
+   "latest_calendar_date": "2023-04-01"
+  },
+  {
+   "sha1": "897ec28c71afa7ca1911b83bb5d67321b7090f41",
+   "fetched_at": "2022-09-01T14:00:35.762745Z",
+   "earliest_calendar_date": "2022-09-03",
+   "latest_calendar_date": "2023-01-07"
+  },
+  {
+   "sha1": "96a3365df97565aba03a25b94ac9ed3e86cf7463",
+   "fetched_at": "2022-07-14T14:00:44.041512Z",
+   "earliest_calendar_date": "2022-07-11",
+   "latest_calendar_date": "2022-09-03"
+  },
+  {
+   "sha1": "172216bdec253f0536cd6d7ad233f5f6a4334941",
+   "fetched_at": "2022-06-23T23:00:43.073698Z",
+   "earliest_calendar_date": "2022-06-25",
+   "latest_calendar_date": "2022-09-03"
+  },
+  {
+   "sha1": "d2f65456f4672746aa89edc0c098178050b1e0a7",
+   "fetched_at": "2022-06-16T20:00:45.468885Z",
+   "earliest_calendar_date": "2021-06-25",
+   "latest_calendar_date": "2022-09-03"
+  },
+  {
+   "sha1": "0a1bbd026a790efe700a2c5ba58e71db10524318",
+   "fetched_at": "2022-03-24T18:00:54.650463Z",
+   "earliest_calendar_date": "2022-03-26",
+   "latest_calendar_date": "2022-06-25"
+  },
+  {
+   "sha1": "dd1637ae7cdb9b96bfde2977e6465d5aa8d33d6b",
+   "fetched_at": "2021-12-30T01:01:58.195134Z",
+   "earliest_calendar_date": "2022-01-01",
+   "latest_calendar_date": "2022-03-26"
+  },
+  {
+   "sha1": "b9e50463c88d19f324f27f6ffbec79b9e51bfa7d",
+   "fetched_at": "2021-12-21T19:01:26.446788Z",
+   "earliest_calendar_date": "2021-09-04",
+   "latest_calendar_date": "2022-01-01"
+  },
+  {
+   "sha1": "127865e28cccd550f39a3f68038089cda74ee67d",
+   "fetched_at": "2021-11-16T19:01:20.53643Z",
+   "earliest_calendar_date": "2021-09-04",
+   "latest_calendar_date": "2022-01-01"
+  },
+  {
+   "sha1": "2e53b49485e85be31eb903524dfd7fca30b35f19",
+   "fetched_at": "2021-09-02T21:01:16.291943Z",
+   "earliest_calendar_date": "2021-09-04",
+   "latest_calendar_date": "2022-01-01"
+  },
+  {
+   "sha1": "ef8adb13fde5177f5d67203f12c096fa8b53d3d6",
+   "fetched_at": "2021-08-31T21:01:06.718571Z",
+   "earliest_calendar_date": "2021-08-04",
+   "latest_calendar_date": "2022-01-01"
+  },
+  {
+   "sha1": "1e37e973738830f83b10e89f3fcef2a9ee079133",
+   "fetched_at": "2021-06-25T15:05:18.381014Z",
+   "earliest_calendar_date": "2021-06-26",
+   "latest_calendar_date": "2021-09-04"
+  },
+  {
+   "sha1": "bac32b89b6b98f09f36498083bfb48fe39c4287f",
+   "fetched_at": "2021-06-17T19:06:49.294935Z",
+   "earliest_calendar_date": "2021-06-09",
+   "latest_calendar_date": "2021-06-26"
+  },
+  {
+   "sha1": "d535d0df745121ab359c0d14b3cff38e6f950b06",
+   "fetched_at": "2021-06-11T05:08:07.586312Z",
+   "earliest_calendar_date": "2021-06-09",
+   "latest_calendar_date": "2021-06-26"
+  },
+  {
+   "sha1": "06b5bd472678bcffeeb79b3694ca56ad5bf35666",
+   "fetched_at": "2021-04-01T15:03:14.942549Z",
+   "earliest_calendar_date": "2021-04-03",
+   "latest_calendar_date": "2021-06-26"
+  },
+  {
+   "sha1": "1d9516dd837ce4a2a193e213b216f88e6eadfd5f",
+   "fetched_at": "2021-03-30T22:07:44.3386Z",
+   "earliest_calendar_date": "2021-01-02",
+   "latest_calendar_date": "2021-04-03"
+  },
+  {
+   "sha1": "088b7b6dfa98cab2f6c9c77d86e2e7d28764cfdb",
+   "fetched_at": "2021-03-10T18:02:30.404633Z",
+   "earliest_calendar_date": "2021-01-02",
+   "latest_calendar_date": "2021-04-03"
+  },
+  {
+   "sha1": "70d8670582e5f5314d1d467b851321553ed641f5",
+   "fetched_at": "2021-02-26T19:06:39.727017Z",
+   "earliest_calendar_date": "2021-01-02",
+   "latest_calendar_date": "2021-04-03"
+  },
+  {
+   "sha1": "82854eed01bb9088a74d66a5be401c18abf1babf",
+   "fetched_at": "2021-02-25T05:09:24.802505Z",
+   "earliest_calendar_date": "2021-01-02",
+   "latest_calendar_date": "2021-03-27"
+  },
+  {
+   "sha1": "17680dc1b8672c2d0c67fffa841c8bdeb70e52cd",
+   "fetched_at": "2021-02-01T14:02:24.481266Z",
+   "earliest_calendar_date": "2021-01-31",
+   "latest_calendar_date": "2021-02-02"
+  },
+  {
+   "sha1": "894eba01ac89983951acfef1c2adaa9322e3db0c",
+   "fetched_at": "2021-01-23T00:20:26.372076Z",
+   "earliest_calendar_date": "2021-01-02",
+   "latest_calendar_date": "2021-04-03"
+  },
+  {
+   "sha1": "e9e60295b4601118faf15a16a8d84dcdc4c08170",
+   "fetched_at": "2020-12-16T16:00:50.425102Z",
+   "earliest_calendar_date": "2020-12-15",
+   "latest_calendar_date": "2020-12-17"
+  },
+  {
+   "sha1": "7cd39cd2aa9afcbc10417982e9ffb992eb53349b",
+   "fetched_at": "2020-11-30T16:03:28.678746Z",
+   "earliest_calendar_date": "2020-09-05",
+   "latest_calendar_date": "2021-01-02"
+  },
+  {
+   "sha1": "c02774ccd375934ffb5eaaab6eb02c1dd0b544c8",
+   "fetched_at": "2020-10-24T00:06:55.362895Z",
+   "earliest_calendar_date": "2020-09-05",
+   "latest_calendar_date": "2021-01-02"
+  },
+  {
+   "sha1": "a4c19a38f2fa576385ff3cdc051e00726b4f559b",
+   "fetched_at": "2020-09-22T00:02:54.388955Z",
+   "earliest_calendar_date": "2020-09-02",
+   "latest_calendar_date": "2021-01-02"
+  },
+  {
+   "sha1": "a2d6cbd084a449682720773a9a7d13f8c6f029ff",
+   "fetched_at": "2020-09-08T00:03:25.028359Z",
+   "earliest_calendar_date": "2020-09-05",
+   "latest_calendar_date": "2021-01-02"
+  },
+  {
+   "sha1": "47a72f1069fe4d26edba7d6470a81a4a9ba398ff",
+   "fetched_at": "2020-08-19T00:03:45.6921Z",
+   "earliest_calendar_date": "2020-08-11",
+   "latest_calendar_date": "2020-09-05"
+  },
+  {
+   "sha1": "141ef13b17ae282e03ad9ea230dc83a04b3ae2e9",
+   "fetched_at": "2020-08-04T06:32:00.23204Z",
+   "earliest_calendar_date": "2020-06-27",
+   "latest_calendar_date": "2020-09-05"
+  },
+  {
+   "sha1": "841e45d02ee52357e48ac9c6191850f451c5149b",
+   "fetched_at": "2020-06-25T00:04:11.337856Z",
+   "earliest_calendar_date": "2020-06-27",
+   "latest_calendar_date": "2020-09-05"
+  },
+  {
+   "sha1": "8de9f7c9c032200f35b1be2023d0df5fe6629e16",
+   "fetched_at": "2020-06-06T00:05:08.010862Z",
+   "earliest_calendar_date": "2020-04-04",
+   "latest_calendar_date": "2020-06-27"
+  },
+  {
+   "sha1": "b8b2358efa51b601931e7edbd2b5523eaf14d596",
+   "fetched_at": "2020-06-02T00:04:31.179543Z",
+   "earliest_calendar_date": "2020-04-04",
+   "latest_calendar_date": "2020-06-27"
+  },
+  {
+   "sha1": "f626f0ab9991458a21ab8861bd879b282609f2ab",
+   "fetched_at": "2020-05-07T00:04:12.368292Z",
+   "earliest_calendar_date": "2020-04-04",
+   "latest_calendar_date": "2020-06-27"
+  },
+  {
+   "sha1": "3e6beb957828d03fb28dbc569f37c1f7e3c60900",
+   "fetched_at": "2020-05-01T00:04:41.977814Z",
+   "earliest_calendar_date": "2020-01-18",
+   "latest_calendar_date": "2020-06-06"
+  },
+  {
+   "sha1": "06d84bd4bd0928c0b9dc8c3d4ba367e94d6a0593",
+   "fetched_at": "2020-04-04T00:03:24.384534Z",
+   "earliest_calendar_date": "2020-01-18",
+   "latest_calendar_date": "2020-05-02"
+  },
+  {
+   "sha1": "cc0c18466bbe593c9417ec28f084f32a189cf8a8",
+   "fetched_at": "2020-03-30T00:03:28.279492Z",
+   "earliest_calendar_date": "2020-01-18",
+   "latest_calendar_date": "2020-04-18"
+  },
+  {
+   "sha1": "06df05b01192f0369ef9250d2fcd035bc775e492",
+   "fetched_at": "2020-03-18T00:04:48.681498Z",
+   "earliest_calendar_date": "2020-01-18",
+   "latest_calendar_date": "2020-04-04"
+  },
+  {
+   "sha1": "1d1cb70ba24aac641088a7d4fcb575301e4aedf5",
+   "fetched_at": "2020-01-22T00:01:15.524033Z",
+   "earliest_calendar_date": "2020-01-18",
+   "latest_calendar_date": "2020-04-04"
+  },
+  {
+   "sha1": "9537b6cfe978ef92e19884ec11fbd79a85d9ef4b",
+   "fetched_at": "2020-01-18T00:01:11.448243Z",
+   "earliest_calendar_date": "2020-01-18",
+   "latest_calendar_date": "2020-04-04"
+  },
+  {
+   "sha1": "019395e1759226538f8b12f403e6c8393108950a",
+   "fetched_at": "2020-01-04T11:14:37.293616Z",
+   "earliest_calendar_date": "2020-01-04",
+   "latest_calendar_date": "2020-01-18"
+  },
+  {
+   "sha1": "b17ae224218ac1b6728cdce2405ea001b8a7d7a9",
+   "fetched_at": "2019-11-15T00:57:03.725955Z",
+   "earliest_calendar_date": "2019-08-31",
+   "latest_calendar_date": "2020-01-04"
+  },
+  {
+   "sha1": "d141ba53b346bcb2a2a06cf30438e68439043434",
+   "fetched_at": "2018-09-01T02:30:17.607319Z",
+   "earliest_calendar_date": "2018-09-01",
+   "latest_calendar_date": "2019-01-05"
+  },
+  {
+   "sha1": "42d3da548d9c9a35b18205f5109fb759275469ce",
+   "fetched_at": "2018-07-03T10:00:41.639782Z",
+   "earliest_calendar_date": "2018-06-30",
+   "latest_calendar_date": "2018-09-01"
+  },
+  {
+   "sha1": "e4be1ad7a2372b25c1c6ec6f294e359d985849ed",
+   "fetched_at": "2018-03-27T06:01:19.16133Z",
+   "earliest_calendar_date": "2018-03-31",
+   "latest_calendar_date": "2018-06-30"
+  },
+  {
+   "sha1": "7dbe46daa61f9a996476649e6a141ec306dd4796",
+   "fetched_at": "2017-12-22T01:30:15.474509Z",
+   "earliest_calendar_date": "2018-01-06",
+   "latest_calendar_date": "2018-03-31"
+  },
+  {
+   "sha1": "04d2f2453e4b54bdb90c3a2d4c32bfa1a5b64743",
+   "fetched_at": "2017-08-26T01:00:52.845563Z",
+   "earliest_calendar_date": "2017-09-02",
+   "latest_calendar_date": "2018-01-06"
+  },
+  {
+   "sha1": "4747e55457ffd7c1045eea91fbe996b182613433",
+   "fetched_at": "2017-06-27T12:00:29.45743Z",
+   "earliest_calendar_date": "2017-07-01",
+   "latest_calendar_date": "2017-09-02"
+  },
+  {
+   "sha1": "4cc9a96a79b4b85baceb0f048c226ee0ba2943da",
+   "fetched_at": "2017-04-05T07:00:17.75463Z",
+   "earliest_calendar_date": "2017-04-08",
+   "latest_calendar_date": "2017-07-01"
+  },
+  {
+   "sha1": "54212859b2cdb57828f2ec2d1ddcd6f32c8c97db",
+   "fetched_at": "2017-04-01T09:30:18.720234Z",
+   "earliest_calendar_date": "2017-01-07",
+   "latest_calendar_date": "2017-04-08"
+  },
+  {
+   "sha1": "933cf09f5ed5399c83a55180260266f91067c8b9",
+   "fetched_at": "2017-01-09T22:32:03.84688Z",
+   "earliest_calendar_date": "2017-01-07",
+   "latest_calendar_date": "2017-04-01"
+  },
+  {
+   "sha1": "ced53d8363c8343448001503c82def90ee5d1ee6",
+   "fetched_at": "2016-09-01T22:50:44.651948Z",
+   "earliest_calendar_date": "2016-09-03",
+   "latest_calendar_date": "2017-01-07"
+  },
+  {
+   "sha1": "19dabac4c83242b17c4f7492b9f7ddf71ff827dc",
+   "fetched_at": "2016-06-28T04:00:09.073502Z",
+   "earliest_calendar_date": "2016-07-02",
+   "latest_calendar_date": "2016-09-03"
+  },
+  {
+   "sha1": "6b3e70b19df994e43da151f8d97f2f1dafd26b5b",
+   "fetched_at": "2016-05-08T12:01:06.019817Z",
+   "earliest_calendar_date": "2016-04-03",
+   "latest_calendar_date": "2016-07-02"
+  },
+  {
+   "sha1": "9143124025dd3abbfd433eb2f6c3aef942e1cde4",
+   "fetched_at": "2016-03-25T12:01:05.317429Z",
+   "earliest_calendar_date": "2016-04-03",
+   "latest_calendar_date": "2016-07-02"
+  },
+  {
+   "sha1": "966ffcb69e596f0cec06a8d97288314c664736a8",
+   "fetched_at": "2016-02-06T20:05:28.613049Z",
+   "earliest_calendar_date": "2016-01-03",
+   "latest_calendar_date": "2016-04-02"
+  }
+ ],
+ "brooklyn": [
+  {
+   "sha1": "c05b9aefc277ec4e766c07ea5ea9c26faa7bcbfc",
+   "fetched_at": "2026-06-24T04:50:39.140428Z",
+   "earliest_calendar_date": "2026-06-27",
+   "latest_calendar_date": "2026-09-05"
+  },
+  {
+   "sha1": "968bea400017217c25d53c9c0982edf9b124e1ff",
+   "fetched_at": "2026-04-09T03:47:51.682432Z",
+   "earliest_calendar_date": "2026-04-11",
+   "latest_calendar_date": "2026-06-27"
+  },
+  {
+   "sha1": "0d29a3d30e45ba1a6c703babdfbc011765d8183c",
+   "fetched_at": "2026-03-27T03:35:53.430865Z",
+   "earliest_calendar_date": "2026-01-03",
+   "latest_calendar_date": "2026-04-11"
+  },
+  {
+   "sha1": "9d9fe880d2c130f7fe5d135de036a656ec0813e6",
+   "fetched_at": "2026-01-26T02:39:30.73986Z",
+   "earliest_calendar_date": "2026-01-04",
+   "latest_calendar_date": "2026-03-27"
+  },
+  {
+   "sha1": "b7bdb52aec74aa9b2b3d342020726e28ea5f78bf",
+   "fetched_at": "2026-01-16T02:30:13.91352Z",
+   "earliest_calendar_date": "2026-01-03",
+   "latest_calendar_date": "2026-03-28"
+  },
+  {
+   "sha1": "0293299bbf94855aa49e88a577ed99cfb9a0d925",
+   "fetched_at": "2026-01-09T02:15:53.332395Z",
+   "earliest_calendar_date": "2026-01-03",
+   "latest_calendar_date": "2026-03-28"
+  },
+  {
+   "sha1": "e7fa33c12833fa3672381d1b96366e5a7fb6adb9",
+   "fetched_at": "2025-12-30T02:06:01.860952Z",
+   "earliest_calendar_date": "2026-01-03",
+   "latest_calendar_date": "2026-03-28"
+  },
+  {
+   "sha1": "df3ff17dcdb1f6e36f218c7b50f35a6205f6ac66",
+   "fetched_at": "2025-09-15T18:08:43.701225Z",
+   "earliest_calendar_date": "2025-08-30",
+   "latest_calendar_date": "2026-01-03"
+  },
+  {
+   "sha1": "cbbc31d0df83e80b6bcab58b9f909e1af3d6efd6",
+   "fetched_at": "2025-08-25T15:42:37.206267Z",
+   "earliest_calendar_date": "2025-08-30",
+   "latest_calendar_date": "2026-01-03"
+  },
+  {
+   "sha1": "a912b084ceaed360ab765391f59d22b2ebb794a7",
+   "fetched_at": "2025-08-12T14:20:53.551554Z",
+   "earliest_calendar_date": "2025-06-28",
+   "latest_calendar_date": "2025-08-30"
+  },
+  {
+   "sha1": "25f04be8e25ec0f516a0a6ee03a98f1ad89cf176",
+   "fetched_at": "2025-07-03T12:24:44.758353Z",
+   "earliest_calendar_date": "2025-06-28",
+   "latest_calendar_date": "2025-08-30"
+  },
+  {
+   "sha1": "6988d63b2e2501da5869ab66ada087872818e696",
+   "fetched_at": "2025-06-30T16:07:28.475303Z",
+   "earliest_calendar_date": "2025-06-28",
+   "latest_calendar_date": "2025-08-30"
+  },
+  {
+   "sha1": "012e855d0f8323a7b87352a4726b71767423b775",
+   "fetched_at": "2025-06-25T15:31:53.463837Z",
+   "earliest_calendar_date": "2025-06-28",
+   "latest_calendar_date": "2025-08-30"
+  },
+  {
+   "sha1": "61a91997a81fd2518e6c5fa5e812f64b8990ec5d",
+   "fetched_at": "2025-05-15T15:27:18.489427Z",
+   "earliest_calendar_date": "2025-01-29",
+   "latest_calendar_date": "2025-06-28"
+  },
+  {
+   "sha1": "af9c2d719bae8489195b10331bb4b3af69f2f92b",
+   "fetched_at": "2025-03-26T22:33:32.544811Z",
+   "earliest_calendar_date": "2025-03-29",
+   "latest_calendar_date": "2025-06-28"
+  },
+  {
+   "sha1": "fe42a5d3454643ffab1ef0c630c717f2378af9f7",
+   "fetched_at": "2025-02-15T13:31:11.33518Z",
+   "earliest_calendar_date": "2025-02-09",
+   "latest_calendar_date": "2025-03-29"
+  },
+  {
+   "sha1": "ab8804f862399cb87aadec48ed860edcd9d6d0ea",
+   "fetched_at": "2025-01-01T00:57:09.395492Z",
+   "earliest_calendar_date": "2025-01-04",
+   "latest_calendar_date": "2025-03-29"
+  },
+  {
+   "sha1": "3dbb9077838ae4b576607e3c055072415d8ca1d8",
+   "fetched_at": "2024-12-10T10:45:47.936773Z",
+   "earliest_calendar_date": "2024-08-31",
+   "latest_calendar_date": "2025-01-04"
+  },
+  {
+   "sha1": "233ed1cd7240e9d53942ca2c7275bd50eb8e7c8c",
+   "fetched_at": "2024-08-29T04:07:08.40021Z",
+   "earliest_calendar_date": "2024-08-31",
+   "latest_calendar_date": "2025-01-04"
+  },
+  {
+   "sha1": "c1c3b7672283b6afb6752742c0f052e27d408c41",
+   "fetched_at": "2024-07-10T17:55:07.157299Z",
+   "earliest_calendar_date": "2024-06-29",
+   "latest_calendar_date": "2024-08-31"
+  },
+  {
+   "sha1": "0f519afbc75f4ad9aa9a3ff458159bfa2fa34c2e",
+   "fetched_at": "2024-06-28T17:51:27.656352Z",
+   "earliest_calendar_date": "2024-06-29",
+   "latest_calendar_date": "2024-08-31"
+  },
+  {
+   "sha1": "5ba0d35bfb5e427e2a619f65b57b7a211b64178a",
+   "fetched_at": "2024-06-27T17:51:18.110267Z",
+   "earliest_calendar_date": "2024-06-29",
+   "latest_calendar_date": "2024-08-31"
+  },
+  {
+   "sha1": "ff6ea817d5b94959d22eef64747d31cd2efb2ef0",
+   "fetched_at": "2024-03-27T13:14:17.517098Z",
+   "earliest_calendar_date": "2024-03-30",
+   "latest_calendar_date": "2024-06-29"
+  },
+  {
+   "sha1": "5797e56cdd0f4dee72d4fdc16b307b3d2bee108e",
+   "fetched_at": "2024-01-24T14:35:26.535809Z",
+   "earliest_calendar_date": "2023-01-06",
+   "latest_calendar_date": "2024-03-30"
+  },
+  {
+   "sha1": "2c54cdb7db15482157ea0cfee4c43236109511d3",
+   "fetched_at": "2023-12-26T22:33:38.080923Z",
+   "earliest_calendar_date": "2024-01-06",
+   "latest_calendar_date": "2024-03-30"
+  },
+  {
+   "sha1": "61d83dfee1ca98efb7e187d348803757afcf5715",
+   "fetched_at": "2023-09-18T15:42:58.543962Z",
+   "earliest_calendar_date": "2023-09-02",
+   "latest_calendar_date": "2024-01-06"
+  },
+  {
+   "sha1": "4d0250d48865a2d4647ccf7c6be7a634a68a9428",
+   "fetched_at": "2023-08-30T15:19:08.835059Z",
+   "earliest_calendar_date": "2023-09-02",
+   "latest_calendar_date": "2024-01-06"
+  },
+  {
+   "sha1": "920028e6bc3ab4fb31b1ff2d290b88fb0c55e969",
+   "fetched_at": "2023-07-29T16:23:31.784666Z",
+   "earliest_calendar_date": "2023-07-01",
+   "latest_calendar_date": "2023-09-02"
+  },
+  {
+   "sha1": "38a9d863db0b54b2c33e90365c8c4dce15febc10",
+   "fetched_at": "2023-06-29T14:00:50.403509Z",
+   "earliest_calendar_date": "2023-07-01",
+   "latest_calendar_date": "2023-09-02"
+  },
+  {
+   "sha1": "5e9774c1ca10f3b504553b684e866370328cb860",
+   "fetched_at": "2023-03-30T19:00:43.883111Z",
+   "earliest_calendar_date": "2023-04-01",
+   "latest_calendar_date": "2023-07-01"
+  },
+  {
+   "sha1": "83c114a94d938f93082f2bce153cc9da0fe4aceb",
+   "fetched_at": "2023-01-04T17:00:42.1267Z",
+   "earliest_calendar_date": "2023-01-07",
+   "latest_calendar_date": "2023-04-01"
+  },
+  {
+   "sha1": "0a2fc8f506e1809dab08087937f2a822d2f89280",
+   "fetched_at": "2022-09-01T14:00:35.762745Z",
+   "earliest_calendar_date": "2022-09-03",
+   "latest_calendar_date": "2023-01-07"
+  },
+  {
+   "sha1": "707a2b32991c7ae1456ccb06d1c8a4c32648b07e",
+   "fetched_at": "2022-06-23T23:00:43.073698Z",
+   "earliest_calendar_date": "2022-06-25",
+   "latest_calendar_date": "2022-09-03"
+  },
+  {
+   "sha1": "1584aaec4586efc42be1a6ad5d74f5dcc79c6cf7",
+   "fetched_at": "2022-06-16T20:00:45.468885Z",
+   "earliest_calendar_date": "2021-06-25",
+   "latest_calendar_date": "2022-09-03"
+  },
+  {
+   "sha1": "db3bbae86bd7a577ab55ff3bca5a64c36af408b5",
+   "fetched_at": "2022-03-24T18:00:53.609158Z",
+   "earliest_calendar_date": "2022-03-26",
+   "latest_calendar_date": "2022-06-25"
+  },
+  {
+   "sha1": "9b57e2eeb2c6f5b99b0d46cad6b22b870f2c85c4",
+   "fetched_at": "2021-12-30T01:01:57.229081Z",
+   "earliest_calendar_date": "2022-01-01",
+   "latest_calendar_date": "2022-03-26"
+  },
+  {
+   "sha1": "cade406c39b40e3bce9477e75d27827552167bd3",
+   "fetched_at": "2021-12-21T19:01:25.393843Z",
+   "earliest_calendar_date": "2021-09-04",
+   "latest_calendar_date": "2022-01-01"
+  },
+  {
+   "sha1": "5b7f197c71b8d78abaead9301ed7d0ebf87dc82f",
+   "fetched_at": "2021-09-02T21:01:10.824649Z",
+   "earliest_calendar_date": "2021-09-04",
+   "latest_calendar_date": "2022-01-01"
+  },
+  {
+   "sha1": "c244b822b8d0120d40e5849369b451220e1bfdd2",
+   "fetched_at": "2021-08-31T21:01:02.433453Z",
+   "earliest_calendar_date": "2021-08-04",
+   "latest_calendar_date": "2022-01-01"
+  },
+  {
+   "sha1": "4b8dec91e6a6965d31df213ca905724d0bc530a8",
+   "fetched_at": "2021-06-25T15:05:16.637399Z",
+   "earliest_calendar_date": "2021-06-26",
+   "latest_calendar_date": "2021-09-04"
+  },
+  {
+   "sha1": "355eaaf488b0e9e75ae452dd5313a67000600cde",
+   "fetched_at": "2021-06-17T19:06:47.876072Z",
+   "earliest_calendar_date": "2021-06-09",
+   "latest_calendar_date": "2021-06-26"
+  },
+  {
+   "sha1": "e93d5f30b629e05cf4d8b025fffde9ebf091eaab",
+   "fetched_at": "2021-06-11T06:10:54.778149Z",
+   "earliest_calendar_date": "2021-06-09",
+   "latest_calendar_date": "2021-06-26"
+  },
+  {
+   "sha1": "a77d6c035affae2f486a7f303d7de924cb305fd0",
+   "fetched_at": "2021-04-28T16:07:22.420324Z",
+   "earliest_calendar_date": "2021-04-03",
+   "latest_calendar_date": "2021-06-26"
+  },
+  {
+   "sha1": "094a3ff53c690e26299573268c930e7328b1bfd7",
+   "fetched_at": "2021-04-26T01:04:26.760513Z",
+   "earliest_calendar_date": "2021-04-03",
+   "latest_calendar_date": "2021-06-26"
+  },
+  {
+   "sha1": "504c65f02919feee2329cc3b0f017a706bd51796",
+   "fetched_at": "2021-04-01T15:03:03.392792Z",
+   "earliest_calendar_date": "2021-04-03",
+   "latest_calendar_date": "2021-06-26"
+  },
+  {
+   "sha1": "05fe1387a1e1a7564394f0a6c264c8039d8994fb",
+   "fetched_at": "2021-03-30T22:07:40.106369Z",
+   "earliest_calendar_date": "2021-01-02",
+   "latest_calendar_date": "2021-09-04"
+  },
+  {
+   "sha1": "961bcf2b4de3ea70bf06fc96323915c8f44824a1",
+   "fetched_at": "2021-02-26T19:06:38.612333Z",
+   "earliest_calendar_date": "2021-01-02",
+   "latest_calendar_date": "2021-09-04"
+  },
+  {
+   "sha1": "4999a3ed2150ebe627a1c1b62b3b5542227612e0",
+   "fetched_at": "2021-02-25T03:05:21.964875Z",
+   "earliest_calendar_date": "2021-02-24",
+   "latest_calendar_date": "2021-04-02"
+  },
+  {
+   "sha1": "78c37acbc191454e666a917840c301bd1aa20e22",
+   "fetched_at": "2021-02-02T17:02:36.340613Z",
+   "earliest_calendar_date": "2021-01-03",
+   "latest_calendar_date": "2021-04-02"
+  },
+  {
+   "sha1": "1424b72675ffb5d1d487f2aaaf136dc58a65a05f",
+   "fetched_at": "2021-02-01T14:02:20.094092Z",
+   "earliest_calendar_date": "2021-01-31",
+   "latest_calendar_date": "2021-02-02"
+  },
+  {
+   "sha1": "537ce661b6871dbf7b85493262b3e9ac53ac90be",
+   "fetched_at": "2021-01-23T00:20:20.960531Z",
+   "earliest_calendar_date": "2021-01-02",
+   "latest_calendar_date": "2021-04-03"
+  },
+  {
+   "sha1": "43afc33987c17f8fed42325dda5948b047ce1a7b",
+   "fetched_at": "2020-12-16T16:03:47.131351Z",
+   "earliest_calendar_date": "2020-12-15",
+   "latest_calendar_date": "2020-12-17"
+  },
+  {
+   "sha1": "b8cc143abe6406e2a83854c5a9f398d2b2d19aff",
+   "fetched_at": "2020-11-30T16:03:18.469685Z",
+   "earliest_calendar_date": "2020-09-05",
+   "latest_calendar_date": "2021-01-02"
+  },
+  {
+   "sha1": "ceaab7da59aa457cf5a869c50e0bddd4b3603e9d",
+   "fetched_at": "2020-10-29T00:03:56.658397Z",
+   "earliest_calendar_date": "2020-09-05",
+   "latest_calendar_date": "2021-01-02"
+  },
+  {
+   "sha1": "cc40f99ad6caafee9e64bb19d6f9d7ea0845b6ce",
+   "fetched_at": "2020-10-24T00:03:49.769629Z",
+   "earliest_calendar_date": "2020-09-05",
+   "latest_calendar_date": "2021-01-02"
+  },
+  {
+   "sha1": "70758eac99c74fffdc3d132553e098165afe6891",
+   "fetched_at": "2020-09-22T00:02:48.184117Z",
+   "earliest_calendar_date": "2020-09-02",
+   "latest_calendar_date": "2021-01-02"
+  },
+  {
+   "sha1": "0068150e03ed7c94fc9d850ed76fad962da18bd5",
+   "fetched_at": "2020-09-08T00:03:11.835165Z",
+   "earliest_calendar_date": "2020-09-05",
+   "latest_calendar_date": "2021-01-02"
+  },
+  {
+   "sha1": "06255c4c97d29d7ed675c9ed8167a22a4070eb6b",
+   "fetched_at": "2020-08-19T00:03:35.569795Z",
+   "earliest_calendar_date": "2020-06-27",
+   "latest_calendar_date": "2020-09-05"
+  },
+  {
+   "sha1": "d02bce139a30e9ac1b6bd892099d4f8d64d0348b",
+   "fetched_at": "2020-08-04T06:31:56.74536Z",
+   "earliest_calendar_date": "2020-08-01",
+   "latest_calendar_date": "2020-09-05"
+  },
+  {
+   "sha1": "54427238269b7d79af8b40ab2e355cf96f1a7500",
+   "fetched_at": "2020-06-25T00:02:42.850577Z",
+   "earliest_calendar_date": "2020-06-27",
+   "latest_calendar_date": "2020-09-05"
+  },
+  {
+   "sha1": "266020ca676cb42f304db22ac1d7c7af727a3f7a",
+   "fetched_at": "2020-06-06T00:03:39.490144Z",
+   "earliest_calendar_date": "2020-04-04",
+   "latest_calendar_date": "2020-06-27"
+  },
+  {
+   "sha1": "cf5f26fda8066933772f91c0b01f1356777f806f",
+   "fetched_at": "2020-06-02T00:03:18.520264Z",
+   "earliest_calendar_date": "2020-04-04",
+   "latest_calendar_date": "2020-06-27"
+  },
+  {
+   "sha1": "cd29cb45caa62214c01b2f90ca9c348b5465aa0f",
+   "fetched_at": "2020-05-07T00:01:06.936755Z",
+   "earliest_calendar_date": "2020-04-04",
+   "latest_calendar_date": "2020-06-27"
+  },
+  {
+   "sha1": "44fa759799c64f94b3c9f4732ed8059c62dadc80",
+   "fetched_at": "2020-05-01T00:01:40.13482Z",
+   "earliest_calendar_date": "2020-01-18",
+   "latest_calendar_date": "2020-06-06"
+  },
+  {
+   "sha1": "92812cd805f3a1d86b99bd673fd813b586cbd089",
+   "fetched_at": "2020-04-13T22:25:12.816626Z",
+   "earliest_calendar_date": "2020-01-18",
+   "latest_calendar_date": "2020-05-02"
+  },
+  {
+   "sha1": "319e617956bb0d5551313dfb5f8cc319a248a63e",
+   "fetched_at": "2020-04-04T00:03:20.11347Z",
+   "earliest_calendar_date": "2020-01-18",
+   "latest_calendar_date": "2020-05-02"
+  },
+  {
+   "sha1": "c33bdace02e429302b0f16bbfdf203385656000e",
+   "fetched_at": "2020-04-01T00:04:05.131358Z",
+   "earliest_calendar_date": "2020-01-18",
+   "latest_calendar_date": "2020-05-02"
+  },
+  {
+   "sha1": "0400a1a749914757a743ae7e0f67ad74bc80585e",
+   "fetched_at": "2020-03-18T00:04:43.875456Z",
+   "earliest_calendar_date": "2020-01-18",
+   "latest_calendar_date": "2020-04-04"
+  },
+  {
+   "sha1": "5c2530d98edda61aff8f375ae0cd2b039d5415c7",
+   "fetched_at": "2020-01-18T00:01:04.318633Z",
+   "earliest_calendar_date": "2020-01-18",
+   "latest_calendar_date": "2020-04-04"
+  },
+  {
+   "sha1": "8311db71092615a61378aeb7bb01b4ce2ed57834",
+   "fetched_at": "2019-12-29T08:48:34.608409Z",
+   "earliest_calendar_date": "2020-01-04",
+   "latest_calendar_date": "2020-01-18"
+  },
+  {
+   "sha1": "7cabef7419715159662cb7644c0e35ed58365160",
+   "fetched_at": "2019-10-25T04:00:10.063393Z",
+   "earliest_calendar_date": "2019-08-31",
+   "latest_calendar_date": "2020-01-04"
+  },
+  {
+   "sha1": "5908b93e6c30b832ce524f04edab381a44f13ec8",
+   "fetched_at": "2019-09-21T06:08:52.145272Z",
+   "earliest_calendar_date": "2019-08-31",
+   "latest_calendar_date": "2020-01-04"
+  },
+  {
+   "sha1": "4edb04c190b3f6e3e2eae6d65b202123ed8f5d09",
+   "fetched_at": "2019-04-28T01:01:15.87725Z",
+   "earliest_calendar_date": "2019-04-27",
+   "latest_calendar_date": "2019-06-29"
+  },
+  {
+   "sha1": "90208e85f871e859f0b692caa493b75263dc5bb8",
+   "fetched_at": "2019-03-28T16:32:51.432374Z",
+   "earliest_calendar_date": "2019-04-27",
+   "latest_calendar_date": "2019-06-29"
+  },
+  {
+   "sha1": "9fd6a7459ed1b0eb22403f20ec914aff51584a68",
+   "fetched_at": "2019-02-28T04:34:10.734219Z",
+   "earliest_calendar_date": "2019-01-12",
+   "latest_calendar_date": "2019-04-27"
+  },
+  {
+   "sha1": "8ae01088ba960480f432408097ee656185636e7a",
+   "fetched_at": "2019-02-24T01:26:02.317778Z",
+   "earliest_calendar_date": "2019-01-12",
+   "latest_calendar_date": "2019-04-27"
+  },
+  {
+   "sha1": "3de735bdb54d77e3ea67baf7be376fa4de2b4a12",
+   "fetched_at": "2019-01-06T01:33:22.143387Z",
+   "earliest_calendar_date": "2019-01-05",
+   "latest_calendar_date": "2019-04-20"
+  },
+  {
+   "sha1": "3c6dc6ee8f97de85da5cda849bad5618775393e9",
+   "fetched_at": "2018-10-13T14:30:20.362684Z",
+   "earliest_calendar_date": "2018-09-29",
+   "latest_calendar_date": "2019-01-05"
+  },
+  {
+   "sha1": "553ee6211f4426d1d00e7a7a28ac250b3971e59f",
+   "fetched_at": "2018-10-11T13:30:24.840631Z",
+   "earliest_calendar_date": "2018-09-29",
+   "latest_calendar_date": "2019-01-05"
+  },
+  {
+   "sha1": "207a057a684026a7521468b6d2c3af184db649fa",
+   "fetched_at": "2018-09-01T03:30:30.485685Z",
+   "earliest_calendar_date": "2018-09-01",
+   "latest_calendar_date": "2019-01-05"
+  },
+  {
+   "sha1": "4bd117ac3f5160b69d5691b136541af5beab515a",
+   "fetched_at": "2018-07-03T09:30:41.033157Z",
+   "earliest_calendar_date": "2018-06-30",
+   "latest_calendar_date": "2018-09-01"
+  },
+  {
+   "sha1": "f458cf2e9c3dbd698f8cc1c1ea4db664a11cb6b4",
+   "fetched_at": "2018-03-27T06:30:56.103675Z",
+   "earliest_calendar_date": "2018-03-31",
+   "latest_calendar_date": "2018-06-30"
+  },
+  {
+   "sha1": "c31801687408edecdd2b42a86378340e5fdfb14f",
+   "fetched_at": "2017-12-22T03:00:23.453312Z",
+   "earliest_calendar_date": "2018-01-06",
+   "latest_calendar_date": "2018-03-31"
+  },
+  {
+   "sha1": "801bbb41cbf952a67a3c8d6b511a2839b62a4012",
+   "fetched_at": "2017-08-24T16:36:43.265936Z",
+   "earliest_calendar_date": "2017-09-02",
+   "latest_calendar_date": "2018-01-06"
+  },
+  {
+   "sha1": "fa11aea63c5dcc01badc7d6db015a0919e6ba028",
+   "fetched_at": "2017-07-22T13:00:16.187966Z",
+   "earliest_calendar_date": "2017-07-01",
+   "latest_calendar_date": "2017-09-02"
+  },
+  {
+   "sha1": "f86b91bf64ecb921231b2910513b0743a199a3fc",
+   "fetched_at": "2017-06-28T14:00:13.611093Z",
+   "earliest_calendar_date": "2017-07-01",
+   "latest_calendar_date": "2017-09-02"
+  },
+  {
+   "sha1": "2f988d4c326c2d7b178273ac82fc1fbb459c6abb",
+   "fetched_at": "2017-04-06T06:00:10.305186Z",
+   "earliest_calendar_date": "2017-04-08",
+   "latest_calendar_date": "2017-07-01"
+  },
+  {
+   "sha1": "1d7e0dcb11d9334f17537adfb678fbf5ea00e447",
+   "fetched_at": "2017-01-09T22:30:01.455041Z",
+   "earliest_calendar_date": "2017-01-07",
+   "latest_calendar_date": "2017-04-01"
+  },
+  {
+   "sha1": "8e242958f8229540fd54ca1be44badbd42eb4437",
+   "fetched_at": "2016-09-01T22:50:01.747804Z",
+   "earliest_calendar_date": "2016-09-03",
+   "latest_calendar_date": "2017-01-07"
+  },
+  {
+   "sha1": "9212e6bf00ea891efdc93f1cc35096e17857bd5d",
+   "fetched_at": "2016-06-27T18:06:04.516955Z",
+   "earliest_calendar_date": "2016-07-02",
+   "latest_calendar_date": "2016-09-03"
+  },
+  {
+   "sha1": "75108e6b4d08f2e340928e6b0d09210e3a06249a",
+   "fetched_at": "2016-04-24T12:01:05.969575Z",
+   "earliest_calendar_date": "2016-04-02",
+   "latest_calendar_date": "2016-07-02"
+  },
+  {
+   "sha1": "e1f6b038096f7dba869a939ac3599850cc6be6a8",
+   "fetched_at": "2016-03-25T12:01:05.309107Z",
+   "earliest_calendar_date": "2016-04-02",
+   "latest_calendar_date": "2016-07-02"
+  },
+  {
+   "sha1": "92f92faea3210210942fefde36327d99a7eba6ee",
+   "fetched_at": "2016-02-06T20:05:28.697011Z",
+   "earliest_calendar_date": "2016-01-02",
+   "latest_calendar_date": "2016-04-02"
+  }
+ ],
+ "manhattan": [
+  {
+   "sha1": "e19457c845680d939472dfb801c1a35bed1479fd",
+   "fetched_at": "2026-06-24T04:15:41.260247Z",
+   "earliest_calendar_date": "2026-06-27",
+   "latest_calendar_date": "2026-09-05"
+  },
+  {
+   "sha1": "20f6afe3a5d0970c3774ab445ee753bb97ae4c18",
+   "fetched_at": "2026-04-09T03:11:49.511919Z",
+   "earliest_calendar_date": "2026-04-11",
+   "latest_calendar_date": "2026-06-27"
+  },
+  {
+   "sha1": "eed94f113ac05e74651f84bd631169c0ba998dfa",
+   "fetched_at": "2026-03-27T02:59:52.162809Z",
+   "earliest_calendar_date": "2026-01-03",
+   "latest_calendar_date": "2026-04-11"
+  },
+  {
+   "sha1": "2edf77d264dddfb9aeea1127b005a0b29e82bcc3",
+   "fetched_at": "2026-01-26T02:04:30.288722Z",
+   "earliest_calendar_date": "2026-01-04",
+   "latest_calendar_date": "2026-03-27"
+  },
+  {
+   "sha1": "5f34d6e6733c37111da57abd63e3ee21517cc762",
+   "fetched_at": "2026-01-09T01:44:58.575189Z",
+   "earliest_calendar_date": "2026-01-03",
+   "latest_calendar_date": "2026-03-28"
+  },
+  {
+   "sha1": "27a9b402b9915aad35b4dcf93154e20566fc907b",
+   "fetched_at": "2025-12-30T01:33:02.730064Z",
+   "earliest_calendar_date": "2026-01-03",
+   "latest_calendar_date": "2026-03-28"
+  },
+  {
+   "sha1": "cafd046f9f0377603dd8f0f61793f44c6a9c177d",
+   "fetched_at": "2025-10-21T13:32:49.983518Z",
+   "earliest_calendar_date": "2025-10-19",
+   "latest_calendar_date": "2026-01-03"
+  },
+  {
+   "sha1": "78797622c60dbe3b3ed7c6a56e803d66b135b406",
+   "fetched_at": "2025-09-15T18:06:46.588306Z",
+   "earliest_calendar_date": "2025-08-30",
+   "latest_calendar_date": "2026-01-03"
+  },
+  {
+   "sha1": "f51a01c974e97518ee10156270b8a6b9b62c4a79",
+   "fetched_at": "2025-08-25T15:37:44.040579Z",
+   "earliest_calendar_date": "2025-08-30",
+   "latest_calendar_date": "2026-01-03"
+  },
+  {
+   "sha1": "dd8126781edfb2355825ee2b894a727b0f07e291",
+   "fetched_at": "2025-06-30T16:39:30.1581Z",
+   "earliest_calendar_date": "2025-06-28",
+   "latest_calendar_date": "2025-08-30"
+  },
+  {
+   "sha1": "4e39c88884f3f85431356c10f24050b937ef2b41",
+   "fetched_at": "2025-06-25T16:09:38.353039Z",
+   "earliest_calendar_date": "2025-06-28",
+   "latest_calendar_date": "2025-08-30"
+  },
+  {
+   "sha1": "2d42104115e17abb34bae3130e894c0a1089e5ad",
+   "fetched_at": "2025-05-15T15:43:40.433378Z",
+   "earliest_calendar_date": "2025-01-29",
+   "latest_calendar_date": "2025-06-28"
+  },
+  {
+   "sha1": "0c53ab63657e91d9f5045b17171a887d9efac2c5",
+   "fetched_at": "2025-03-26T22:43:40.372627Z",
+   "earliest_calendar_date": "2025-03-29",
+   "latest_calendar_date": "2025-06-28"
+  },
+  {
+   "sha1": "4dedc6317aed89cf4c773b9c3b6b6e2728fd56c6",
+   "fetched_at": "2025-02-15T18:31:32.318498Z",
+   "earliest_calendar_date": "2025-02-09",
+   "latest_calendar_date": "2025-03-29"
+  },
+  {
+   "sha1": "380f95f7dc3cb6f298719cce79dc019f6b1c122e",
+   "fetched_at": "2025-01-23T04:09:04.353796Z",
+   "earliest_calendar_date": "2025-01-04",
+   "latest_calendar_date": "2025-03-29"
+  },
+  {
+   "sha1": "7f28ec8ad237d4670b33add9efcae071b4545682",
+   "fetched_at": "2025-01-01T13:13:44.336177Z",
+   "earliest_calendar_date": "2025-01-04",
+   "latest_calendar_date": "2025-03-29"
+  },
+  {
+   "sha1": "0d4da229a62ad33da4499efb134904edf0092cfc",
+   "fetched_at": "2024-12-10T21:22:01.029335Z",
+   "earliest_calendar_date": "2024-08-31",
+   "latest_calendar_date": "2025-01-04"
+  },
+  {
+   "sha1": "581dbe6bc617cdb836d6570b4f353127c471ef91",
+   "fetched_at": "2024-09-07T04:22:38.51067Z",
+   "earliest_calendar_date": "2024-08-31",
+   "latest_calendar_date": "2025-01-04"
+  },
+  {
+   "sha1": "0e0e49d3ad15a22f68d7886c380d36f5f2042dea",
+   "fetched_at": "2024-08-29T04:19:12.326721Z",
+   "earliest_calendar_date": "2024-08-31",
+   "latest_calendar_date": "2025-01-04"
+  },
+  {
+   "sha1": "bc957688a2945cf565f05d7e3570bf02e8a2a274",
+   "fetched_at": "2024-06-27T18:30:18.331185Z",
+   "earliest_calendar_date": "2024-06-29",
+   "latest_calendar_date": "2024-08-31"
+  },
+  {
+   "sha1": "83ffc90931760e54e9e6343fe727710e20331889",
+   "fetched_at": "2024-03-27T13:08:17.559853Z",
+   "earliest_calendar_date": "2024-03-30",
+   "latest_calendar_date": "2024-06-29"
+  },
+  {
+   "sha1": "bf65836b4cfc5f3bde33a37e25ff845ead6b4c17",
+   "fetched_at": "2024-01-24T14:34:16.264313Z",
+   "earliest_calendar_date": "2023-01-06",
+   "latest_calendar_date": "2024-03-30"
+  },
+  {
+   "sha1": "a752dd5f4779e66fce036c7db1b686fe9e7c908f",
+   "fetched_at": "2023-12-26T23:28:26.231226Z",
+   "earliest_calendar_date": "2024-01-06",
+   "latest_calendar_date": "2024-03-30"
+  },
+  {
+   "sha1": "4341f06e24b495c6f469fa1848833ba9fe426abd",
+   "fetched_at": "2023-09-18T15:28:36.24174Z",
+   "earliest_calendar_date": "2023-09-02",
+   "latest_calendar_date": "2024-01-06"
+  },
+  {
+   "sha1": "2e245eebd3cf4a5134a158fea12612413f73c764",
+   "fetched_at": "2023-08-30T15:16:05.810969Z",
+   "earliest_calendar_date": "2023-09-02",
+   "latest_calendar_date": "2024-01-06"
+  },
+  {
+   "sha1": "fc9e6f49d12c9c8a176bc669f60fb9ad12c9a009",
+   "fetched_at": "2023-06-29T14:00:50.403509Z",
+   "earliest_calendar_date": "2023-07-01",
+   "latest_calendar_date": "2023-09-02"
+  },
+  {
+   "sha1": "0a3c5dedbbd94bd7e00043a5822a15f62a778278",
+   "fetched_at": "2023-03-30T18:00:42.03631Z",
+   "earliest_calendar_date": "2023-04-01",
+   "latest_calendar_date": "2023-07-01"
+  },
+  {
+   "sha1": "f3374a292d89ef4e902d7146f33d3515079c7e90",
+   "fetched_at": "2023-01-04T17:00:42.1267Z",
+   "earliest_calendar_date": "2023-01-07",
+   "latest_calendar_date": "2023-04-01"
+  },
+  {
+   "sha1": "3a04dff418c9ed2aea7b4f4a87ef68f59389898c",
+   "fetched_at": "2022-09-01T14:00:35.762745Z",
+   "earliest_calendar_date": "2022-09-03",
+   "latest_calendar_date": "2023-01-07"
+  },
+  {
+   "sha1": "16f84ff7d575ae35741d8a556b0140cc32af07ec",
+   "fetched_at": "2022-06-23T23:00:43.073698Z",
+   "earliest_calendar_date": "2022-06-25",
+   "latest_calendar_date": "2022-09-03"
+  },
+  {
+   "sha1": "3b2ad80cf1cc24ab9fff635e8f9568ad40cca47a",
+   "fetched_at": "2022-06-16T20:00:45.468885Z",
+   "earliest_calendar_date": "2021-06-25",
+   "latest_calendar_date": "2022-09-03"
+  },
+  {
+   "sha1": "8727e377defa8967bcc4449065a14d1c6a4e6d42",
+   "fetched_at": "2022-03-24T18:04:06.136312Z",
+   "earliest_calendar_date": "2022-03-26",
+   "latest_calendar_date": "2022-06-25"
+  },
+  {
+   "sha1": "d321d89cac787c0dbd9101bc10ee723ea2765c14",
+   "fetched_at": "2021-12-30T01:06:34.428622Z",
+   "earliest_calendar_date": "2022-01-01",
+   "latest_calendar_date": "2022-03-26"
+  },
+  {
+   "sha1": "828a23e59dd5ecbbe218ac3d520ca6e99313f740",
+   "fetched_at": "2021-12-21T19:05:20.496045Z",
+   "earliest_calendar_date": "2021-09-04",
+   "latest_calendar_date": "2022-01-01"
+  },
+  {
+   "sha1": "755f1a123712d1f645ed5138c294e03f8daf9280",
+   "fetched_at": "2021-09-02T21:04:52.191084Z",
+   "earliest_calendar_date": "2021-09-04",
+   "latest_calendar_date": "2022-01-01"
+  },
+  {
+   "sha1": "65c61e1f7e3e5008fac0729a902eadf9391d5a76",
+   "fetched_at": "2021-08-31T21:04:40.170871Z",
+   "earliest_calendar_date": "2021-08-04",
+   "latest_calendar_date": "2022-01-01"
+  },
+  {
+   "sha1": "4d48430c939fe19987c2de6a26ff2ebddcbc61ef",
+   "fetched_at": "2021-06-25T15:05:16.894952Z",
+   "earliest_calendar_date": "2021-06-26",
+   "latest_calendar_date": "2021-09-04"
+  },
+  {
+   "sha1": "986939a05609d0e83189859cc7bd96aa30d88b6d",
+   "fetched_at": "2021-06-17T19:06:47.881258Z",
+   "earliest_calendar_date": "2021-06-09",
+   "latest_calendar_date": "2021-06-26"
+  },
+  {
+   "sha1": "73b8fc95cdd06873d8db653cac2b54151b2dc92b",
+   "fetched_at": "2021-06-11T06:10:55.56431Z",
+   "earliest_calendar_date": "2021-06-09",
+   "latest_calendar_date": "2021-06-26"
+  },
+  {
+   "sha1": "97a771f1032045337fff085ba1d51865c3b5f171",
+   "fetched_at": "2021-04-28T16:07:22.642638Z",
+   "earliest_calendar_date": "2021-04-03",
+   "latest_calendar_date": "2021-06-26"
+  },
+  {
+   "sha1": "e040041783b9a5f5438d819a4a9b25e839d1c072",
+   "fetched_at": "2021-04-20T20:04:01.591038Z",
+   "earliest_calendar_date": "2021-04-03",
+   "latest_calendar_date": "2021-06-26"
+  },
+  {
+   "sha1": "26e5295264ce8bf027a400762420061ff970ff5d",
+   "fetched_at": "2021-04-01T15:03:03.831672Z",
+   "earliest_calendar_date": "2021-04-03",
+   "latest_calendar_date": "2021-06-26"
+  },
+  {
+   "sha1": "0addf7a862dbbd81052697e6d26fd9021a880969",
+   "fetched_at": "2021-03-30T22:07:40.519607Z",
+   "earliest_calendar_date": "2021-01-02",
+   "latest_calendar_date": "2021-04-03"
+  },
+  {
+   "sha1": "db0b3b3519c90911188cf90ddb35adc24a95e558",
+   "fetched_at": "2021-03-10T18:02:18.042174Z",
+   "earliest_calendar_date": "2021-01-02",
+   "latest_calendar_date": "2021-04-03"
+  },
+  {
+   "sha1": "0910569f8867e12057691195703864fba439a0a7",
+   "fetched_at": "2021-02-26T19:10:47.014636Z",
+   "earliest_calendar_date": "2021-01-02",
+   "latest_calendar_date": "2021-04-03"
+  },
+  {
+   "sha1": "6602aa38dadb02300bdba10557da125886f01824",
+   "fetched_at": "2021-02-25T03:05:08.845912Z",
+   "earliest_calendar_date": "2021-01-02",
+   "latest_calendar_date": "2021-04-03"
+  },
+  {
+   "sha1": "991f20c8a0423093fe53fa05da5ee00649098097",
+   "fetched_at": "2021-02-01T14:02:20.928688Z",
+   "earliest_calendar_date": "2021-01-31",
+   "latest_calendar_date": "2021-02-02"
+  },
+  {
+   "sha1": "eaf5df5b1f384a5faa045f7af74221e3dbe0ef98",
+   "fetched_at": "2021-01-26T15:06:16.167546Z",
+   "earliest_calendar_date": "2021-01-02",
+   "latest_calendar_date": "2021-04-03"
+  },
+  {
+   "sha1": "776c6bafad7018127ea2ecaff33061a87502a0e9",
+   "fetched_at": "2021-01-23T00:20:22.340843Z",
+   "earliest_calendar_date": "2021-01-02",
+   "latest_calendar_date": "2021-04-03"
+  },
+  {
+   "sha1": "2c0bebe4e65e3ff1574e1de85ee9e270525ea569",
+   "fetched_at": "2020-12-16T16:03:47.347583Z",
+   "earliest_calendar_date": "2020-12-15",
+   "latest_calendar_date": "2020-12-17"
+  },
+  {
+   "sha1": "b37facd093e6d2366ada4615bc8afbf9b7a5b914",
+   "fetched_at": "2020-11-30T16:03:18.948578Z",
+   "earliest_calendar_date": "2020-09-05",
+   "latest_calendar_date": "2021-01-02"
+  },
+  {
+   "sha1": "358b7ac143745979be4c12cd6ecd2cdbb2d47968",
+   "fetched_at": "2020-10-29T00:03:59.461147Z",
+   "earliest_calendar_date": "2020-09-05",
+   "latest_calendar_date": "2021-01-02"
+  },
+  {
+   "sha1": "95c84837fe53a8a0d44a506172aa666662b20f11",
+   "fetched_at": "2020-10-24T00:03:50.294524Z",
+   "earliest_calendar_date": "2020-09-05",
+   "latest_calendar_date": "2021-01-02"
+  },
+  {
+   "sha1": "04679927a152aaca4b2cdf5422118c0a6b8dbb04",
+   "fetched_at": "2020-09-22T00:02:48.398706Z",
+   "earliest_calendar_date": "2020-09-05",
+   "latest_calendar_date": "2021-01-02"
+  },
+  {
+   "sha1": "ec8b39a39f568e838a86e8616d7c94e8e26bf32b",
+   "fetched_at": "2020-09-19T00:03:28.471575Z",
+   "earliest_calendar_date": "2020-09-05",
+   "latest_calendar_date": "2021-01-02"
+  },
+  {
+   "sha1": "523178fbda476ab827f329fafd132a594e1b3f81",
+   "fetched_at": "2020-09-08T00:03:11.90438Z",
+   "earliest_calendar_date": "2020-09-05",
+   "latest_calendar_date": "2021-01-02"
+  },
+  {
+   "sha1": "aacbae16afa3eec877c6a3bfa272cbc2762f37c9",
+   "fetched_at": "2020-08-19T00:03:35.768219Z",
+   "earliest_calendar_date": "2020-06-27",
+   "latest_calendar_date": "2020-09-05"
+  },
+  {
+   "sha1": "c5ad36bae4173772594b1a58836f98f7327302f3",
+   "fetched_at": "2020-08-04T06:31:57.017834Z",
+   "earliest_calendar_date": "2020-08-01",
+   "latest_calendar_date": "2020-09-05"
+  },
+  {
+   "sha1": "5cdae786977e7a7c8e8a5c6770d743c535bdeca3",
+   "fetched_at": "2020-06-25T00:04:10.61763Z",
+   "earliest_calendar_date": "2020-06-27",
+   "latest_calendar_date": "2020-09-05"
+  },
+  {
+   "sha1": "9a9134002963b75da85261bad4b7a7e7d49ee381",
+   "fetched_at": "2020-06-06T00:05:02.709686Z",
+   "earliest_calendar_date": "2020-01-26",
+   "latest_calendar_date": "2021-02-27"
+  },
+  {
+   "sha1": "ed5601e77aa4fffbcbcfba075598a299a7b6ce00",
+   "fetched_at": "2020-06-02T00:04:27.966285Z",
+   "earliest_calendar_date": "2020-01-26",
+   "latest_calendar_date": "2021-02-27"
+  },
+  {
+   "sha1": "565e985468adb6946d681acb526cc676f8710058",
+   "fetched_at": "2020-05-07T00:04:10.424665Z",
+   "earliest_calendar_date": "2020-01-26",
+   "latest_calendar_date": "2021-02-27"
+  },
+  {
+   "sha1": "375f50840e80ab09df4c6838db75239f5a99b567",
+   "fetched_at": "2020-05-01T00:01:41.464735Z",
+   "earliest_calendar_date": "2020-01-18",
+   "latest_calendar_date": "2021-02-27"
+  },
+  {
+   "sha1": "0ef96f3619f404bf6766ab6ea839f75c63e47ee9",
+   "fetched_at": "2020-04-15T00:04:12.926429Z",
+   "earliest_calendar_date": "2020-01-18",
+   "latest_calendar_date": "2020-05-02"
+  },
+  {
+   "sha1": "69de072d395aea7ff7b4154b93b75b5c76e9e94e",
+   "fetched_at": "2020-04-13T22:25:14.066973Z",
+   "earliest_calendar_date": "2020-01-18",
+   "latest_calendar_date": "2021-02-27"
+  },
+  {
+   "sha1": "0e8dd6b8660fa991ddbb8976b6f3064fbb25149f",
+   "fetched_at": "2020-04-04T00:03:22.769492Z",
+   "earliest_calendar_date": "2020-01-18",
+   "latest_calendar_date": "2020-05-02"
+  },
+  {
+   "sha1": "45350bdeafc93035a6371ec6d5ed6c764cd40ca6",
+   "fetched_at": "2020-03-30T00:03:26.5229Z",
+   "earliest_calendar_date": "2020-01-18",
+   "latest_calendar_date": "2021-02-27"
+  },
+  {
+   "sha1": "606c3fac640c742bac1ec1b01b55dae2a192125a",
+   "fetched_at": "2020-03-18T00:04:44.924288Z",
+   "earliest_calendar_date": "2020-01-18",
+   "latest_calendar_date": "2021-02-27"
+  },
+  {
+   "sha1": "91816ce6c283f0b91c366918491d8dd9079c5625",
+   "fetched_at": "2020-02-05T00:04:50.01727Z",
+   "earliest_calendar_date": "2020-01-18",
+   "latest_calendar_date": "2021-02-27"
+  },
+  {
+   "sha1": "656b4fbef41c3b8e0a9356a922ef91cf35053a58",
+   "fetched_at": "2020-01-24T00:01:27.511895Z",
+   "earliest_calendar_date": "2020-01-18",
+   "latest_calendar_date": "2020-04-04"
+  },
+  {
+   "sha1": "34df3d737842de9fbde7d18b8b870689ef03dcff",
+   "fetched_at": "2020-01-18T00:01:08.480729Z",
+   "earliest_calendar_date": "2020-01-18",
+   "latest_calendar_date": "2021-02-27"
+  },
+  {
+   "sha1": "b54a5a3ce16a12733fe2e0365166a9d398aaf820",
+   "fetched_at": "2020-01-04T11:14:34.32122Z",
+   "earliest_calendar_date": "2020-01-04",
+   "latest_calendar_date": "2020-01-18"
+  },
+  {
+   "sha1": "8d6b05517a056352a57e61623c941762f8b9192b",
+   "fetched_at": "2019-10-25T04:00:07.239465Z",
+   "earliest_calendar_date": "2019-08-31",
+   "latest_calendar_date": "2020-01-04"
+  },
+  {
+   "sha1": "6ec1afc92ae8a33b4458ed4e8509ac61df7e475f",
+   "fetched_at": "2019-09-21T05:02:10.714663Z",
+   "earliest_calendar_date": "2019-08-31",
+   "latest_calendar_date": "2020-01-04"
+  },
+  {
+   "sha1": "63be46ae48fb7e3cc6fb463f67e7860ad5d2ad95",
+   "fetched_at": "2019-04-24T21:30:15.494174Z",
+   "earliest_calendar_date": "2019-04-27",
+   "latest_calendar_date": "2019-06-29"
+  },
+  {
+   "sha1": "a3d131ca70db71881e422409960d4098eb3c0376",
+   "fetched_at": "2019-04-07T21:00:11.829357Z",
+   "earliest_calendar_date": "2019-04-27",
+   "latest_calendar_date": "2019-06-29"
+  },
+  {
+   "sha1": "d5ea9ffbbda9b64229d7f5fb8f890f386bf0188f",
+   "fetched_at": "2019-03-28T17:00:34.233724Z",
+   "earliest_calendar_date": "2019-04-27",
+   "latest_calendar_date": "2019-06-29"
+  },
+  {
+   "sha1": "de3d1382c3eb2ab6b083f30a0727ac810b54e296",
+   "fetched_at": "2019-02-28T05:00:44.777031Z",
+   "earliest_calendar_date": "2019-01-12",
+   "latest_calendar_date": "2019-04-27"
+  },
+  {
+   "sha1": "bf79f92a2437b363227204037f2348c67c093d1b",
+   "fetched_at": "2019-02-06T05:30:07.266503Z",
+   "earliest_calendar_date": "2019-01-12",
+   "latest_calendar_date": "2019-04-20"
+  },
+  {
+   "sha1": "6aaf219e98d9d8a3654b9f43a843df4629f29b2c",
+   "fetched_at": "2019-01-06T02:01:05.107919Z",
+   "earliest_calendar_date": "2019-01-05",
+   "latest_calendar_date": "2019-04-20"
+  },
+  {
+   "sha1": "cc94a1805b09eb23fcbeb194ea66f6efdae8fbe1",
+   "fetched_at": "2018-09-01T00:00:11.093287Z",
+   "earliest_calendar_date": "2018-09-01",
+   "latest_calendar_date": "2019-01-05"
+  },
+  {
+   "sha1": "c0e0b978830afeacc2b9a40ab239d8269d6a7c2a",
+   "fetched_at": "2018-07-02T17:30:24.875271Z",
+   "earliest_calendar_date": "2018-06-30",
+   "latest_calendar_date": "2018-09-01"
+  },
+  {
+   "sha1": "339d3b2ff1a2a17495d0f36f478e82a3cc2fe720",
+   "fetched_at": "2018-03-27T04:02:36.424271Z",
+   "earliest_calendar_date": "2018-03-31",
+   "latest_calendar_date": "2018-06-30"
+  },
+  {
+   "sha1": "1da101485fa5bab9e8d504c898485e114a1eb5d6",
+   "fetched_at": "2017-12-22T03:30:22.91176Z",
+   "earliest_calendar_date": "2018-01-06",
+   "latest_calendar_date": "2018-03-31"
+  },
+  {
+   "sha1": "9b5951c2067ecdb8cd0a6614b4d7bd5fd2f691fa",
+   "fetched_at": "2017-08-25T02:00:26.070286Z",
+   "earliest_calendar_date": "2017-09-02",
+   "latest_calendar_date": "2018-01-06"
+  },
+  {
+   "sha1": "5f9c5b15fb08fe944a4778d7df458d6cce83c3c2",
+   "fetched_at": "2017-06-28T15:31:02.509355Z",
+   "earliest_calendar_date": "2017-07-01",
+   "latest_calendar_date": "2017-09-02"
+  },
+  {
+   "sha1": "0d9193bef62f72f72e4014f8e589e9025670ed3b",
+   "fetched_at": "2017-05-26T19:33:25.373424Z",
+   "earliest_calendar_date": "2017-05-20",
+   "latest_calendar_date": "2017-07-01"
+  },
+  {
+   "sha1": "f2105d07e7e67f641c329bde179f6f1ec10fad43",
+   "fetched_at": "2017-04-06T10:00:08.863798Z",
+   "earliest_calendar_date": "2017-04-08",
+   "latest_calendar_date": "2017-07-01"
+  },
+  {
+   "sha1": "0347427c08a1f47c33fa1c01a1e37b6d59449498",
+   "fetched_at": "2017-03-31T14:00:09.013313Z",
+   "earliest_calendar_date": "2017-01-07",
+   "latest_calendar_date": "2017-04-08"
+  },
+  {
+   "sha1": "473fdf7803a7a4c7eff7bd08e275883d0773edc6",
+   "fetched_at": "2017-02-17T05:30:07.19998Z",
+   "earliest_calendar_date": "2017-01-07",
+   "latest_calendar_date": "2017-04-01"
+  },
+  {
+   "sha1": "41453081db13d4579dfcd72e2cbe9cea33272d3b",
+   "fetched_at": "2017-01-09T22:31:49.940616Z",
+   "earliest_calendar_date": "2017-01-07",
+   "latest_calendar_date": "2017-04-01"
+  },
+  {
+   "sha1": "4a1572fc3f876842089aeca00cffc1c486d103ab",
+   "fetched_at": "2016-09-01T22:50:44.631621Z",
+   "earliest_calendar_date": "2016-09-03",
+   "latest_calendar_date": "2017-01-07"
+  },
+  {
+   "sha1": "83441066870caa8e9f7df36e1a06d223d8c5eb82",
+   "fetched_at": "2016-06-28T04:00:09.069151Z",
+   "earliest_calendar_date": "2016-07-02",
+   "latest_calendar_date": "2016-09-03"
+  },
+  {
+   "sha1": "ab9374043426c1752714355f011b203f2697f146",
+   "fetched_at": "2016-04-26T12:01:05.810641Z",
+   "earliest_calendar_date": "2016-04-02",
+   "latest_calendar_date": "2016-07-02"
+  },
+  {
+   "sha1": "302bb65f987a5de14fc2a9f1bb3c4c55ecfae0b5",
+   "fetched_at": "2016-03-25T12:01:05.310791Z",
+   "earliest_calendar_date": "2016-04-02",
+   "latest_calendar_date": "2016-07-02"
+  },
+  {
+   "sha1": "b7cd11fc89624bd18bc8cf06b6af64907d57b55d",
+   "fetched_at": "2016-02-06T20:06:16.156077Z",
+   "earliest_calendar_date": "2016-01-02",
+   "latest_calendar_date": "2016-04-02"
+  }
+ ],
+ "queens": [
+  {
+   "sha1": "1382a2eba797e7257b197a360e0396ac5e2ed812",
+   "fetched_at": "2026-06-24T05:05:38.443059Z",
+   "earliest_calendar_date": "2026-06-27",
+   "latest_calendar_date": "2026-09-05"
+  },
+  {
+   "sha1": "355290f06b3f7e6bb0e4abf06affcde622681a82",
+   "fetched_at": "2026-04-09T03:59:49.472221Z",
+   "earliest_calendar_date": "2026-04-11",
+   "latest_calendar_date": "2026-06-27"
+  },
+  {
+   "sha1": "a0bfad755fb75bd5506377f906a4f33d0be94395",
+   "fetched_at": "2026-03-27T03:48:00.647399Z",
+   "earliest_calendar_date": "2026-01-03",
+   "latest_calendar_date": "2026-04-11"
+  },
+  {
+   "sha1": "af40ed5e8c7f416901c6793789c6116c77a19dd9",
+   "fetched_at": "2026-01-26T02:52:33.28564Z",
+   "earliest_calendar_date": "2026-01-04",
+   "latest_calendar_date": "2026-03-27"
+  },
+  {
+   "sha1": "0bb9d25231045dcf8ca4155ceb7ba95a8d2c1a07",
+   "fetched_at": "2026-01-16T02:43:17.203412Z",
+   "earliest_calendar_date": "2026-01-03",
+   "latest_calendar_date": "2026-03-28"
+  },
+  {
+   "sha1": "e7685746637934d08e98dace27d153b93aeed3c5",
+   "fetched_at": "2026-01-09T02:28:09.828687Z",
+   "earliest_calendar_date": "2026-01-03",
+   "latest_calendar_date": "2026-03-28"
+  },
+  {
+   "sha1": "a0ed57eb9e2dc8d26cd9e93ebeee61e5b6f177da",
+   "fetched_at": "2025-12-30T02:18:54.279618Z",
+   "earliest_calendar_date": "2026-01-03",
+   "latest_calendar_date": "2026-03-28"
+  },
+  {
+   "sha1": "ad7392a032576b0c3e571189df46601608aa7e75",
+   "fetched_at": "2025-09-15T21:38:47.207172Z",
+   "earliest_calendar_date": "2025-08-30",
+   "latest_calendar_date": "2026-01-03"
+  },
+  {
+   "sha1": "6db6f30f48510d87e666a2c645274f35f45e448a",
+   "fetched_at": "2025-08-25T15:31:21.423917Z",
+   "earliest_calendar_date": "2025-08-30",
+   "latest_calendar_date": "2026-01-03"
+  },
+  {
+   "sha1": "dc9b1c99ee65c7f4392d8f091156bc01b0d9e801",
+   "fetched_at": "2025-07-10T16:45:51.509246Z",
+   "earliest_calendar_date": "2025-06-28",
+   "latest_calendar_date": "2025-08-30"
+  },
+  {
+   "sha1": "92a46757a4a8986898bc7d25a3187d90e3e3658f",
+   "fetched_at": "2025-07-03T12:03:41.487957Z",
+   "earliest_calendar_date": "2025-06-28",
+   "latest_calendar_date": "2025-08-30"
+  },
+  {
+   "sha1": "6db867de2ce30f47ae0ee763f422dc34fb7a9f9f",
+   "fetched_at": "2025-06-30T15:46:28.558891Z",
+   "earliest_calendar_date": "2025-06-28",
+   "latest_calendar_date": "2025-08-30"
+  },
+  {
+   "sha1": "c868290ddcd79c69712d809ece96d96dbad2c613",
+   "fetched_at": "2025-06-25T15:16:29.27091Z",
+   "earliest_calendar_date": "2025-06-28",
+   "latest_calendar_date": "2025-08-30"
+  },
+  {
+   "sha1": "c96466458c55036cd6feeadc291bf5951d6c3274",
+   "fetched_at": "2025-06-11T13:52:50.885739Z",
+   "earliest_calendar_date": "2025-05-31",
+   "latest_calendar_date": "2025-06-28"
+  },
+  {
+   "sha1": "1d5aead3ba91f0a3ea6ee9b35c7a444e3407d78d",
+   "fetched_at": "2025-05-29T20:38:54.30034Z",
+   "earliest_calendar_date": "2025-05-31",
+   "latest_calendar_date": "2025-06-28"
+  },
+  {
+   "sha1": "c7c997471dc529f3e755b5b4fdfbbb2add4a388f",
+   "fetched_at": "2025-05-15T15:15:18.550998Z",
+   "earliest_calendar_date": "2025-01-29",
+   "latest_calendar_date": "2025-06-28"
+  },
+  {
+   "sha1": "c90cd4e305995705492154e9be5ce9a801c7ce17",
+   "fetched_at": "2025-03-26T22:30:04.718307Z",
+   "earliest_calendar_date": "2025-03-29",
+   "latest_calendar_date": "2025-06-28"
+  },
+  {
+   "sha1": "c0cb9f95e35a363351677fb3c1a817cbcc628754",
+   "fetched_at": "2025-02-15T02:55:34.293922Z",
+   "earliest_calendar_date": "2025-02-09",
+   "latest_calendar_date": "2025-03-29"
+  },
+  {
+   "sha1": "25aeddfe13fd1d331f3de03a2c925f88d5893712",
+   "fetched_at": "2025-01-01T15:12:28.317701Z",
+   "earliest_calendar_date": "2025-01-04",
+   "latest_calendar_date": "2025-03-29"
+  },
+  {
+   "sha1": "348ac4b4d399182653b74d2a4580d9853cb33037",
+   "fetched_at": "2024-12-09T20:33:00.254825Z",
+   "earliest_calendar_date": "2024-08-31",
+   "latest_calendar_date": "2025-01-04"
+  },
+  {
+   "sha1": "dba68c905be0b85ea6b896d1b7f1af61558c850f",
+   "fetched_at": "2024-08-29T04:17:14.002558Z",
+   "earliest_calendar_date": "2024-08-31",
+   "latest_calendar_date": "2025-01-04"
+  },
+  {
+   "sha1": "64d4034662695ef205024b67c929d7ad9bc99026",
+   "fetched_at": "2024-06-27T18:06:17.966996Z",
+   "earliest_calendar_date": "2024-06-29",
+   "latest_calendar_date": "2024-08-31"
+  },
+  {
+   "sha1": "d91feb7a1586415f669dc503bac7ecb207d43d05",
+   "fetched_at": "2024-03-27T13:13:18.26178Z",
+   "earliest_calendar_date": "2024-03-30",
+   "latest_calendar_date": "2024-06-29"
+  },
+  {
+   "sha1": "dc76b493778d74830b6e49de7e43f6624b2d73bc",
+   "fetched_at": "2024-01-24T14:44:37.039579Z",
+   "earliest_calendar_date": "2023-01-06",
+   "latest_calendar_date": "2024-03-30"
+  },
+  {
+   "sha1": "cac762a2854b364bed351c06014924259cba04d1",
+   "fetched_at": "2023-12-26T22:53:12.849944Z",
+   "earliest_calendar_date": "2024-01-06",
+   "latest_calendar_date": "2024-03-30"
+  },
+  {
+   "sha1": "0e93e1a24a130b607a142830a0ae20abc60a2270",
+   "fetched_at": "2023-09-18T15:00:47.222135Z",
+   "earliest_calendar_date": "2023-09-02",
+   "latest_calendar_date": "2024-01-06"
+  },
+  {
+   "sha1": "9856a1cc639dc3a28bc2f09189c20a9bcaff9c1d",
+   "fetched_at": "2023-08-30T14:43:37.047041Z",
+   "earliest_calendar_date": "2023-09-02",
+   "latest_calendar_date": "2024-01-06"
+  },
+  {
+   "sha1": "f788a81b2e3245415b781969c2c18cf89bbc2d87",
+   "fetched_at": "2023-06-29T14:00:50.403509Z",
+   "earliest_calendar_date": "2023-07-01",
+   "latest_calendar_date": "2023-09-02"
+  },
+  {
+   "sha1": "16d8f686571cd5339e5b2dcb69445df9c2a1a327",
+   "fetched_at": "2023-03-30T19:00:43.883111Z",
+   "earliest_calendar_date": "2023-04-01",
+   "latest_calendar_date": "2023-07-01"
+  },
+  {
+   "sha1": "72895166444bf740926918601151292ef2c2a108",
+   "fetched_at": "2023-01-04T17:00:42.1267Z",
+   "earliest_calendar_date": "2023-01-07",
+   "latest_calendar_date": "2023-04-01"
+  },
+  {
+   "sha1": "8aa0921f604b0858d3f3d04e383b8d17563ab8ef",
+   "fetched_at": "2022-09-01T14:00:35.762745Z",
+   "earliest_calendar_date": "2022-09-03",
+   "latest_calendar_date": "2023-01-07"
+  },
+  {
+   "sha1": "be48230531b58b2a34670677bf479e8f3afcccc7",
+   "fetched_at": "2022-06-23T23:00:43.073698Z",
+   "earliest_calendar_date": "2022-06-25",
+   "latest_calendar_date": "2022-09-03"
+  },
+  {
+   "sha1": "e1af3a5def17fdd92a6eb99082f8b21de2dfff37",
+   "fetched_at": "2022-06-16T20:00:45.468885Z",
+   "earliest_calendar_date": "2021-06-25",
+   "latest_calendar_date": "2022-09-03"
+  },
+  {
+   "sha1": "b1f1b1dea71b0b8a895d8c96cf6bcd15d383bd6e",
+   "fetched_at": "2022-03-24T18:00:53.756086Z",
+   "earliest_calendar_date": "2022-03-26",
+   "latest_calendar_date": "2022-06-25"
+  },
+  {
+   "sha1": "8916aa85ca160312bc7940f8c164261ddff2d240",
+   "fetched_at": "2022-01-11T17:01:17.764804Z",
+   "earliest_calendar_date": "2022-01-01",
+   "latest_calendar_date": "2022-03-26"
+  },
+  {
+   "sha1": "0bf2aaf3da3ba2cc5d63e23f40f7aa1be7c57b72",
+   "fetched_at": "2021-12-30T01:01:57.268904Z",
+   "earliest_calendar_date": "2022-01-01",
+   "latest_calendar_date": "2022-03-26"
+  },
+  {
+   "sha1": "22bbfd3eacd5fa05f3e3f7ec0b431512da84b3f7",
+   "fetched_at": "2021-12-21T19:01:25.477622Z",
+   "earliest_calendar_date": "2021-09-04",
+   "latest_calendar_date": "2022-01-01"
+  },
+  {
+   "sha1": "3c1cf7f73bdd9652a95225caf0cf72004f6df66b",
+   "fetched_at": "2021-09-02T21:00:37.324077Z",
+   "earliest_calendar_date": "2021-09-04",
+   "latest_calendar_date": "2022-01-01"
+  },
+  {
+   "sha1": "7179032df8a1280e7455ffd604c8be2567c12b70",
+   "fetched_at": "2021-08-31T21:00:36.017297Z",
+   "earliest_calendar_date": "2021-08-04",
+   "latest_calendar_date": "2022-01-01"
+  },
+  {
+   "sha1": "e3bff86ee897a77fb8b117f2683f71ed78edcbd8",
+   "fetched_at": "2021-06-25T15:05:18.239844Z",
+   "earliest_calendar_date": "2021-06-26",
+   "latest_calendar_date": "2021-09-04"
+  },
+  {
+   "sha1": "d1ce6bd39d59e3b29d84088f0f8ad1e33ff22e23",
+   "fetched_at": "2021-06-17T19:06:48.139431Z",
+   "earliest_calendar_date": "2021-06-09",
+   "latest_calendar_date": "2021-06-26"
+  },
+  {
+   "sha1": "4f9d8ccb3404ea09af68f1a3ca94545d83a71016",
+   "fetched_at": "2021-06-11T05:08:06.725493Z",
+   "earliest_calendar_date": "2021-06-09",
+   "latest_calendar_date": "2021-06-26"
+  },
+  {
+   "sha1": "a86d3ef1dd6072beaff2c61ceccda50c432541c4",
+   "fetched_at": "2021-04-01T15:03:05.71302Z",
+   "earliest_calendar_date": "2021-04-03",
+   "latest_calendar_date": "2021-06-26"
+  },
+  {
+   "sha1": "3f705710a022c27ca4413fda73f4367f4252270f",
+   "fetched_at": "2021-03-30T22:07:43.886271Z",
+   "earliest_calendar_date": "2021-01-02",
+   "latest_calendar_date": "2021-04-03"
+  },
+  {
+   "sha1": "ec85bbf335117b5a1234aec665919869e900dc49",
+   "fetched_at": "2021-03-10T18:02:28.205961Z",
+   "earliest_calendar_date": "2021-01-02",
+   "latest_calendar_date": "2021-04-03"
+  },
+  {
+   "sha1": "71092f1def2aa4bf11ad6f103167ead57d3cb815",
+   "fetched_at": "2021-02-26T20:08:22.253522Z",
+   "earliest_calendar_date": "2021-01-02",
+   "latest_calendar_date": "2021-04-03"
+  },
+  {
+   "sha1": "9426bbe1d16d1a49d1048914fbcc450017e9b391",
+   "fetched_at": "2021-02-25T05:04:50.357143Z",
+   "earliest_calendar_date": "2021-01-02",
+   "latest_calendar_date": "2021-03-27"
+  },
+  {
+   "sha1": "f6b0af5804a67b52f5b915eacb1ac47776e58f0b",
+   "fetched_at": "2021-02-01T14:02:21.468763Z",
+   "earliest_calendar_date": "2021-01-03",
+   "latest_calendar_date": "2021-04-02"
+  },
+  {
+   "sha1": "142f5edbda012198a481c9c6c0c1c23a46cba099",
+   "fetched_at": "2021-01-23T00:20:24.806809Z",
+   "earliest_calendar_date": "2021-01-02",
+   "latest_calendar_date": "2021-04-03"
+  },
+  {
+   "sha1": "3a2bf407a2af5785355016b791fcddad1315c86a",
+   "fetched_at": "2020-12-16T16:03:50.227063Z",
+   "earliest_calendar_date": "2020-12-15",
+   "latest_calendar_date": "2020-12-17"
+  },
+  {
+   "sha1": "40058dd984e0a351616663aab9c70cdd8d7ea161",
+   "fetched_at": "2020-11-30T16:03:24.919524Z",
+   "earliest_calendar_date": "2020-09-05",
+   "latest_calendar_date": "2021-01-02"
+  },
+  {
+   "sha1": "b67758fb197deae9d6bb60fb49bd2125f84aabd3",
+   "fetched_at": "2020-10-24T00:03:57.128309Z",
+   "earliest_calendar_date": "2020-09-05",
+   "latest_calendar_date": "2021-01-02"
+  },
+  {
+   "sha1": "55e8b0c6d4dc0705c2c067d4c7228a6b454a5b65",
+   "fetched_at": "2020-09-22T00:02:49.878288Z",
+   "earliest_calendar_date": "2020-09-05",
+   "latest_calendar_date": "2021-01-02"
+  },
+  {
+   "sha1": "abf1c2e16452a06e1bc0d89545303fe420efffd2",
+   "fetched_at": "2020-09-19T00:03:33.281018Z",
+   "earliest_calendar_date": "2020-09-05",
+   "latest_calendar_date": "2021-01-02"
+  },
+  {
+   "sha1": "961d17b963c92702490a2b210084cd78083cc996",
+   "fetched_at": "2020-09-08T00:03:20.324064Z",
+   "earliest_calendar_date": "2020-09-05",
+   "latest_calendar_date": "2021-01-02"
+  },
+  {
+   "sha1": "feefec41288c7b6169379674532eda1393bf5ccc",
+   "fetched_at": "2020-08-19T00:03:41.400171Z",
+   "earliest_calendar_date": "2020-08-11",
+   "latest_calendar_date": "2020-09-05"
+  },
+  {
+   "sha1": "ff1a35ba4059cea72caeb994cfd0559ab46cae3c",
+   "fetched_at": "2020-06-26T00:03:43.391355Z",
+   "earliest_calendar_date": "2020-06-27",
+   "latest_calendar_date": "2020-09-05"
+  },
+  {
+   "sha1": "a42e36f209492710bd8c65977f2a87622d9bc593",
+   "fetched_at": "2020-06-06T00:05:10.350294Z",
+   "earliest_calendar_date": "2020-04-04",
+   "latest_calendar_date": "2020-06-27"
+  },
+  {
+   "sha1": "1d90edfbe1b9928f1cfbb59b99f8947f9ae2353b",
+   "fetched_at": "2020-06-02T00:04:32.809683Z",
+   "earliest_calendar_date": "2020-04-04",
+   "latest_calendar_date": "2020-06-27"
+  },
+  {
+   "sha1": "2b39b7d11403788e65c6e576f2565f33d6bcea42",
+   "fetched_at": "2020-05-07T00:04:11.775321Z",
+   "earliest_calendar_date": "2020-04-04",
+   "latest_calendar_date": "2020-06-27"
+  },
+  {
+   "sha1": "4636d5c0e21bd4d67f9874e011e18f898d9683e7",
+   "fetched_at": "2020-05-01T00:04:39.668631Z",
+   "earliest_calendar_date": "2020-04-04",
+   "latest_calendar_date": "2020-06-06"
+  },
+  {
+   "sha1": "3c9db8b2eb23ca22bb1dfdd208d48aeff2ad433e",
+   "fetched_at": "2020-04-13T22:25:18.513833Z",
+   "earliest_calendar_date": "2020-04-04",
+   "latest_calendar_date": "2020-05-02"
+  },
+  {
+   "sha1": "c4e2a88dacfe7a7382d053a30853f2d9faddd7f1",
+   "fetched_at": "2020-04-04T00:03:22.915852Z",
+   "earliest_calendar_date": "2020-01-18",
+   "latest_calendar_date": "2020-05-02"
+  },
+  {
+   "sha1": "c07f818b16cc5615a3661d4bee569a84dd734990",
+   "fetched_at": "2020-03-18T00:04:48.70439Z",
+   "earliest_calendar_date": "2020-01-18",
+   "latest_calendar_date": "2020-04-04"
+  },
+  {
+   "sha1": "35382926525215f6ae07920343cda95469517f08",
+   "fetched_at": "2020-01-18T00:05:21.595122Z",
+   "earliest_calendar_date": "2020-01-18",
+   "latest_calendar_date": "2020-04-04"
+  },
+  {
+   "sha1": "11a7a651c5b5d63457f23cf84989e3afb43560ef",
+   "fetched_at": "2020-01-04T11:14:37.245281Z",
+   "earliest_calendar_date": "2020-01-04",
+   "latest_calendar_date": "2020-01-18"
+  },
+  {
+   "sha1": "b967402df9a89ed70620dba72eb1c75c3c26d7c1",
+   "fetched_at": "2019-11-15T00:57:03.596493Z",
+   "earliest_calendar_date": "2019-08-31",
+   "latest_calendar_date": "2020-01-04"
+  },
+  {
+   "sha1": "b0c283ceb44fca56d9969b2f156bed64e7051c37",
+   "fetched_at": "2018-09-01T04:00:08.195428Z",
+   "earliest_calendar_date": "2018-09-01",
+   "latest_calendar_date": "2019-01-05"
+  },
+  {
+   "sha1": "086120dde871879211876bd0fa8264ce92152af3",
+   "fetched_at": "2018-07-03T13:00:13.930427Z",
+   "earliest_calendar_date": "2018-06-30",
+   "latest_calendar_date": "2018-09-01"
+  },
+  {
+   "sha1": "246bad93b71de78b0e789327d7a74e201843ea90",
+   "fetched_at": "2018-03-27T07:00:36.822059Z",
+   "earliest_calendar_date": "2018-03-31",
+   "latest_calendar_date": "2018-06-30"
+  },
+  {
+   "sha1": "f9d88f3d17844b4c2cbd10e5e47574c698eecaa7",
+   "fetched_at": "2017-12-22T01:00:13.262431Z",
+   "earliest_calendar_date": "2018-01-06",
+   "latest_calendar_date": "2018-03-31"
+  },
+  {
+   "sha1": "574d9ea5aae2f201915f4f8d7c3fe46906a61710",
+   "fetched_at": "2017-08-25T19:36:03.907084Z",
+   "earliest_calendar_date": "2017-09-02",
+   "latest_calendar_date": "2018-01-06"
+  },
+  {
+   "sha1": "ba47b7b1226cc0a69dfbe44bd8dd3869ba19d714",
+   "fetched_at": "2017-06-27T12:31:56.306924Z",
+   "earliest_calendar_date": "2017-07-01",
+   "latest_calendar_date": "2017-09-02"
+  },
+  {
+   "sha1": "cddf3e2210ddb7b752adcdcc7ae6a7258527693f",
+   "fetched_at": "2017-04-05T10:30:08.438653Z",
+   "earliest_calendar_date": "2017-04-08",
+   "latest_calendar_date": "2017-07-01"
+  },
+  {
+   "sha1": "92c6bb3d20a30907b8365f30fa06510a1cc3fddc",
+   "fetched_at": "2017-01-09T22:31:50.855297Z",
+   "earliest_calendar_date": "2017-01-07",
+   "latest_calendar_date": "2017-04-01"
+  },
+  {
+   "sha1": "7683bea48c770a8d8d5a2359e814b6e9866da763",
+   "fetched_at": "2016-09-01T22:50:44.624686Z",
+   "earliest_calendar_date": "2016-09-03",
+   "latest_calendar_date": "2017-01-07"
+  },
+  {
+   "sha1": "50538c323f3e46e85dc290279d48dea1034240a6",
+   "fetched_at": "2016-06-27T19:00:05.466369Z",
+   "earliest_calendar_date": "2016-07-02",
+   "latest_calendar_date": "2016-09-03"
+  },
+  {
+   "sha1": "3129eab3ba74dd12e3774fc2a9544c3618d1ed5c",
+   "fetched_at": "2016-04-28T12:01:04.915793Z",
+   "earliest_calendar_date": "2016-04-02",
+   "latest_calendar_date": "2016-07-02"
+  },
+  {
+   "sha1": "0b7b708f6ac22879c2420cb04cfc25ade3dd0e9a",
+   "fetched_at": "2016-03-25T12:01:05.317266Z",
+   "earliest_calendar_date": "2016-04-02",
+   "latest_calendar_date": "2016-07-02"
+  },
+  {
+   "sha1": "ddd4910991985c5cce4936cada6cbe1d7f751949",
+   "fetched_at": "2016-02-06T20:05:28.632385Z",
+   "earliest_calendar_date": "2016-01-02",
+   "latest_calendar_date": "2016-04-02"
+  }
+ ],
+ "staten_island": [
+  {
+   "sha1": "2df7eee4c96825d3418ba604958122875c6182ea",
+   "fetched_at": "2026-07-29T10:02:18.21766Z",
+   "earliest_calendar_date": "2026-06-28",
+   "latest_calendar_date": "2026-09-05"
+  },
+  {
+   "sha1": "4901a81b4cb9dfd35b36a336900af9f5cf73a2a2",
+   "fetched_at": "2026-06-24T04:34:43.617232Z",
+   "earliest_calendar_date": "2026-06-28",
+   "latest_calendar_date": "2026-09-05"
+  },
+  {
+   "sha1": "afdfffcbe642e00298d10b58417e99d4179c3a1b",
+   "fetched_at": "2026-04-09T03:32:49.588252Z",
+   "earliest_calendar_date": "2026-04-12",
+   "latest_calendar_date": "2026-06-27"
+  },
+  {
+   "sha1": "53025c84bf551b979608f6186bace870b73a9d98",
+   "fetched_at": "2026-03-27T03:20:52.490395Z",
+   "earliest_calendar_date": "2026-01-04",
+   "latest_calendar_date": "2026-04-11"
+  },
+  {
+   "sha1": "d2a4140436cb020fb30f7457bc529900f1103dfb",
+   "fetched_at": "2026-01-26T02:26:30.407157Z",
+   "earliest_calendar_date": "2026-01-05",
+   "latest_calendar_date": "2026-03-27"
+  },
+  {
+   "sha1": "1d6cbd307253d77be1bef982cc29944c3617e282",
+   "fetched_at": "2026-01-09T02:05:58.502048Z",
+   "earliest_calendar_date": "2026-01-04",
+   "latest_calendar_date": "2026-03-28"
+  },
+  {
+   "sha1": "a63774b2f42c56407afd6ea66765c87cc2c60147",
+   "fetched_at": "2025-12-30T01:56:11.448664Z",
+   "earliest_calendar_date": "2026-01-04",
+   "latest_calendar_date": "2026-03-28"
+  },
+  {
+   "sha1": "de358562eb1166c7a74e9719e29cbf6b34e65802",
+   "fetched_at": "2025-09-15T18:43:37.801619Z",
+   "earliest_calendar_date": "2025-06-29",
+   "latest_calendar_date": "2026-01-03"
+  },
+  {
+   "sha1": "0698f00cc8c0aac865d5c8796ad574312e9424aa",
+   "fetched_at": "2025-08-25T16:21:36.039051Z",
+   "earliest_calendar_date": "2025-08-31",
+   "latest_calendar_date": "2026-01-03"
+  },
+  {
+   "sha1": "1a2de962ab8fb98c433238e8bfbaa79bab63ed60",
+   "fetched_at": "2025-06-30T16:01:31.436359Z",
+   "earliest_calendar_date": "2025-06-29",
+   "latest_calendar_date": "2025-08-30"
+  },
+  {
+   "sha1": "467d7428f3699a1f87253125b351ce3507b275a8",
+   "fetched_at": "2025-06-25T15:28:45.373919Z",
+   "earliest_calendar_date": "2025-06-29",
+   "latest_calendar_date": "2025-08-30"
+  },
+  {
+   "sha1": "dbcefb8b29064ada7347f0d90a04ba3a7c09981b",
+   "fetched_at": "2025-05-15T15:24:23.071839Z",
+   "earliest_calendar_date": "2025-01-30",
+   "latest_calendar_date": "2025-06-28"
+  },
+  {
+   "sha1": "08e38ed89164c3a7bf07f870b34bb50c68e5a1c7",
+   "fetched_at": "2025-03-26T22:34:15.893145Z",
+   "earliest_calendar_date": "2025-03-30",
+   "latest_calendar_date": "2025-06-28"
+  },
+  {
+   "sha1": "9616ef0036d3cc37d32375a60093790693fa95bc",
+   "fetched_at": "2025-02-16T02:27:09.083509Z",
+   "earliest_calendar_date": "2025-02-10",
+   "latest_calendar_date": "2025-03-29"
+  },
+  {
+   "sha1": "698b289c722848ad7a386ea7a7f331b0dc39adb8",
+   "fetched_at": "2025-01-01T14:50:36.662032Z",
+   "earliest_calendar_date": "2025-01-05",
+   "latest_calendar_date": "2025-03-29"
+  },
+  {
+   "sha1": "3c4828b4cf20edb8b6c7015dd2e0071f9a26b4e3",
+   "fetched_at": "2024-12-09T20:49:06.332445Z",
+   "earliest_calendar_date": "2024-09-01",
+   "latest_calendar_date": "2025-01-04"
+  },
+  {
+   "sha1": "489c846b91a8a6db0376045b2f2758e85a60f6ff",
+   "fetched_at": "2024-08-29T04:19:16.831877Z",
+   "earliest_calendar_date": "2024-09-01",
+   "latest_calendar_date": "2025-01-04"
+  },
+  {
+   "sha1": "e7bbcbcea0da3a9e91c2995e34632cfc7109d766",
+   "fetched_at": "2024-06-27T18:23:20.73036Z",
+   "earliest_calendar_date": "2024-06-30",
+   "latest_calendar_date": "2024-08-31"
+  },
+  {
+   "sha1": "fe7f06da36e57e8363a31781fbb221adc824276c",
+   "fetched_at": "2024-03-27T13:10:17.298019Z",
+   "earliest_calendar_date": "2024-03-31",
+   "latest_calendar_date": "2024-06-29"
+  },
+  {
+   "sha1": "9ca8ab5b575a13598444b22f2ded4ee4baef4065",
+   "fetched_at": "2024-01-24T14:41:29.608784Z",
+   "earliest_calendar_date": "2023-01-07",
+   "latest_calendar_date": "2024-03-30"
+  },
+  {
+   "sha1": "c6fc07f49731b85ceef7ed951ac51631d6673f86",
+   "fetched_at": "2023-12-26T22:38:45.209152Z",
+   "earliest_calendar_date": "2024-01-07",
+   "latest_calendar_date": "2024-03-30"
+  },
+  {
+   "sha1": "33d17505c5114055afb5302afd8422e4b83b7d0c",
+   "fetched_at": "2023-09-18T15:25:30.949082Z",
+   "earliest_calendar_date": "2023-09-03",
+   "latest_calendar_date": "2024-01-06"
+  },
+  {
+   "sha1": "714607b8262e9bdabb547a8c6c87606934625c30",
+   "fetched_at": "2023-08-30T15:07:57.521357Z",
+   "earliest_calendar_date": "2023-09-03",
+   "latest_calendar_date": "2024-01-06"
+  },
+  {
+   "sha1": "bf1506ff8436cfe269d280a2f642234612362676",
+   "fetched_at": "2023-06-29T14:00:50.403509Z",
+   "earliest_calendar_date": "2023-07-02",
+   "latest_calendar_date": "2023-09-02"
+  },
+  {
+   "sha1": "ac056627d2a84b37ede29fc0d15a33906a5453ab",
+   "fetched_at": "2023-03-30T19:00:43.883111Z",
+   "earliest_calendar_date": "2023-04-02",
+   "latest_calendar_date": "2023-07-01"
+  },
+  {
+   "sha1": "2f103651fa6cfbb358f8a3f95dc1fcc262630579",
+   "fetched_at": "2023-01-04T17:00:42.1267Z",
+   "earliest_calendar_date": "2023-01-08",
+   "latest_calendar_date": "2023-04-01"
+  },
+  {
+   "sha1": "aa56e9a70ecf8fb6d6e3df3ed004bdebe971dce2",
+   "fetched_at": "2022-09-01T14:00:35.762745Z",
+   "earliest_calendar_date": "2022-09-04",
+   "latest_calendar_date": "2023-01-07"
+  },
+  {
+   "sha1": "ddb773848e4951a4d9e4cf154487cd2f5b8185c1",
+   "fetched_at": "2022-06-23T23:00:43.073698Z",
+   "earliest_calendar_date": "2022-06-26",
+   "latest_calendar_date": "2022-09-03"
+  },
+  {
+   "sha1": "09ccbf94ff127295e76251f0e33cf5520712ebc1",
+   "fetched_at": "2022-06-16T20:00:45.468885Z",
+   "earliest_calendar_date": "2021-06-26",
+   "latest_calendar_date": "2022-09-03"
+  },
+  {
+   "sha1": "cd906cffd68fa10d999f8e11f41fae39ab766b43",
+   "fetched_at": "2022-03-24T18:00:54.572978Z",
+   "earliest_calendar_date": "2022-03-27",
+   "latest_calendar_date": "2022-06-25"
+  },
+  {
+   "sha1": "fa55a445f6ea2af3608005a2d39d2c311bee2cd5",
+   "fetched_at": "2022-01-11T17:01:19.026915Z",
+   "earliest_calendar_date": "2022-01-02",
+   "latest_calendar_date": "2022-03-26"
+  },
+  {
+   "sha1": "0f743595a299131747793870f07d584d08dadeb5",
+   "fetched_at": "2021-12-30T01:01:58.195083Z",
+   "earliest_calendar_date": "2022-01-02",
+   "latest_calendar_date": "2022-03-26"
+  },
+  {
+   "sha1": "6bc10b1b92fa92333f1a8d5d78fdc21a7bd5a085",
+   "fetched_at": "2021-11-16T19:01:20.283245Z",
+   "earliest_calendar_date": "2021-09-05",
+   "latest_calendar_date": "2022-01-01"
+  },
+  {
+   "sha1": "4674b0c3d02376c5e2a84c295e6a499dfc5fc913",
+   "fetched_at": "2021-09-02T21:01:16.260113Z",
+   "earliest_calendar_date": "2021-09-05",
+   "latest_calendar_date": "2022-01-01"
+  },
+  {
+   "sha1": "9a101cf29078e70536587380e548dff2ddc75fae",
+   "fetched_at": "2021-08-31T21:01:06.565197Z",
+   "earliest_calendar_date": "2021-08-05",
+   "latest_calendar_date": "2022-01-01"
+  },
+  {
+   "sha1": "64c0166ff6609c06b72579e4e51af27a7e274494",
+   "fetched_at": "2021-06-25T15:05:17.879904Z",
+   "earliest_calendar_date": "2021-06-27",
+   "latest_calendar_date": "2021-09-04"
+  },
+  {
+   "sha1": "46aa1f4f362334ac074ee68532bb42e18bb07527",
+   "fetched_at": "2021-04-28T16:07:23.549946Z",
+   "earliest_calendar_date": "2021-04-04",
+   "latest_calendar_date": "2021-06-26"
+  },
+  {
+   "sha1": "cc827be5c6fd61cf85a4e6ddece239487a254e54",
+   "fetched_at": "2021-04-01T15:03:04.636335Z",
+   "earliest_calendar_date": "2021-04-04",
+   "latest_calendar_date": "2021-06-26"
+  },
+  {
+   "sha1": "406998f3b7d028b470b22bfe8bdf8d5640af4a74",
+   "fetched_at": "2021-03-30T22:07:42.321008Z",
+   "earliest_calendar_date": "2021-01-03",
+   "latest_calendar_date": "2021-04-03"
+  },
+  {
+   "sha1": "15574a195a8aed4e2ac9d8ed2ce9f342b15e3577",
+   "fetched_at": "2021-03-10T18:02:24.926218Z",
+   "earliest_calendar_date": "2021-01-03",
+   "latest_calendar_date": "2021-04-03"
+  },
+  {
+   "sha1": "cb9d47f19b05a5d5d3294d9e95b073bcf829a9b4",
+   "fetched_at": "2021-02-26T19:10:47.05977Z",
+   "earliest_calendar_date": "2021-01-03",
+   "latest_calendar_date": "2021-04-03"
+  },
+  {
+   "sha1": "bf91fe79388a32f80264823f7e4a66a2374cc672",
+   "fetched_at": "2021-02-25T05:04:49.995718Z",
+   "earliest_calendar_date": "2021-01-03",
+   "latest_calendar_date": "2021-03-27"
+  },
+  {
+   "sha1": "e890ff0229388a276478b252a618d7a82c8f22de",
+   "fetched_at": "2021-02-12T17:01:58.321318Z",
+   "earliest_calendar_date": "2021-01-03",
+   "latest_calendar_date": "2021-04-03"
+  },
+  {
+   "sha1": "2e51bc21f1ba5b88e343c46dfa5ca25c2dae0a91",
+   "fetched_at": "2021-02-03T01:02:23.824004Z",
+   "earliest_calendar_date": "2021-01-03",
+   "latest_calendar_date": "2021-04-03"
+  },
+  {
+   "sha1": "721229d791ab7d2e84b667f7382d9b33a987db23",
+   "fetched_at": "2021-02-01T15:02:56.540043Z",
+   "earliest_calendar_date": "2021-01-04",
+   "latest_calendar_date": "2021-04-02"
+  },
+  {
+   "sha1": "a1dd3ff828ca994ac1cbe00e208ae604a2fc0754",
+   "fetched_at": "2021-01-04T10:06:16.898716Z",
+   "earliest_calendar_date": "2021-01-03",
+   "latest_calendar_date": "2021-04-03"
+  },
+  {
+   "sha1": "2c8897e32a5336c4da89565446f9e3cc2e9fd0f9",
+   "fetched_at": "2020-12-16T16:03:49.867086Z",
+   "earliest_calendar_date": "2020-12-16",
+   "latest_calendar_date": "2020-12-17"
+  },
+  {
+   "sha1": "372c5788ace3ef4f52d9cff52470b64cc9e71c39",
+   "fetched_at": "2020-11-30T16:03:20.173004Z",
+   "earliest_calendar_date": "2020-09-06",
+   "latest_calendar_date": "2021-01-02"
+  },
+  {
+   "sha1": "a1ba60c42537be57b7c4c491020acb4737018aa3",
+   "fetched_at": "2020-10-24T00:03:50.841837Z",
+   "earliest_calendar_date": "2020-09-06",
+   "latest_calendar_date": "2021-01-02"
+  },
+  {
+   "sha1": "b8776df28239bd3559922b4dee45b7a963dbffa9",
+   "fetched_at": "2020-09-22T00:02:48.831599Z",
+   "earliest_calendar_date": "2020-09-03",
+   "latest_calendar_date": "2021-01-02"
+  },
+  {
+   "sha1": "79d39af3ae6715ffe7c873419e97b2a19c279deb",
+   "fetched_at": "2020-09-08T00:03:13.229724Z",
+   "earliest_calendar_date": "2020-09-06",
+   "latest_calendar_date": "2021-01-02"
+  },
+  {
+   "sha1": "c709f91b6b3dba9614fc8b82976bc66be2a012d4",
+   "fetched_at": "2020-06-25T00:04:10.932224Z",
+   "earliest_calendar_date": "2020-06-28",
+   "latest_calendar_date": "2020-09-05"
+  },
+  {
+   "sha1": "58bdfda168107a88f21790b88daaf96a22c52aca",
+   "fetched_at": "2020-06-06T00:05:03.469267Z",
+   "earliest_calendar_date": "2020-04-05",
+   "latest_calendar_date": "2020-06-27"
+  },
+  {
+   "sha1": "5665e1e64892a09c11dcfd844c359d8aa4e88e21",
+   "fetched_at": "2020-06-02T00:04:29.441512Z",
+   "earliest_calendar_date": "2020-04-05",
+   "latest_calendar_date": "2020-06-27"
+  },
+  {
+   "sha1": "f57fd8191f648e2486e74013ebbe2f34643a883e",
+   "fetched_at": "2020-05-01T00:04:37.57483Z",
+   "earliest_calendar_date": "2020-04-05",
+   "latest_calendar_date": "2020-06-06"
+  },
+  {
+   "sha1": "735655a4549186ae66555eed3c92805907e4f6d9",
+   "fetched_at": "2020-04-13T22:25:14.389169Z",
+   "earliest_calendar_date": "2020-04-05",
+   "latest_calendar_date": "2020-05-02"
+  },
+  {
+   "sha1": "f906b0bc056df9fe5077bf3f5cc2083c3deee9fa",
+   "fetched_at": "2020-04-04T00:03:22.793227Z",
+   "earliest_calendar_date": "2020-01-19",
+   "latest_calendar_date": "2020-05-02"
+  },
+  {
+   "sha1": "eb559f121bb7446b3ce8d96f7b89537ecb4905ac",
+   "fetched_at": "2020-03-18T00:04:45.341915Z",
+   "earliest_calendar_date": "2020-01-19",
+   "latest_calendar_date": "2020-04-04"
+  },
+  {
+   "sha1": "5d1d79e98230fc881b993013b0d5a0a32d26ad2a",
+   "fetched_at": "2020-02-04T00:05:41.894543Z",
+   "earliest_calendar_date": "2020-01-19",
+   "latest_calendar_date": "2020-04-04"
+  },
+  {
+   "sha1": "7e5bb85c0b292cc4cd7eb0dd1cef94b1005735af",
+   "fetched_at": "2020-01-18T00:05:19.671845Z",
+   "earliest_calendar_date": "2020-01-19",
+   "latest_calendar_date": "2020-04-04"
+  },
+  {
+   "sha1": "af57057964e03895edca8e9f9de42c8c87903622",
+   "fetched_at": "2020-01-04T11:14:34.879083Z",
+   "earliest_calendar_date": "2020-01-05",
+   "latest_calendar_date": "2020-01-18"
+  },
+  {
+   "sha1": "cbf31eab31270ab497398676b23f3557f96e1500",
+   "fetched_at": "2019-11-15T00:57:02.71585Z",
+   "earliest_calendar_date": "2019-09-01",
+   "latest_calendar_date": "2020-01-04"
+  },
+  {
+   "sha1": "fffe94fbc7a12a7920b662d603f7295833b26fd1",
+   "fetched_at": "2019-10-19T06:30:06.102593Z",
+   "earliest_calendar_date": "2019-09-01",
+   "latest_calendar_date": "2020-01-04"
+  },
+  {
+   "sha1": "7674f2d5f74b062c583256eb26868f8e6c032f76",
+   "fetched_at": "2019-09-21T05:03:25.936491Z",
+   "earliest_calendar_date": "2019-09-01",
+   "latest_calendar_date": "2020-01-04"
+  },
+  {
+   "sha1": "76505d2e56040cd4cec8e79e785159e180baec75",
+   "fetched_at": "2019-04-24T22:00:02.838713Z",
+   "earliest_calendar_date": "2019-04-28",
+   "latest_calendar_date": "2019-06-29"
+  },
+  {
+   "sha1": "83000f2eee3101b041bc47f766d54562b4f745fb",
+   "fetched_at": "2019-04-13T07:00:19.929075Z",
+   "earliest_calendar_date": "2019-04-28",
+   "latest_calendar_date": "2019-06-29"
+  },
+  {
+   "sha1": "b5387db0b278480e0050b176eb9d8b1565bdfc33",
+   "fetched_at": "2019-02-28T05:00:04.927804Z",
+   "earliest_calendar_date": "2019-01-13",
+   "latest_calendar_date": "2019-04-27"
+  },
+  {
+   "sha1": "1989124be183c73829bf3a3af6b85736f3d9efc8",
+   "fetched_at": "2019-01-23T00:00:26.597006Z",
+   "earliest_calendar_date": "2019-01-13",
+   "latest_calendar_date": "2019-04-20"
+  },
+  {
+   "sha1": "503d12abf9bac91974397c8105d56d861a447a78",
+   "fetched_at": "2019-01-06T02:00:27.290042Z",
+   "earliest_calendar_date": "2018-10-07",
+   "latest_calendar_date": "2019-01-12"
+  },
+  {
+   "sha1": "411817f2ee5b05efb0678caa099d4e079f99f0cf",
+   "fetched_at": "2018-10-16T16:30:31.300312Z",
+   "earliest_calendar_date": "2018-10-07",
+   "latest_calendar_date": "2019-01-05"
+  },
+  {
+   "sha1": "4a2f449ff51a2073552364ae5de2cb5a879721e9",
+   "fetched_at": "2018-10-11T14:01:01.987439Z",
+   "earliest_calendar_date": "2018-10-07",
+   "latest_calendar_date": "2019-01-05"
+  },
+  {
+   "sha1": "1525a3afc01f6a2ab38a66d70a10e71ab6568528",
+   "fetched_at": "2018-10-05T00:25:36.759546Z",
+   "earliest_calendar_date": "2018-10-07",
+   "latest_calendar_date": "2019-01-05"
+  },
+  {
+   "sha1": "db081dd2cfa80302f82d8ca06ee9912faecdc4b2",
+   "fetched_at": "2018-09-01T10:00:16.564651Z",
+   "earliest_calendar_date": "2018-09-02",
+   "latest_calendar_date": "2019-01-05"
+  },
+  {
+   "sha1": "0d86000738a0e3e2b9170dc242b89b678dfbfd0f",
+   "fetched_at": "2018-08-18T23:30:10.218579Z",
+   "earliest_calendar_date": "2018-07-01",
+   "latest_calendar_date": "2018-09-01"
+  },
+  {
+   "sha1": "63c7f9f368882c99453c550f64d29870ebbea6e1",
+   "fetched_at": "2018-08-16T01:00:26.427218Z",
+   "earliest_calendar_date": "2018-07-01",
+   "latest_calendar_date": "2018-09-01"
+  },
+  {
+   "sha1": "ec708d3c80f035214a8e01642493bb40b54075a0",
+   "fetched_at": "2018-07-22T06:00:58.430838Z",
+   "earliest_calendar_date": "2018-07-01",
+   "latest_calendar_date": "2018-09-01"
+  },
+  {
+   "sha1": "e9bb51198968ca3ba321b9db58b7825909759a65",
+   "fetched_at": "2018-07-20T18:30:30.312059Z",
+   "earliest_calendar_date": "2018-07-01",
+   "latest_calendar_date": "2018-09-01"
+  },
+  {
+   "sha1": "f5588064c777b05b99e558f3e9e5af626f338fbd",
+   "fetched_at": "2018-07-13T15:00:43.146365Z",
+   "earliest_calendar_date": "2018-07-01",
+   "latest_calendar_date": "2018-09-01"
+  },
+  {
+   "sha1": "514391df2977c29053cc519940ed1753a7a295af",
+   "fetched_at": "2018-07-03T10:30:16.182522Z",
+   "earliest_calendar_date": "2018-07-01",
+   "latest_calendar_date": "2018-09-01"
+  },
+  {
+   "sha1": "50735207cf3b244b6158cb38b7530d82a8ba6b4e",
+   "fetched_at": "2018-03-27T10:00:25.973732Z",
+   "earliest_calendar_date": "2018-04-01",
+   "latest_calendar_date": "2018-06-30"
+  },
+  {
+   "sha1": "b8ea7709196b1445f5b07114abeb1b3ff1bc369e",
+   "fetched_at": "2018-03-03T00:26:10.77038Z",
+   "earliest_calendar_date": "2018-02-04",
+   "latest_calendar_date": "2018-03-31"
+  },
+  {
+   "sha1": "5dda7093b629394faa2707fbfc8d77bd3160b3d7",
+   "fetched_at": "2017-12-23T20:30:11.894633Z",
+   "earliest_calendar_date": "2017-09-03",
+   "latest_calendar_date": "2018-02-03"
+  },
+  {
+   "sha1": "e1938d10885979377ad5c4a6ed962e8910e76167",
+   "fetched_at": "2017-08-25T19:36:06.209143Z",
+   "earliest_calendar_date": "2017-09-03",
+   "latest_calendar_date": "2018-01-06"
+  },
+  {
+   "sha1": "b37edef819eb7274948202f9d54980394b859392",
+   "fetched_at": "2017-06-27T11:00:27.195531Z",
+   "earliest_calendar_date": "2017-07-02",
+   "latest_calendar_date": "2017-09-02"
+  },
+  {
+   "sha1": "0aeef5760c5c20ff59606ed98c1d62f11376badb",
+   "fetched_at": "2017-04-05T07:30:12.922187Z",
+   "earliest_calendar_date": "2017-04-09",
+   "latest_calendar_date": "2017-07-01"
+  },
+  {
+   "sha1": "519a046b0b22bb2b00174898a23b7912e3380852",
+   "fetched_at": "2017-01-09T22:30:12.918925Z",
+   "earliest_calendar_date": "2017-01-08",
+   "latest_calendar_date": "2017-04-01"
+  },
+  {
+   "sha1": "1cc2cd10a655d87c7abc23bc6ece2e375bed4601",
+   "fetched_at": "2016-09-01T22:50:44.622208Z",
+   "earliest_calendar_date": "2016-09-04",
+   "latest_calendar_date": "2017-01-07"
+  },
+  {
+   "sha1": "1a1f30addf42506c55034fd2d28873cdc794ce15",
+   "fetched_at": "2016-06-28T00:30:07.145282Z",
+   "earliest_calendar_date": "2016-07-03",
+   "latest_calendar_date": "2016-09-03"
+  },
+  {
+   "sha1": "9b5ca7d903a2ec8db2a090006d4dfc398a3d1377",
+   "fetched_at": "2016-05-01T12:01:05.057741Z",
+   "earliest_calendar_date": "2016-04-03",
+   "latest_calendar_date": "2016-07-02"
+  },
+  {
+   "sha1": "23927e7461e5c8b2b1958a92a068b6cf69a2571e",
+   "fetched_at": "2016-03-25T12:01:05.318174Z",
+   "earliest_calendar_date": "2016-04-03",
+   "latest_calendar_date": "2016-07-02"
+  },
+  {
+   "sha1": "6c2f819498212d03cea23ee191ba93a6c944fd41",
+   "fetched_at": "2016-02-06T20:05:28.611631Z",
+   "earliest_calendar_date": "2016-01-03",
+   "latest_calendar_date": "2016-04-02"
+  }
+ ],
+ "busco": [
+  {
+   "sha1": "3d84ded191bcc80d82a6653655b1064fc495bb6a",
+   "fetched_at": "2026-06-24T05:26:40.188365Z",
+   "earliest_calendar_date": "2026-06-28",
+   "latest_calendar_date": "2026-09-05"
+  },
+  {
+   "sha1": "61bfc36ca8cf8829011728ca9d29b75963c60c02",
+   "fetched_at": "2026-05-21T04:59:06.372456Z",
+   "earliest_calendar_date": "2026-05-22",
+   "latest_calendar_date": "2026-06-27"
+  },
+  {
+   "sha1": "80ffa784f1a0a0aaac79d2f15b0100afd9532e69",
+   "fetched_at": "2026-04-18T04:33:20.312871Z",
+   "earliest_calendar_date": "2026-04-12",
+   "latest_calendar_date": "2026-06-27"
+  },
+  {
+   "sha1": "f06adbad0bf76cb911f315d36ec4fb1309f539d1",
+   "fetched_at": "2026-04-09T04:24:48.856031Z",
+   "earliest_calendar_date": "2026-04-12",
+   "latest_calendar_date": "2026-06-27"
+  },
+  {
+   "sha1": "7d0ebefbad72b4a0cbcfb9ca2a558650b68bbae6",
+   "fetched_at": "2026-03-27T04:12:52.61874Z",
+   "earliest_calendar_date": "2026-01-04",
+   "latest_calendar_date": "2026-04-11"
+  },
+  {
+   "sha1": "c430080077da0e8fed00d3caa85c2f2700e2fac2",
+   "fetched_at": "2026-01-26T03:17:30.776152Z",
+   "earliest_calendar_date": "2026-01-05",
+   "latest_calendar_date": "2026-03-27"
+  },
+  {
+   "sha1": "582254b48685d89d9145f2fd184f5f790e88a445",
+   "fetched_at": "2026-01-09T02:53:15.385079Z",
+   "earliest_calendar_date": "2026-01-04",
+   "latest_calendar_date": "2026-03-28"
+  },
+  {
+   "sha1": "424798b6cd75cdad3e388f5f9884542fb02d7521",
+   "fetched_at": "2025-12-30T02:42:21.712434Z",
+   "earliest_calendar_date": "2026-01-04",
+   "latest_calendar_date": "2026-03-28"
+  },
+  {
+   "sha1": "bdcc7046bc4744cf2e98df8dcf1b3888f21d4552",
+   "fetched_at": "2025-10-21T13:47:57.923875Z",
+   "earliest_calendar_date": "2025-10-20",
+   "latest_calendar_date": "2026-01-03"
+  },
+  {
+   "sha1": "b4db9ac30f1811f08c88d56ae6574d287e365d7f",
+   "fetched_at": "2025-10-06T20:23:48.63968Z",
+   "earliest_calendar_date": "2025-10-06",
+   "latest_calendar_date": "2026-01-03"
+  },
+  {
+   "sha1": "fb0e2c097635e5dfa495870b2b177b02762c9ecc",
+   "fetched_at": "2025-09-15T18:14:35.796854Z",
+   "earliest_calendar_date": "2025-08-31",
+   "latest_calendar_date": "2026-01-03"
+  },
+  {
+   "sha1": "e1c52ddfd8bece8f782dea60ee4d61f258f68e18",
+   "fetched_at": "2025-08-25T15:55:54.819392Z",
+   "earliest_calendar_date": "2025-08-31",
+   "latest_calendar_date": "2026-01-03"
+  },
+  {
+   "sha1": "ea2489916ee6de2454d4262391c22b49158fd6f8",
+   "fetched_at": "2025-07-10T16:56:05.898337Z",
+   "earliest_calendar_date": "2025-06-29",
+   "latest_calendar_date": "2025-08-30"
+  },
+  {
+   "sha1": "a35da13d0a8c311de05d3558e9e80d2a472c21d2",
+   "fetched_at": "2025-07-03T12:13:52.907974Z",
+   "earliest_calendar_date": "2025-06-29",
+   "latest_calendar_date": "2025-08-30"
+  },
+  {
+   "sha1": "54653b3fafb5fabc5ab1c941780b871343138440",
+   "fetched_at": "2025-06-25T15:26:25.986147Z",
+   "earliest_calendar_date": "2025-06-29",
+   "latest_calendar_date": "2025-08-30"
+  },
+  {
+   "sha1": "a52f278150cd9bc03082f76fccd57f1c8c331d3c",
+   "fetched_at": "2025-06-11T14:02:13.351425Z",
+   "earliest_calendar_date": "2025-06-01",
+   "latest_calendar_date": "2025-06-28"
+  },
+  {
+   "sha1": "bde326d49396cfed8a1563ab3ebb06143392fd9e",
+   "fetched_at": "2025-05-29T20:46:55.767853Z",
+   "earliest_calendar_date": "2025-06-01",
+   "latest_calendar_date": "2025-06-28"
+  },
+  {
+   "sha1": "853fd6722122faf851a15173b3ddb88c02cf5a0a",
+   "fetched_at": "2025-05-15T15:23:43.11637Z",
+   "earliest_calendar_date": "2025-05-23",
+   "latest_calendar_date": "2025-06-28"
+  },
+  {
+   "sha1": "cfc1bcff303e608ab4ce4340937e8d35130803fc",
+   "fetched_at": "2025-04-19T12:50:10.734291Z",
+   "earliest_calendar_date": "2025-03-30",
+   "latest_calendar_date": "2025-06-28"
+  },
+  {
+   "sha1": "5c0ae3298e821bcb7e12e123fc0cafab420b77f3",
+   "fetched_at": "2025-03-26T22:32:31.810276Z",
+   "earliest_calendar_date": "2025-03-30",
+   "latest_calendar_date": "2025-06-28"
+  },
+  {
+   "sha1": "390ffdd567a9f8ec5eacafa1d55c16f133fe3b15",
+   "fetched_at": "2025-02-07T09:50:05.248515Z",
+   "earliest_calendar_date": "2025-01-23",
+   "latest_calendar_date": "2025-03-29"
+  },
+  {
+   "sha1": "03cffd8d47148db611ce92b2a2c3a5eff02d9f1d",
+   "fetched_at": "2025-01-25T03:46:24.279215Z",
+   "earliest_calendar_date": "2025-01-23",
+   "latest_calendar_date": "2025-03-29"
+  },
+  {
+   "sha1": "a4341547f846d8e514ab193871bbf8e279fdb437",
+   "fetched_at": "2025-01-01T06:40:19.85058Z",
+   "earliest_calendar_date": "2025-01-05",
+   "latest_calendar_date": "2025-03-29"
+  },
+  {
+   "sha1": "471e78e0a19644e0937dd4716d62c1c63c33ad33",
+   "fetched_at": "2024-12-10T16:24:34.048521Z",
+   "earliest_calendar_date": "2024-09-01",
+   "latest_calendar_date": "2025-01-04"
+  },
+  {
+   "sha1": "1643ba62106caa672723dbe38261fabf5776abec",
+   "fetched_at": "2024-08-29T04:23:06.869188Z",
+   "earliest_calendar_date": "2024-09-01",
+   "latest_calendar_date": "2025-01-04"
+  },
+  {
+   "sha1": "2dfe8e6d5e5eef9eef3b50e28a70abdb5e8d2bff",
+   "fetched_at": "2024-06-27T17:57:20.077673Z",
+   "earliest_calendar_date": "2024-06-30",
+   "latest_calendar_date": "2024-08-31"
+  },
+  {
+   "sha1": "4a9be15ba09d21a451824dfd3183f4fa484f6279",
+   "fetched_at": "2024-05-31T17:52:26.036373Z",
+   "earliest_calendar_date": "2024-05-25",
+   "latest_calendar_date": "2024-06-29"
+  },
+  {
+   "sha1": "153b171d3543bbc694ec5a90bac486516fc133ef",
+   "fetched_at": "2024-03-27T13:16:17.982357Z",
+   "earliest_calendar_date": "2024-03-31",
+   "latest_calendar_date": "2024-06-29"
+  },
+  {
+   "sha1": "441c2b80e4ef8fb78b819f209b2be9e4e4c44bc1",
+   "fetched_at": "2024-01-24T14:51:51.212376Z",
+   "earliest_calendar_date": "2024-01-21",
+   "latest_calendar_date": "2024-03-30"
+  },
+  {
+   "sha1": "af1175f89e46ee8e052bb2ef35bf2ef790c66c19",
+   "fetched_at": "2023-12-26T22:54:14.395385Z",
+   "earliest_calendar_date": "2024-01-07",
+   "latest_calendar_date": "2024-03-30"
+  },
+  {
+   "sha1": "df0fcf2c06850bf64301f770204c1b5400ac2306",
+   "fetched_at": "2023-09-18T15:17:18.637666Z",
+   "earliest_calendar_date": "2023-09-03",
+   "latest_calendar_date": "2024-01-06"
+  },
+  {
+   "sha1": "b5067f099801a5955e8e92bd172ddf527bdf32a4",
+   "fetched_at": "2023-08-30T15:02:52.020827Z",
+   "earliest_calendar_date": "2023-09-03",
+   "latest_calendar_date": "2024-01-06"
+  },
+  {
+   "sha1": "7db5b3c037acfae74a9872978fa36c7f2892a7f4",
+   "fetched_at": "2023-06-29T14:00:50.403509Z",
+   "earliest_calendar_date": "2023-07-02",
+   "latest_calendar_date": "2023-09-02"
+  },
+  {
+   "sha1": "f79a27e3acd96fc6b17b7500f434bd7a1366246d",
+   "fetched_at": "2023-03-30T19:00:43.883111Z",
+   "earliest_calendar_date": "2023-04-02",
+   "latest_calendar_date": "2023-07-01"
+  },
+  {
+   "sha1": "27e060115db50a861ae5e1058546c229feef9bb8",
+   "fetched_at": "2023-01-04T17:00:42.1267Z",
+   "earliest_calendar_date": "2023-01-08",
+   "latest_calendar_date": "2023-04-01"
+  },
+  {
+   "sha1": "c3cf8dc514f71a0a06ec7cd06776a9439ca957ed",
+   "fetched_at": "2022-09-01T14:00:35.762745Z",
+   "earliest_calendar_date": "2022-09-04",
+   "latest_calendar_date": "2023-01-07"
+  },
+  {
+   "sha1": "9b26173299670eb6c36454d98fa0d01a07e33b9a",
+   "fetched_at": "2022-07-05T21:00:54.074604Z",
+   "earliest_calendar_date": "2022-07-01",
+   "latest_calendar_date": "2022-09-03"
+  },
+  {
+   "sha1": "6f3e7f09dfd456e674ac2a6dab5bc85ecc333f0f",
+   "fetched_at": "2022-06-23T23:00:43.073698Z",
+   "earliest_calendar_date": "2022-06-26",
+   "latest_calendar_date": "2022-09-03"
+  },
+  {
+   "sha1": "867aa4e506a47f6d8e362b6dde88f6a07d60a626",
+   "fetched_at": "2022-06-16T20:00:45.468885Z",
+   "earliest_calendar_date": "2021-06-26",
+   "latest_calendar_date": "2022-09-03"
+  },
+  {
+   "sha1": "f1ede1ab3af0ce45c1ad5eefbd731c2881f0fbd1",
+   "fetched_at": "2022-03-29T00:01:09.191246Z",
+   "earliest_calendar_date": "2022-03-29",
+   "latest_calendar_date": "2022-06-25"
+  },
+  {
+   "sha1": "e4d3bab4d48f80951321a2e1ad6bedc12c79ffd5",
+   "fetched_at": "2022-03-24T18:00:53.763981Z",
+   "earliest_calendar_date": "2022-03-27",
+   "latest_calendar_date": "2022-06-25"
+  },
+  {
+   "sha1": "e6d1501be6e830679f148a7357aa0e89e1071fe5",
+   "fetched_at": "2022-03-02T20:01:12.372679Z",
+   "earliest_calendar_date": "2022-02-06",
+   "latest_calendar_date": "2022-03-26"
+  },
+  {
+   "sha1": "ad03ecbc7f282fce5a33b95c3679de4c846fc4b0",
+   "fetched_at": "2022-01-28T23:01:17.602227Z",
+   "earliest_calendar_date": "2021-01-31",
+   "latest_calendar_date": "2022-03-26"
+  },
+  {
+   "sha1": "43a4c2a308e67e417c84690c6a536937dc75feda",
+   "fetched_at": "2021-12-30T01:01:57.461532Z",
+   "earliest_calendar_date": "2022-01-02",
+   "latest_calendar_date": "2022-03-26"
+  },
+  {
+   "sha1": "16db5be3baffd19470457d8343ec3ccc2e0dd5e2",
+   "fetched_at": "2021-12-21T19:01:25.699831Z",
+   "earliest_calendar_date": "2021-09-19",
+   "latest_calendar_date": "2022-01-02"
+  },
+  {
+   "sha1": "a74aaf1d3052d78ec5f6c3a76b635e12b6d3deef",
+   "fetched_at": "2021-12-10T16:01:29.018005Z",
+   "earliest_calendar_date": "2021-09-19",
+   "latest_calendar_date": "2022-01-01"
+  },
+  {
+   "sha1": "9dbe16e2e8aedddbd288e7dd6fa8de7a27ff8c82",
+   "fetched_at": "2021-09-24T14:00:40.723924Z",
+   "earliest_calendar_date": "2021-09-19",
+   "latest_calendar_date": "2022-01-01"
+  },
+  {
+   "sha1": "18dce893199deeec6e0a4f176b43537486965493",
+   "fetched_at": "2021-09-02T21:00:38.082911Z",
+   "earliest_calendar_date": "2021-09-05",
+   "latest_calendar_date": "2022-01-01"
+  },
+  {
+   "sha1": "030b13e39532c1ed4eb53ab7999d04332a2e8f18",
+   "fetched_at": "2021-08-31T21:00:36.995873Z",
+   "earliest_calendar_date": "2021-08-05",
+   "latest_calendar_date": "2022-01-01"
+  },
+  {
+   "sha1": "6ebc9fa22564eecbaa0757164023b415b0676d62",
+   "fetched_at": "2021-06-25T15:08:30.354761Z",
+   "earliest_calendar_date": "2021-06-27",
+   "latest_calendar_date": "2021-09-04"
+  },
+  {
+   "sha1": "df4b577169e61dce6bdad1eba9d4c17b24197b5d",
+   "fetched_at": "2021-06-16T02:05:35.731724Z",
+   "earliest_calendar_date": "2021-06-10",
+   "latest_calendar_date": "2021-06-26"
+  },
+  {
+   "sha1": "83940cc6d7d60eae5ec812ae353afaefbd5f0ca2",
+   "fetched_at": "2021-06-11T06:10:57.948255Z",
+   "earliest_calendar_date": "2021-06-10",
+   "latest_calendar_date": "2021-06-26"
+  },
+  {
+   "sha1": "14c72fcf7385d09afa0c4d3190cade881bd7eac4",
+   "fetched_at": "2021-05-28T22:06:09.884393Z",
+   "earliest_calendar_date": "2021-05-28",
+   "latest_calendar_date": "2021-06-26"
+  },
+  {
+   "sha1": "46ff73e4d67ec148858287971f5b53fb90ab7101",
+   "fetched_at": "2021-04-26T16:04:32.500541Z",
+   "earliest_calendar_date": "2021-04-26",
+   "latest_calendar_date": "2021-06-26"
+  },
+  {
+   "sha1": "d6c35b52512be957943b0d8e1e98f0c39ccc4a2a",
+   "fetched_at": "2021-04-26T01:04:30.628648Z",
+   "earliest_calendar_date": "2021-04-23",
+   "latest_calendar_date": "2021-06-26"
+  },
+  {
+   "sha1": "a4e2621f1ed07cf2c38ff05507ac61c7a9593201",
+   "fetched_at": "2021-04-20T20:04:09.280199Z",
+   "earliest_calendar_date": "2021-04-04",
+   "latest_calendar_date": "2021-06-26"
+  },
+  {
+   "sha1": "e94a3b9c4fb8383033fb288f5a99672f1ec7d32e",
+   "fetched_at": "2021-04-01T15:03:17.977045Z",
+   "earliest_calendar_date": "2021-04-04",
+   "latest_calendar_date": "2021-06-26"
+  },
+  {
+   "sha1": "7a1fd4bacb78f97d8430ed07419cbd56a622d8c8",
+   "fetched_at": "2021-03-02T01:07:14.398864Z",
+   "earliest_calendar_date": "2021-02-01",
+   "latest_calendar_date": "2021-04-03"
+  },
+  {
+   "sha1": "bd930bff3646f323c1099da412fd3dc348d49309",
+   "fetched_at": "2021-02-27T02:07:59.882095Z",
+   "earliest_calendar_date": "2021-02-01",
+   "latest_calendar_date": "2021-04-03"
+  },
+  {
+   "sha1": "2f8e03418d28a90b31a926633532c424ce64b14a",
+   "fetched_at": "2021-02-25T03:05:09.260027Z",
+   "earliest_calendar_date": "2021-02-23",
+   "latest_calendar_date": "2021-04-03"
+  },
+  {
+   "sha1": "11339be76143de699a129c1a7ad29eed57eecaf1",
+   "fetched_at": "2021-02-02T17:02:37.429015Z",
+   "earliest_calendar_date": "2021-02-01",
+   "latest_calendar_date": "2021-02-02"
+  },
+  {
+   "sha1": "51daa2b1515ba70b4923bff970d892af62689910",
+   "fetched_at": "2021-02-01T14:06:04.766469Z",
+   "earliest_calendar_date": "2021-02-01",
+   "latest_calendar_date": "2021-02-02"
+  },
+  {
+   "sha1": "9a0d4718a2e6e53ec9674bf95ad70f848f3a97a5",
+   "fetched_at": "2021-01-23T00:20:26.956863Z",
+   "earliest_calendar_date": "2021-01-03",
+   "latest_calendar_date": "2021-03-27"
+  },
+  {
+   "sha1": "e831a2bc94999ed0614b537966304427c042ec50",
+   "fetched_at": "2020-12-16T16:03:51.709051Z",
+   "earliest_calendar_date": "2020-12-16",
+   "latest_calendar_date": "2020-12-17"
+  },
+  {
+   "sha1": "f940af8ba054999044df34cd7d7aac076861d512",
+   "fetched_at": "2020-11-30T16:16:58.979768Z",
+   "earliest_calendar_date": "2020-10-15",
+   "latest_calendar_date": "2021-01-02"
+  },
+  {
+   "sha1": "4e2057ea4236cb6f00ba7378d8b31375772bc8e4",
+   "fetched_at": "2020-10-24T00:04:00.961432Z",
+   "earliest_calendar_date": "2020-10-13",
+   "latest_calendar_date": "2021-01-02"
+  },
+  {
+   "sha1": "d58abfeca3f2ca872159ba61140ae779f391f0d7",
+   "fetched_at": "2020-09-22T00:05:24.685667Z",
+   "earliest_calendar_date": "2020-09-06",
+   "latest_calendar_date": "2021-01-02"
+  },
+  {
+   "sha1": "77da938bba2cb8aeb4223bbec7aa16253dabc383",
+   "fetched_at": "2020-09-08T00:03:25.089093Z",
+   "earliest_calendar_date": "2020-09-06",
+   "latest_calendar_date": "2021-01-02"
+  },
+  {
+   "sha1": "ee9e967390c655cf12025bdb8ae15db246922568",
+   "fetched_at": "2020-08-19T00:03:46.090007Z",
+   "earliest_calendar_date": "2020-08-10",
+   "latest_calendar_date": "2020-09-05"
+  },
+  {
+   "sha1": "8103c0e3e22a12ddf4717de25977872f3576c288",
+   "fetched_at": "2020-07-03T00:04:26.271559Z",
+   "earliest_calendar_date": "2020-06-28",
+   "latest_calendar_date": "2020-09-05"
+  },
+  {
+   "sha1": "c5f475e1a4a9535e39e8368de3a9e43b3354cebb",
+   "fetched_at": "2020-06-25T00:04:22.456642Z",
+   "earliest_calendar_date": "2020-06-28",
+   "latest_calendar_date": "2020-09-05"
+  },
+  {
+   "sha1": "8b24ce9e938f6b943a5805642749855b37b5dea2",
+   "fetched_at": "2020-06-06T00:05:10.748246Z",
+   "earliest_calendar_date": "2020-06-07",
+   "latest_calendar_date": "2020-06-27"
+  },
+  {
+   "sha1": "0ec888db417bb62417b17af4be173ef2e2b95f4c",
+   "fetched_at": "2020-05-21T00:04:19.924159Z",
+   "earliest_calendar_date": "2020-05-06",
+   "latest_calendar_date": "2020-07-04"
+  },
+  {
+   "sha1": "804cc3a90e271f8c1872d95f5c8845793efbf415",
+   "fetched_at": "2020-05-07T00:04:14.903878Z",
+   "earliest_calendar_date": "2020-05-06",
+   "latest_calendar_date": "2020-07-04"
+  },
+  {
+   "sha1": "3a158b824e7e6a95051e8d7fdd365e5a87181347",
+   "fetched_at": "2020-04-18T00:04:27.462652Z",
+   "earliest_calendar_date": "2020-04-20",
+   "latest_calendar_date": "2020-08-29"
+  },
+  {
+   "sha1": "d7ea0083b8e88c1f3d1cfe9e32da500e23306fca",
+   "fetched_at": "2020-04-17T00:03:48.008907Z",
+   "earliest_calendar_date": "2020-04-20",
+   "latest_calendar_date": "2020-08-29"
+  },
+  {
+   "sha1": "4760ea911d4af6fd2e2be31cb5812e70ca001804",
+   "fetched_at": "2020-04-13T22:22:28.938238Z",
+   "earliest_calendar_date": "2020-04-05",
+   "latest_calendar_date": "2020-06-27"
+  },
+  {
+   "sha1": "72c65607a04f94b56d3336f0213302a01b89c68d",
+   "fetched_at": "2020-04-04T00:03:24.827457Z",
+   "earliest_calendar_date": "2020-04-05",
+   "latest_calendar_date": "2020-06-27"
+  },
+  {
+   "sha1": "27f8238fffca5e4cb4d2668125b49d731574bc3d",
+   "fetched_at": "2020-03-18T00:04:52.139726Z",
+   "earliest_calendar_date": "2020-01-05",
+   "latest_calendar_date": "2020-04-04"
+  },
+  {
+   "sha1": "4bf94c5c5b2f0220d11b0b74724fa3ee75e76c8f",
+   "fetched_at": "2020-01-04T11:14:38.411833Z",
+   "earliest_calendar_date": "2020-01-05",
+   "latest_calendar_date": "2020-04-04"
+  },
+  {
+   "sha1": "96e23fcd7a0ec8f75b5ef81b37909cfadd64c29f",
+   "fetched_at": "2019-11-25T03:41:57.183288Z",
+   "earliest_calendar_date": "2019-09-01",
+   "latest_calendar_date": "2020-01-04"
+  },
+  {
+   "sha1": "f7aec6666b5933e41712e95873556b300067406f",
+   "fetched_at": "2019-11-15T00:55:13.749676Z",
+   "earliest_calendar_date": "2019-09-01",
+   "latest_calendar_date": "2020-01-04"
+  },
+  {
+   "sha1": "a206f3c9e6f27410d65e079759ed77b51e586760",
+   "fetched_at": "2018-09-05T05:00:25.174411Z",
+   "earliest_calendar_date": "2018-09-02",
+   "latest_calendar_date": "2019-01-05"
+  },
+  {
+   "sha1": "a6cd4955c9da1a3eb6de440398b9b08fe968f074",
+   "fetched_at": "2018-06-14T00:30:31.87786Z",
+   "earliest_calendar_date": "2018-07-01",
+   "latest_calendar_date": "2018-09-01"
+  },
+  {
+   "sha1": "a6dc342ba045f320e4e98aaec6fc5ee57a046fdf",
+   "fetched_at": "2018-03-14T23:02:07.2705Z",
+   "earliest_calendar_date": "2018-04-08",
+   "latest_calendar_date": "2018-06-30"
+  },
+  {
+   "sha1": "2010595e7244adf85c81c9ee6e3f2c4445e2aca1",
+   "fetched_at": "2017-12-14T13:30:11.055196Z",
+   "earliest_calendar_date": "2018-01-07",
+   "latest_calendar_date": "2018-04-07"
+  },
+  {
+   "sha1": "da6428f79f34e71ea2b76466f1cc2c0534d75b3f",
+   "fetched_at": "2017-10-25T19:30:47.34481Z",
+   "earliest_calendar_date": "2017-11-12",
+   "latest_calendar_date": "2018-01-06"
+  },
+  {
+   "sha1": "6da842eae0ff5484b405585b4d0874e7f8241d62",
+   "fetched_at": "2017-08-17T22:00:11.948584Z",
+   "earliest_calendar_date": "2017-09-03",
+   "latest_calendar_date": "2018-01-06"
+  },
+  {
+   "sha1": "eb06fa76ccfa8ce658eb8b8fbc7dfde177a89617",
+   "fetched_at": "2017-07-28T21:52:21.825168Z",
+   "earliest_calendar_date": "2014-08-31",
+   "latest_calendar_date": "2015-01-03"
+  },
+  {
+   "sha1": "3076bd8823999667abcba5391ec2975629a84834",
+   "fetched_at": "2017-07-28T21:52:10.46757Z",
+   "earliest_calendar_date": "2014-08-30",
+   "latest_calendar_date": "2015-01-03"
+  },
+  {
+   "sha1": "c7f9f77fc6b0b32618fbba31f5d11d6f509b8961",
+   "fetched_at": "2017-07-28T21:52:03.766594Z",
+   "earliest_calendar_date": "2014-08-30",
+   "latest_calendar_date": "2015-01-03"
+  },
+  {
+   "sha1": "6ee1be4318dfc92d237a7b0acdff445aa41f2225",
+   "fetched_at": "2017-07-28T21:51:54.805826Z",
+   "earliest_calendar_date": "2014-08-30",
+   "latest_calendar_date": "2015-01-02"
+  },
+  {
+   "sha1": "7211741282a64f6e8e6a8116d98ad0d5282bad4f",
+   "fetched_at": "2017-07-28T21:51:41.389682Z",
+   "earliest_calendar_date": "2014-08-31",
+   "latest_calendar_date": "2015-01-03"
+  },
+  {
+   "sha1": "e264cfe410a264adb5f25c7d221179536d769137",
+   "fetched_at": "2017-07-28T21:51:37.125558Z",
+   "earliest_calendar_date": "2014-06-15",
+   "latest_calendar_date": "2015-12-31"
+  },
+  {
+   "sha1": "9f0c9bf4c967d7b5b4c8a5377fdb769ede342a96",
+   "fetched_at": "2017-07-28T21:51:34.965304Z",
+   "earliest_calendar_date": "2013-08-03",
+   "latest_calendar_date": "2014-12-31"
+  },
+  {
+   "sha1": "57bf0c66be82c73e5aff9eda84ecc284a2a4d43d",
+   "fetched_at": "2017-07-28T21:51:32.888679Z",
+   "earliest_calendar_date": "2013-08-03",
+   "latest_calendar_date": "2014-12-31"
+  },
+  {
+   "sha1": "606115b2a27348f03343536c7354b6af97154d34",
+   "fetched_at": "2017-07-28T21:51:20.931996Z",
+   "earliest_calendar_date": "2010-03-24",
+   "latest_calendar_date": "2013-12-31"
+  },
+  {
+   "sha1": "c563d6f54ce4dac6964a80919950829fd5f318c5",
+   "fetched_at": "2017-07-28T21:51:18.280613Z",
+   "earliest_calendar_date": "2013-03-10",
+   "latest_calendar_date": "2013-06-29"
+  },
+  {
+   "sha1": "df41aa2f776c41f7b589e5b055dbfc8ed71d8c03",
+   "fetched_at": "2017-07-28T21:51:02.703919Z",
+   "earliest_calendar_date": "2010-03-24",
+   "latest_calendar_date": "2013-12-31"
+  },
+  {
+   "sha1": "a6772c31b25ed134da34eb4c9c86d3326b4d2c99",
+   "fetched_at": "2017-07-28T21:50:58.308719Z",
+   "earliest_calendar_date": "2010-03-24",
+   "latest_calendar_date": "2013-12-31"
+  },
+  {
+   "sha1": "43e066b893bcb99a53d252be877b940f85c33e86",
+   "fetched_at": "2017-07-28T21:50:56.299305Z",
+   "earliest_calendar_date": "2010-03-24",
+   "latest_calendar_date": "2013-12-31"
+  },
+  {
+   "sha1": "b9eb4da4a393d9b693c3d21b1e7807e468478c71",
+   "fetched_at": "2017-07-28T21:50:49.908895Z",
+   "earliest_calendar_date": "2010-03-24",
+   "latest_calendar_date": "2012-12-31"
+  },
+  {
+   "sha1": "104ad6dfd4173a3196b31c6c6c8bd1f0124d1ad0",
+   "fetched_at": "2017-07-28T21:50:37.074423Z",
+   "earliest_calendar_date": "2010-03-24",
+   "latest_calendar_date": "2013-12-31"
+  },
+  {
+   "sha1": "29eebd7797b53c671a96b3d8f9007deb020cfb29",
+   "fetched_at": "2017-07-28T21:50:20.208935Z",
+   "earliest_calendar_date": "2010-03-24",
+   "latest_calendar_date": "2013-12-31"
+  },
+  {
+   "sha1": "996a20489018cd1277a0842ae0eb98eacfbe2789",
+   "fetched_at": "2017-07-28T21:50:18.07633Z",
+   "earliest_calendar_date": "2009-12-13",
+   "latest_calendar_date": "2012-12-31"
+  },
+  {
+   "sha1": "765e1fef202e8d99a00bb03a56949ed8ddd520cd",
+   "fetched_at": "2017-07-28T21:50:16.104007Z",
+   "earliest_calendar_date": "2009-12-13",
+   "latest_calendar_date": "2012-12-31"
+  },
+  {
+   "sha1": "a1543d502e298dffae6922090e3d760c597a3c85",
+   "fetched_at": "2017-07-28T21:50:13.998029Z",
+   "earliest_calendar_date": "2009-12-13",
+   "latest_calendar_date": "2012-12-31"
+  },
+  {
+   "sha1": "c0f5237a6111afc52b9aa301453b9518cbc579dc",
+   "fetched_at": "2017-07-28T21:50:11.81016Z",
+   "earliest_calendar_date": "2009-12-13",
+   "latest_calendar_date": "2012-12-31"
+  },
+  {
+   "sha1": "43e9df57492f8d7255c56a667cf89987bdb468b5",
+   "fetched_at": "2017-07-28T21:50:09.810202Z",
+   "earliest_calendar_date": "2009-12-13",
+   "latest_calendar_date": "2012-12-31"
+  },
+  {
+   "sha1": "721ef74a628476f7cd5b62010b9d1ea565318db6",
+   "fetched_at": "2017-07-28T21:50:07.73024Z",
+   "earliest_calendar_date": "2009-12-13",
+   "latest_calendar_date": "2012-12-31"
+  },
+  {
+   "sha1": "95312e46197f9a5fbee83f036a469df45ef153d9",
+   "fetched_at": "2017-07-28T21:50:05.755265Z",
+   "earliest_calendar_date": "2009-12-13",
+   "latest_calendar_date": "2012-12-31"
+  },
+  {
+   "sha1": "171451623199f801c13aa2db5fa607745447731c",
+   "fetched_at": "2017-07-28T21:50:03.674526Z",
+   "earliest_calendar_date": "2009-12-13",
+   "latest_calendar_date": "2012-12-31"
+  },
+  {
+   "sha1": "c4c0900b5483a427d4ad5222d764c6c560bbb74c",
+   "fetched_at": "2017-07-28T21:50:00.46055Z",
+   "earliest_calendar_date": "2009-12-13",
+   "latest_calendar_date": "2012-12-31"
+  },
+  {
+   "sha1": "d68ba4c88fe9063c2ed298707d8077fbcc96aaf1",
+   "fetched_at": "2017-07-28T21:49:57.730966Z",
+   "earliest_calendar_date": "2009-12-13",
+   "latest_calendar_date": "2012-12-31"
+  },
+  {
+   "sha1": "d87dfa2c25c6c88f1adcb659200d22c00b62371c",
+   "fetched_at": "2017-07-28T21:49:54.665561Z",
+   "earliest_calendar_date": "2009-12-13",
+   "latest_calendar_date": "2012-12-31"
+  },
+  {
+   "sha1": "93c25a07fcc6efd2f1dc6c1c5f4dc8c8cf99e4ef",
+   "fetched_at": "2017-07-28T21:49:52.392528Z",
+   "earliest_calendar_date": "2009-12-13",
+   "latest_calendar_date": "2011-12-31"
+  },
+  {
+   "sha1": "2a2b1a6e4753218e3b657d49824bbf9dc7588340",
+   "fetched_at": "2017-07-28T21:49:50.269865Z",
+   "earliest_calendar_date": "2009-12-13",
+   "latest_calendar_date": "2011-12-31"
+  },
+  {
+   "sha1": "65736a2cd566606553509837fa8df329104d35ad",
+   "fetched_at": "2017-07-28T21:49:47.775721Z",
+   "earliest_calendar_date": "2009-12-13",
+   "latest_calendar_date": "2011-12-31"
+  },
+  {
+   "sha1": "aad961df24396d3ddc019dbfdeffb4574c028720",
+   "fetched_at": "2017-07-28T21:49:45.492556Z",
+   "earliest_calendar_date": "2009-12-13",
+   "latest_calendar_date": "2011-12-31"
+  },
+  {
+   "sha1": "ed12aa0091e8c9d64a27e3b29f18a99bab17ebc4",
+   "fetched_at": "2017-07-28T21:49:43.293937Z",
+   "earliest_calendar_date": "2009-12-13",
+   "latest_calendar_date": "2011-12-31"
+  },
+  {
+   "sha1": "242c83c42cfed9d53dfa6246aa035e848b6de9d0",
+   "fetched_at": "2017-07-28T21:49:38.708052Z",
+   "earliest_calendar_date": "2009-12-13",
+   "latest_calendar_date": "2011-12-31"
+  },
+  {
+   "sha1": "0d2456f3b75cfecbba32403d185c1358368cd3b9",
+   "fetched_at": "2017-07-28T21:49:32.323187Z",
+   "earliest_calendar_date": "2009-12-13",
+   "latest_calendar_date": "2011-12-31"
+  },
+  {
+   "sha1": "14ffce6363540c4394c18e946f9b85731862a08e",
+   "fetched_at": "2017-07-28T21:49:06.310406Z",
+   "earliest_calendar_date": "2009-12-13",
+   "latest_calendar_date": "2011-12-31"
+  },
+  {
+   "sha1": "2bac26171a95df964ddf2160ade8f6d704dc6eaa",
+   "fetched_at": "2017-07-28T21:48:46.305103Z",
+   "earliest_calendar_date": "2009-12-13",
+   "latest_calendar_date": "2011-12-31"
+  },
+  {
+   "sha1": "f84b99528aaa05341e059eefaad0f749f88b9d83",
+   "fetched_at": "2017-07-28T21:48:42.502937Z",
+   "earliest_calendar_date": "2009-12-13",
+   "latest_calendar_date": "2011-12-31"
+  },
+  {
+   "sha1": "71acdb97db4dff16fcc16445598d381237a8ce95",
+   "fetched_at": "2017-07-28T21:48:39.563935Z",
+   "earliest_calendar_date": "2009-12-13",
+   "latest_calendar_date": "2011-12-31"
+  },
+  {
+   "sha1": "01bb4bd562c6414986c925282a7560e326b0c12d",
+   "fetched_at": "2017-07-28T21:48:37.366738Z",
+   "earliest_calendar_date": "2009-12-13",
+   "latest_calendar_date": "2011-12-31"
+  },
+  {
+   "sha1": "96bd39d9d71aa2ec88d6fa6a52a4672e89371112",
+   "fetched_at": "2017-07-28T21:48:35.253917Z",
+   "earliest_calendar_date": "2009-12-13",
+   "latest_calendar_date": "2011-12-31"
+  },
+  {
+   "sha1": "33e67d14010bd06f83d85c93222953a51def4544",
+   "fetched_at": "2017-07-28T21:48:33.142987Z",
+   "earliest_calendar_date": "2009-12-13",
+   "latest_calendar_date": "2011-12-31"
+  },
+  {
+   "sha1": "0adbd03187c9857978978f707774fb8099447088",
+   "fetched_at": "2017-07-28T21:48:21.22565Z",
+   "earliest_calendar_date": "2010-10-10",
+   "latest_calendar_date": "2011-01-01"
+  },
+  {
+   "sha1": "c21489e0d1a4fdc561a86a96f37dd92f2389f33f",
+   "fetched_at": "2017-07-28T21:47:26.883498Z",
+   "earliest_calendar_date": "2010-09-12",
+   "latest_calendar_date": "2010-10-09"
+  },
+  {
+   "sha1": "8a0a1ca7489bda7709b64735c4d65f9fa9c7a70d",
+   "fetched_at": "2017-07-28T21:46:33.106125Z",
+   "earliest_calendar_date": "2009-12-13",
+   "latest_calendar_date": "2011-12-31"
+  },
+  {
+   "sha1": "a8dd51bc2b5b45bc124807415da8a19980546452",
+   "fetched_at": "2017-07-28T21:46:29.240629Z",
+   "earliest_calendar_date": "2010-09-12",
+   "latest_calendar_date": "2010-10-09"
+  },
+  {
+   "sha1": "39d50634838f631e39fba7cda2342aa5ab0f3e5e",
+   "fetched_at": "2017-07-28T21:46:17.211327Z",
+   "earliest_calendar_date": "2009-12-13",
+   "latest_calendar_date": "2011-12-31"
+  },
+  {
+   "sha1": "d9922bf98d26b08121f107465b1c83fe99608df0",
+   "fetched_at": "2017-07-28T21:46:04.823624Z",
+   "earliest_calendar_date": "2010-06-27",
+   "latest_calendar_date": "2010-09-04"
+  },
+  {
+   "sha1": "ddaaf863f4a06eafc4eaaf2328c7b7fe6e35f683",
+   "fetched_at": "2017-07-28T21:45:19.640629Z",
+   "earliest_calendar_date": "2009-12-13",
+   "latest_calendar_date": "2011-12-31"
+  },
+  {
+   "sha1": "5064f11af3b2721e46f28aa59876c26cc241626f",
+   "fetched_at": "2017-07-28T21:45:09.005131Z",
+   "earliest_calendar_date": "2010-03-08",
+   "latest_calendar_date": "2010-06-26"
+  },
+  {
+   "sha1": "cd768154979a150c8be24ed7ce5427bffd62e726",
+   "fetched_at": "2017-07-28T21:44:56.347357Z",
+   "earliest_calendar_date": "2010-01-03",
+   "latest_calendar_date": "2010-04-03"
+  },
+  {
+   "sha1": "13cc79ea8878b6303b2e5f57fbdfc4175881c1e1",
+   "fetched_at": "2017-07-28T21:44:21.70683Z",
+   "earliest_calendar_date": "2007-12-13",
+   "latest_calendar_date": "2010-06-26"
+  },
+  {
+   "sha1": "d6cd576eef54397a821af1a8d9625cdbd915ef6e",
+   "fetched_at": "2017-07-28T21:44:14.388408Z",
+   "earliest_calendar_date": "2010-01-03",
+   "latest_calendar_date": "2010-04-03"
+  },
+  {
+   "sha1": "9ec6e124873452aa631fcbc7f370ac1ff4dea793",
+   "fetched_at": "2017-06-14T10:30:09.433458Z",
+   "earliest_calendar_date": "2017-07-02",
+   "latest_calendar_date": "2017-09-02"
+  },
+  {
+   "sha1": "c34478b254d8911e2253bd701ee6623752ec240d",
+   "fetched_at": "2017-04-04T07:00:09.074776Z",
+   "earliest_calendar_date": "2017-04-09",
+   "latest_calendar_date": "2017-07-01"
+  },
+  {
+   "sha1": "3e25b5900b774559fc0201c3b108990bc9b73833",
+   "fetched_at": "2017-03-26T13:30:10.306976Z",
+   "earliest_calendar_date": "2017-01-08",
+   "latest_calendar_date": "2017-04-08"
+  },
+  {
+   "sha1": "f019ebc0c046cb63b80d0b107c3b250c6710eaa2",
+   "fetched_at": "2016-12-15T21:31:57.918778Z",
+   "earliest_calendar_date": "2017-01-08",
+   "latest_calendar_date": "2017-04-01"
+  },
+  {
+   "sha1": "5493397f5640c1b22deef1a7c81895b9401a0618",
+   "fetched_at": "2016-09-22T15:30:10.93501Z",
+   "earliest_calendar_date": "2016-09-25",
+   "latest_calendar_date": "2017-01-07"
+  },
+  {
+   "sha1": "41371fdc80d9fac568101eb6b441fdcc48fdeef5",
+   "fetched_at": "2016-09-03T20:30:05.556886Z",
+   "earliest_calendar_date": "2016-09-04",
+   "latest_calendar_date": "2017-01-07"
+  },
+  {
+   "sha1": "4236a572076c0c9c5e6c089e2ed3b1d19d426619",
+   "fetched_at": "2016-08-21T09:30:05.925828Z",
+   "earliest_calendar_date": "2016-09-04",
+   "latest_calendar_date": "2017-01-07"
+  },
+  {
+   "sha1": "204b4db2c59ff750fe768fde4d64920531b2edfb",
+   "fetched_at": "2016-07-01T16:10:02.495862Z",
+   "earliest_calendar_date": "2016-07-03",
+   "latest_calendar_date": "2016-09-03"
+  },
+  {
+   "sha1": "e55de17c6790d2c27252f7cc9fe81c93075ac873",
+   "fetched_at": "2016-04-26T12:01:14.798165Z",
+   "earliest_calendar_date": "2016-04-03",
+   "latest_calendar_date": "2016-07-02"
+  },
+  {
+   "sha1": "9fe9e1f39486d8e081774c3e4770b54c14058349",
+   "fetched_at": "2016-04-02T12:01:09.71902Z",
+   "earliest_calendar_date": "2016-04-03",
+   "latest_calendar_date": "2016-07-02"
+  },
+  {
+   "sha1": "2b53eb62faa1e08cae7d595d7d568851f82e4da2",
+   "fetched_at": "2016-03-28T12:01:12.655051Z",
+   "earliest_calendar_date": "2016-04-03",
+   "latest_calendar_date": "2016-07-02"
+  },
+  {
+   "sha1": "5d21986cd0d81b9b7b42fc16ac2369b5f6587f4c",
+   "fetched_at": "2016-02-25T12:01:15.677554Z",
+   "earliest_calendar_date": "2016-01-03",
+   "latest_calendar_date": "2016-04-02"
+  },
+  {
+   "sha1": "00a2dc2d5569b56a15d461bf8ad91e01023d9344",
+   "fetched_at": "2016-02-20T00:07:38.068354Z",
+   "earliest_calendar_date": "2016-01-03",
+   "latest_calendar_date": "2016-04-02"
+  }
+ ]
+}

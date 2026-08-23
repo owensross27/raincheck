@@ -5,10 +5,10 @@
 -include .env
 export JAVA_HOME ?= /opt/homebrew/opt/openjdk@17
 export TZ := UTC
-export RAINCHECK_ARCHIVE_ROOT RAINCHECK_BRONZE_GB
+export RAINCHECK_ARCHIVE_ROOT RAINCHECK_BRONZE_GB TRANSITLAND_API_KEY
 PY := .venv/bin/python
 
-.PHONY: warm ref nbp precip-hourly precip-cell schedule events gold baseline gates slice test
+.PHONY: warm ref nbp picks precip-hourly precip-cell schedule events gold baseline gates slice test
 
 warm:  ## start one session through the factory: warms the Ivy cache once (~240 MB), proves the stack
 	$(PY) -c "from raincheck.spark import session; s = session(); print('spark', s.version); s.stop()"
@@ -18,6 +18,11 @@ ref:  ## build every ref/ lookup table (ticket 02)
 
 nbp:  ## convert one nycbuspositions UTC day to Bronze VP (make nbp DATE=YYYY-MM-DD)
 	$(PY) -m raincheck.nbp $(DATE)
+
+# The slice needs w1 + w2 = 24 zips (C1, D1, C3, D3 x six feeds); downloads 401 + exit 2
+# until the ticket-13 Hobbyist/Academic grant is live - run when 13 says approved.
+picks:  ## resolve + download one window's historic Picks from Transitland (make picks WINDOW=w1|w2)
+	$(PY) -m raincheck.picks pull $(WINDOW)
 
 precip-hourly:  ## Pixel-grain precip for one month (make precip-hourly SRC=aorc MONTH=YYYY-MM)
 	$(PY) -m raincheck.precip hourly $(SRC) $(MONTH)

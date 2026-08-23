@@ -121,23 +121,27 @@ def read_pick_table(root: Path, spark, name: str, pick_ids: list[str]) -> DataFr
 
 def sched_span(root: Path, spark, lo: date, hi: date) -> DataFrame | None:
     """One row per (service_date, trip_id, stop_sequence) across the loaded Picks for
-    service dates in [lo, hi]; a trip_id in several Picks keeps the greatest published
-    per date (mid-pick revisions supersede, spec D). None when no loaded Pick's
-    service_days touch the span. Shared by the daily events join (sched_for) and the
-    Gold coverage denominator (gold.route)."""
+    service dates in [lo, hi]. Resolver v2's gate applies at the join (spec D): a Pick
+    joins a date only when published <= D+1, and a trip_id in several eligible Picks
+    keeps the greatest published per date - a mid-pick revision supersedes from its
+    fetch date forward, never retroactively. None when no eligible Pick's service_days
+    touch the span. Shared by the daily events join (sched_for) and the Gold coverage
+    denominator (gold.route)."""
     picks = loaded_picks(root)
     if not picks:
         return None
     ids = [p["pick_id"] for p in picks]
-    sd = (read_pick_table(root, spark, "service_days", ids)
-          .where(F.col("service_date").between(lo, hi)))
-    if not sd.head(1):
-        return None
     published = spark.createDataFrame(
         [(p["pick_id"], p["published"]) for p in picks], "pick_id string, published timestamp")
+    sd = (read_pick_table(root, spark, "service_days", ids)
+          .where(F.col("service_date").between(lo, hi))
+          .join(published, "pick_id")
+          .where(F.to_date("published") <= F.date_add("service_date", 1)))
+    if not sd.head(1):
+        return None
     trips = (read_pick_table(root, spark, "trips", ids)
-             .join(sd.select("pick_id", "service_id", "service_date"), ["pick_id", "service_id"])
-             .join(published, "pick_id")
+             .join(sd.select("pick_id", "service_id", "service_date", "published"),
+                   ["pick_id", "service_id"])
              .withColumn("rk", F.row_number().over(
                  Window.partitionBy("trip_id", "service_date")
                  .orderBy(F.col("published").desc(), "pick_id")))

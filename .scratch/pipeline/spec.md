@@ -233,12 +233,15 @@ querying the tables with DuckDB; implementer = the agent building this.
   optional modifiers such as `-SDon`, `-BM`; parsers split on the six-digit start token,
   never a fixed token count); MTA Bus Company trips carry the code in the `-..P<code>-`
   form. Among in-window versions whose trips carry that code, take the greatest
-  fetched_at <= D+1 (mid-pick revisions supersede). Self-check: an exact trip_id join
+  fetched_at <= D+1 (a mid-pick revision supersedes from its fetch date forward,
+  never retroactively). Self-check: an exact trip_id join
   matches ~98% against the right zip and ~0% against the wrong one; the resolver logs
   the match rate per resolved Pick.
 - The bulk puller downloads a resolved version by sha1, asserts the bytes hash to
   Transitland's sha1, lands it as Bronze `static/<feed>/<fetched_at date>.zip`, and
-  registers the Pick. The slice needs 24 downloads (C1, D1, C3, D3 x six feeds); the
+  registers the Pick. The slice needs 31 downloads (C1, D1, C3, D3 x six feeds, plus
+  seven mid-pick/early-published second versions - measured by 09 on the real
+  listing; the original 4x6=24 estimate assumed one zip per pick); the
   full window would need 423 (under the 500 grant). The one-zip proof script exists
   and is the reference for the download/verify path.
 - **Live-era Picks need no grant**: the archiver already lands the seven current zips
@@ -252,7 +255,10 @@ querying the tables with DuckDB; implementer = the agent building this.
   and GeoParquet point), `trips` (with `trip_type` local/sbs/express), `trip_stops`
   (arrival/departure seconds and cumulative geodesic `shape_dist_m` computed at
   ingest), `service_days` (calendar x calendar_dates flattened), `shapes` (GeoParquet
-  linestring, length). Loaded only for Picks a slice needs. No cross-Pick dedupe.
+  linestring, length). Loaded only for Picks a slice needs. No cross-Pick dedupe at
+  load; the events/Gold join (`sched_span`) applies the v2 gate per service date -
+  among loaded Picks with published <= D+1, greatest published wins per trip - so a
+  later revision never rewrites days before its fetch date.
 - If the grant is refused: backfill without schedule Delay (Speed and Headway carry
   the headline; `delay_s` / `segment_excess_s` become live-era-only) rather than an
   Enterprise quote unless trivial.

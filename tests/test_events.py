@@ -6,13 +6,13 @@ rule (2024-03-10 / 2024-11-03, plus the real 2021-11-07 fall-back fragment again
 mini Pick), the envelope/flap/interpolation rules, the multi-vehicle trip key, the
 pick_gap path and events idempotence. Spark tests skip without a JVM."""
 import shutil
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
-from conftest import FRAG, T1, T2, land_pick
+from conftest import FRAG, GTFS, T1, T2, land_pick
 
 from raincheck import duck
 
@@ -401,6 +401,35 @@ def ev_rows(root, day, cols="*", where="TRUE"):
         f"SELECT {cols} FROM read_parquet('{root}/silver/events/**/*.parquet', "
         f"hive_partitioning = true, hive_types_autocast = false) "
         f"WHERE service_date = '{day}' AND {where}").fetchall()
+
+
+def test_sched_span_pick_gate(spark, tmp_path):
+    """Resolver v2's gate at the join (spec D): a mid-pick revision joins only from its
+    fetch date forward - a day before it keeps the earlier Pick, a day on/after it takes
+    the revision (greatest published <= D+1)."""
+    import hashlib
+    import io
+    import zipfile
+
+    from raincheck import ref, schedule
+    from raincheck.events import sched_span
+
+    pick_a = land_pick(tmp_path)  # brooklyn/2021-10-01.zip
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        for name, text in GTFS.items():  # same trips, T1's first stop retimed
+            z.writestr(name, text.replace(f"{T1},07:00:00", f"{T1},07:01:00"))
+    (tmp_path / "archive" / "static" / "brooklyn" / "2024-04-01.zip").write_bytes(buf.getvalue())
+    ref.build_picks(tmp_path)
+    pick_b = hashlib.sha1(buf.getvalue()).hexdigest()
+    for p in (pick_a, pick_b):
+        schedule.load(tmp_path, spark, p)
+
+    for d, want in ((date(2024, 3, 12), pick_a), (date(2024, 4, 1), pick_b)):
+        frame = sched_span(tmp_path, spark, d, d)
+        assert frame is not None
+        rows = frame.where(f"trip_id = '{T1}'").collect()
+        assert {r.pick_id for r in rows} == {want}, d
 
 
 def test_dst_fallback_fragment(pick_built):
