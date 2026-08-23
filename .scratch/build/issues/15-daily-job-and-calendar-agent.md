@@ -97,6 +97,25 @@ it when the run fires before 04:00 local (yesterday's tail is still out on the r
 ~03:00). MRMS months stay UTC — that boundary is real and now commented at the call site.
 Four parametrized cases pin it, including both DST regimes.
 
+### Review fix: a day short of Bronze is deferred, not frozen short (2026-08-23)
+
+The same review's second confirmed finding, and the sharper one. "Bronze-present" was
+`any` part under `date=D`, but `events.bronze_vp` reads `date IN (D, D+1)` and a service
+day's evening and late night live in the D+1 partition — measured on the real archive,
+**31% of service day 2026-08-22's VP rows sit under `date=2026-08-23`, 10% of them in
+hours 03-09Z alone**. Build a day while those hours are missing and `events` writes both
+Silver partitions anyway; the done-test is bare existence, so the short day is permanent,
+`gold` rolls it, and the board stays green. gapfill cannot save it either: its span ends
+at `today - 1`, so on the morning that builds day D it structurally never touches D+1.
+
+`gaps()` now also requires every Bronze hour the day is built from — all of D, plus D+1's
+first `TAIL_H = 10` UTC hours (03:00 local in either DST regime) — using `gapfill`'s own
+`missing_hours` marker convention, with `gapfill.DEAD` hours not counting against it. A
+day short of Bronze prints a deferral line naming the hours and waits: gapfill runs first
+in the same job, and the 14-day scan retries every morning, so the normal case costs one
+morning and then builds complete. Checked against the real archive: all eight live-era
+days report `unheld=0`, so this morning's build was already whole.
+
 ### Flagged, not fixed (needs the archiver's owner)
 
 `archiver.flush` writes each 10-min part straight to its final path

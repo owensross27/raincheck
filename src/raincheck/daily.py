@@ -13,8 +13,10 @@ the same day is a no-op.
              hand-added, after probing the source shows zero snapshots)
   coldpush   push Bronze, including the hours just filled, to R2 (ticket 18)
   coldcheck  soft - see coldcheck() below
-  events     every closed service day of the last 14 with Bronze VP and no Silver
-             partition (Legs + Passages), then gold for the months those days touch
+  events     every closed service day of the last 14 that has no Silver partition and
+             does hold all the Bronze VP it is built from (Legs + Passages), then gold
+             for the months those days touch; a day still short of Bronze is deferred
+             out loud rather than frozen short
   precip     the current MRMS month rebuilt from Bronze, unlanded Pass2 hours fetched on
              the way (ticket 11); on the 1st, the month just ended as well - its tail
              publishes after that month's last run
@@ -37,6 +39,7 @@ from zoneinfo import ZoneInfo
 from raincheck.paths import REPO, data_root
 
 WINDOW_DAYS = 14  # spec K: the gap scan is bounded
+TAIL_H = 10       # UTC hours of D+1 a service day's Legs run into (03:00 local, either regime)
 SILVER = ("leg_hours", "events")
 PART = "part-00000.parquet"
 NY = ZoneInfo("America/New_York")  # a service day is a local date, and runs past midnight
@@ -58,15 +61,42 @@ def closed_through(now: datetime) -> date:
     return local.date() - timedelta(days=1 if local.hour >= 4 else 2)
 
 
+def unheld(root: Path, day: str) -> list[str]:
+    """The Bronze VP hours this service day is built from that nobody holds: all of D, plus
+    D+1's first TAIL_H (`events` reads date IN (D, D+1), and a Leg that started on D can
+    still be running at 03:00 local). gapfill's own marker convention decides what counts
+    as held; hours dead at source do not count against it."""
+    from raincheck import gapfill
+
+    vp = root / "archive" / "vp"
+    nxt = (date.fromisoformat(day) + timedelta(days=1)).isoformat()
+    out = [f"{day}T{h}" for h in gapfill.missing_hours(vp / f"date={day}")
+           if h not in gapfill.DEAD.get(("vp", day), ())]
+    return out + [f"{nxt}T{h}" for h in gapfill.missing_hours(vp / f"date={nxt}")
+                  if int(h) < TAIL_H and h not in gapfill.DEAD.get(("vp", nxt), ())]
+
+
 def gaps(root: Path, closed: date) -> list[str]:
-    """The WINDOW_DAYS closed service days ending at `closed` that have Bronze VP and are
-    missing a Silver partition."""
+    """The WINDOW_DAYS closed service days ending at `closed` that have Bronze VP, are
+    missing a Silver partition, and hold every Bronze hour they are built from.
+
+    That last test is what keeps a sleep gap from freezing: `events` writes both partitions
+    from whatever Bronze exists, and a day with both partitions is never revisited, so
+    building one hour early buries a short day behind a green board. Deferring instead
+    costs a morning - gapfill runs first, and the same scan retries every day of the
+    window - and it says so out loud each time."""
     out = []
     for n in range(WINDOW_DAYS - 1, -1, -1):
         day = (closed - timedelta(days=n)).isoformat()
         if not any((root / "archive" / "vp" / f"date={day}").glob("hour=*/*.parquet")):
-            continue
+            continue  # before capture, or a day we never saw at all - not ours to build
         if all((root / "silver" / t / f"service_date={day}" / PART).exists() for t in SILVER):
+            continue
+        missing = unheld(root, day)
+        if missing:
+            print(f"daily: {day} deferred - {len(missing)} Bronze VP hour(s) not held yet "
+                  f"({missing[0]} .. {missing[-1]}); gapfill first, or hand-DEAD them if "
+                  f"gtfsrt.io never had them", flush=True)
             continue
         out.append(day)
     return out

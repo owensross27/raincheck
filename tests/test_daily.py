@@ -17,10 +17,18 @@ def day(n: int) -> str:
     return (CLOSED - timedelta(days=n)).isoformat()
 
 
-def seed_bronze(root: Path, d: str) -> None:
-    hour = root / "archive" / "vp" / f"date={d}" / "hour=12"
-    hour.mkdir(parents=True)
-    (hour / "part-00.parquet").write_bytes(b"bronze")
+def seed_bronze(root: Path, d: str, hours=range(24)) -> None:
+    for h in hours:
+        hour = root / "archive" / "vp" / f"date={d}" / f"hour={h:02d}"
+        hour.mkdir(parents=True, exist_ok=True)
+        (hour / "part-00.parquet").write_bytes(b"bronze")
+
+
+def seed_service_day(root: Path, d: str) -> None:
+    """Every Bronze hour service day d is built from: all of D, and D+1's tail."""
+    seed_bronze(root, d)
+    seed_bronze(root, (date.fromisoformat(d) + timedelta(days=1)).isoformat(),
+                range(daily.TAIL_H))
 
 
 def seed_silver(root: Path, d: str) -> list[Path]:
@@ -38,7 +46,7 @@ def seeded(tmp_path, monkeypatch):
     """Two closed days with Bronze and no Silver, one neighbour already built."""
     monkeypatch.setenv("RAINCHECK_ARCHIVE_ROOT", str(tmp_path))
     for n in (2, 1, 0):
-        seed_bronze(tmp_path, day(n))
+        seed_service_day(tmp_path, day(n))
     built = seed_silver(tmp_path, day(1))
     return tmp_path, built
 
@@ -69,10 +77,24 @@ def test_gaps_are_the_bronze_days_without_silver(seeded):
 
 
 def test_gaps_are_bounded_and_exclude_the_open_day(tmp_path):
-    seed_bronze(tmp_path, day(daily.WINDOW_DAYS))      # one day older than the window
-    seed_bronze(tmp_path, day(-1))                     # the service day still running
-    seed_bronze(tmp_path, day(daily.WINDOW_DAYS - 1))  # the oldest day in the window
+    seed_service_day(tmp_path, day(daily.WINDOW_DAYS))      # one day older than the window
+    seed_service_day(tmp_path, day(-1))                     # the day still running
+    seed_service_day(tmp_path, day(daily.WINDOW_DAYS - 1))  # the oldest day in the window
     assert daily.gaps(tmp_path, CLOSED) == [day(daily.WINDOW_DAYS - 1)]
+
+
+def test_a_day_short_of_bronze_is_deferred_not_frozen_short(seeded, capsys):
+    """A sleep gap in D+1's small hours is a third of the service day; building it early
+    would write a short Silver partition that nothing ever revisits."""
+    root, _ = seeded
+    tail = root / "archive" / "vp" / f"date={day(-1)}" / "hour=03"
+    for part in tail.glob("*.parquet"):
+        part.unlink()
+    assert daily.gaps(root, CLOSED) == [day(2)]  # day(0) waits for its tail
+    assert f"{day(-1)}T03" in capsys.readouterr().out
+
+    (tail / "_gapfill").touch()  # the next morning's fill lands it
+    assert daily.gaps(root, CLOSED) == [day(2), day(0)]
 
 
 def test_half_built_day_is_still_a_gap(seeded):
@@ -141,7 +163,7 @@ def test_a_poisoned_day_is_skipped_and_gold_rolls_only_the_built_months(tmp_path
 
     bad, good = "2026-06-30", "2026-07-01"
     for d in (bad, good):
-        seed_bronze(tmp_path, d)
+        seed_service_day(tmp_path, d)
     calls, stopped = [], []
 
     def events(_root, _spark, d):
