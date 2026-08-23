@@ -7,6 +7,13 @@ Deletes a local Bronze file only when ALL of these hold:
   3. it is NOT in the pending list     - pending = "sync would still upload this", i.e.
      not yet proven present remotely at matching size
 
+CALLER CONTRACT, and it is load-bearing: an EMPTY pending list means "everything here is
+already remote, delete it all". This code cannot tell that apart from "the listing that
+built the list failed and produced nothing" - both arrive as an empty set, and the second
+one deletes local files that were never uploaded. The caller MUST check that the listing
+succeeded before invoking this; backfill-chunk.sh gates on the dryrun's exit status and
+skips the prune entirely when it fails. Do not call this with a list you did not verify.
+
 Usage: prune.py <lo> <hi> <pending_file> <archive_root>
 """
 import sys
