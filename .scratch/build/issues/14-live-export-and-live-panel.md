@@ -8,7 +8,7 @@ demo fallback. Spec: L (live view); Testing 14-3, 14-4.
 
 **Blocked by:** 12, 13
 
-**Status:** ready-for-agent
+**Status:** in-progress (branch `claude/kind-dijkstra-a7c03f`)
 
 - [ ] the loop reads live/vp with `fetched_at >= now() - 10 min` on the wall clock and `date IN (today, yesterday) AND hour IN (HH, HH-1)` literals (max probe over the same set), latest Ping per vehicle, left-joined to the latest live/tu row per (trip_id, vehicle_id); no precip join; pure-SQL JSON writer with absent keys; writes live.geojson then meta.json by atomic replace; a failed tick writes meta with error + stale and leaves live.geojson alone; Ctrl-C stops it
 - [ ] meta.json carries as_of_utc, source, window_min, error, stale, vp/tu fetched_at + ages, precip_valid_ts + age, n_vehicles, n_with_prediction, n_with_trip_delay, n_in_rain_cells, stream_progress from the progress file, export_s
@@ -52,3 +52,65 @@ and the 12-streaming-job review record).
    unless vehicle_id is integer-like.
 3. The tab must be visible for MapLibre to finish loading (rAF throttled when hidden) —
    headless screenshot checks are misleading.
+
+## Build notes (2026-08-23, ticket 14 session)
+
+**Base.** Branched off master (dc025d0) with 13's `8d3a45b` cherry-picked on top, NOT off
+13's branch alone: `claude/determined-driscoll-e43969` forks from a pre-ticket-12 master
+and does not contain `src/raincheck/stream.py`, which is the live/vp + live/tu contract
+this ticket consumes. Only conflict was the Makefile, resolved as both-sides-additive.
+Orchestrator approved the deviation. One rebase still owed when 13 formally lands.
+
+**Shipped.** `src/raincheck/live_export.py` (`make live-export [SOURCE=bronze] [ONCE=1]`),
+the live panel in `web/app.js` + `web/index.html` + `web/app.css`, `tests/test_live.py`
+(19 tests). The SQL stays in the module rather than a `web/*.sql` twin of the insight
+export: every tick's text is parameterised by the wall clock, so there is no
+standalone-runnable script for a notebook to import and no second file to keep honest.
+
+**Three rules, each pinned by a mutation check** (the ticket's warning taken literally —
+every fixture row is hand-built at a fixed epoch `T` = 2026-03-01T12:00:00Z with `now`
+injected as `T + 60 s`, so `now` and `max(fetched_at)` are different numbers and no
+assertion can be green because the fixture clock is the wall clock):
+
+| mutation applied to the production line | test that goes red |
+|---|---|
+| recency filter `now - 10 min` -> `max(fetched_at) - 10 min` | `test_the_newest_ping_wins`, `test_a_row_outside_the_wall_clock_window_is_excluded` |
+| Prediction clock `coalesce(header_ts, fetched_at)` -> `now()` | both `..._prediction_...` tests (180 s honest vs 60 s wall-clock) |
+| `max(fetched_at)` probe over the windowed rows instead of the pruned set | `test_every_age_is_the_wall_clock_...`, `test_a_dead_stream_still_reports_how_old_it_is` |
+| bronze two-step TU reduce collapsed to one pooled `min()` | `test_bronze_reduces_stop_row_tu_in_two_steps` |
+| bronze future filter (`arrival_time >= snap`) dropped | same |
+
+Vehicle V2's only Ping sits at `T - 570`: inside `max(fetched_at) - 600`, outside
+`now - 600`. That one row is what makes the wall-clock rule falsifiable, and it doubles as
+the proof that Bronze really uses a 20-minute window (20 min reaches it, 10 does not).
+
+**The probe subtlety.** `max(fetched_at)` runs over the pruned `date=`/`hour=` partitions
+*without* the recency filter. Taken over the result set instead, a stream that died half an
+hour ago returns zero rows, `vp_age_s` comes back NULL, and the panel has no age to go
+STALE on — an empty map and a shrug. `test_a_dead_stream_still_reports_how_old_it_is`
+pins it: 30 minutes after the last write, `n_vehicles == 0` and `vp_age_s == 1800`.
+
+**Bug found by actually opening the page** (not by any test): clicking `#livetoggle`
+before MapLibre finishes loading makes `setPaintProperty` / `getSource` throw, the tick
+dies silently, and the panel sits on its "off" text under a *ticked* box — a live-looking
+control over a dead panel, which is the exact failure this panel exists to prevent. The
+box now ships `disabled` and app.js enables it on `load`. Not on `styledata`: that fires
+while `isStyleLoaded()` is still false and `setPaintProperty` still throws "Style is not
+done loading" (measured). Confirmed in a real tab that `document.visibilityState` goes
+`hidden` between automated calls and MapLibre stalls until a screenshot forces a paint —
+ticket 13's warning is exactly right, and it is why the JS side is covered by text
+assertions plus hand verification rather than by a headless check.
+
+**Verified in a visible tab, all five panel states:** off (nothing fetched), fresh
+(`1 vehicle in the last 10 min, 1 in Cells at >= 1 mm RadarOnly, 1 with a next-stop
+Prediction. Feed 60 s ago. Stream batch 7, 1234 rows, 60 s ago. source: live.`),
+STALE by age (`vp_age_s` 4200 -> amber header, dimmed dots `#5d666f` @ 0.35), STALE by
+missing meta.json, and STALE by `error` — the last one with a 3-feature decoy
+`live.geojson` on disk that the page correctly refused to load, proving `setData` really
+is gated on `error === null`.
+
+**Not built / deferred.** No JS test runner (spec L: no npm, no build step), so the panel's
+rendering is covered by text assertions on the wiring plus the hand check above; a broken
+rule is caught by a human, a deleted one by the tests. `meta.stale` means "this tick
+failed" only — the age thresholds (120 s live / 900 s Bronze) live on the panel, which is
+where spec L puts them.

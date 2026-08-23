@@ -45,14 +45,17 @@
 </div>
 </div>
 
-<!-- ------------------------------------------- panel 2: the live view (stub; ticket 14 fills it) -->
+<!-- ------------------------------------------------------ panel 2: the live view (ticket 14) -->
 <section id="live" class="panel" aria-labelledby="live-h">
   <h2 id="live-h">Live: the fleet right now</h2>
-  <p id="livemeta" class="note">not wired yet - <code>make live-export</code> and this panel land
-     with ticket 14. Nothing on this panel is fetched, so nothing here can look live when it is not.</p>
+  <p id="livemeta" class="note" aria-live="polite">off - tick the box below to fetch
+     <code>files/meta.json</code> every 30 s. Nothing is fetched until you do, so nothing
+     here can look live when it is not.</p>
   <p class="note">MTA-reported trip delay: <span id="delaystate">unavailable (decoder build item)</span></p>
-  <p class="note">rain: MRMS RadarOnly QPE 01H, uncalibrated, hour-ending -
+  <p class="note">rain: MRMS RadarOnly QPE 01H, uncalibrated, hour-ending,
      <span id="rainstate">no live tick yet</span></p>
+  <!-- enabled by app.js on MapLibre's `load`; the live layer cannot be painted before
+       that and every branch of the handler touches it -->
   <p><label class="note"><input type="checkbox" id="livetoggle" disabled> show vehicles (30 s refresh)</label></p>
 </section>
 

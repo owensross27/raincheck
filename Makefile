@@ -139,3 +139,8 @@ export:  ## insight files from Gold -> web/files (make export [GATE=0.30] sweeps
 
 web:  ## serve web/ with the stdlib server (make web [PORT=8000]); nothing needs Range requests
 	$(PY) -m http.server $(or $(PORT),8000) --directory web
+
+# --- ticket 14: the live export loop (foreground, 30 s, Ctrl-C stops it) -----------
+.PHONY: live-export
+live-export:  ## live.geojson + meta.json every 30 s (make live-export [SOURCE=bronze] [ONCE=1])
+	$(PY) -m raincheck.live_export $(if $(SOURCE),--source $(SOURCE)) $(if $(ONCE),--once)
