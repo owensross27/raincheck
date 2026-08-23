@@ -1,0 +1,11 @@
+# Ticket 19: hourly coldpush from the box; Persistent catches up after a reboot.
+[Unit]
+Description=hourly raincheck box coldpush
+
+[Timer]
+OnCalendar=hourly
+RandomizedDelaySec=300
+Persistent=true
+
+[Install]
+WantedBy=timers.target
