@@ -1,0 +1,13 @@
+# Ticket 19: push the box's Bronze to R2, then prune files verified remote
+# (scripts/box-coldpush.sh). Fired hourly by raincheck-coldpush.timer.
+[Unit]
+Description=raincheck box coldpush (push Bronze to R2, prune verified)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=raincheck
+EnvironmentFile=/etc/raincheck.env
+Environment=TZ=UTC RAINCHECK_AWS=/opt/raincheck/venv/bin/aws
+ExecStart=/opt/raincheck/scripts/box-coldpush.sh

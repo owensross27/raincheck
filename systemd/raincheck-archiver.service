@@ -1,0 +1,20 @@
+# Ticket 19: always-on Bronze capture on the cloud box (same loop as the Mac LaunchAgent).
+# Installed by scripts/cloud-capture-wizard.sh: code at /opt/raincheck (src/raincheck +
+# scripts), venv at /opt/raincheck/venv, secrets in /etc/raincheck.env (root, 600).
+# The archiver exits 0 on the RAINCHECK_BRONZE_GB loud stop (STOPPED_BUDGET marker);
+# Restart=on-failure leaves that stop stopped — the launchd SuccessfulExit=false analogue.
+[Unit]
+Description=raincheck GTFS-RT Bronze capture
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=raincheck
+EnvironmentFile=/etc/raincheck.env
+Environment=TZ=UTC PYTHONPATH=/opt/raincheck/src
+ExecStart=/opt/raincheck/venv/bin/python -m raincheck.archiver
+Restart=on-failure
+RestartSec=60
+
+[Install]
+WantedBy=multi-user.target

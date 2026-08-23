@@ -9,7 +9,21 @@ Testing 14-1 (tier 1 twin on fixture Gold, tier 2 on the slice), 14-4.
 
 **Blocked by:** 06
 
-**Status:** ready-for-agent
+**Status:** claimed for next session (2026-08-23) - read spec L + this ticket +
+research/14-serving-surface.md + research/14-serving-prototype/ before building.
+Orientation findings from the claiming session: (1) DuckDB 1.5.5 spatial has
+ST_AsGeoJSON / ST_SimplifyPreserveTopology / ST_ReducePrecision / ST_IsValid
+(ST_AsGeoJSON takes no precision arg - reduce first); (2) the prototype's export is
+pandas+h3 throwaway and its control is a single control day - the real export is
+pure-SQL over ref/cells with the dry hour-of-week baseline; (3) chord-band r values
+are at research/10-backfill-slice-and-speed.md:78-80 (class medians 1.164 under
+3 m/s, 1.025 at 3-6, 1.016 above 10); (4) windows + school dates are constants in
+raincheck/ref.py (WINDOWS, SCHOOL_FIRST_DAY, SCHOOL_CLOSED); (5) gates.py is the
+tier-2 home for 14-1; suite baseline 136, web/ does not exist yet, .gitignore needs
+web/files/ + web/vendor/ lines; (6) the one open design call: H_lo/H_hi for a single
+storm hour has no within-hour scatter in Gold - derive the interval from the dry
+same-hour-of-week bin's scatter recomputed from cell_hour_speed x the dry mask
+(cell_hourofweek_baseline stores only pooled sums).
 
 - [ ] one SQL text computes: per-Cell wet anomalies per window scored against the hour-of-week bin with 95% intervals clustered by wet event (spec's definition) and by service day as the sensitivity check; the two storm composites per fixed citywide hour against the window's dry baseline with the same interval gate; H_mm and H_lag from precip_cell_hourly src=aorc; W_ratio_ex_preschool from ref/calendar; the numeric chord band pair
 - [ ] `cells.geojson`: one Feature per footprint Cell, geometry from ref/cells at 5 dp, id = hex Cell, wide properties per spec L, absent (never null) when unpublishable, no route breakdown; `headline.json` rows carry value, the literal estimand sentence, the median-Cell companion and its estimand, n_legs, n_cells, n_cells_hidden, band as [ratio, ratio_chord_upper]; `zones.geojson` 263 simplified zones; every query ORDER BY so re-export is byte-identical; explicit round(x, 3)

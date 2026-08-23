@@ -57,7 +57,7 @@ test:
 # --- ticket 18: Bronze cold storage (Cloudflare R2 via aws s3 sync) ---------------
 # RAINCHECK_COLD_* come from .env; scripts/cold-storage-wizard.sh writes them.
 # Recipes are @-silenced so the expanded credentials never echo to the terminal.
-.PHONY: coldpush coldcheck
+.PHONY: coldpush coldcheck coldgaps
 COLD = AWS_DEFAULT_REGION=auto AWS_ACCESS_KEY_ID=$(RAINCHECK_COLD_KEY_ID) AWS_SECRET_ACCESS_KEY=$(RAINCHECK_COLD_SECRET) \
 	aws s3 --endpoint-url $(RAINCHECK_COLD_ENDPOINT)
 COLD_READY = test -n "$(RAINCHECK_COLD_BUCKET)" && test -n "$(RAINCHECK_COLD_ENDPOINT)" \
@@ -73,6 +73,13 @@ coldcheck:  ## loud gap check: every local Bronze file present remotely with mat
 	@out=$$($(COLD) sync "$${RAINCHECK_ARCHIVE_ROOT:-data}/archive" "s3://$(RAINCHECK_COLD_BUCKET)/archive" --size-only --dryrun); \
 	if [ -n "$$out" ]; then printf '%s\n' "$$out"; echo "coldcheck: GAP - files above are missing or size-mismatched remotely"; exit 1; \
 	else echo "coldcheck: OK - local Bronze fully present remotely"; fi
+
+# --- ticket 19: cloud capture runner (box scripts live in systemd/ + scripts/) ----
+coldgaps:  ## hour-completeness of one closed UTC day in the bucket (make coldgaps [DATE=YYYY-MM-DD])
+	@$(COLD_READY)
+	@RAINCHECK_COLD_BUCKET=$(RAINCHECK_COLD_BUCKET) RAINCHECK_COLD_ENDPOINT=$(RAINCHECK_COLD_ENDPOINT) \
+	RAINCHECK_COLD_KEY_ID=$(RAINCHECK_COLD_KEY_ID) RAINCHECK_COLD_SECRET=$(RAINCHECK_COLD_SECRET) \
+	scripts/coldgaps.sh $(DATE)
 
 # --- ticket 20: gap backfill from gtfsrt.io (recover archiver sleep-gap hours) ----
 .PHONY: gapfill gapcheck gapverify

@@ -1,0 +1,11 @@
+# Ticket 19: daily at 02:15 UTC — after the 00:xx and 01:xx coldpushes have landed
+# yesterday's final parts, so a clean day never false-alarms.
+[Unit]
+Description=daily raincheck coldgaps health check
+
+[Timer]
+OnCalendar=*-*-* 02:15:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

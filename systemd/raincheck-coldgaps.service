@@ -1,0 +1,15 @@
+# Ticket 19: daily hour-completeness health check of yesterday's capture in the bucket
+# (scripts/coldgaps.sh). A gap leaves this unit failed — `systemctl --failed` is the
+# box's health dashboard. Also fails on a local STOPPED_BUDGET marker, which is the only
+# visible signal for the archiver's clean-exit budget stop. Fired by raincheck-coldgaps.timer.
+[Unit]
+Description=raincheck coldgaps (24 hour-dirs per kind for yesterday, in R2)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=raincheck
+EnvironmentFile=/etc/raincheck.env
+Environment=TZ=UTC RAINCHECK_AWS=/opt/raincheck/venv/bin/aws
+ExecStart=/opt/raincheck/scripts/coldgaps.sh
