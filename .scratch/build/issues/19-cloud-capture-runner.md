@@ -112,3 +112,16 @@ invisibility. Refuted (no change needed): box-token delete-scope escalation chai
 Box first-push date: ______ (wizard stage 8). After 7 consecutive clean
 `coldgaps` days, record the date here and decide: Mac LaunchAgent stays as backup or
 `launchctl bootout gui/$(id -u)/com.raincheck.archiver`.
+
+## Provider decision amended (2026-08-23, Ross)
+
+Ross has an always-on EC2 dev box — deploy the runner THERE instead of creating an
+Oracle/Hetzner VM. Lambda and ECS were considered and rejected: the archiver is a
+long-running 30 s poller (worst shape for Lambda — would need a rewrite into stateless
+invocations), and an always-on ECS/Fargate service costs more than the already-running
+box. The runner is provider-agnostic by design, so this is the wizard's stages 5-8
+(ssh install, /etc/raincheck.env, units, first push + coldgaps) pointed at the EC2 box;
+stages 1-4 (account/VM creation) are skipped. Needs from Ross at deploy time: the box's
+ssh alias/IP + key, confirmation it's Ubuntu-ish with outbound https, and a nod that
+raincheck may claim /opt/raincheck + three systemd units on it. Nothing else on the box
+gets touched.
