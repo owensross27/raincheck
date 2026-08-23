@@ -35,3 +35,10 @@ ponytail says keep, it is the recovery path for any future outage).
 - [ ] one runnable check: for one filled hour, row counts and key coverage are sane vs an
       adjacent archiver-captured hour (same feed, same day) — loud if the filled hour is
       empty or wildly off.
+
+**Claim note (2026-08-22, mixed-era reader session, stand-down at usage limit):** oriented,
+no implementation. Findings: events.py Spark reads (bronze_vp, tu_rows, baselines) already
+mergeSchema=true — OK across eras; slice.py t1 reads only part-nbp-*.parquet (one schema) — OK;
+picks.py day_vp selects era-stable columns — OK; the one gap is duck.py table() missing
+`union_by_name = true` (DuckDB errors on a mixed-era glob). Remaining work: that one-line fix,
+a mixed-era hour-pair test, optionally refill part-gapfill-* per the Era note above.
