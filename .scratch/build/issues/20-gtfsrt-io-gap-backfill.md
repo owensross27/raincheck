@@ -120,7 +120,11 @@ The claim note dd88f38 is stale in three places — verified state:
 Recommendation on record: skip the cosmetic refill; add the TU era test when a session
 next has budget. Refill go/no-go stays Ross's call.
 
-## Scope amendment: 167-day bus-history backfill (2026-08-23, measured, NOT YET RUN)
+## Scope amendment: 167-day bus-history backfill (2026-08-23, measured; IN PROGRESS)
+
+> Progress: March and April COMPLETE and verified in R2 (chunk logs below).
+> Remaining: 2026-05-01..08-14. Verify chunks with `scripts/backfill-verify.py`, NOT
+> `make gapverify` - see the April log for why gapverify cannot see this range.
 
 `START = date(2026, 8, 15)` was "capture began", a deliberate scope line, not a source
 limit. Probing gtfsrt.io shows far more history exists for our feeds, so this amends the
@@ -204,3 +208,90 @@ Download volume scales similarly - the 207 GB figure is likewise a floor.
   span covering today.
 - Expect a benign `coldcheck` soft-path warn in daily.log most mornings until this
   backfill finishes; 94aebc now names concurrent gapfill as a cause.
+
+### Chunk log: April 2026 COMPLETE (2026-08-23)
+
+Taken over mid-run after the owning session died. **Verified in R2 by
+`scripts/backfill-verify.py 2026-04-01 2026-04-30`, rc=0:**
+
+    OK  vp      719/720 hours (+1 dead at source)  parts_missing=0 markers_missing=0
+    OK  tu      720/720 hours                      parts_missing=0 markers_missing=0
+    OK  alerts  720/720 hours                      parts_missing=0 markers_missing=0
+
+4318 objects / **6.84 GB** (vp 1.55, tu 5.28, alerts 0.01). Local April parts remaining: 0.
+Archive ended 4.42 GiB against the 9.31 GiB budget; `STOPPED_BUDGET` never appeared and
+live capture was never interrupted. March re-verified clean afterwards (2232/2232).
+
+**Dead at source: vp 2026-04-27 h04.** Probed before believing it: h03 tapers to 107
+snapshots, h04 has ZERO, h05 has 4, h06+ back to ~120 - a gtfsrt.io outage near
+03:50-05:00Z. It thinned tu and alerts the same way but left them 8 and 4 snapshots in
+h04, so both still fill 24/24 and are correctly NOT listed as dead. Recorded in
+`backfill-verify.DEAD`, deliberately NOT in `gapfill.DEAD`: `check()` iterates from
+`START` (2026-08-15), so a pre-START key never matches, and
+`test_dead_entries_are_well_formed` rejects one precisely because an inert entry looks
+like protection it is not. Add it there if and when START moves back.
+
+**Three bugs found and fixed, all in the fill/prune interaction.** The push/prune half
+must run CONCURRENTLY with the fill (March's lesson), and everything below is a
+consequence of that concurrency. Two were in the `/tmp` originals AND in my first
+hardened copy:
+
+1. **The marker deleted its own gate** (`scripts/backfill-prune.py`). The sweep iterated
+   every non-pending file in a marked hour, and `_gapfill` is a file never in `pending`,
+   so any pass with a part still uploading unlinked the marker; the next pass's marker
+   gate then skipped that hour forever and the part became unprunable. General invariant,
+   now in the code: *a completion marker living inside the directory a sweep iterates
+   must be excluded from that sweep, or it eventually deletes its own gate.*
+2. **The marker pruned before it was ever uploaded** (8fc3cb4). A marker is written when
+   its day completes, which can land AFTER a pass's pending snapshot was taken - so it
+   is absent from `pending`, looks verified, and is deleted having never reached R2.
+   Local is then pruned and the record that the hour was ever filled is gone for good.
+   The marker is now held back exactly like a part.
+3. **Cleanup rmdir'd hour-dirs a fill had just created** (fb51c81). `fill_day` does
+   `mkdir(parents=True)` then writes, so an empty hour-dir may be one a fill is about to
+   write into. Only hour-dirs a pass emptied itself are removed now - those held a
+   marker, so they cannot be mid-fill.
+
+Also fixed: drain mode exited if it sampled the gap between a driver's feeds
+(vp -> tu -> alerts), leaving the rest filling with nothing draining - the exact failure
+that stranded April. Now needs two consecutive idle checks (d0117ae).
+
+**Damage and repair.** `tu` 2026-04-17 and 2026-04-28 both ended in R2 missing hour 23
+and most markers; both were filled while a concurrent pruner ran (the `/tmp` script, and
+my drain before fix 2). gtfsrt.io has 120 snapshots for h23 on both days, so the hour was
+always fillable. **The exact interleaving that lost h23 was NOT reconstructed** - the
+fill's stdout died with its session - so fix 3 closes a race that is demonstrable, not one
+proven to have caused those days. Fixes 1 and 2 fully explain the missing markers.
+
+Repair for both: a **full-day** re-fill (`gapfill --feed tu --date <day>`), which works
+only because local was already pruned - `missing_hours` then sees all 24 as missing and
+`fill_day` marks all 24. A targeted re-fill would NOT work: `fill_day` marks only hours
+filled in that run, so filling just h23 would mark h23 alone and leave 22 hours markerless
+forever. Both days now 24/24 parts and markers.
+
+**`make gapverify` CANNOT validate this backfill.** `verify()` compares a filled hour
+against an archiver-captured hour ON THE SAME DAY; 2026-03-01..08-14 predates live
+capture, so no such pair exists and it falls through to the first day that has both -
+always an August day - then prints OK without having looked at the backfill at all.
+Running it after a chunk is worse than not running it, because the OK reads as coverage.
+Use `scripts/backfill-verify.py <LO> <HI>` instead: it censuses R2 (the only copy once a
+chunk is pruned) and names every missing hour and every hour lacking its part or marker.
+It is what caught both torn days.
+
+**Trap: local day-count LIES during a concurrent drain.** April alerts looked like "19 of
+30 days, died at day 20". It was 30 days filled with 11 already pruned. The measure is the
+union of local and R2; a local count alone makes a healthy chunk look dead. This is also
+how to tell done-vs-died when a driver's stdout is gone.
+
+**Measured rates (April, useful for scheduling the rest):** vp ~10 s/day, tu ~1.8 min/day,
+alerts ~4 s/day - about 65 min per month wall-clock, dominated entirely by tu. Download
+~1.5 GB/day. Concurrent draining held the archive between 4.4 and 4.9 GiB the whole run,
+never above 5 GiB, so budget headroom was never the binding constraint once pruning kept
+pace.
+
+**Still open:** May 1 - Aug 14. Source confirmed present for the whole span (probed
+05-01, 05-15, 05-31, 06-15, 07-15, 08-14: vp ~130-215 MB/day, tu ~800-1255, alerts 20-58).
+Run one chunk at a time - two concurrent chunks under the ORIGINAL `/tmp` script shared
+`/tmp/pending.txt`, where one actor overwrites the other's verified-remote list and the
+other then deletes local files it never proved remote. `scripts/backfill-chunk.sh` uses a
+per-run mktemp file, but sequential remains the tested path.
