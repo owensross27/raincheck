@@ -19,11 +19,13 @@ def spark():
     s.stop()
 
 
-# trips: T1 walks S1..S5 (envelope/interpolation tests); FRAG matches a real trip in the
+# trips: T1 walks S1..S5 (envelope/interpolation tests); T2 follows it 5 min later on
+# the same route (headway_sched/family, ticket 08); FRAG matches a real trip in the
 # 2021-11-07 archive fragment (DST fall-back day); SBS/EXPR/BUSCO pin the trip_type rule
 # and the two scheme-check grammars. Calendars: WKD leaves 2021-09-02 uncovered (the
 # pick_gap day); SUN covers 2021-11-07, 2024-03-10 and 2024-11-03 (the DST trio).
 T1 = "MV_C1-Weekday-033000_B41_101"
+T2 = "MV_C1-Weekday-034000_B41_102"
 FRAG = "GA_D1-Sunday-039500_Q59_902"
 GTFS = {
     "stops.txt": (
@@ -34,6 +36,7 @@ GTFS = {
     "trips.txt": (
         "route_id,service_id,trip_id,direction_id,shape_id\n"
         f"B41,WKD,{T1},0,SH1\n"
+        f"B41,WKD,{T2},0,SH1\n"
         f"Q59,SUN,{FRAG},1,SHF\n"
         "M15+,WKD,MV_C1-Weekday-SDon-040000_M15+_102,0,SH1\n"
         "BXM1,WKD,MV_C1-Weekday-050000_BXM1_103,1,SH1\n"
@@ -42,6 +45,8 @@ GTFS = {
         "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n"
         + "".join(f"{T1},07:{m:02d}:00,07:{m:02d}:00,S{k},{k}\n"
                   for k, m in zip(range(1, 6), range(0, 25, 5)))
+        + "".join(f"{T2},07:{m:02d}:00,07:{m:02d}:00,S{k},{k}\n"
+                  for k, m in zip(range(1, 6), range(5, 30, 5)))
         + f"{FRAG},06:50:00,06:50:00,304943,1\n{FRAG},07:05:00,07:05:00,503476,2\n"
         + "MV_C1-Weekday-SDon-040000_M15+_102,24:59:00,25:04:00,S1,1\n"
         + "MV_C1-Weekday-SDon-040000_M15+_102,25:09:00,25:09:00,S2,2\n"),

@@ -12,7 +12,7 @@ from pathlib import Path
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
-from conftest import FRAG, T1, land_pick
+from conftest import FRAG, T1, T2, land_pick
 
 from raincheck import duck
 
@@ -132,6 +132,26 @@ def write_bronze(root: Path, day: str, hour: str, rows: list[tuple]) -> None:
     out = root / "archive" / "vp" / f"date={day}" / f"hour={hour}" / "part-test.parquet"
     out.parent.mkdir(parents=True, exist_ok=True)
     pq.write_table(pa.table(cols, schema=pa.schema([(c, TYPES.get(c, pa.string())) for c in COLUMNS])), out)
+
+
+def write_bronze_tu(root: Path, day: str, hour: str, rows: list[tuple]) -> None:
+    """rows: (trip_id, route_id, start_date, vehicle_id, stop_id, arrival_time,
+    fetched_at) in decode_tu's column order and archiver TYPES."""
+    from raincheck.archiver import TYPES
+
+    cols = ("trip_id", "route_id", "start_date", "vehicle_id", "stop_id",
+            "stop_sequence", "arrival_time", "departure_time", "fetched_at")
+    data = {c: [] for c in cols}
+    for trip, route, start, veh, stop, arr, fetched in rows:
+        vals = dict(trip_id=trip, route_id=route, start_date=start, vehicle_id=veh,
+                    stop_id=stop, stop_sequence=None, arrival_time=arr,
+                    departure_time=None, fetched_at=fetched)
+        for c in cols:
+            data[c].append(vals[c])
+    out = root / "archive" / "tu" / f"date={day}" / f"hour={hour}" / "part-test.parquet"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    pq.write_table(pa.table(data, schema=pa.schema(
+        [(c, TYPES.get(c, pa.string())) for c in cols])), out)
 
 
 def read_rows(root: Path, name: str) -> list[tuple]:
@@ -332,7 +352,9 @@ def pick_built(spark, tmp_path_factory):
             row("vd", FRAG, "Q59", day8, "304943", utc_s(int(day8[:4]), int(day8[4:6]), int(day8[6:]), 10, 52)),
             row("vd", FRAG, "Q59", day8, "503476", utc_s(int(day8[:4]), int(day8[4:6]), int(day8[6:]), 10, 54))])
     # envelope day (a Tuesday, WKD): S1 S2 [flap S1] S3 S5 - passage of 1, 2, 3 and an
-    # interpolated 4; a second vehicle serves the same trip (multi-vehicle key)
+    # interpolated 4; a second vehicle serves the same trip (multi-vehicle key).
+    # Ticket 08: ve/ve2 serve T2 (headway vs the T1 arrivals; ve2 bunched), and a TU
+    # series for va feeds the pred_* features and the S5 tu_last fallback row.
     t0 = utc_s(2024, 3, 12, 12, 0)
     write_bronze(root, "2024-03-12", "12",
                  [row("va", T1, "B41", "20240312", "S1", t0),
@@ -342,18 +364,32 @@ def pick_built(spark, tmp_path_factory):
                   row("va", T1, "B41", "20240312", "S5", t0 + 240),
                   row("vb", T1, "B41", "20240312", "S1", t0),
                   row("vb", T1, "B41", "20240312", "S2", t0 + 90),
+                  row("ve2", T2, "B41", "20240312", "S1", t0 + 120),
+                  row("ve2", T2, "B41", "20240312", "S2", t0 + 180),
+                  row("ve", T2, "B41", "20240312", "S1", t0 + 300),
+                  row("ve", T2, "B41", "20240312", "S2", t0 + 420),
                   # CANCELED filtered before construction; an ADDED trip (absent from the
                   # static by definition) flows through the observed path flagged verbatim
                   row("vc", T1, "B41", "20240312", "S1", t0, rel="CANCELED"),
                   row("vc", T1, "B41", "20240312", "S2", t0 + 60, rel="CANCELED"),
                   row("vd2", "MV_C1-Weekday-099999_B41_999", "B41", "20240312", "S1", t0, rel="ADDED"),
                   row("vd2", "MV_C1-Weekday-099999_B41_999", "B41", "20240312", "S2", t0 + 60, rel="ADDED")])
+    write_bronze_tu(root, "2024-03-12", "12", [
+        (T1, "B41", "20240312", "va", "S5", t0 + 400, t0 - 1200),
+        (T1, "B41", "20240312", "va", "S5", t0 + 400, t0 - 900),
+        (T1, "B41", "20240312", "va", "S5", t0 + 300, t0 - 400),
+        (T1, "B41", "20240312", "va", "S5", t0 + 330, t0 + 100),
+        (T1, "B41", "20240312", "va", "S2", t0 + 140, t0 - 800),
+        (T1, "B41", "20240312", "va", "S2", t0 + 160, t0 - 660)])
     # pick_gap day (2021-09-02: no service in the mini Pick): flips A->B->A->C; the
-    # second passage of A is a flap artifact and is dropped by the first-occurrence rule
+    # second passage of A is a flap artifact and is dropped by the first-occurrence
+    # rule. vh (a different trip) passes A later: headway_obs needs no Pick.
     t1 = utc_s(2021, 9, 2, 12, 0)
     write_bronze(root, "2021-09-02", "12",
                  [row("vg", "GAP_TRIP", "B99", "20210902", s, t1 + k * 60, lat=40.61 + k * 3e-4)
-                  for k, s in enumerate(["A", "B", "A", "C"])])
+                  for k, s in enumerate(["A", "B", "A", "C"])]
+                 + [row("vh", "GAP2", "B99", "20210902", "A", t1 + 300),
+                    row("vh", "GAP2", "B99", "20210902", "B", t1 + 360, lat=40.6103)])
     for day in ("2021-11-07", "2024-03-10", "2024-11-03", "2024-03-12", "2021-09-02"):
         events.events(root, spark, day)
     return root, pick_id
@@ -400,7 +436,7 @@ def test_envelope_flap_interpolation_and_key(pick_built):
     got = ev_rows(root, "2024-03-12", "stop_sequence, stop_id, arrival_ts, censor_width_s, "
                   "interpolated, interp_k, arrival_src, segment_s, sched_segment_s, "
                   "segment_excess_s, n_vehicles_on_trip",
-                  "vehicle_id = 'va' ORDER BY stop_sequence")
+                  "vehicle_id = 'va' AND arrival_src <> 'tu_last' ORDER BY stop_sequence")
     t0 = datetime(2024, 3, 12, 12, 0, tzinfo=timezone.utc)
     assert [(r[0], r[1]) for r in got] == [(1, "S1"), (2, "S2"), (3, "S3"), (4, "S4")]
     arr = {r[0]: r[2] for r in got}
@@ -433,12 +469,21 @@ def test_canceled_filtered_added_flagged(pick_built):
 def test_pick_gap_day(pick_built):
     root, _ = pick_built
     got = ev_rows(root, "2021-09-02", "stop_sequence, stop_id, pick_gap, pick_id, delay_s, "
-                  "sched_segment_s, segment_s, cell", "TRUE ORDER BY stop_sequence")
+                  "sched_segment_s, segment_s, cell",
+                  "vehicle_id = 'vg' ORDER BY stop_sequence")
     assert [(r[0], r[1]) for r in got] == [(1, "A"), (2, "B")]  # A's flap repeat dropped
     assert all(r[2] and r[3] is None and r[4] is None and r[5] is None for r in got)
     assert got[1][6] == 60 and all(r[7] for r in got)  # observed segment; midpoint Cell
-    with open(root / "silver" / "events_view.sql") as f:
-        assert "pass_lo_ts" in f.read()
+    # headway_obs needs no Pick: vh's previous different-vehicle arrival at (B99, A) is
+    # vg's; the Pick-side columns stay NULL
+    ((obs, sched, ok, fam),) = ev_rows(
+        root, "2021-09-02", "headway_obs_s, headway_sched_s, wait_ok, family",
+        "vehicle_id = 'vh'")
+    assert obs == 300 and sched is None and ok is None and fam is None
+    assert ev_rows(root, "2021-09-02", "headway_obs_s",
+                   "vehicle_id = 'vg' AND stop_sequence = 1")[0][0] is None
+    view = (root / "silver" / "events_view.sql").read_text()
+    assert "pass_lo_ts" in view and "pred_last_ts" in view
 
 
 def test_events_cells_in_ref(pick_built):
@@ -455,7 +500,8 @@ def test_events_cells_in_ref(pick_built):
 
 def test_baseline_prints_and_matched_idempotence(pick_built, spark, capsys):
     """The coverage / Passage-vs-Prediction regression bounds are printed on the fixture
-    day, and a rerun of a matched day writes identical rows."""
+    day, and a rerun of a matched day writes identical rows - including the TU day,
+    where the 08 headway/pred columns are non-NULL (ticket 08 review)."""
     from raincheck import events
 
     root, _ = pick_built
@@ -465,6 +511,9 @@ def test_baseline_prints_and_matched_idempotence(pick_built, spark, capsys):
     out = capsys.readouterr().out
     assert "coverage baseline" in out and "[regression bound" in out
     assert "agreement n/a" in out  # the archive fragment has no TU rows
+    before = sorted(ev_rows(root, "2024-03-12", "*"), key=str)
+    events.events(root, spark, "2024-03-12")
+    assert sorted(ev_rows(root, "2024-03-12", "*"), key=str) == before
 
 
 def test_dst_noon_rule_pure(spark):
@@ -479,3 +528,142 @@ def test_dst_noon_rule_pure(spark):
     assert got["20240310"] == datetime(2024, 3, 10, 12, 0)   # 08:00 EDT
     assert got["20241103"] == datetime(2024, 11, 3, 13, 0)   # 08:00 EST
     assert got["20240115"] == datetime(2024, 1, 15, 13, 0)   # 08:00 EST
+
+
+# --- ticket 08: headways, predictions, gold cell_hour_route ---------------------------
+
+def test_headway_and_family(pick_built):
+    root, _ = pick_built
+    # same-trip followers excluded (06 measured 9): va and vb both serve T1, so neither
+    # has a previous DIFFERENT-trip arrival at S1 - the multi-vehicle trip never reads
+    # as its own 0 s headway
+    for v in ("va", "vb"):
+        assert ev_rows(root, "2024-03-12", "headway_obs_s",
+                       f"vehicle_id = '{v}' AND stop_id = 'S1'")[0][0] is None
+    # ve2 (T2): previous different-vehicle+trip arrival at S1 is vb's (t0+45) -> 105 s,
+    # under half the 300 s scheduled headway -> bunched
+    ((obs, sched, ok, b, fam),) = ev_rows(
+        root, "2024-03-12", "headway_obs_s, headway_sched_s, wait_ok, bunched, family",
+        "vehicle_id = 've2'")
+    assert (obs, sched, ok, b, fam) == (105, 300, True, True, "headway")
+    # ve (T2): the same-trip ve2 arrival is excluded -> prev is vb's -> 315 s
+    ((obs, sched, ok, b),) = ev_rows(
+        root, "2024-03-12", "headway_obs_s, headway_sched_s, wait_ok, bunched",
+        "vehicle_id = 've'")
+    assert (obs, sched, ok, b) == (315, 300, True, False)
+    # family is the scheduled hour's cut: T1's 07:00 arrival sits alone in its hour
+    # (one arrival, no headway -> 'schedule'); the next hour's median is 300 s
+    assert ev_rows(root, "2024-03-12", "family",
+                   "vehicle_id = 'va' AND stop_id = 'S1'")[0][0] == "schedule"
+    assert ev_rows(root, "2024-03-12", "family",
+                   "vehicle_id = 'va' AND stop_id = 'S2'")[0][0] == "headway"
+    # the ADDED trip rides the observed path: NULL direction never joins matched groups
+    assert ev_rows(root, "2024-03-12", "headway_obs_s", "vehicle_id = 'vd2'")[0][0] is None
+
+
+def test_pred_features_and_tu_last(pick_built):
+    root, _ = pick_built
+    t0 = datetime(2024, 3, 12, 12, 0, tzinfo=timezone.utc)
+    # va at S2 (arr t0+150): last pred t0+160, first (t0+140 fetched t0-800), one
+    # change, 20 s range; at arr-600 the t0-660 fetch is in effect
+    ((off, hor, rng, err, nch),) = ev_rows(
+        root, "2024-03-12", "pred_last_off_s, pred_first_horizon_s, pred_range_s, "
+        "pred_err_10min_s, pred_n_changes", "vehicle_id = 'va' AND stop_id = 'S2'")
+    assert (off, hor, rng, err, nch) == (10, 940, 20, 10, 1)
+    # the S5 fallback row: va reached the second-to-last stop, TU's last prediction
+    # (t0+330) lies after the last Passage -> arrival_src tu_last, no ping bracket
+    ((seq, src, arr, censor, last, delay, seg, exc, off5, err5, nch5, fam),) = ev_rows(
+        root, "2024-03-12", "stop_sequence, arrival_src, arrival_ts, censor_width_s, "
+        "is_last, delay_s, segment_s, segment_excess_s, pred_last_off_s, "
+        "pred_err_10min_s, pred_n_changes, family",
+        "vehicle_id = 'va' AND stop_id = 'S5'")
+    assert seq == 5 and src == "tu_last" and arr == t0 + timedelta(seconds=330)
+    assert censor is None and last and delay == 2730
+    assert (seg, exc) == (105, -195)          # segments flow through the fallback row
+    assert (off5, err5, nch5) == (0, -30, 2) and fam == "headway"
+    # vb never reached the second-to-last stop: no fallback row for it
+    assert ev_rows(root, "2024-03-12", "count(*)",
+                   "vehicle_id = 'vb' AND stop_id = 'S5'")[0][0] == 0
+    # archive era: every pred_* NULL (nycbuspositions has no stop-level TU)
+    assert ev_rows(root, "2021-11-07", "count(*)", "(pred_last_off_s IS NOT NULL "
+                   "OR pred_n_changes IS NOT NULL)")[0][0] == 0
+    # the key stays unique with the fallback row in place
+    n, uniq = ev_rows(root, "2024-03-12",
+                      "count(*), count(DISTINCT (trip_id, stop_sequence, vehicle_id))")[0]
+    assert n == uniq
+
+
+@pytest.fixture(scope="module")
+def gold_route(pick_built, spark):
+    from raincheck import gold
+
+    root, _ = pick_built
+    gold.route(root, spark, "2024-03")   # 2024-03-10 (FRAG) + 2024-03-12 (envelope day)
+    gold.route(root, spark, "2024-11")   # 2024-11-03 (FRAG, fall back)
+    return root
+
+
+def gr_rows(root, cols, where):
+    con = duck.connect()
+    return con.execute(
+        f"SELECT {cols} FROM read_parquet('{root}/gold/cell_hour_route/**/*.parquet', "
+        f"hive_partitioning = true, hive_types_autocast = false) WHERE {where}").fetchall()
+
+
+def test_cell_hour_route_values(gold_route):
+    root = gold_route
+    n, uniq = gr_rows(root, "count(*), count(DISTINCT (month, cell, hour_end_utc, "
+                      "route_id, direction_id))", "TRUE")[0]
+    assert n > 0 and n == uniq
+    # FRAG spring day: scheduled 10:50Z and arrived 10:53Z in the same Hour ->
+    # coverage 1.0; delay 180 is neither late nor early
+    ((frag_cell,),) = set(ev_rows(root, "2024-03-10", "cell", "TRUE"))
+    ((ne, late, early, cov, vpc),) = gr_rows(
+        root, "n_events, late_share, early_share, coverage, vp_coverage",
+        f"month = '2024-03' AND cell = {frag_cell} AND route_id = 'Q59'")
+    assert (ne, late, early, cov, vpc) == (1, 0.0, 0.0, 1.0, 1.0)
+    # FRAG fall day: same UTC arrival, EST schedule -> -3420 s (early), and the
+    # scheduled hour (12Z) no longer matches the arrival hour (11Z) -> coverage NULL
+    ((late, early, cov),) = gr_rows(
+        root, "late_share, early_share, coverage",
+        f"month = '2024-11' AND cell = {frag_cell} AND route_id = 'Q59'")
+    assert (late, early, cov) == (0.0, 1.0, None)
+    # the S1/S2 cell (they share an H3 res-8 hex), hour 13Z, B41 dir 0: five events
+    # (va S1+S2, vb S1, ve S1, ve2 S1), all late; EWT over the two rows with both
+    # headways: (105^2+315^2)/(2*420) - (300^2+300^2)/(2*600) = 131.25 - 150 = -18.75;
+    # the only observed segment is va S2's -180; the schedule put no arrivals in 13Z
+    ((s1_cell,),) = set(ev_rows(root, "2024-03-12", "cell",
+                                "vehicle_id = 'vb' AND stop_id = 'S1'"))
+    ((ne, late, mse, ewt, bsh, wsh, cov, vpc),) = gr_rows(
+        root, "n_events, late_share, mean_segment_excess_s, ewt_s, bunched_share, "
+        "wait_ok_share, coverage, vp_coverage",
+        f"month = '2024-03' AND cell = {s1_cell} AND route_id = 'B41' "
+        f"AND hour_end_utc = TIMESTAMP '2024-03-12 13:00:00'")
+    assert (ne, late) == (5, 1.0)
+    assert mse == pytest.approx(-180.0) and ewt == pytest.approx(-18.75)
+    assert (bsh, wsh) == (0.5, 1.0) and cov is None and vpc == 1.0
+    # the S4/S5 cell holds va's interpolated S4 and tu_last S5 rows: vp_coverage 0
+    ((s5_cell,),) = set(ev_rows(root, "2024-03-12", "cell",
+                                "vehicle_id = 'va' AND stop_id = 'S5'"))
+    ((ne, vpc),) = gr_rows(
+        root, "n_events, vp_coverage",
+        f"month = '2024-03' AND cell = {s5_cell} AND route_id = 'B41'")
+    assert (ne, vpc) == (2, 0.0)
+
+
+def test_cell_hour_route_idempotent_and_neighbour(gold_route, spark):
+    import hashlib
+
+    from raincheck import gold
+
+    root = gold_route
+    table = root / "gold" / "cell_hour_route"
+    # key=str: a NULL direction_id ties with 0 on the tuple prefix and None < int raises
+    before = sorted(gr_rows(root, "*", "month = '2024-03'"), key=str)
+    snap = lambda: {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+                    for p in sorted((table / "month=2024-11").rglob("*.parquet"))}
+    nov = snap()
+    assert nov
+    gold.route(root, spark, "2024-03")
+    assert sorted(gr_rows(root, "*", "month = '2024-03'"), key=str) == before
+    assert snap() == nov  # dynamic overwrite touches only the rebuilt month

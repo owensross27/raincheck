@@ -125,20 +125,27 @@ def convert(root: Path, force: bool, keep_xz: bool) -> None:
 
 
 def build_events(root: Path, spark, force: bool) -> None:
+    import pyarrow.parquet as pq
+
     from raincheck import events
+
+    def current(part: Path) -> bool:
+        # a pre-08 events partition (no headway columns) is stale, not cached -
+        # gold/cell_hour_route would silently roll NULL metrics out of it
+        return part.exists() and "headway_obs_s" in pq.read_schema(part).names
 
     for d in SERVICE_DAYS:
         day = d.isoformat()
         part = "part-00000.parquet"
         lh = root / "silver" / "leg_hours" / f"service_date={day}" / part
         ev = root / "silver" / "events" / f"service_date={day}" / part
-        if lh.exists() and ev.exists() and not force:
+        if lh.exists() and current(ev) and not force:
             print(f"slice events {day}: cached", flush=True)
             continue
         t0 = time.monotonic()
         if force or not lh.exists():
             events.leg_hours(root, spark, day)
-        if force or not ev.exists():  # 07: Passages/Delay (pick_gap rows until 16's picks)
+        if force or not current(ev):  # 07: Passages/Delay (pick_gap rows until 16's picks)
             events.events(root, spark, day)
         print(f"slice events {day}: {time.monotonic() - t0:.0f}s", flush=True)
 
@@ -163,6 +170,7 @@ def main() -> None:
     marks.append(("events", time.monotonic()))
     for m in MONTHS:
         gold.speed(root, spark, m)
+        gold.route(root, spark, m)
     for w in ("w1", "w2"):
         gold.baseline(root, spark, w)
     marks.append(("gold+baseline", time.monotonic()))

@@ -165,11 +165,14 @@ def passages_observed(vp: DataFrame) -> DataFrame:
     flip midpoint. No static ordering exists, so stop_sequence is the observed flip
     ordinal, repeats of a stop_id are dropped (absorbs A-B-A flap artifacts; loop trips
     lose their second visit), nothing is interpolated and the position midpoint rides
-    along for the Cell. Replaced wholesale when a Pick lands (ticket 16)."""
+    along for the Cell. The feed's direction_id rides along too (live Bronze carries it
+    100%; archive NULL) so an unmatched live trip joins the same headway group as its
+    matched neighbours (ticket 08 review). Replaced wholesale when a Pick lands
+    (ticket 16)."""
     w = Window.partitionBy(*PASSAGE_KEY).orderBy(
         "ts", F.col("fetched_at").asc_nulls_first(), "stop_id")  # stop_id: deterministic ties
     p = (_dedupe(vp).where(F.col("trip_id").isNotNull() & F.col("stop_id").isNotNull())
-         .select(*PASSAGE_KEY, "route_id", "schedule_relationship",
+         .select(*PASSAGE_KEY, "route_id", "schedule_relationship", "direction_id",
                  "ts", "fetched_at", "stop_id", "lat", "lon")
          .withColumn("prev_stop", F.lag("stop_id").over(w))
          .withColumn("lo", F.lag("ts").over(w))
@@ -183,6 +186,7 @@ def passages_observed(vp: DataFrame) -> DataFrame:
             .withColumn("stop_sequence", F.row_number().over(
                 Window.partitionBy(*PASSAGE_KEY).orderBy("lo")))
             .select(*PASSAGE_KEY, "route_id", "schedule_relationship", "stop_sequence",
+                    F.col("direction_id").cast("tinyint").alias("direction_id"),
                     F.col("prev_stop").alias("stop_id"),
                     ((F.col("lo") + F.col("ts")) / 2).alias("arr"),
                     (F.col("ts") - F.col("lo")).cast("long").alias("censor_width_s"),
