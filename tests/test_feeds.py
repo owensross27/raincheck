@@ -1,4 +1,5 @@
 """Frozen-fixture tests. Fixtures captured 2026-08-11 from gtfsrt.prod.obanyc.com."""
+import contextlib
 import os
 import subprocess
 import sys
@@ -9,7 +10,8 @@ import pytest
 from google.transit import gtfs_realtime_pb2
 
 from raincheck import archiver
-from raincheck.feeds import decode_alerts, decode_subway_tu, decode_subway_vp, decode_tu, decode_vp
+from raincheck.feeds import (TU_COLS, VP_COLS, decode_alerts, decode_subway_tu, decode_subway_vp,
+                             decode_tu, decode_vp)
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -60,6 +62,59 @@ def test_tu_no_delay_field_ever(tu_rows):
 
 def test_tu_row_count(tu_rows):
     assert len(tu_rows) == 37697
+
+
+def test_census_bus_row_shapes(vp_rows, tu_rows):
+    """Ticket 10: every bus row carries exactly the declared keys, in order, and the
+    feed header timestamp lands on both kinds."""
+    assert {tuple(r) for r in vp_rows} == {VP_COLS}
+    assert {tuple(r) for r in tu_rows} == {TU_COLS}
+    assert all(r["header_ts"] == 1786501912 for r in vp_rows)
+    assert all(r["header_ts"] == 1786501913 for r in tu_rows)
+
+
+def test_tu_trip_level_fields(tu_rows):
+    """All 1,988 trips in the fixture carry trip_update.delay/timestamp/direction_id;
+    trip_delay_s is the feed's own number (spec C), stop-level delay stays absent
+    (test_tu_no_delay_field_ever)."""
+    assert all(r["trip_delay_s"] is not None for r in tu_rows)
+    assert all(r["trip_ts"] > 0 and r["direction_id"] in (0, 1) for r in tu_rows)
+
+
+def test_kafka_schema_equals_decoder_keys(vp_rows, tu_rows):
+    """07-6: one StructType per topic, derived from and equal to the decoder key sets."""
+    from raincheck.spark import topic_schema
+    vp_s, tu_s = topic_schema("vp"), topic_schema("tu")
+    assert tuple(vp_s.fieldNames()) == VP_COLS == tuple(vp_rows[0])
+    assert tuple(tu_s.fieldNames()) == TU_COLS == tuple(tu_rows[0])
+    types = {f.name: f.dataType.typeName() for f in list(vp_s) + list(tu_s)}
+    assert types["lat"] == "double" and types["trip_delay_s"] == "long"
+    assert types["trip_id"] == "string" and types["header_ts"] == "long"
+
+
+def test_publish_reaches_broker(vp_rows, monkeypatch):
+    """Ticket 10: the archiver's poll side effect lands on the topic. Skips when no
+    broker answers on localhost:9092; a scratch topic (created and deleted here - the
+    producer never auto-creates) keeps fixture rows off the real ones."""
+    from confluent_kafka.admin import AdminClient, NewTopic
+    admin = AdminClient({"bootstrap.servers": "localhost:9092"})
+    try:
+        admin.list_topics(timeout=2)
+    except Exception:
+        pytest.skip("no Kafka broker on localhost:9092")
+    scratch = "raincheck.test.vp"
+    for f in admin.create_topics([NewTopic(scratch, num_partitions=1, replication_factor=1)]).values():
+        with contextlib.suppress(Exception):  # exists from a crashed run: fine
+            f.result()
+    monkeypatch.setattr(archiver, "TOPIC", {"vp": (scratch, "vehicle_id")})
+    monkeypatch.setattr(archiver, "_producer", None)  # never leak a live producer to later tests
+    archiver._kafka_err.update(n=0, last="")
+    try:
+        archiver.publish("vp", vp_rows[:5])
+        assert archiver._producer.flush(10) == 0  # every message delivered
+        assert archiver._kafka_err["n"] == 0
+    finally:
+        admin.delete_topics([scratch])
 
 
 def test_archiver_parquet_roundtrip(tmp_path, vp_rows, monkeypatch):

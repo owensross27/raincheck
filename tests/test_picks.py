@@ -180,7 +180,7 @@ def test_api_get_strips_key_on_redirect(monkeypatch):
 
 
 def test_build_picks_marks_transitland_source(tmp_path):
-    from tests.conftest import gtfs_zip_bytes
+    from conftest import gtfs_zip_bytes  # bare pytest and `python -m pytest` both resolve this
 
     from raincheck import ref
 

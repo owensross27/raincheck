@@ -31,7 +31,7 @@ URL = "https://s3.amazonaws.com/nycbuspositions/{y}/{m}/{day}-bus-positions.csv.
 # decode_vp's key order; the census test asserts schema equality with the archiver's parts
 COLUMNS = ("vehicle_id", "trip_id", "route_id", "direction_id", "start_date",
            "schedule_relationship", "lat", "lon", "bearing", "stop_id", "ts",
-           "occupancy", "fetched_at")
+           "occupancy", "header_ts", "fetched_at")
 
 
 def source(root: Path, day: str) -> Path:
@@ -84,6 +84,7 @@ def convert(root: Path, day: str) -> None:
         "stop_id": raw.column("stop_id"),
         "ts": ts,
         "occupancy": occupancy,
+        "header_ts": pa.nulls(len(raw), pa.int64()),  # no feed header in the archive
         "fetched_at": pa.nulls(len(raw), pa.int64()),  # no poll clock in the archive
     }, schema=pa.schema([(c, TYPES.get(c, pa.string())) for c in COLUMNS]))
     table = table.sort_by([("vehicle_id", "ascending"), ("ts", "ascending")])

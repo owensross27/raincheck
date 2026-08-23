@@ -18,6 +18,7 @@ Loop:  python -m raincheck.archiver
 """
 import argparse
 import json
+import logging
 import os
 import sys
 import time
@@ -39,7 +40,7 @@ KEY = {"vp": "vehicle_id", "tu": "trip_id", "alerts": "alert_id", "subway_alerts
 # explicit column types: an all-None column in one window must not become a null-typed part
 TYPES = {c: pa.int64() for c in ("ts", "fetched_at", "header_ts", "arrival_time", "departure_time",
                                  "active_start", "active_end", "direction_id", "stop_sequence",
-                                 "current_stop_sequence")}
+                                 "current_stop_sequence", "trip_delay_s", "trip_ts")}
 TYPES.update({c: pa.float64() for c in ("lat", "lon", "bearing")})
 TYPES["is_assigned"] = pa.bool_()
 # feed key -> (cadence seconds, [(kind, decoder(feed, feed_key) -> rows)])
@@ -55,6 +56,40 @@ STATIC = {  # 05: daily conditional GET of the static zips, saved by Last-Modifi
     "bronx": "gtfs_bx", "brooklyn": "gtfs_b", "manhattan": "gtfs_m", "queens": "gtfs_q",
     "staten_island": "gtfs_si", "busco": "gtfs_busco", "subway": "gtfs_subway",
 }
+# 10 (spec C): Kafka is a byproduct of each poll the archiver already makes; Bronze stays
+# the record. kind -> (topic, message key column). Subway topics wait for a consumer.
+TOPIC = {"vp": ("raincheck.bus.vp", "vehicle_id"), "tu": ("raincheck.bus.tu", "trip_id")}
+_producer = None
+_kafka_err = {"n": 0, "last": ""}  # counted here, reported once per flush window
+
+
+def publish(kind: str, rows: list[dict]) -> None:
+    """Produce one poll's decoded rows to the kind's topic. Broker-down never blocks or
+    crashes capture: librdkafka buffers and retries, errors surface via _kafka_err."""
+    global _producer
+    if kind not in TOPIC or not rows:
+        return
+    if _producer is None:
+        from confluent_kafka import Producer  # lazy: tests patch _producer without a broker
+        log = logging.getLogger("raincheck.kafka")
+        log.setLevel(logging.CRITICAL)  # librdkafka retry chatter; errors come via error_cb
+        _producer = Producer({
+            "bootstrap.servers": os.environ.get("RAINCHECK_KAFKA") or "localhost:9092",
+            "linger.ms": 50, "message.timeout.ms": 30000, "compression.type": "zstd",
+            # never auto-create: the six-partition spec-C shape only comes from `make topics`
+            "allow.auto.create.topics": False,
+            "error_cb": lambda e: _kafka_err.update(n=_kafka_err["n"] + 1, last=str(e)),
+        }, logger=log)
+    topic, key = TOPIC[kind]
+    fail = lambda err, msg: err and _kafka_err.update(n=_kafka_err["n"] + 1, last=str(err))
+    for r in rows:
+        try:
+            _producer.produce(topic, key=str(r[key] or ""),
+                              value=json.dumps(r, separators=(",", ":")), on_delivery=fail)
+        except BufferError:
+            _kafka_err.update(n=_kafka_err["n"] + 1, last="local queue full")
+            break
+    _producer.poll(0)
 
 
 def flush(rows: list[dict], kind: str, window_start: int) -> Path:
@@ -138,9 +173,15 @@ def main() -> None:
             last_header[feed] = msg.header.timestamp
             for kind, decode in kinds:
                 try:
-                    buf.setdefault(kind, []).extend(decode(msg, feed))
+                    rows = decode(msg, feed)
+                    buf.setdefault(kind, []).extend(rows)
                 except Exception as exc:
                     print(f"{feed} decode {kind}: {exc}", file=sys.stderr, flush=True)
+                    continue
+                try:
+                    publish(kind, rows)  # 10: bus vp/tu only; a no-op for other kinds
+                except Exception as exc:
+                    print(f"kafka {kind}: {exc}", file=sys.stderr, flush=True)
 
         now = int(time.time())
         if args.once or now // WINDOW * WINDOW != window:
@@ -153,6 +194,10 @@ def main() -> None:
                 except Exception as exc:
                     print(f"flush {kind}: {exc} ({len(rows)} rows dropped)", file=sys.stderr, flush=True)
             buf = {}
+            if _kafka_err["n"]:
+                print(f"kafka: {_kafka_err['n']} errors this window, last: {_kafka_err['last']}",
+                      file=sys.stderr, flush=True)
+                _kafka_err.update(n=0, last="")
             if now // WINDOW * WINDOW - window > WINDOW:
                 print(f"stall: {(now // WINDOW * WINDOW - window) // WINDOW - 1} window(s) skipped", file=sys.stderr, flush=True)
             window = now // WINDOW * WINDOW
@@ -169,10 +214,15 @@ def main() -> None:
                           f"Point RAINCHECK_ARCHIVE_ROOT at the external SSD (the count is absolute: move "
                           f"{ROOT} with it) or raise RAINCHECK_BRONZE_GB, then rm {marker}",
                           file=sys.stderr, flush=True)
-                    return
+                    break
             if args.once:
-                return
+                break
         time.sleep(max(0.0, 30 - (time.time() - tick)))
+    if _producer is not None:  # drain the Kafka queue before a clean exit, loudly
+        left = _producer.flush(10)
+        if left or _kafka_err["n"]:
+            print(f"kafka: {left} undelivered at exit, {_kafka_err['n']} errors, "
+                  f"last: {_kafka_err['last']}", file=sys.stderr, flush=True)
 
 
 if __name__ == "__main__":

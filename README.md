@@ -26,8 +26,7 @@ make test       # pytest; Spark tests skip when no JVM is found
 
 ```bash
 docker compose up -d --wait
-.venv/bin/python -m raincheck.producer --once      # real poll -> Kafka
-.venv/bin/python -m raincheck.archiver --once      # real poll -> Parquet
+.venv/bin/python -m raincheck.archiver --once      # real poll -> Parquet + Kafka
 .venv/bin/python -m raincheck.zarr_probe           # AORC Zarr vs Hurricane Ida
 .venv/bin/pytest -q                                # frozen-fixture checks
 ```

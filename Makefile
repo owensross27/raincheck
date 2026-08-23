@@ -8,7 +8,10 @@ export TZ := UTC
 export RAINCHECK_ARCHIVE_ROOT RAINCHECK_BRONZE_GB TRANSITLAND_API_KEY
 PY := .venv/bin/python
 
-.PHONY: warm ref nbp picks precip-hourly precip-cell schedule events gold baseline gates slice test
+.PHONY: warm ref nbp picks precip-hourly precip-cell schedule events gold baseline gates slice test topics
+
+topics:  ## recreate the two bus topics to spec C - DESTRUCTIVE: drops retained Kafka messages (Bronze keeps the record)
+	$(PY) -m raincheck.topics
 
 warm:  ## start one session through the factory: warms the Ivy cache once (~240 MB), proves the stack
 	$(PY) -c "from raincheck.spark import session; s = session(); print('spark', s.version); s.stop()"

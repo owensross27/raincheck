@@ -126,7 +126,7 @@ def write_bronze(root: Path, day: str, hour: str, rows: list[tuple]) -> None:
         vals = dict(vehicle_id=v, trip_id=trip, route_id=route, direction_id=None,
                     start_date=start, schedule_relationship=rel[0] if rel else None,
                     lat=lat, lon=lon, bearing=None, stop_id=stop,
-                    ts=ts, occupancy=None, fetched_at=fetched)
+                    ts=ts, occupancy=None, header_ts=None, fetched_at=fetched)
         for c in COLUMNS:
             cols[c].append(vals[c])
     out = root / "archive" / "vp" / f"date={day}" / f"hour={hour}" / "part-test.parquet"

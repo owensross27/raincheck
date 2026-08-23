@@ -53,3 +53,22 @@ def session(ui: bool = False) -> SparkSession:
         .config("spark.ui.enabled", str(ui).lower())
     )
     return SedonaContext.create(builder.getOrCreate())
+
+
+def topic_schema(kind: str):
+    """Kafka JSON schema for one bus topic (spec J / 07-6): one StructType per topic,
+    derived from the decoder row shape (feeds.VP_COLS/TU_COLS) and the archiver's column
+    types - never hand-maintained. The census test asserts it equals the decoder keys."""
+    import pyarrow as pa
+    from pyspark.sql.types import (BooleanType, DoubleType, LongType, StringType, StructField,
+                                   StructType)
+
+    from raincheck.archiver import TYPES
+    from raincheck.feeds import TU_COLS, VP_COLS
+
+    spark_of = {pa.int64(): LongType(), pa.float64(): DoubleType(), pa.bool_(): BooleanType()}
+    cols = {"vp": VP_COLS, "tu": TU_COLS}[kind]
+    # strict lookup: a TYPES entry this map does not know must KeyError in the census test,
+    # never silently degrade to string; only TYPES-absent columns are strings
+    return StructType([StructField(c, spark_of[TYPES[c]] if c in TYPES else StringType(), True)
+                       for c in cols])
