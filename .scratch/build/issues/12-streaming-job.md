@@ -15,3 +15,19 @@ per batch so the page can show the rail. Spec: J; Testing 07-3.
 - [ ] recovery: per-query checkpoints, failOnDataLoss=false, maxOffsetsPerTrigger=250000, startingOffsets=latest on a fresh checkpoint only, `FRESH=1` discards the checkpoint; the daily retention hook drops date=/hour= dirs older than 48 h by name
 - [ ] `live/_progress.json` is written after each append (batch_id, batch end timestamp, rows)
 - [ ] 07-3: the test publishes the fixture-decoded VP/TU rows to a throwaway topic and skips without a broker; `availableNow` from earliest on a throwaway checkpoint drains > 0 rows with cell non-null (mm_1h NULL when no precip table) into date=/hour=; a second run finds nothing new; two processingTime triggers write two files; the progress file exists
+
+## Consumer notes from the ticket-10 session (2026-08-23, recorded by the overview session)
+
+Live flow re-verified post-restart with a real consumer (fresh group, end-1 on all
+partitions): vp newest message age 2 s, tu 34 s; 6 partitions each; end offsets
+92,553 / 765,229. Daemon pid 69034.
+
+For whoever builds this ticket:
+- `spark.topic_schema("vp"/"tu")` is the ready-made StructType for `from_json` — do not
+  hand-write one.
+- The producer sets `allow.auto.create.topics=False`: on a fresh broker `make topics`
+  MUST run before the stream starts (and before the archiver publishes).
+- Message keys can be the empty string (`str(r[key] or "")`); values are compact JSON
+  with explicit nulls for absent fields.
+- `events.py` Bronze TU readers need `mergeSchema` (mixed pre/post-ticket-10 parts);
+  the live-topic JSON path has no such issue.
