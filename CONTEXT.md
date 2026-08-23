@@ -158,3 +158,25 @@ derived tables (Passage events, Pixel-grain precip, Cell-hour precip features,
 per-Pick schedule tables) as Hive-partitioned Parquet, batch-rebuilt, GeoParquet
 only where a geometry is the payload / (cell, hour, route) aggregates. Layout in
 `research/09-storage-schemas.md`.
+
+## Bronze bus-part schema eras (2026-08-23, permanent data fact)
+
+Live-era bus Bronze (vp/tu) has three column eras on disk; readers union by name /
+mergeSchema, so older rows carry NULLs in newer columns. Any calc using
+`schedule_relationship` (vp), `header_ts`, or TU's `direction_id` / `trip_delay_s` /
+`trip_ts` MUST treat rows before the era boundary as nullable there — this includes
+delay, headway-by-direction, and prediction-lag features.
+
+- Era 1 (pre ticket-07 daemon, capture 2026-08-15 .. 08-23 restart): vp lacks
+  `schedule_relationship`.
+- Era 2 (pre ticket-10): vp lacks `header_ts`; tu lacks `direction_id`,
+  `trip_delay_s`, `trip_ts`, `header_ts`. Includes the 08-15..21 gapfill parts (123)
+  AND the archiver's own parts from that window — the latter are never refilled (our
+  capture wins), so the boundary is permanent and a refill cannot remove it.
+- Era 3 (canonical, from the 2026-08-23 daemon restart / post-ticket-10 code): full
+  14-col vp, extended tu. All future capture and fills are canonical.
+
+The 7-year nycbuspositions backfill is a separate fixed 12-col shape (nbp converter)
+and is not part of this drift. Verified safe readers: duck.table (union_by_name,
+143a00a, vp era tests), events.tu_rows/baselines (mergeSchema). Known verification
+hole: no TU era test yet.
