@@ -146,17 +146,20 @@ def precip(month: str) -> int:
 
 
 def coldcheck() -> int:
-    """A check straight after a push lists the parts the archiver wrote during the sync
-    (ticket 18) - re-push once and re-check. What survives that is the EC2 box's own
-    capture of the same window (ticket 19): different bytes, not a missing object, and
-    `make coldgaps` is the check that can tell loss from overlap. So: never fails the job."""
+    """A check straight after a push lists whatever Bronze was written during the sync -
+    the archiver's next part, another session's backfill (both seen) - so re-push once and
+    re-check. What survives that is the EC2 box's own capture of the same window (ticket
+    19): different bytes for an object that is present, not a missing one. Either way it is
+    drift, not loss, and `make coldgaps` is the check that tells them apart. So: this stage
+    reports and never fails the job."""
     if run("coldcheck") == 0:
         return 0
     run("coldpush")
     if run("coldcheck") == 0:
         return 0
-    print("daily: coldcheck still differs after a re-push - expected while the box and the "
-          "Mac both capture (19: same window, different bytes). `make coldgaps` is the "
+    print("daily: coldcheck still differs after a re-push - expected while anything else is "
+          "writing Bronze (the box's overlapping capture, ticket 19; a concurrent backfill) "
+          "- those objects are present, just not byte-identical. `make coldgaps` is the "
           "loss check.", flush=True)
     return 0
 
