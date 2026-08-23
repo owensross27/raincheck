@@ -16,3 +16,10 @@ have seen it flood. Spec: Labels and the event spine; Testing seam 1.
 - [ ] the artifact names its estimand: `flooded_reported` — where flooding was REPORTED, not where water necessarily stood — carried as table metadata and in the schema docs
 - [ ] fixture: the 149 St rename resolves to the right complex
 - [ ] DuckDB contract tests: grain uniqueness, no stored negatives, bitmask sanity, version chaining; negatives generator tested as a pure function on fixture calendars
+
+## Inherit from flood-04's build (2026-08-23, recorded by the orchestrator)
+
+Chain label_version on flood-04's spine_version (plus assets_version). spine_version
+already covers the re-measured 311 thresholds, vocabularies, the window rule and the
+source as-of stamp — so ticket 18's alternate threshold universes stamp differently by
+construction, and labels never silently mix spines.

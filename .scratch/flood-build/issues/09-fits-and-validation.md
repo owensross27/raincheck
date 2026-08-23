@@ -21,3 +21,10 @@ evidence, not pytest.
 - [ ] pre/post-2014 split published with the label-availability confound stamped on it
 - [ ] the published CSI table carries the FIM reference band (published FIM systems run CSI 0.26–0.45) and the comparison is stamped order-of-magnitude-only
 - [ ] all validation tables publish as build assets the release links; the runnable check is a small test that the fold assignment is deterministic and the gate evaluation is a pure function of the published tables
+
+## Correction from flood-04's build (2026-08-23, recorded by the orchestrator)
+
+The "115 union event days" coverage-honesty figure in this ticket is SUPERSEDED: the
+landed spine (silver/flood_events) carries 206 events over 248 event-days,
+2010-03-13..2026-08-20. Recompute the subway/bus coverage fractions against
+silver/flood_events at build time here — do not reuse 115-based fractions.
