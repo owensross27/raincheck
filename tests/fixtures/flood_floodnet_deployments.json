@@ -1,0 +1,196 @@
+{
+ "deployments": [
+  {
+   "name": "BK - Ocean Pkwy/Avenue W",
+   "deployment_id": "openly_fleet_tapir",
+   "date_deployed": "2024-08-15T11:55:00",
+   "date_down": null,
+   "deploy_type": "pluvial",
+   "location": {
+    "type": "Point",
+    "crs": {
+     "type": "name",
+     "properties": {
+      "name": "urn:ogc:def:crs:EPSG::4326"
+     }
+    },
+    "coordinates": [
+     -73.96431001222875,
+     40.59319594189034
+    ]
+   },
+   "image": null,
+   "sensor_mount": "streetsign-post",
+   "mounted_over": "sidewalk",
+   "sensor_status": "hardware_issue"
+  },
+  {
+   "name": "M - Market Slip/South St",
+   "deployment_id": "scarcely-elegant-emu",
+   "date_deployed": "2026-02-12T12:17:00",
+   "date_down": null,
+   "deploy_type": "pluvial",
+   "location": {
+    "type": "Point",
+    "crs": {
+     "type": "name",
+     "properties": {
+      "name": "urn:ogc:def:crs:EPSG::4326"
+     }
+    },
+    "coordinates": [
+     -73.99407818626393,
+     40.709579003316236
+    ]
+   },
+   "image": "709e9054-4d9b-474b-b13c-d235667c989c",
+   "sensor_mount": "streetsign-post",
+   "mounted_over": "sidewalk",
+   "sensor_status": "good"
+  },
+  {
+   "name": "SI - Dawson Ct/Dawson Cir",
+   "deployment_id": "sadly_calm_cattle",
+   "date_deployed": "2024-08-08T03:38:00",
+   "date_down": null,
+   "deploy_type": "pluvial",
+   "location": {
+    "type": "Point",
+    "crs": {
+     "type": "name",
+     "properties": {
+      "name": "urn:ogc:def:crs:EPSG::4326"
+     }
+    },
+    "coordinates": [
+     -74.16616167730352,
+     40.604897814159614
+    ]
+   },
+   "image": "c1b9902f-7d82-47b1-8c62-4558465b5226",
+   "sensor_mount": "streetsign-post",
+   "mounted_over": "sidewalk",
+   "sensor_status": "good"
+  },
+  {
+   "name": "BX - Bronxdale Ave/ Poplar St",
+   "deployment_id": "basically-equipped-amoeba",
+   "date_deployed": "2025-01-23T12:00:00",
+   "date_down": null,
+   "deploy_type": "pluvial",
+   "location": {
+    "type": "Point",
+    "crs": {
+     "type": "name",
+     "properties": {
+      "name": "urn:ogc:def:crs:EPSG::4326"
+     }
+    },
+    "coordinates": [
+     -73.85472,
+     40.84272
+    ]
+   },
+   "image": null,
+   "sensor_mount": "streetsign-post",
+   "mounted_over": "sidewalk",
+   "sensor_status": "non-ota"
+  },
+  {
+   "name": "BX - Brady Ave/ Muliner Ave",
+   "deployment_id": "basically-enabling-squid",
+   "date_deployed": "2025-01-23T02:00:00",
+   "date_down": null,
+   "deploy_type": "pluvial",
+   "location": {
+    "type": "Point",
+    "crs": {
+     "type": "name",
+     "properties": {
+      "name": "urn:ogc:def:crs:EPSG::4326"
+     }
+    },
+    "coordinates": [
+     -73.8620095,
+     40.852026
+    ]
+   },
+   "image": null,
+   "sensor_mount": "streetsign-post",
+   "mounted_over": "sidewalk",
+   "sensor_status": "noisy"
+  },
+  {
+   "name": "BX - White Plains Rd/Story Ave",
+   "deployment_id": "simply_keen_quagga",
+   "date_deployed": "2024-07-18T11:33:00",
+   "date_down": null,
+   "deploy_type": "pluvial",
+   "location": {
+    "type": "Point",
+    "crs": {
+     "type": "name",
+     "properties": {
+      "name": "urn:ogc:def:crs:EPSG::4326"
+     }
+    },
+    "coordinates": [
+     -73.85863711719362,
+     40.8243258880824
+    ]
+   },
+   "image": "42a0f0b2-e2eb-4522-b5d3-f84796e088f0",
+   "sensor_mount": "streetsign-post",
+   "mounted_over": "sidewalk",
+   "sensor_status": "noisy"
+  },
+  {
+   "name": "BX - Dewey Ave/ Balcom Ave",
+   "deployment_id": "bright_black_quail",
+   "date_deployed": "2025-10-24T12:00:00",
+   "date_down": null,
+   "deploy_type": "pluvial",
+   "location": {
+    "type": "Point",
+    "crs": {
+     "type": "name",
+     "properties": {
+      "name": "urn:ogc:def:crs:EPSG::4326"
+     }
+    },
+    "coordinates": [
+     -73.82525,
+     40.82035
+    ]
+   },
+   "image": "002fbb95-0ea5-45c1-83ef-ee4533992dc3",
+   "sensor_mount": "streetsign-post",
+   "mounted_over": "sidewalk",
+   "sensor_status": "dead"
+  },
+  {
+   "name": "BK - 2nd Ave/49th St",
+   "deployment_id": "spotty_brown_bobcat",
+   "date_deployed": "2025-09-17T10:26:00",
+   "date_down": "2026-08-13T12:00:00",
+   "deploy_type": "pluvial",
+   "location": {
+    "type": "Point",
+    "crs": {
+     "type": "name",
+     "properties": {
+      "name": "urn:ogc:def:crs:EPSG::4326"
+     }
+    },
+    "coordinates": [
+     -74.01631998749782,
+     40.64974166042538
+    ]
+   },
+   "image": null,
+   "sensor_mount": "streetsign-post",
+   "mounted_over": "sidewalk",
+   "sensor_status": "retired"
+  }
+ ]
+}

@@ -7,14 +7,14 @@ detector (FloodNet tier, MTA alert tier); Testing seam 2.
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** landed (master, 2026-08-23; suite 398/0 green)
 
-- [ ] FloodNet fetch: ONE bounded query per cycle over [now − 60 min, now + 2 min] — unbounded reads are poisoned by a clock-broken sensor stamping year 2080; rows with null deployment_id are dropped
-- [ ] water detected = latest depth ≥ 15 mm AND a ≥ 15 mm in-window rise AND ≥ 3 consecutive samples above AND recent onset — never absolute depth alone (18–528 mm standing offsets measured on a dry night); the sensor-status blacklist comes from daily-cached deployment metadata; concurrent own-Cell rain is a display gate
-- [ ] dry-and-reporting sensors render dim as "dry above curb height at the signpost"; the tier shows the network's own caveats beside detections (snow and obstruction can register as depth); API errors grey the tier; the tier is display only — the FloodNet bar as model input stands
-- [ ] the FloodNet citation renders with the tier ("FloodNet (NYU and CUNY)", Mydlarz et al. 2024, WRR — non-commercial agreement)
-- [ ] MTA tier: the newest captured subway-alert rows each cycle, filtered by ticket 02's frozen LIVE vocabulary; one chip per incident via ticket 02's incident dedupe keys; first-seen time; active vs cleared from the "while"/"after" phrasing
-- [ ] parsers tested on captured fixture responses — the 2080-clock response, the null-deployment response, a dry-night offsets response — no network in tests
+- [x] FloodNet fetch: ONE bounded query per cycle over [now − 60 min, now + 2 min] — unbounded reads are poisoned by a clock-broken sensor stamping year 2080; rows with null deployment_id are dropped
+- [x] water detected = latest depth ≥ 15 mm AND a ≥ 15 mm in-window rise AND ≥ 3 consecutive samples above AND recent onset — never absolute depth alone (18–528 mm standing offsets measured on a dry night); the sensor-status blacklist comes from daily-cached deployment metadata; concurrent own-Cell rain is a display gate
+- [x] dry-and-reporting sensors render dim as "dry above curb height at the signpost"; the tier shows the network's own caveats beside detections (snow and obstruction can register as depth); API errors grey the tier; the tier is display only — the FloodNet bar as model input stands
+- [x] the FloodNet citation renders with the tier ("FloodNet (NYU and CUNY)", Mydlarz et al. 2024, WRR — non-commercial agreement)
+- [x] MTA tier: the newest captured subway-alert rows each cycle, filtered by ticket 02's frozen LIVE vocabulary; one chip per incident via ticket 02's incident dedupe keys; first-seen time; active vs cleared from the "while"/"after" phrasing
+- [x] parsers tested on captured fixture responses — the 2080-clock response, the null-deployment response, a dry-night offsets response — no network in tests
 
 ## Domain fact from flood-02 (2026-08-23, recorded by the orchestrator)
 
@@ -35,3 +35,31 @@ change under an unchanged alert_id between cycles.
   AT branch (the real cause of the B1 recall miss — the prototype README's explanation is
   wrong), BRIDGE_BACK fullmatches zero live/holdout rows, and the live measurement rests
   on one storm night with 5 distinct station names. Treat live recall claims accordingly.
+
+## Landing notes (2026-08-23)
+
+`src/raincheck/flood_truth.py` + `tests/test_flood_truth.py` (25 tests, no network).
+Fixtures are verbatim API bodies: `flood_floodnet_unbounded.json` (the 2080-clock read),
+`flood_floodnet_window.json` (one dry-night bounded window: standing offsets, a blip,
+null deployment ids, null depths), `flood_floodnet_deployments.json` (the matching
+metadata incl. noisy / hardware_issue / dead / date_down). The MTA tier reuses ticket
+02's `flood_alerts_water.parquet`.
+
+Two things measured at build time that the ticket did not know:
+
+1. **The response row cap truncates the 60-minute window.** `depth_data` caps at 10,000
+   rows, and ~420 sensors on a minute cadence fill that in ~27 minutes. The query stays
+   ONE bounded read; `series()` reports `truncated` and the oldest/newest stamps it
+   actually saw, so the tier states the window it read rather than the window it asked
+   for. Filtering `deployment_id: {_is_null: false}` server-side buys back the 12% of the
+   cap that null-id rows were eating.
+2. **10 of the 422 reporting sensors are absent from `deployments/flood`** — and the two
+   largest standing offsets (372 mm, 331 mm) are among them. No metadata means no point,
+   no status and no caveat, so those sensors are dropped rather than rendered. The status
+   blacklist is the measured bad vocabulary only; an UNKNOWN status is NOT muted, because
+   a new status string must not silently hide detections.
+
+The own-Cell rain gate is a parameter (`wet_cells`, `cell_of`), not a lookup: sensor ->
+H3 cell needs Spark/ref-cells, and ticket 15 already joins geometry at export. With no
+wet-cell set supplied the gate is not evaluated and the sensor row says so (`gate: null`)
+rather than quietly passing as gated.
