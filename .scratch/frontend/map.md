@@ -52,6 +52,25 @@ layers).
   cited findings: `.scratch/frontend/research/04-worker-r2.md`; gist on the
   ticket. Ticket 03 unblocked.
 
+- 2026-08-24 · ticket 01 (grilling) RESOLVED — **ONE page: the integrated map
+  EXTENDS `web/index.html` with plain per-layer toggles** (the `#livetoggle`
+  pattern, seven layers), no second page and no modes; the `#provenance`
+  attribution strip is mode-invariant. Age is computed from HTTP response
+  headers on the ORIGIN's clock (`Date` − `Last-Modified`), never a new payload
+  stamp — that would break `test_re_export_is_byte_identical`; the live pair
+  keeps its `vp_age_s` composite, a multi-source layer shows a row PER SOURCE on
+  flood 15's frozen budgets, thresholds stay a table. Vocabulary FRESH / STALE
+  (+reason) / OFF / GATED — freshness is not verdict. **The reversal: the MTA
+  gate cuts by LINEAGE and runs THROUGH the flood panel** (`flood_truth.py:285`
+  emits an `mta_alerts` tier beside the publishable `floodnet` one at :218), so
+  flood 15 must write TWO meta files, one per gate side. No byte budget —
+  nothing in the repo compresses (`publish._put` sends no `ContentEncoding`),
+  so the rule is "paint from one bulk file, detail from one per-asset fetch on
+  click" plus a MUST to measure `Content-Encoding` when the bucket exists.
+  Two opus adversarial reviewers reversed four parts of the draft first. Full
+  decision, the layer/staleness table and the MUSTs:
+  `.scratch/frontend/issues/01-one-surface-or-two.md`. Ticket 02 unblocked.
+
 ## Not yet specified (fog)
 
 - Embeds/sharing: whether any view is embeddable elsewhere once visibility
@@ -60,7 +79,13 @@ layers).
 - Schedule-vs-actual comparison as a visual layer ("current bus slowdowns or
   schedules" — the slowdown half exists as insight exports; the schedule half is
   fog until a concrete question can be phrased).
-- Mobile/small-screen treatment of a four-layer map.
+- ~~Mobile/small-screen treatment of a four-layer map.~~ **GRADUATED
+  2026-08-24 by ticket 01 — folded into ticket 02 rather than given its own
+  number: 02 already builds the throwaway variations, and small-screen is the
+  same prototype at a different width. `web/app.css:69` already stacks the
+  panels under a 60vh map at 900px; the concrete question 02 now owes is whether
+  that survives SEVEN toggles and their freshness rows, or whether the panel set
+  has to collapse.**
 
 ## Out of scope
 
