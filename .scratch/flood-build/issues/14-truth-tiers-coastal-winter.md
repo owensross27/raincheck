@@ -18,7 +18,7 @@ reads. Spec: Real-time detector (coastal live, winter gate); Testing seam 2.
 ## Comments
 
 **2026-08-24 (resolution).** `src/raincheck/flood_live.py` + `make flood-live`, tested in
-`tests/test_flood_live.py` (29 tests, no network). Six fixtures are verbatim bodies
+`tests/test_flood_live.py` (39 tests, no network). Six fixtures are verbatim bodies
 captured live at 2026-08-24T01:41Z: `flood_coops_obs.json`, `flood_coops_pred6.json`,
 `flood_coops_hilo_forward.json`, `flood_coops_hilo_bare.json`, `flood_coops_error.json`,
 `flood_nws_knyc.json`.
@@ -26,8 +26,9 @@ captured live at 2026-08-24T01:41Z: `flood_coops_obs.json`, `flood_coops_pred6.j
 **Ticket 07's open question is answered by not needing an answer.** 07 left it to this
 ticket to choose a rule for Kings Point, whose `action` stage is null where the Battery
 and Sandy Hook publish one. The chip family never reads the action stage: APPROACHING is
-`next high >= minor - 1.0 ft`, and all three gauges publish a minor stage. One rule, three
-gauges, no invented value for the gauge that has none.
+`observed OR next forecast high >= minor - 1.0 ft` (the observed leg added in the review
+round below), and all three gauges publish a minor stage. One rule, three gauges, no
+invented value for the gauge that has none.
 
 **One constants family, three consumers — chained, not copied.** `flood_live` imports
 `GAUGES`/`STAGE`/`minor_navd88_ft` from `flood_coastal` rather than re-declaring them, so
