@@ -479,3 +479,9 @@ map.on("load", async () => {
 });
 render();
 new ResizeObserver(() => map.resize()).observe($("map"));
+
+// #provenance is always mounted and its height is NOT a constant -- it wraps differently at
+// every width. Measure it so the side columns clear it; a guessed clearance leaves the last
+// layer toggle under the strip, where a real click never reaches it.
+new ResizeObserver(() => document.documentElement.style.setProperty(
+  "--prov", ($("provenance").offsetHeight + 20) + "px")).observe($("provenance"));

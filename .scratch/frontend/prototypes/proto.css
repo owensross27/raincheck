@@ -37,8 +37,13 @@
 .gated { opacity: .72; }
 .gated input { cursor: not-allowed; }
 
+/* the right column, mirroring web/app.css's #left: the layer panel and the click card
+   share it and shrink against each other, so the card never covers the rows it came from */
+#right { position: absolute; z-index: 2; top: 12px; right: 12px; bottom: var(--prov); width: 340px;
+  display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
+
 /* ------------------------------------------------------------------ A: stacked rows */
-#layers { top: 12px; right: 12px; width: 320px; max-height: calc(100vh - 110px); overflow-y: auto; }
+#layers { position: static; width: auto; flex: 1 1 auto; overflow-y: auto; min-height: 120px; }
 .lyr { border-top: 1px solid var(--line); padding: 7px 0; }
 .lyr:first-of-type { border-top: 0; }
 .lyr label { display: flex; gap: 7px; align-items: baseline; cursor: pointer; }
@@ -47,7 +52,7 @@
 .grp .lbl { margin: 8px 0 2px; }
 
 /* ------------------------------------------------------------------- B: dense grid */
-#grid { top: 12px; right: 12px; width: 340px; max-height: calc(100vh - 110px); overflow-y: auto; }
+#grid { position: static; width: auto; flex: 1 1 auto; overflow-y: auto; min-height: 120px; }
 #grid table { border-collapse: collapse; width: 100%; font-size: 11px; }
 #grid th { text-align: left; color: var(--dim); font-weight: 600; font-size: 10px;
   text-transform: uppercase; letter-spacing: .06em; padding: 2px 4px; border-bottom: 1px solid var(--line); }
@@ -70,8 +75,8 @@
 .sec > .lbl { display: flex; justify-content: space-between; align-items: baseline; }
 
 /* ------------------------------------------------------------------- the click card */
-#card { display: none; position: absolute; z-index: 4; right: 12px; bottom: 96px; width: 320px;
-  max-height: 46vh; overflow-y: auto; }
+#card { display: none; position: static; width: auto; flex: 0 1 auto; max-height: 52%;
+  overflow-y: auto; }
 #card.on { display: block; }
 #card h3 { margin: 0 0 2px; font-size: 13px; }
 #card .x { position: absolute; top: 6px; right: 8px; background: none; border: 0;
@@ -81,9 +86,11 @@
 
 /* ----------------------------------------------------------------------- the legend */
 #keys { position: static; overflow-y: auto; flex: 0 1 auto; max-height: 42%; }
-/* the provenance strip is three lines tall here (it names FloodNet too), so the left
-   column has to clear more than web/app.css's 84px or the legend is cut off */
-#left { bottom: 124px; }
+/* --prov is the MEASURED height of #provenance + its 12px offset + an 8px gap, written by
+   proto.js. web/app.css's hard-coded 84px is a guess, and the strip is taller than the
+   guess here, which puts the last layer toggle underneath it and makes it unclickable. */
+:root { --prov: 124px; }
+#left { bottom: var(--prov); }
 #keys .k { display: flex; gap: 6px; align-items: center; font-size: 11px; color: var(--dim);
   padding: 1px 0; }
 #keys .sw { width: 12px; height: 12px; border-radius: 50%; flex: none; }
@@ -91,8 +98,8 @@
 
 /* ------------------------------------------------------- 375px: what ticket 01 asked */
 @media (max-width: 900px) {
-  #layers, #grid { position: static; width: auto; max-height: none; margin: 12px; }
-  #card { position: static; width: auto; max-height: none; margin: 12px; }
+  #right { position: static; width: auto; display: block; bottom: auto; }
+  #layers, #grid, #card { max-height: none; margin: 12px; }
   #switch { top: 6px; font-size: 11px; }
   #switch button { padding: 6px 8px; }
 }

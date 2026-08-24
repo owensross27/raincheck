@@ -1,7 +1,7 @@
 # 02 — Prototype: how do four layers read together on one map?
 
 Type: prototype
-Status: claimed
+Status: resolved
 Blocked by: 01
 
 ## The question
@@ -148,3 +148,109 @@ per-layer toggles, no modes. They disagree about **which visual channel each qua
 ### Not decided here — the selection is Ross's
 
 Per this ticket's HITL line and the wayfinder's known failure mode, no variant was picked.
+
+## Answer
+
+Resolved 2026-08-24. Three variations were built against real payloads and presented; **Ross
+picked A — "Stack (one fill)"**. Asset: `.scratch/frontend/prototypes/variant-A-chosen.png`
+(the chosen variation, lit, with a real record open), and the full runnable set — A, B and C,
+the losers included, as the primary source — on branch `frontend02-four-layers` at
+`.scratch/frontend/prototypes/` (README.md has the run command and the provenance of every
+byte on screen). **The prototype is not the implementation.**
+
+### D1 — The Cell FILL channel is EXCLUSIVE. That is the whole answer to the colour collision.
+
+The ticket asked how to resolve "delay ramp vs flood tier ramp on the same geography". The
+answer is that the collision was never a colour problem: the delay layer and flood 17's bus
+impact overlay are **the same quantity — a Speed ratio — over the same ~1,200 H3 Cells at
+different time-scales.** So they share ONE frozen ramp and ONE channel, and the page offers
+them as a **radio group, "Cell fill — pick one"**, never both at once. Two ramps on one
+geography is then structurally impossible rather than merely discouraged.
+
+**Consequence for flood 17, already written onto its ticket (`e61a98d`): it does NOT get its
+own ramp and does NOT get a simultaneous fill.** The flood TIERS never contest this channel
+at all — they are point layers (D3), so the ramp question never arises for them.
+
+### D2 — Colours: the frozen ramps are untouched; four new hues, none on the ramp's arms.
+
+`RATIO_STOPS` (diverging, dark red -> white -> blue), `SPEED_STOPS` and `GREY` (`#3a4049`,
+"no publishable value") stay exactly as `web/app.js` has them. The new hues, chosen to avoid
+both arms of the diverging ramp:
+
+| meaning | hue | why |
+|---|---|---|
+| FloodNet sensor reporting water NOW | `#35d6c2` aqua | far from both ramp arms; reads as "live water" |
+| station with water on the tracks (MTA) | `#ffc447` amber | the page's existing `.warn` family (`#ffcf87`) |
+| stop or Cell with a flood record | `#8f7bd6` violet | recedes; it is history, not an alarm |
+| a GATED layer's chip | `#d2a24c` | dark, not absent |
+
+**MUST for the build — the grey collision the prototype exposed.** A dry/stale FloodNet
+sensor and a dimmed live vehicle currently both render at `#3a4049`, which is ALSO the
+"absent property" Cell fill, and at 2.6 px they are indistinguishable (visible in variant B's
+full-density shot). Three meanings on one grey is one too many: give the dry/stale sensor a
+hollow ring (stroke only, no fill) so "sensor present, no water" reads as a different MARK
+rather than a different grey.
+
+### D3 — Layer order, declared at boot, ambient at the bottom and urgent on top.
+
+`bg` · `zones-fill` · **`cells`** (delay fill) · **`impact-fill`** · `cells-line` ·
+`impact-line` · `zones-line` · `locate` · **`live`** · **`hist`** · **`fn`** · **`mta`**.
+Vehicles are ambient and sit under the flood facts; the MTA alert marker is the single most
+urgent thing on the map and sits on top. Every one of them is declared at boot with an empty
+`FeatureCollection` + `visibility:"none"`, and `promoteId` is off everywhere (ticket 01).
+
+### D4 — An "affected" station marker is a dot on the COMPLEX, not on the chip or the alert.
+
+A `flood_truth` chip is per-INCIDENT and spans one or more complexes, so the chip is what the
+CARD shows and the **complex** is what the map marks: amber, radius 7, dark stroke.
+This requires coordinates the chip does not carry — written onto flood 15 as a MUST
+(`e61a98d`).
+
+### D5 — The record opens in a card that SHARES the right column, and never floats over it.
+
+Click (not hover — touch parity). The card carries: title with an `asset_id` fallback for
+unnamed assets, then `kind` + `asset_id`, `n_events`, `label_version`, the last 8 events
+newest-first with `event_class` / `flood_cause` / `event_source_counts` / `label_support`,
+and the "counts are city-wide at EVENT grain" caveat. **It does not float.** The prototype
+first pinned it over the layer panel and it covered the freshness rows it had been opened
+from; the fix is the mechanism `web/app.css` already uses for `#left` — a flex COLUMN where
+the layer panel and the card shrink against each other. A floating card is the wrong shape
+on a page whose panels are the other half of the answer.
+
+### D6 — Freshness renders a row PER SOURCE, and the vocabulary needs a FIFTH state.
+
+Ticket 01's `FRESH / STALE(+reason) / OFF / GATED` plus **`AGE`** — age known, no budget
+frozen. Counted off the running page: the map has **9 sources**, the repo's two frozen
+constants (`STALE_AFTER_S.live = 120`, `flood_truth.py:54`'s `MAX_AGE_MIN = 10`) cover **3**
+of them, and the other **6** can only honestly show an age. Guessing a threshold, or painting
+an unbudgeted layer FRESH, are both worse. Rows collapse when a layer is OFF; the reason
+string sits under the chip. flood 15 owes the budgets as constants (`e61a98d`).
+
+### D7 — Mobile: the panel set does NOT have to collapse. The MAP is what does not scale.
+
+`web/app.css:69`'s 900px rule survives seven toggles and their freshness rows — measured at
+375px, A is roughly 4,500 px of scroll, B ~4,000 (the grid is the most compact panel), C
+~6,000. Nothing overlaps and nothing is unreachable. **What does not survive is the 60vh map
+strip:** at 375px it carries about two layers legibly, so at <= 900px the build opens with
+the Cell fill on and every POINT layer off, and the user adds them one at a time.
+
+### D8 — Two build MUSTs the prototype only found by being clicked.
+
+1. **Rebuilding the panel's `innerHTML` on every toggle destroys every checkbox**, so a
+   keyboard user loses focus on each one. `web/app.js:194-201` already solves exactly this
+   for the hour buttons by restoring focus after the rebuild — do the same, or patch rows in
+   place instead of re-rendering the list.
+2. **Nothing may be positioned against a guessed `#provenance` height.** The strip is
+   mode-invariant (a section 9 condition), its height changes with the attribution text and
+   with every width, and a hard-coded clearance put the seventh toggle UNDERNEATH it where a
+   real click never reached it (caught by a hit-test, not by eye — it looked fine).
+   `web/app.css:24`'s `bottom: 84px` on `#left` is that same guess. Measure the strip and
+   drive the columns off the measurement.
+
+### What was NOT chosen, and what is worth stealing from it
+
+B and C stay on the branch as the primary source. From **C**, worth carrying into A later if
+the map gets crowded: the ranked ledger and hover-to-locate are a better answer than a marker
+for "7,955 assets have a record", and C is the only variant where a record never covers the
+map. From **B**: its 4-column freshness grid is the most compact panel of the three and is
+the right shape if A's stacked rows get too long at seven layers.
