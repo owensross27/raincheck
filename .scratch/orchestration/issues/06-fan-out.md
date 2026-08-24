@@ -17,3 +17,38 @@ measured case this exists for: a 7-day catch-up that ran serially in one session
 - [ ] An expansion to zero days is a clean skip and the run stays green — a morning with no gaps is not an alert
 - [ ] A killed mapped events task is safe to re-run (dynamic partition overwrite is already configured in the session factory)
 - [ ] The structure test asserts the three mapped stages are mapped and the rollup is not
+
+## From orch 05's landing (2026-08-24, `orch05-nightly-dag`, `0e2dc1b`) — extend, do not rebuild
+
+`dags/raincheck_daily.py` already exists and already builds its nine tasks by LOOPING the
+declaration. Map by expanding that loop; write no second graph.
+
+- The three readers, all in `dags/raincheck_stage.py`: **`stages()`** returns
+  `daily.STAGES` as dicts (`name, entrypoint, retry, soft, fanout, argv`) by ast-parsing
+  `src/raincheck/daily.py`, which `docker/Dockerfile` bakes beside the DAGs — the DAG image
+  has no `raincheck` package and a DAG may not import one. **`command(stage)`** is the
+  stage's process form (`argv` -> `module(*argv)`, else its make target).
+  **`shape_of(name)`** is the pod shape, read from the placement table's own
+  `raincheck.io/stages` annotation. Your fan-out axis is already in the dict:
+  `stage["fanout"]` is `kind` / `service_date` / `month` / None.
+- **Task ids today, in declared order:** `gapfill · gapverify · gapcheck · coldpush ·
+  coldcheck · events · precip · prune · report`. Linear, every edge `all_done`, `report`
+  last, `trigger_rule="all_done"` on every task.
+- **`gold` is YOURS to add.** Ticket 05 deliberately did not add it: there `events` runs
+  `python -m raincheck.daily events` = `daily.build`, which already reduces over
+  `months(built)` inside the one pod. The moment `events` is one pod per Service date, that
+  reduce has to come out — and `daily.build`'s own day loop is exactly what you replace.
+- **The report task already reads mapped tasks; do not invent a channel.** It runs
+  `module("daily", "report", "{{ ti.get_task_breadcrumbs(ti.dag_id, ti.run_id) | tojson }}")`.
+  That SDK call returns one row per FINISHED task —
+  `{task_id, map_index, state, operator, duration}` — so a mapped index arrives with its own
+  `map_index`, and `daily.report` already prints it as `<stage> <index>`. "Only the
+  successfully built days" is therefore answerable from those rows (`state == "success"`),
+  with no XCom.
+- **Retry classes are `RETRIES` in the DAG file**, keyed by the declaration's `retry`:
+  transport is 3 with exponential backoff (2 min -> 20 min cap), gate is 0.
+- **`raincheck_daily` is PAUSED on the cluster and must stay paused** until the pods'
+  `RAINCHECK_ARCHIVE_ROOT` stops being the `/staging` emptyDir (ticket 12's cutover). Prove
+  the fan-out with a manual run of a smoke-shaped DAG, never by unpausing the nightly.
+- **A DAG change is an IMAGE BUILD**: `scripts/cloud-image.sh` (both tags) plus both pins
+  committed. There is no git-sync.
