@@ -1,0 +1,208 @@
+{
+    "SecurityGroups": [
+        {
+            "GroupId": "sg-0c610cd458155ee42",
+            "IpPermissionsEgress": [
+                {
+                    "IpProtocol": "-1",
+                    "UserIdGroupPairs": [],
+                    "IpRanges": [
+                        {
+                            "CidrIp": "0.0.0.0/0"
+                        }
+                    ],
+                    "Ipv6Ranges": [],
+                    "PrefixListIds": []
+                }
+            ],
+            "Tags": [
+                {
+                    "Key": "alpha.eksctl.io/cluster-oidc-enabled",
+                    "Value": "true"
+                },
+                {
+                    "Key": "aws:cloudformation:stack-name",
+                    "Value": "eksctl-raincheck-cluster"
+                },
+                {
+                    "Key": "alpha.eksctl.io/cluster-name",
+                    "Value": "raincheck"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "eksctl-raincheck-cluster/ControlPlaneSecurityGroup"
+                },
+                {
+                    "Key": "eksctl.cluster.k8s.io/v1alpha1/cluster-name",
+                    "Value": "raincheck"
+                },
+                {
+                    "Key": "alpha.eksctl.io/eksctl-version",
+                    "Value": "0.229.0-dev+489531af5.2026-07-01T23:39:06Z"
+                },
+                {
+                    "Key": "aws:cloudformation:stack-id",
+                    "Value": "arn:aws:cloudformation:us-east-1:384555717200:stack/eksctl-raincheck-cluster/b05fa210-9f55-11f1-a0db-0ea65dbbadeb"
+                },
+                {
+                    "Key": "Project",
+                    "Value": "raincheck-cloud"
+                },
+                {
+                    "Key": "aws:cloudformation:logical-id",
+                    "Value": "ControlPlaneSecurityGroup"
+                }
+            ],
+            "VpcId": "vpc-049a68bf6017d6ead",
+            "SecurityGroupArn": "arn:aws:ec2:us-east-1:384555717200:security-group/sg-0c610cd458155ee42",
+            "OwnerId": "384555717200",
+            "GroupName": "eksctl-raincheck-cluster-ControlPlaneSecurityGroup-oSE8V5AOI0rO",
+            "Description": "Communication between the control plane and worker nodegroups",
+            "IpPermissions": []
+        },
+        {
+            "GroupId": "sg-03b1743dee87eb474",
+            "IpPermissionsEgress": [
+                {
+                    "IpProtocol": "-1",
+                    "UserIdGroupPairs": [],
+                    "IpRanges": [
+                        {
+                            "CidrIp": "0.0.0.0/0"
+                        }
+                    ],
+                    "Ipv6Ranges": [],
+                    "PrefixListIds": []
+                }
+            ],
+            "Tags": [
+                {
+                    "Key": "alpha.eksctl.io/cluster-oidc-enabled",
+                    "Value": "true"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "eksctl-raincheck-cluster/ClusterSharedNodeSecurityGroup"
+                },
+                {
+                    "Key": "Project",
+                    "Value": "raincheck-cloud"
+                },
+                {
+                    "Key": "alpha.eksctl.io/cluster-name",
+                    "Value": "raincheck"
+                },
+                {
+                    "Key": "alpha.eksctl.io/eksctl-version",
+                    "Value": "0.229.0-dev+489531af5.2026-07-01T23:39:06Z"
+                },
+                {
+                    "Key": "aws:cloudformation:stack-name",
+                    "Value": "eksctl-raincheck-cluster"
+                },
+                {
+                    "Key": "aws:cloudformation:logical-id",
+                    "Value": "ClusterSharedNodeSecurityGroup"
+                },
+                {
+                    "Key": "aws:cloudformation:stack-id",
+                    "Value": "arn:aws:cloudformation:us-east-1:384555717200:stack/eksctl-raincheck-cluster/b05fa210-9f55-11f1-a0db-0ea65dbbadeb"
+                },
+                {
+                    "Key": "eksctl.cluster.k8s.io/v1alpha1/cluster-name",
+                    "Value": "raincheck"
+                }
+            ],
+            "VpcId": "vpc-049a68bf6017d6ead",
+            "SecurityGroupArn": "arn:aws:ec2:us-east-1:384555717200:security-group/sg-03b1743dee87eb474",
+            "OwnerId": "384555717200",
+            "GroupName": "eksctl-raincheck-cluster-ClusterSharedNodeSecurityGroup-uypNRFy4yIHu",
+            "Description": "Communication between all nodes in the cluster",
+            "IpPermissions": [
+                {
+                    "IpProtocol": "-1",
+                    "UserIdGroupPairs": [
+                        {
+                            "Description": "Allow nodes to communicate with each other (all ports)",
+                            "UserId": "384555717200",
+                            "GroupId": "sg-03b1743dee87eb474"
+                        },
+                        {
+                            "Description": "Allow managed and unmanaged nodes to communicate with each other (all ports)",
+                            "UserId": "384555717200",
+                            "GroupId": "sg-04b76aed2bb2fb61f"
+                        }
+                    ],
+                    "IpRanges": [],
+                    "Ipv6Ranges": [],
+                    "PrefixListIds": []
+                }
+            ]
+        },
+        {
+            "GroupId": "sg-04b76aed2bb2fb61f",
+            "IpPermissionsEgress": [
+                {
+                    "IpProtocol": "-1",
+                    "UserIdGroupPairs": [
+                        {
+                            "Description": "Allows EFA traffic, which is not matched by CIDR rules.",
+                            "UserId": "384555717200",
+                            "GroupId": "sg-04b76aed2bb2fb61f"
+                        }
+                    ],
+                    "IpRanges": [
+                        {
+                            "CidrIp": "0.0.0.0/0"
+                        }
+                    ],
+                    "Ipv6Ranges": [],
+                    "PrefixListIds": []
+                }
+            ],
+            "Tags": [
+                {
+                    "Key": "karpenter.sh/discovery",
+                    "Value": "raincheck"
+                },
+                {
+                    "Key": "kubernetes.io/cluster/raincheck",
+                    "Value": "owned"
+                },
+                {
+                    "Key": "Name",
+                    "Value": "eks-cluster-sg-raincheck-695028236"
+                },
+                {
+                    "Key": "aws:eks:cluster-name",
+                    "Value": "raincheck"
+                }
+            ],
+            "VpcId": "vpc-049a68bf6017d6ead",
+            "SecurityGroupArn": "arn:aws:ec2:us-east-1:384555717200:security-group/sg-04b76aed2bb2fb61f",
+            "OwnerId": "384555717200",
+            "GroupName": "eks-cluster-sg-raincheck-695028236",
+            "Description": "EKS created security group applied to ENI that is attached to EKS Control Plane master nodes, as well as any managed workloads.",
+            "IpPermissions": [
+                {
+                    "IpProtocol": "-1",
+                    "UserIdGroupPairs": [
+                        {
+                            "Description": "Allows EFA traffic, which is not matched by CIDR rules.",
+                            "UserId": "384555717200",
+                            "GroupId": "sg-04b76aed2bb2fb61f"
+                        },
+                        {
+                            "Description": "Allow unmanaged nodes to communicate with control plane (all ports)",
+                            "UserId": "384555717200",
+                            "GroupId": "sg-03b1743dee87eb474"
+                        }
+                    ],
+                    "IpRanges": [],
+                    "Ipv6Ranges": [],
+                    "PrefixListIds": []
+                }
+            ]
+        }
+    ]
+}

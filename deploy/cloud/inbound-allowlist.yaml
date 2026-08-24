@@ -1,0 +1,79 @@
+# Cloud ticket 07 - every inbound rule the raincheck cluster's security groups are
+# allowed to carry. This file is the declared intent; scripts/inbound-audit.py compares
+# it against what AWS actually has and exits 1 on any difference.
+#
+# WHY A FILE AND NOT A PARAGRAPH: there is no NAT Gateway (it would cost ~$32/mo against
+# a $130 envelope), so the nodes are in PUBLIC subnets with PUBLIC IPs. Subnet placement
+# is not what keeps the internet out - these security groups are, together with the
+# absence of any LoadBalancer/NodePort Service. That makes the SG contents a load-bearing
+# invariant, and load-bearing invariants get audited, not remembered.
+#
+# MEASURED 2026-08-24 (ticket 07, read-only): all three cluster SGs carry ZERO CIDR
+# sources. sg-0c610cd458155ee42 has no inbound rules at all.
+
+cluster: raincheck
+region: us-east-1          # NOTE: the Mac's default aws region is us-east-2. Every
+                           # command against this cluster needs --region us-east-1.
+vpc: vpc-049a68bf6017d6ead
+
+# The audit covers every SG in the VPC carrying any of these tag keys. An ELB-created SG
+# would be tagged kubernetes.io/cluster/raincheck and so could not hide from the audit -
+# though a LoadBalancer Service is banned outright, and the manifest test enforces that.
+discovery_tag_keys:
+  - kubernetes.io/cluster/raincheck
+  - karpenter.sh/discovery
+  - alpha.eksctl.io/cluster-name
+
+# Inbound from another security group is the only permitted shape. Anything sourced from
+# a CIDR is a regression unless it appears under cidr_exceptions below (which is empty,
+# and the test asserts it stays empty).
+allowed_source_security_groups:
+  - id: sg-04b76aed2bb2fb61f
+    name: eks-cluster-sg-raincheck-695028236
+    why: "node <-> node and node <-> control plane; the SG references itself [ticket 01]"
+  - id: sg-03b1743dee87eb474
+    name: eksctl-raincheck-cluster-ClusterSharedNodeSecurityGroup
+    why: "eksctl's shared node SG - managed and unmanaged nodes to each other [ticket 01]"
+  - id: sg-0c610cd458155ee42
+    name: eksctl-raincheck-cluster-ControlPlaneSecurityGroup
+    why: "eksctl control-plane SG; carries no inbound rules of its own [ticket 01]"
+
+# Ticket 02's box -> broker rule is the ONE permitted addition to this list. It is not
+# here yet because cloud 02 had not landed when this file was written; cloud 02 adds its
+# entry here in the same commit as the rule, or the audit goes red - which is the point.
+#
+# HAZARD FOR CLOUD 02, MEASURED 2026-08-24: the capture box (i-098a6ea89c4b15502,
+# 172.31.66.109) carries sg-0cb33dca0ac107599 "lewis-signs-dev-sg" - a SHARED dev SG that
+# a SECOND, unrelated instance also uses (i-0a924268a565ad38a, vinylpig-staging), and
+# which itself allows 0.0.0.0/0 on tcp/443. Sourcing the broker rule from that SG grants
+# Kafka to vinylpig-staging as well. Source it from 172.31.66.109/32, or give the box its
+# own SG first - a /32 CIDR source is a cidr_exception below, deliberately reviewed.
+pending:
+  - ticket: cloud 02
+    rule: "capture box -> broker port, in-VPC private path, no external listener"
+
+# EMPTY, AND IT STAYS EMPTY. A CIDR source here is a reviewed exception with a ticket
+# number, not a convenience.
+cidr_exceptions: []
+
+# The two named future exceptions. NEITHER IS DRAWN. Nothing in deploy/k8s implements
+# them, and the manifest test asserts that (no Ingress, no LoadBalancer, no NodePort).
+reserved:
+  - name: static-host
+    ticket: cloud 09
+    status: not-cluster-ingress
+    detail: >-
+      The public map/dataset host is an R2 public bucket or a Pages-class static host.
+      It lives OUTSIDE the cluster entirely, so it is not cluster ingress and needs no
+      rule here. It is named only so nobody later mistakes it for one.
+  - name: notify-subscribe-ingress
+    ticket: notify 04
+    status: reserved-undrawn
+    detail: >-
+      A minimal subscribe endpoint, if it is ever built. notify 07 LANDED 2026-08-24 with
+      NO HTTP write path at all (operator CLI only), so this stays a reservation and
+      nothing is drawn for it.
+    reopens_when: >-
+      raincheck.notify_store.DEFERRAL_TRIGGER - the first non-tester subscriber, 25
+      entries in the store, or a public announcement of the map page. Whichever fires
+      first arrives as its own reviewed decision, not as an edit to this file.

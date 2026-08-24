@@ -193,3 +193,11 @@ bill-review:  ## one month of Project=raincheck-cloud spend vs the $130 envelope
 
 downscale:  ## the two-EC2 escape hatch (make downscale [DO=plan|up|run|down] [BOX=floor|build]); plan touches no AWS
 	scripts/downscale.sh $(or $(DO),plan) $(BOX)
+
+# --- cloud ticket 07: the AWS half of "no inbound from the internet" ---------------
+# The manifest test covers the Kubernetes half with no cluster; security groups live in
+# AWS where no test can see them, and with no NAT Gateway they are what keeps the
+# internet out. rc 0 clean, 1 violations, 2 INCONCLUSIVE (the describe itself failed).
+.PHONY: inboundaudit
+inboundaudit:  ## cluster security groups vs deploy/cloud/inbound-allowlist.yaml (needs AWS creds)
+	$(PY) scripts/inbound-audit.py
