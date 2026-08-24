@@ -98,14 +98,23 @@ def test_as_root_is_a_drop_in_for_Path_at_a_join_site(tmp_path):
     assert as_root(RemotePath(BUCKET)) == RemotePath(BUCKET)
 
 
+# NARROWED by cloud 13, deliberately and by exactly five names. `mkdir`, `touch`,
+# `write_text` and `write_bytes` were converted (a whole-object PUT is atomic on a store,
+# and there are no directories to create), and `unlink` was never needed by a converted
+# site so it stays refusing. What must NOT erode is the DEFAULT, and the list below is
+# still what pins it: `replace`/`rename` above all, because an object store has no rename
+# and a writer reaching for one has a POSIX atomicity story the store cannot honour.
+# tests/test_object_store_writes.py carries the other half - the converted ops, named, so
+# widening this is a deliberate edit in two files rather than a drive-by in one.
 @pytest.mark.parametrize("op", [
-    "mkdir", "touch", "unlink", "rmdir", "replace", "rename", "is_dir", "is_file",
-    "iterdir", "read_text", "write_text", "read_bytes", "write_bytes", "stat", "open",
+    "unlink", "rmdir", "replace", "rename", "is_dir", "is_file",
+    "iterdir", "read_text", "read_bytes", "stat", "open",
     "resolve", "relative_to", "with_name", "samefile"])
 def test_every_other_path_operation_refuses_loudly(op):
     """The default is refusal, not a local answer: anything not implemented on RemotePath
-    raises, so a POSIX-only stage (precip_live's mkdir/replace/rmtree, events' one_file)
-    fails at its first write instead of half-writing somewhere nobody looks."""
+    raises, so a POSIX-only stage (precip_live's replace/rmtree, export's tmp.replace)
+    fails at its first unconvertible write instead of half-writing somewhere nobody
+    looks."""
     with pytest.raises(NotImplementedError, match="object storage"):
         getattr(RemotePath(BUCKET) / "live", op)()
 

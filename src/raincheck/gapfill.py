@@ -304,10 +304,18 @@ def fill_day(root: Path, kind: str, day: str) -> bool:
                     continue
                 table = mapper(pf.read_row_groups(idxs, columns=RAW_COLS[feed_type]))
                 table = table.sort_by([(KEY[kind], "ascending"), ("fetched_at", "ascending")])
-                out.parent.mkdir(parents=True, exist_ok=True)
-                pq.write_table(table, out, compression="zstd")
+                out.parent.mkdir(parents=True, exist_ok=True)   # remote: nothing to create
+                buf = pa.BufferOutputStream()                   # one whole-object write, so
+                pq.write_table(table, buf, compression="zstd")  # an R2 root gets one PUT
+                out.write_bytes(buf.getvalue())
                 written[hh] = written.get(hh, 0) + 1
     if all_ok:
+        # THE MARKER IS LAST, and this ordering is the contract, not tidiness (cloud 09's
+        # frozen pattern, and the reason cloud 13 did not need a lock on an object store):
+        # missing_hours() treats a marker-less hour as still missing, so an interrupted
+        # fill leaves parts behind that the next run overwrites, while a marker written
+        # first would retire an hour that was never filled. Pinned, mutation-checked, by
+        # tests/test_object_store_writes.py.
         for hh in written:
             (date_dir / f"hour={hh}" / "_gapfill").touch()
     print(f"gapfill {kind} {day}: filled {len(written)}/{len(hours)} missing hours"

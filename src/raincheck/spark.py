@@ -28,6 +28,18 @@ PACKAGES = (
     "org.datasyslab:geotools-wrapper:1.9.1-33.5",
     "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.3",
 )
+# s3a, needed only when the root is an object store. The IMAGE has always baked these
+# (docker/Dockerfile's RAINCHECK_JARS) but the Maven fallback did not list them, so
+# `spark.write.parquet("s3a://...")` worked in a pod and died on this Mac with a
+# ClassNotFound - which is why cloud 12 could only ever prove READS from here. Same
+# version pairing as the Dockerfile and for the same reason: hadoop-aws must match the
+# Hadoop pyspark 3.5.3 ships (3.3.4) and the sdk bundle must match that hadoop-aws.
+# Added by the endpoint switch, not unconditionally: a run with no R2 root should not
+# resolve 300 MB of AWS SDK to read local disk.
+S3A_PACKAGES = (
+    "org.apache.hadoop:hadoop-aws:3.3.4",
+    "com.amazonaws:aws-java-sdk-bundle:1.12.262",
+)
 
 
 def jars_baked() -> bool:
@@ -38,7 +50,8 @@ def jars_baked() -> bool:
     others. Ivy prefixes the groupId onto the filename, hence the leading `*`."""
     import pyspark
     jars = Path(pyspark.__file__).parent / "jars"
-    return all(any(jars.glob(f"*{p.split(':')[1]}-*.jar")) for p in PACKAGES)
+    return all(any(jars.glob(f"*{p.split(':')[1]}-*.jar"))
+               for p in (*PACKAGES, *S3A_PACKAGES))
 
 
 def java_home() -> str | None:
@@ -80,15 +93,23 @@ def session(ui: bool = False) -> SparkSession:
         # never reach the driver - and spark-submit already sets the right address.
         builder = (builder.config("spark.driver.bindAddress", "127.0.0.1")
                           .config("spark.driver.host", "127.0.0.1"))
-    if not jars_baked():
-        builder = builder.config("spark.jars.packages", ",".join(PACKAGES))
     endpoint = os.environ.get("AWS_ENDPOINT_URL")
+    if not jars_baked():
+        builder = builder.config(
+            "spark.jars.packages", ",".join((*PACKAGES, *(S3A_PACKAGES if endpoint else ()))))
     if endpoint:  # R2 over s3a (cloud 03/07). Credentials come from the r2-build Secret
         builder = (  # via envFrom, so the env provider - never a key in a config line.
             builder.config("spark.hadoop.fs.s3a.endpoint", endpoint)
             .config("spark.hadoop.fs.s3a.path.style.access", "true")
+            # AWS SDK **v1**'s env provider, because that is what hadoop-aws 3.3.4 ships
+            # against (aws-java-sdk-bundle 1.12.262). The v2 spelling
+            # `org.apache.hadoop.fs.s3a.auth.EnvironmentVariableCredentialsProvider` does
+            # not exist in this Hadoop and dies at s3a OPEN time with ClassNotFoundException
+            # - never at config time - so it was configured, shipped and pinned by nothing
+            # until cloud 13 first actually ran a Spark job against R2. Still the env
+            # provider, so a key never appears in a config line, in argv or in a traceback.
             .config("spark.hadoop.fs.s3a.aws.credentials.provider",
-                    "org.apache.hadoop.fs.s3a.auth.EnvironmentVariableCredentialsProvider")
+                    "com.amazonaws.auth.EnvironmentVariableCredentialsProvider")
             # R2 has no regions and rejects AWS's default v4 signing region probe
             .config("spark.hadoop.fs.s3a.endpoint.region", os.environ.get("AWS_DEFAULT_REGION") or "auto"))
     return SedonaContext.create(builder.getOrCreate())

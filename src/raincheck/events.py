@@ -22,14 +22,13 @@ silver/events_view.sql           06's names (pass_lo_ts, pass_hi_ts, sched_ts,
 Run: make events DATE=YYYY-MM-DD   (python -m raincheck.events YYYY-MM-DD)
 """
 import argparse
-import shutil
 import sys
 from datetime import date, timedelta
 from pathlib import Path
 
-import pyarrow.parquet as pq
 from pyspark.sql import DataFrame, Window, functions as F
 
+from raincheck import paths
 from raincheck.enrich import (PASSAGE_KEY, ceil_hour, legs, passages_matched,
                               passages_observed, sched_ts)
 from raincheck.paths import data_root
@@ -69,14 +68,24 @@ def bronze_vp(root: Path, spark, day: str) -> DataFrame:
 
 
 def one_file(root: Path, name: str, day: str, df: DataFrame, sort: list[str]) -> Path:
-    """Write one sorted file per service_date partition through .staging (idempotent)."""
+    """Write one sorted file per service_date partition through .staging (idempotent).
+
+    Works on an object-store root too [cloud 13], unforked: Spark already writes s3a, and
+    the two POSIX calls around it go through `paths.move`/`paths.rmtree`, which are a
+    server-side copy and a prefix delete out there. That ordering IS the atomicity story -
+    cloud 09's DATA FIRST, MARKER LAST - because `out` is exactly the object daily.gaps()
+    tests for: everything the partition needs is complete in .staging (invisible: gaps()
+    looks under silver/, never .staging/) before the ONE copy publishes it, so an
+    interrupted run leaves the day reading UNBUILT and the next run rebuilds it. Cleanup
+    is last and its failure cannot un-publish the partition, only leave staging debris
+    that the next run overwrites."""
     staging = root / ".staging" / f"{name}_{day}"
     df.coalesce(1).sortWithinPartitions(*sort).write.mode("overwrite").parquet(str(staging))
     out = root / "silver" / name / f"service_date={day}" / "part-00000.parquet"
     out.parent.mkdir(parents=True, exist_ok=True)
     (part,) = staging.glob("part-*.parquet")
-    shutil.move(part, out)
-    shutil.rmtree(staging)
+    paths.move(part, out)
+    paths.rmtree(staging)
     return out
 
 
@@ -107,7 +116,7 @@ def loaded_picks(root: Path) -> list[dict]:
     picks_ref = root / "ref" / "picks"
     if not picks_ref.exists():
         return []
-    rows = pq.read_table(picks_ref).to_pylist()
+    rows = paths.read_table(picks_ref).to_pylist()
     return [r for r in rows
             if all((root / "silver" / t / f"pick_id={r['pick_id']}").exists()
                    for t in SCHED_TABLES)]
@@ -188,7 +197,7 @@ def warn_unloaded(root: Path, day: str) -> None:
         return
     d = date.fromisoformat(day)
     loaded = {p["pick_id"] for p in loaded_picks(root)}
-    missing = [r for r in pq.read_table(picks_ref).to_pylist()
+    missing = [r for r in paths.read_table(picks_ref).to_pylist()
                if r["pick_id"] not in loaded and r["feed"] != "subway"
                and r["earliest_calendar_date"] and r["latest_calendar_date"]
                and r["earliest_calendar_date"] <= d <= r["latest_calendar_date"]]
