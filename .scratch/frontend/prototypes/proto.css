@@ -1,0 +1,98 @@
+/* THROWAWAY. Loads web/app.css first and only adds what the three variants need.
+   Nothing here is a proposal for web/app.css -- the prototype is not the implementation. */
+
+:root {
+  /* the two FROZEN ramps stay in proto.js (RATIO_STOPS). These are the NEW hues the
+     variants propose, chosen so no flood colour lands on the speed ramp's two arms: */
+  --water:  #35d6c2;   /* FloodNet: water detected now         (aqua)   */
+  --alert:  #ffc447;   /* MTA alert chip: water on the tracks  (amber -- the page's existing .warn family) */
+  --hist:   #8f7bd6;   /* flood history on record              (violet) */
+  --gated:  #6b5a2f;   /* the MTA gate: dark, not empty                 */
+}
+
+/* ---------------------------------------------------------------- the variant switcher */
+#switch { position: fixed; z-index: 9; left: 50%; top: 12px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 2px; background: #f2f5f8; color: #10131a;
+  border-radius: 999px; padding: 4px; box-shadow: 0 6px 26px rgba(0,0,0,.6); font-size: 12px; }
+#switch button { border: 0; background: transparent; color: inherit; font: inherit;
+  border-radius: 999px; padding: 6px 11px; cursor: pointer; min-height: 30px; }
+#switch button:hover { background: #dbe3ec; }
+#switch .name { padding: 0 10px; font-weight: 650; white-space: nowrap; }
+#switch .on { background: #10131a; color: #f2f5f8; }
+#switch a { color: inherit; text-decoration: none; }
+
+/* ------------------------------------------------------------- shared freshness chips */
+.st { font-size: 10px; font-weight: 700; letter-spacing: .05em; padding: 1px 5px;
+  border-radius: 4px; border: 1px solid currentColor; white-space: nowrap; }
+.st-FRESH { color: #6fd18c; }
+.st-STALE { color: #ffcf87; }
+.st-OFF   { color: var(--dim); }
+.st-GATED { color: #d2a24c; }
+.st-AGE   { color: #7f93ad; }          /* age known, no budget frozen -> no verdict */
+.src { color: var(--dim); font-size: 11px; display: flex; gap: 6px; align-items: baseline;
+  justify-content: space-between; padding: 1px 0; }
+.src b { font-weight: 500; color: #b9c3d0; }
+
+/* a gated layer is DARK, not missing: the row stays, the box is disabled, the reason shows */
+.gated { opacity: .72; }
+.gated input { cursor: not-allowed; }
+
+/* ------------------------------------------------------------------ A: stacked rows */
+#layers { top: 12px; right: 12px; width: 320px; max-height: calc(100vh - 110px); overflow-y: auto; }
+.lyr { border-top: 1px solid var(--line); padding: 7px 0; }
+.lyr:first-of-type { border-top: 0; }
+.lyr label { display: flex; gap: 7px; align-items: baseline; cursor: pointer; }
+.lyr .nm { flex: 1; }
+.grp { margin: 4px 0 2px; }
+.grp .lbl { margin: 8px 0 2px; }
+
+/* ------------------------------------------------------------------- B: dense grid */
+#grid { top: 12px; right: 12px; width: 340px; max-height: calc(100vh - 110px); overflow-y: auto; }
+#grid table { border-collapse: collapse; width: 100%; font-size: 11px; }
+#grid th { text-align: left; color: var(--dim); font-weight: 600; font-size: 10px;
+  text-transform: uppercase; letter-spacing: .06em; padding: 2px 4px; border-bottom: 1px solid var(--line); }
+#grid td { padding: 3px 4px; border-bottom: 1px solid #1c212a; vertical-align: top; }
+#grid td.n { color: #b9c3d0; }
+#grid tr.gated td { opacity: .7; }
+#grid .sub { color: var(--dim); font-size: 10px; }
+
+/* --------------------------------------------------------------------- C: the ledger */
+#ledger { position: static; overflow-y: auto; flex: 1 1 auto; min-height: 140px; }
+.led { border-top: 1px solid var(--line); padding: 6px 0; cursor: pointer; }
+.led:first-child { border-top: 0; }
+.led:hover, .led[aria-expanded="true"] { background: #151a21; }
+.led .hd { display: flex; gap: 8px; align-items: baseline; }
+.led .hd b { flex: 1; font-weight: 550; font-size: 12px; }
+.led .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.led .detail { display: none; margin-top: 6px; }
+.led[aria-expanded="true"] .detail { display: block; }
+.sec { margin-top: 10px; }
+.sec > .lbl { display: flex; justify-content: space-between; align-items: baseline; }
+
+/* ------------------------------------------------------------------- the click card */
+#card { display: none; position: absolute; z-index: 4; right: 12px; bottom: 96px; width: 320px;
+  max-height: 46vh; overflow-y: auto; }
+#card.on { display: block; }
+#card h3 { margin: 0 0 2px; font-size: 13px; }
+#card .x { position: absolute; top: 6px; right: 8px; background: none; border: 0;
+  color: var(--dim); font-size: 16px; cursor: pointer; line-height: 1; padding: 4px; }
+.ev { border-top: 1px solid var(--line); padding: 5px 0; font-size: 11px; color: #b9c3d0; }
+.ev .k { color: var(--dim); }
+
+/* ----------------------------------------------------------------------- the legend */
+#keys { position: static; overflow-y: auto; flex: 0 1 auto; max-height: 42%; }
+/* the provenance strip is three lines tall here (it names FloodNet too), so the left
+   column has to clear more than web/app.css's 84px or the legend is cut off */
+#left { bottom: 124px; }
+#keys .k { display: flex; gap: 6px; align-items: center; font-size: 11px; color: var(--dim);
+  padding: 1px 0; }
+#keys .sw { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+#keys .sw.sq { border-radius: 3px; }
+
+/* ------------------------------------------------------- 375px: what ticket 01 asked */
+@media (max-width: 900px) {
+  #layers, #grid { position: static; width: auto; max-height: none; margin: 12px; }
+  #card { position: static; width: auto; max-height: none; margin: 12px; }
+  #switch { top: 6px; font-size: 11px; }
+  #switch button { padding: 6px 8px; }
+}
