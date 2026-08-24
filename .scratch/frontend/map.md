@@ -51,6 +51,15 @@ layers).
 
 ## Decisions so far
 
+- 2026-08-24 · **/to-spec + /to-tickets RUN over this cleared map (Ross's
+  session, post wave-3 gate): the spec is `spec.md` (Status: ready-for-agent)
+  and the build is sliced into tracer-bullet tickets 05-08** — 05 seven-layer
+  chassis (unblocked) · 06 discovery file + contract (unblocked) · 07 history
+  layer + record card (05 + notify 05) · 08 flood tiers + impact live (05 +
+  flood 15 + flood 17). 05/06 are armed into wave 4 (boxes D/E in the
+  runbook's waves/wave-4.md); 07/08 slot ~wave 8. This map is an archive from
+  here — the spec and tickets are the live surface.
+
 - 2026-08-24 · ticket 04 (research) RESOLVED — Cloudflare Worker/R2 facts:
   Workers free tier 100k req/day / 10 ms CPU; CORS + per-object cache-control
   work on a public bucket WITHOUT a Worker; the edge cache fronts a
