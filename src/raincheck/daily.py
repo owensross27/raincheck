@@ -6,7 +6,9 @@ gap", not "yesterday": each stage is a catch-up over a bounded window, and a sec
 the same day is a no-op.
 
   gapfill    the Bronze hours the archiver slept through, from gtfsrt.io (ticket 20)
-  gapverify  those filled hours against their archiver neighbours (20)
+  gapverify  those filled hours against their archiver neighbours (20). Exits 2 -
+             INCONCLUSIVE - for a kind with no filled/captured pair to compare (02);
+             daily's own semantics are unchanged, so that counts as a failed stage
   gapcheck   what is still missing, per kind x closed day. Strictly AFTER the fill (20):
              the newest day or two legitimately fail until gtfsrt.io publishes them, and
              that exit 1 is the actionable signal - never allowlist it (gapfill.DEAD is
