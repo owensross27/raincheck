@@ -41,6 +41,7 @@ from pathlib import Path
 from typing import Callable, NamedTuple
 from zoneinfo import ZoneInfo
 
+from raincheck import paths
 from raincheck.paths import REPO, data_root
 
 WINDOW_DAYS = 14  # spec K: the gap scan is bounded
@@ -112,21 +113,28 @@ def gaps(root: Path, closed: date) -> list[str]:
     from whatever Bronze exists, and a day with both partitions is never revisited, so
     building one hour early buries a short day behind a green board. Deferring instead
     costs a morning - gapfill runs first, and the same scan retries every day of the
-    window - and it says so out loud each time."""
+    window - and it says so out loud each time.
+
+    This scan is a pure read of ~200 filesystem predicates per day, which on a POSIX root
+    is free and on an object store is one listing each. MEASURED against raincheck-bronze
+    [cloud 13]: the 14-day window is 1,960 store list calls / 231.1 s uncached. It runs
+    inside `paths.cached_listing`, which is a no-op on a local root and ONE recursive
+    listing on a remote one; nothing in here writes, so nothing can go stale under it."""
     out = []
-    for n in range(WINDOW_DAYS - 1, -1, -1):
-        day = (closed - timedelta(days=n)).isoformat()
-        if not any((root / "archive" / "vp" / f"date={day}").glob("hour=*/*.parquet")):
-            continue  # before capture, or a day we never saw at all - not ours to build
-        if all((root / "silver" / t / f"service_date={day}" / PART).exists() for t in SILVER):
-            continue
-        missing = unheld(root, day)
-        if missing:
-            print(f"daily: {day} deferred - {len(missing)} Bronze VP hour(s) not held yet "
-                  f"({missing[0]} .. {missing[-1]}); gapfill first, or hand-DEAD them if "
-                  f"gtfsrt.io never had them", flush=True)
-            continue
-        out.append(day)
+    with paths.cached_listing(root):
+        for n in range(WINDOW_DAYS - 1, -1, -1):
+            day = (closed - timedelta(days=n)).isoformat()
+            if not any((root / "archive" / "vp" / f"date={day}").glob("hour=*/*.parquet")):
+                continue  # before capture, or a day we never saw at all - not ours to build
+            if all((root / "silver" / t / f"service_date={day}" / PART).exists() for t in SILVER):
+                continue
+            missing = unheld(root, day)
+            if missing:
+                print(f"daily: {day} deferred - {len(missing)} Bronze VP hour(s) not held yet "
+                      f"({missing[0]} .. {missing[-1]}); gapfill first, or hand-DEAD them if "
+                      f"gtfsrt.io never had them", flush=True)
+                continue
+            out.append(day)
     return out
 
 

@@ -27,7 +27,6 @@ resumes it.
     make stream            resume from the checkpoint (or start at latest when there is none)
     make stream FRESH=1    discard the checkpoints and start at latest
 """
-import contextlib
 import json
 import os
 import shutil
@@ -38,6 +37,7 @@ from pathlib import Path
 
 from pyspark.sql import DataFrame, Window, functions as F
 
+from raincheck import paths
 from raincheck.enrich import with_cell, with_live_precip, with_zone
 from raincheck.paths import data_root
 from raincheck.spark import session, topic_schema
@@ -191,17 +191,25 @@ def resume_guard(root: Path, fresh: bool, now: datetime | None = None) -> None:
 
 def prune(root: Path, now: datetime | None = None) -> None:
     """48 h live retention = Kafka's (spec J): drop date=/hour= dirs older than the horizon
-    by name. Runs at stream start; `make daily` (ticket 15) calls it too."""
+    by name. Runs at stream start; `make daily` (ticket 15) calls it too.
+
+    CONVERTED for an object-store root [cloud 13], because `stream.py` already writes
+    live/ over s3a and retention that only runs on the Mac would let an R2 live/ grow
+    without bound. The comparison is on NAMES, so it never needed a filesystem; the two
+    calls that did now go through paths, where an hour is a prefix delete and the empty-day
+    sweep is a no-op out there (an object store cannot hold an empty directory - the day
+    stopped existing with its last hour). `precip_live` still writes live/precip_cell with
+    POSIX-only calls and is deliberately OUT of scope, so a shared live/ on R2 is this half
+    only."""
     cutoff = ((now or datetime.now(timezone.utc)) - timedelta(hours=RETENTION_H)).strftime(
         "date=%Y-%m-%d/hour=%H")
     for kind in TOPIC:
         table = root / "live" / kind
         for hour in table.glob("date=*/hour=*"):
             if f"{hour.parent.name}/{hour.name}" < cutoff:
-                shutil.rmtree(hour)
+                paths.rmtree(hour)
         for day in table.glob("date=*"):
-            with contextlib.suppress(OSError):  # swept empty; a non-empty day raises and stays
-                day.rmdir()
+            paths.rmdir_if_empty(day)  # swept empty; a non-empty day stays
 
 
 def main() -> None:
