@@ -201,3 +201,14 @@ downscale:  ## the two-EC2 escape hatch (make downscale [DO=plan|up|run|down] [B
 .PHONY: inboundaudit
 inboundaudit:  ## cluster security groups vs deploy/cloud/inbound-allowlist.yaml (needs AWS creds)
 	$(PY) scripts/inbound-audit.py
+
+# --- cloud ticket 09: the public static host ---------------------------------------
+# One family per invocation, each on its own cadence (see raincheck.publish). The bucket
+# is raincheck-public and never raincheck-bronze; the host lives OUTSIDE the cluster, so
+# nothing here touches kubectl and no cluster rule is drawn for it.
+# The module exits 3 when the MTA redistribution gate is closed - a designed state, not a
+# failure - but MEASURED: make flattens any recipe failure to its own rc 2, so anything
+# that has to tell "gated" from "broken" calls the module, never this target.
+.PHONY: publish
+publish:  ## publish one payload family to the public static host (make publish FAMILY=site|insight|live|docs|history [DRY=1])
+	$(PY) -m raincheck.publish --family $(FAMILY) $(if $(DRY),--dry-run)

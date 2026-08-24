@@ -459,10 +459,16 @@ envelope, keeping every unit of work exactly as it is today.
   | payload | writer | cadence |
   |---|---|---|
   | `live.geojson` + `meta.json` | live-export Deployment | 30 s |
-  | insight exports | `make export` behind the daily build | per build |
+  | insight exports — `cells.geojson`, `headline.json`, `zones.geojson` | `make export` behind the daily build | per build |
   | Great Expectations Data Docs | Airflow task | per run |
   | per-asset flood history | flood spine rebuild | per rebuild |
-  | `cells.geojson`, vendored MapLibre | deploy-time | rare |
+  | the page (`index.html`, `app.js`, `app.css`), vendored MapLibre | deploy-time | rare |
+
+  **Corrected 2026-08-24 [T9, measured against `src/raincheck/export.py`]:** `cells.geojson`
+  is per-BUILD, not deploy-time. `make export` writes it in the same all-three-or-none run
+  as `headline.json`, carrying per-window and per-storm-hour PROPERTIES, so publishing it
+  on the page's rare cadence would strand the map's colours a build behind its own
+  headline numbers. The deploy-time family is the page itself plus the vendored MapLibre.
 
 - **`live.geojson` falls on the derived side of the MTA line and is published**, with
   three constraints that keep it a view rather than a feed: current snapshot only
