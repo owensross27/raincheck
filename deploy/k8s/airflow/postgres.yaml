@@ -1,0 +1,120 @@
+# Cloud ticket 06 - Airflow's metadata database: an in-cluster Postgres StatefulSet.
+#
+# WHY IT IS HERE AND NOT THE CHART'S BUNDLED POSTGRES. The official Airflow chart ships a
+# Bitnami postgres subchart (`postgresql.enabled`) that its own docs call test-only. More
+# to the point, a subchart's objects are rendered by Helm, not by kustomize, so no
+# manifest test could ever see the three pins that make this database worth having:
+# gp3, the floor NodePool, and us-east-1f. `postgresql.enabled: false` in
+# deploy/airflow/values.yaml is the other half of this file.
+#
+# THE VOLUME IS THE ACCEPTANCE CRITERION. "Run history survives deleting the scheduler
+# pod" is really "run history is not in a pod at all" - it is in this PVC, which is
+# gp3 in us-east-1f, where the floor lives, because EBS is AZ-bound and cannot follow a
+# rescheduled pod into another zone (gp3-1f, deploy/k8s/kafka/storageclass.yaml, is
+# cluster-scoped and already enforces that with allowedTopologies).
+#
+# The password is NOT here: scripts/airflow-install.sh generates one and creates the
+# Secret `airflow-metadata-db` from a file, never from argv. The same Secret carries the
+# `connection` key the Helm chart reads (data.metadataSecretName), so the URI exists in
+# exactly one place.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: airflow-metadata-db
+  namespace: raincheck
+  labels:
+    app: airflow-metadata-db
+spec:
+  # Headless on purpose: this is a StatefulSet's stable identity, not a load-balanced
+  # endpoint. ClusterIP: None also means there is nothing to accidentally promote to a
+  # NodePort - see deploy/k8s/serviceaccounts.yaml on what "no inbound" rests on here.
+  clusterIP: None
+  selector:
+    app: airflow-metadata-db
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: airflow-metadata-db
+  namespace: raincheck
+  labels:
+    app: airflow-metadata-db
+spec:
+  serviceName: airflow-metadata-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airflow-metadata-db
+  template:
+    metadata:
+      labels:
+        app: airflow-metadata-db
+    spec:
+      # The floor, not burst: burst nodes are consolidated away when idle (1 m), which
+      # for a database means the volume is detached out from under it on a schedule.
+      nodeSelector:
+        raincheck.io/pool: floor
+      securityContext:
+        fsGroup: 70          # the alpine image's postgres user is uid/gid 70, not 999
+      containers:
+        - name: postgres
+          # Pinned to a patch version: `17` and `latest` both move under you, and an
+          # image that changes on a pod restart is a database that changes on a pod
+          # restart. IfNotPresent so a scheduler restart is not an image pull.
+          image: postgres:17.6-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: airflow
+            - name: POSTGRES_DB
+              value: airflow
+            # The image refuses to initialise into a non-empty directory, and an EBS
+            # volume arrives with lost+found in it. A subdirectory is the documented fix.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: airflow-metadata-db
+                  key: postgres-password
+          resources:
+            requests:
+              cpu: 250m         # the T1 requests table's "Airflow metadata Postgres" row
+              memory: 512Mi
+            limits:
+              memory: 512Mi
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "airflow", "-d", "airflow"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "airflow", "-d", "airflow"]
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          app: airflow-metadata-db
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        # gp3-1f carries tagSpecification_1 Project=raincheck-cloud, which is what keeps
+        # this volume inside the $130 budget filter (the CSI driver creates it, so the
+        # cluster's own tags never reach it).
+        storageClassName: gp3-1f
+        resources:
+          requests:
+            storage: 8Gi     # ~$0.64/mo. A nightly DAG's metadata is megabytes; this is slack.
