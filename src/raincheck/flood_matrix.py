@@ -79,8 +79,9 @@ EXPECT = {"out_of_footprint": 60, "not_analyzed": 745, "not_analyzed_in_matrix":
 # a GROUP BY over grade_ok children returns nothing for these, and gold/flood_exposure
 # mandates no NULL scores. Frozen by complex_id WITH the name each must still carry (the
 # flood_labels.OPENED precedent): the seven station NAMES are not unique — "86 St" alone
-# names five complexes, and a name match returns 18 — so a name-keyed gate would silently
-# assert nothing. The build re-derives the set and refuses to run if it moved.
+# names SIX complexes (38, 79, 158, 311, 397, 476 — re-measured 2026-08-24), and a name
+# match returns 18 — so a name-keyed gate would silently assert nothing. The build
+# re-derives the set and refuses to run if it moved.
 NO_GRADE_OK = {"59": "9 Av", "74": "18 Av", "75": "20 Av", "78": "Avenue U",
                "79": "86 St", "134": "Sutter Av", "299": "Dyckman St"}
 
