@@ -31,3 +31,45 @@ Spec: Real-time detector (tiers, logging/replay); Testing seam 2.
 - Per-event POD and raw FP for every fit-era event are already published in
   `per_event.<role>` of that JSON (location-blocked, out of fold) — the replay's offline
   side has a comparison set without recomputing one.
+
+
+## Inherited from flood 18's build (2026-08-24, `research/flood-18-replication.json`)
+
+**The 2026 sensitivity story is settled and it has one shape: the headline is ROBUST to the
+311 threshold and SENSITIVE to the label radius — and the raw CSI ranks the radius
+BACKWARDS.** Four alternate universes were rebuilt end to end (04 -> 05 -> 06 -> 08 -> 09)
+at 311 quantiles {0.975, 0.995} and label radii {50, 200} m around the frozen primary. Every
+one re-fired the gate as **MODEL**, so nothing below changes which model ships.
+
+- **311 threshold — mild.** +-2.5 percentiles of the daily-count distribution moves point CSI
+  by at most 0.0010 (0.0300 / **0.0310** / 0.0312 at q0.975 / q0.99 / q0.995) and cell CSI
+  by at most 0.0068. The event count moves a lot (243 / **206** / 196 events) and the
+  headline barely does.
+- **Label radius — the sensitive knob, and the trap.** Raw point CSI runs 0.0237 (50 m) /
+  **0.0310 (primary, 100 m)** / 0.0667 (200 m), which reads as "wider is twice as good".
+  Divided by each universe's OWN B0 — under location blocking B0 IS the base rate, B2 having
+  degenerated onto it — the lift runs **11.13x / 6.05x / 4.42x**: the widest radius has the
+  highest raw CSI and the LOWEST skill. 200 m nearly triples the point base rate (0.00512 ->
+  0.01509; positives 4,008 -> 11,818) because a 200 m circle round a doorway catches 311
+  reports from the next street. **The radius moves what "flooded" MEANS at point grain, not
+  how well the model finds it.**
+- **Never compare a CSI across universes without dividing by that universe's own base rate.**
+  This is the same monotone-in-alert-rate trap flood 09 had to correct in fold, one level up.
+  Any table you publish that ranks alternatives on raw CSI ranks them backwards.
+- **The radius is structurally INERT at Cell grain** (the cell branch attaches on
+  `a.cell = oe.cell`, no distance predicate): both radius universes' `fit_cell` rows are
+  BYTE-IDENTICAL to the primary's, cell CSI 0.1591 to four decimals. Verified, not assumed —
+  two real-root tests pin it, and their `fit_point` positives demonstrably move.
+- The primary is UNTOUCHED: `research/flood-09-fits.json` still stands at `fits_version`
+  **8050dfa41fc1** over `matrix_version` **8bc1e8912b1b**, point CSI 0.0310, cell 0.1591.
+  No number in flood 09's asset is superseded by this ticket.
+
+**What this means for YOUR verdict.** The threshold arm removes one live objection: the
+2010-2025 event universe your replay walks is not an artefact of where the 311 cut was put
+(+-2.5 percentiles barely moves the headline), so a "the events were chosen to flatter the
+model" reading is answered with measurement. The radius arm does NOT let you off the
+false-positive question and slightly sharpens it: at 200 m the point model looks twice as
+good on raw CSI while alarming 4.2x as often (alert rate 0.01108 -> 0.04664). Your
+"cutpoints confirmed, or v1 ships rank-only" call should be made on the FP volumes at the
+primary's 100 m labelling, with the note that a wider labelling would have inflated every
+headline you might otherwise have quoted in its favour.
