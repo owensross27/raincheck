@@ -448,7 +448,7 @@
     {
      "item": "The honest operating limitation is never stated",
      "severity": "low",
-     "why": "Under the no-daemon rule nothing computes unless the loop is running, so a 4 a.m. storm produces no live output and no truth-tier record at all. D10 concedes this for truth tiers in passing. One sentence in D11's fixed vocabulary should say the product is a page you open during a storm, not a service that watches \u2014 otherwise 'real-time detector' oversells what the rules permit."
+     "why": "Under the no-daemon rule nothing computes unless the loop is running, so a 4 a.m. storm produces no live output and no truth-tier record at all. D10 concedes this for truth tiers in passing. One sentence in D11's fixed vocabulary should say the product is [storm-page claim redacted \u2014 retired 2026-08-23 by notify 01; the frozen replacement is quoted in the flood spec's fixed-strings list] \u2014 otherwise 'real-time detector' oversells what the rules permit."
     }
    ]
   }

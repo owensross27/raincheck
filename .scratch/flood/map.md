@@ -122,7 +122,10 @@ it and `/to-tickets` slices the build.
 
 ## Out of scope
 
-- Alerting channels of any kind (standing rule).
+- Alerting channels of any kind (standing rule) — LIFTED for flood tiers only
+  (Ross's decision, 2026-08-23; scope, policy and message rules in
+  `.scratch/notify/spec.md` section 7). Non-flood alerting, bus delay included,
+  stays barred and would need its own validation and its own map.
 - A hydrodynamic sewer/inundation model (needs the unpublished DEP sewer
   network; the score is statistical/heuristic by design).
 - Commercial flood scores (First Street/ClimateCheck — gated, no public bulk).

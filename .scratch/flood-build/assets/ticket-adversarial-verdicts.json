@@ -43,7 +43,7 @@
           "ticket": "15",
           "severity": "should-fix",
           "claim": "Two of the panel's required honesty strings \u2014 \"trails the storm\" and rank-only/uncalibrated-in-v1 \u2014 are missing from ticket 15's fixed-strings list.",
-          "evidence": "Spec, Solution: the panel \"says plainly that it ranks where a flood report is likely, trails the storm, and is a page you open during a storm, not a service that watches.\" Further Notes: \"The live panel trails the storm, is rank-only and uncalibrated in v1.\" Ticket 15 lists headline, reporting-propensity sentence, Window-in-tier-label, within-Cell note, \"a page you open during a storm, not a service that watches\", and B2 alternates \u2014 grep for 'trails' and 'uncalibrated' across all tickets returns nothing.",
+          "evidence": "Spec, Solution: the panel \"says plainly that it ranks where a flood report is likely, trails the storm, and is [storm-page claim redacted \u2014 retired 2026-08-23 by notify 01; the frozen replacement is quoted in the flood spec's fixed-strings list].\" Further Notes: \"The live panel trails the storm, is rank-only and uncalibrated in v1.\" Ticket 15 lists headline, reporting-propensity sentence, Window-in-tier-label, within-Cell note, [storm-page claim redacted \u2014 retired 2026-08-23 by notify 01; the frozen replacement is quoted in the flood spec's fixed-strings list], and B2 alternates \u2014 grep for 'trails' and 'uncalibrated' across all tickets returns nothing.",
           "fix": "Add both strings to ticket 15's fixed-claims criterion and to the detector constants artifact string set in ticket 11."
         },
         {
@@ -241,7 +241,7 @@
           "ticket": "15",
           "severity": "nit",
           "claim": "Two of the panel's fixed honesty strings are missing from the claims bullet.",
-          "evidence": "Spec (Honesty clauses): \"The live panel trails the storm, is rank-only and uncalibrated in v1, and is a page you open during a storm, not a service that watches.\" Ticket 15's claims bullet lists the headline, the propensity sentence, the Window in the tier label, the within-Cell note, \"a page you open during a storm, not a service that watches\" and the B2 strings \u2014 but not \"trails the storm\" or \"rank-only and uncalibrated in v1\".",
+          "evidence": "Spec (Honesty clauses): \"The live panel trails the storm, is rank-only and uncalibrated in v1, and is [storm-page claim redacted \u2014 retired 2026-08-23 by notify 01; the frozen replacement is quoted in the flood spec's fixed-strings list].\" Ticket 15's claims bullet lists the headline, the propensity sentence, the Window in the tier label, the within-Cell note, [storm-page claim redacted \u2014 retired 2026-08-23 by notify 01; the frozen replacement is quoted in the flood spec's fixed-strings list] and the B2 strings \u2014 but not \"trails the storm\" or \"rank-only and uncalibrated in v1\".",
           "fix": "Add both strings to ticket 15's fixed-claims bullet."
         },
         {
