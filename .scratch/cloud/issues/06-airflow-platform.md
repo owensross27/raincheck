@@ -30,3 +30,17 @@ Expectations suites belong to `.scratch/orchestration/map.md`.
 
 Extends `tests/test_cluster_manifests.py`: the sum of container resource requests for the
 floor workloads fits the declared floor capacity.
+
+## Inherited from the wave-1 landing (2026-08-24, recorded by the gate)
+
+- **The floor is no longer empty**: cloud 02 put the Kafka broker (500m/1536Mi
+  request) and the Strimzi operator (100m/256Mi) on it, ns `kafka`. Count them in
+  the footprint arithmetic — `kubectl top nodes` gives the real remainder.
+- **Manifest-test seam**: ONE unioned tests/test_cluster_manifests.py (23 tests,
+  kustomize `rendered()` loader). Extend it, and list every manifest in
+  deploy/k8s/kustomization.yaml `resources:` or no test sees it.
+- **COST RULE (gate sweep)**: pin every chart image by tag/digest (no :latest —
+  standing trap) and keep pull policy at IfNotPresent; nothing pip/apt-installs at
+  container start — scheduler/webserver/worker pods restart routinely and a
+  per-start install bills on every one. Airflow task pods run the shared sha-tagged
+  image from cloud 03, which carries the repo already.

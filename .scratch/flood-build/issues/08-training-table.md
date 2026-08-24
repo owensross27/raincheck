@@ -30,3 +30,17 @@ Two measured facts that change this ticket's design:
    exclusion mask + 72 outside the study area entirely. (Corrects the 673 quoted
    mid-day on 2026-08-23, which was only the in-mask share; flood-03's ticket file
    carries the same breakdown.)
+
+## Inherited from the wave-1 landing (2026-08-24, recorded by the gate)
+
+- **Gate satisfied**: flood 05 is landed AND verified — tests/test_flood_labels.py
+  23/23 green inside the 557/0/0 landing suite, master `7b7bfc8`. The
+  gold/flood_labels contract you consume is now backed by a green run, not a claim.
+- **DuckDB read-path trap (this ticket reads several tables with `duck`)**: on this
+  DuckDB, `rel.arrow()` returns a LAZY RecordBatchReader on the relation's own
+  connection. Registering unconsumed readers back into that connection and querying
+  them DEADLOCKS at 0% CPU — this, not table size, was flood 05's ">400 s hang".
+  Consume readers immediately (`.read_all()`) or skip the bridge entirely with
+  `rel.select(...).create_view(name)`. Also `rel.query("t", sql)` lazily registers
+  the shared virtual name "t": two lazy `.query("t", ...)` relations on one
+  connection cross-bind — the second silently rebinds the first's "t".

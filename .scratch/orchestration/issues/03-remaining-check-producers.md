@@ -17,3 +17,14 @@ row-count check cannot see it, so the check has to assert columns are PRESENT.
 - [ ] A new era-column presence check emits rows asserting each verified Bronze bus reader's schema holds the era columns
 - [ ] That check fails against a reader configured without schema-union, and the ticket demonstrates that a row-count assertion does not catch the same case
 - [ ] Tests cover all three outcomes for each producer
+
+## Inherited from the wave-1 landing (2026-08-24, recorded by the gate)
+
+- **Gate satisfied**: orch 02 is landed (6a43e84, in the 557/0/0 suite at
+  `7b7bfc8`); consume `raincheck.checks` exactly as its RUN LOG entry states.
+- **DuckDB read-path trap (the era-column check reads Bronze with `duck`)**:
+  `rel.arrow()` is a LAZY RecordBatchReader on the relation's own connection —
+  registering unconsumed readers back and querying deadlocks at 0% CPU. Consume
+  with `.read_all()` or use `rel.select(...).create_view(name)`; two lazy
+  `rel.query("t", ...)` relations on one connection cross-bind. Mechanism in the
+  runbook's KNOWN TRAPS.

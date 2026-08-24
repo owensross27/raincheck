@@ -75,3 +75,29 @@ stage is re-implemented. **That safety net holds only as long as no ticket forks
 for the cluster.** Extends `tests/test_cluster_manifests.py`: every image is the one ECR
 repo pinned by tag with no `:latest`; block-volume claims attach only to single-writer
 workloads.
+
+## Inherited from the wave-1 landing (2026-08-24, recorded by the gate)
+
+- **The image build is unblocked**: the `eccodes>=2.47` fix (02404e6) is on master
+  at `7b7bfc8`. The old `>=2.48` pin resolved on NO platform (2.48.0 is the C
+  library's version, not the python package's) and would have failed this ticket's
+  first `pip install -e .` inside the image.
+- **The manifest-test seam is settled**: ONE unioned tests/test_cluster_manifests.py
+  (23 tests). Cloud 02's kustomize `rendered()` is the single loader; `docs()`
+  returns `list(rendered())`. Extend that file, and add EVERY manifest you write to
+  deploy/k8s/kustomization.yaml `resources:` — an unlisted file is a file no test
+  sees.
+- **COST RULE (from the gate's cost-driver sweep): nothing installs at pod start.**
+  Every recurring pod second is billed; setup belongs in the image layer, once per
+  git sha, not in the entrypoint, once per run. Concretely for this ticket:
+  (1) BAKE the Sedona/Kafka jars INTO the image — the repo's local session uses
+  `spark.jars.packages`, which only looks free on the Mac because ~/.ivy2 is warm;
+  on the cluster a fresh pod re-resolves against Maven Central per pod (slow starts,
+  repeated egress, and one Maven outage stops the nightly). `spark.jars` pointing at
+  baked paths, or jars copied into $SPARK_HOME/jars, never `spark.jars.packages` in
+  a pod. (2) Replace deploy/k8s/kafka/topics-job.yaml's `pip install confluent-kafka`
+  on a stock python image with this ticket's sha-tagged ECR image (already tasked —
+  now also a standing cost rule, since anything that reruns that Job pays the
+  install every time). (3) Close cloud 08's recorded deviation: downscale.sh's
+  `bootstrap()` venv-installs the repo on AL2023 per exercise; once the ECR tag
+  exists it becomes `docker run <ecr>:<sha> make <target>`.

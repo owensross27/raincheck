@@ -38,3 +38,21 @@ not a follow-up.
 
 STALE semantics unchanged [T14] — a dead exporter must still look dead, never like a quiet
 city.
+
+## Inherited from the wave-1 landing (2026-08-24, recorded by the gate)
+
+- **The network baseline you inherit is verified green**: `make inboundaudit` rc 0
+  at the gate (three cluster SGs, every rule allowlisted, zero CIDR sources). The
+  static host stays a NAMED NON-INGRESS exception in
+  deploy/cloud/inbound-allowlist.yaml `reserved:` — it needs no cluster rule and
+  you draw none; the manifest test asserts the reservation stays undrawn.
+- **The serve token still does not exist** ([YOU] item): build everything; the
+  first publish fails loudly until Ross mints `r2-serve` via cloud 07's procedure.
+  `scripts/r2-secrets.sh serve` refuses raincheck-bronze outright; if you rename
+  the public bucket, change the `raincheck.io/r2-bucket` annotation in
+  deploy/k8s/serviceaccounts.yaml in the same commit.
+- **COST RULE (gate sweep)**: the 30 s live.geojson cadence is a standing write
+  rate — R2 class-A operations every 30 s is the agreed price, but keep it to the
+  ONE small object per tick (no versioning, no history lifecycle, no per-tick
+  multipart); insight/history/Docs families publish on their own slower cadences,
+  never the 30 s tick.

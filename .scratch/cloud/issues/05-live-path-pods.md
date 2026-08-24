@@ -36,3 +36,19 @@ test**. What is needed is the manifest assertion that the pod really does call t
 extends `tests/test_cluster_manifests.py` with the CronJob's command **being**
 `python -m raincheck.precip_live` and `concurrencyPolicy: Forbid`. That assertion is the
 thing standing between this design and a shell one-liner that quietly drops catch-up.
+
+## Inherited from the wave-1 landing (2026-08-24, recorded by the gate)
+
+- **Manifest-test seam**: ONE unioned tests/test_cluster_manifests.py (23 tests,
+  kustomize `rendered()` loader). Your CronJob/Deployment assertions extend it, and
+  every manifest goes into deploy/k8s/kustomization.yaml `resources:`.
+- **COST RULE (gate sweep) — this ticket owns the highest-frequency workloads, so
+  it wears it hardest**: a 5-min CronJob fires ~8,640 times a month; NOTHING may
+  happen per tick that belongs in the image (no pip, no jar resolution, no
+  downloads — the sha-tagged image carries everything, `imagePullPolicy:
+  IfNotPresent` so a cached node never re-pulls). The same for the 30 s
+  export/detector loop: setup once at container start, work only per tick. A
+  per-tick install is a permanent, silent, recurring bill.
+- **Kafka addresses are frozen** (cloud 02, LIVE): in-cluster pods bootstrap
+  `raincheck-kafka-bootstrap.kafka.svc:9092`; 9094 is the capture box's listener
+  and advertises a name only the box resolves.

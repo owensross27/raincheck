@@ -18,3 +18,15 @@ typed errors, proven end to end on one query. Spec: sections 1 and 2; SEAM Q.
 - [ ] the fixture root contains real FloodNet, MTA-alert and subwaydata-derived rows, and the boundary test asserts `local` returns them while `public` does not — a fixture with no restricted rows fails this criterion, because the test would pass for the wrong reason
 - [ ] the fixture is built so that the wrong join (flood_obs to ref/assets) returns a detectably different answer than the right one
 - [ ] reads go through the existing DuckDB helpers (UTC session, `union_by_name`, hive keys as strings); no Spark on the read path
+
+## Inherited from the wave-1 landing (2026-08-24, recorded by the gate)
+
+- **Gate satisfied**: flood 05 verified at the gate (23/23 green in the 557/0/0
+  suite, master `7b7bfc8`); gold/flood_labels' shape is proven, positives only,
+  no `flooded` column.
+- **DuckDB read-path trap (the whole ticket is a DuckDB read path)**: `rel.arrow()`
+  is a LAZY RecordBatchReader on the relation's own connection — registering
+  unconsumed readers back and querying them deadlocks at 0% CPU. Use `.read_all()`
+  immediately or `rel.select(...).create_view(name)`; and never hold two lazy
+  `rel.query("t", ...)` relations on one connection (the shared virtual name "t"
+  rebinds). Full mechanism: KNOWN TRAPS in the runbook.
