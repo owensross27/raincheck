@@ -188,7 +188,16 @@ def decide(scores: np.ndarray, fold: np.ndarray, run: Mapping,
         if mode == OP_THRESHOLD:
             cut = run["thr"][f]
         else:
-            rate, ok = run["rate"][f], scores[m][np.isfinite(scores[m])]
+            # the budget is spent over the population the fold was FITTED on. For an
+            # unrestricted run that is the whole role, which is the operational read: one
+            # deployed cut, and a subpopulation takes whatever share of it its own scores
+            # earn. For a keep-restricted run (the bus-stop churn contrast) it is NOT: that
+            # fold picked its budget on entrance training rows, so spending it across the
+            # 502k bus rows it was told not to fit under-delivers the declared rate by
+            # 28-47% per fold and inflates the published churn delta ~2.5x. Measured.
+            pop = run.get("population")
+            b = m if pop is None else (m & pop)
+            rate, ok = run["rate"][f], scores[b][np.isfinite(scores[b])]
             cut = np.quantile(ok, 1.0 - rate) if rate > 0 and ok.size else math.inf
         pred[m] = (scores[m] >= cut).astype(float)
     return pred
@@ -404,7 +413,8 @@ def cv(rows: Rows, split: str, drop: Sequence[str] = (), lam: float | None = Non
         chosen.append(lam_f)
         insample.append(c)
     return {"oof": oof, "fold": fold, "thr": thr, "rate": rate, "lambdas": chosen,
-            "names": names, "in_fold_csi": insample}
+            "names": names, "in_fold_csi": insample,
+            "population": None if keep is None else fit_mask}
 
 
 def pick_lambda(X: np.ndarray, y: np.ndarray, keys: np.ndarray, split: str) -> float:
@@ -552,6 +562,11 @@ def complex_validation(points: Rows, run: dict, cx: Mapping) -> dict:
     m["ci"] = event_cluster_ci(a, y, eidx, len(ev))
     m["rows"], m["positives"], m["events"] = int(keep.sum()), int(y.sum()), len(ev)
     m["pairs_without_child_entrances"] = miss
+    # the complex grain's own single-positive census — the grain where the drafted "61% of
+    # events" was closest to true, so it has to be published, not just asserted in prose
+    per_ev = np.bincount(eidx, weights=y, minlength=len(ev))
+    m["events_with_a_positive"] = int((per_ev > 0).sum())
+    m["single_positive_events"] = int((per_ev == 1).sum())
     m["alert_rate"] = float(a.mean())
     # The same rate-transfer rule the row-grain metrics use, applied to the complex max
     # score: alarm the top `in-fold budget` of complex-event pairs. It separates two
@@ -643,7 +658,7 @@ def run(root: Path) -> dict:
         out["sweeps"][role] = run_sweeps(r, GATE_SPLIT, lam, models["model"][GATE_SPLIT],
                                          runs[(role, GATE_SPLIT)])
         out["sweeps"][role].append(_weight_sweep(r, GATE_SPLIT, lam,
-                                                 models["model"][GATE_SPLIT]))
+                                                 out["sweeps"][role][0]))
         out["contrasts"][role] = _contrasts(root, r, runs, models, lam)
         out["final"][role] = _final_fit(r, models["model"][GATE_SPLIT]["lambdas"])
 
@@ -661,7 +676,12 @@ def modal_lambda(lambdas: Sequence[float]) -> float:
     what the sweeps hold fixed so a one-at-a-time config is one fit per fold, not a nested
     re-selection whose delta would confound the knob with the penalty."""
     got = list(lambdas)
-    return float(max(set(got), key=got.count)) if got else 1.0
+    if not got:
+        return 1.0
+    top = max(got.count(x) for x in set(got))
+    # a 2-2-1 vote must not be settled by float hash order: on a tie take the STRONGER
+    # penalty, the conservative direction (less variance carried into the shipped refit)
+    return float(max(x for x in set(got) if got.count(x) == top))
 
 
 def _final_fit(r: Rows, lambdas: Sequence[float]) -> dict:

@@ -53,6 +53,7 @@
    },
    "csi": 0.01084010840108401,
    "events": 97,
+   "events_with_a_positive": 71,
    "far": 0.984313725490196,
    "fn": 114,
    "fp": 251,
@@ -70,6 +71,7 @@
     "tp": 1
    },
    "rows": 43089,
+   "single_positive_events": 55,
    "tp": 4
   },
   "location_blocked": {
@@ -91,6 +93,7 @@
    },
    "csi": 0.002512562814070352,
    "events": 97,
+   "events_with_a_positive": 71,
    "far": 0.99644128113879,
    "fn": 117,
    "fp": 280,
@@ -108,6 +111,7 @@
     "tp": 2
    },
    "rows": 43089,
+   "single_positive_events": 55,
    "tp": 1
   }
  },
@@ -198,11 +202,15 @@
     "bus_events": 44,
     "bus_positives": 2831,
     "bus_rows": 502756,
-    "entrance_only_fit_on_entrance_rows": 0.011851015801354402,
+    "entrance_only_fit_on_entrance_rows": 0.012922679302175317,
     "method_note": "the original churn sensitivity \u2014 refit on the bus-stop registry as it stood in each era \u2014 is DROPPED: no historical Picks exist locally (flood 08's build), so the era restriction is all there is. What is published instead is the delta between the pooled fit and the same fit without any bus row.",
     "pooled_all_rows": 0.030968056571567912,
-    "pooled_on_bus_rows": 0.034102306920762285,
-    "pooled_on_entrance_rows": 0.017573939134162022,
+    "pooled_on_bus_rows": 0.03408391780484804,
+    "pooled_on_entrance_rows": 0.015165876777251185,
+    "rate_all": 0.011075494893093901,
+    "rate_bus": 0.011084900031028968,
+    "rate_entrance": 0.011072898661772305,
+    "rate_entrance_only": 0.012566154065468023,
     "split": "location_blocked"
    },
    "pre_post_2014": {
@@ -3118,6 +3126,15 @@
  "sweeps": {
   "cell": [
    {
+    "config": "REFERENCE: the primary at the frozen modal lambda=100.0",
+    "csi": 0.1591271215794943,
+    "delta_csi": 0.0,
+    "far": 0.7743171546472785,
+    "note": "the nested-CV primary this is measured beside scores 0.1591; every delta below is against THIS row",
+    "pod": 0.3504729935916997,
+    "pr_auc": 0.20301656244226518
+   },
+   {
     "config": "lambda=0.01",
     "csi": 0.15533641068680934,
     "delta_csi": -0.0037907108926849564,
@@ -3214,19 +3231,28 @@
     "pr_auc": 0.20301656244226518
    },
    {
-    "config": "weighted 1/fan-out (proxy: positives per event x Cell)",
-    "csi": 0.1591271215794943,
-    "delta_csi": 0.0,
-    "far": 0.7743171546472785,
-    "pod": 0.3504729935916997,
-    "pr_auc": 0.20301656244226518
+    "config": "weighted 1/fan-out \u2014 DEGENERATE at this grain, NOT RUN (one row per event x Cell: the proxy has nothing to collapse)",
+    "csi": null,
+    "delta_csi": null,
+    "far": null,
+    "pod": null,
+    "pr_auc": null
    }
   ],
   "point": [
    {
+    "config": "REFERENCE: the primary at the frozen modal lambda=100.0",
+    "csi": 0.03044008902290186,
+    "delta_csi": 0.0,
+    "far": 0.9590140164330595,
+    "note": "the nested-CV primary this is measured beside scores 0.0310; every delta below is against THIS row",
+    "pod": 0.10578842315369262,
+    "pr_auc": 0.022976608233850428
+   },
+   {
     "config": "lambda=0.01",
     "csi": 0.03144203195411716,
-    "delta_csi": 0.0004739753825492507,
+    "delta_csi": 0.0010019429312153015,
     "far": 0.9493650008246742,
     "pod": 0.07659680638722555,
     "pr_auc": 0.022768461151802737
@@ -3234,7 +3260,7 @@
    {
     "config": "lambda=0.1",
     "csi": 0.03144203195411716,
-    "delta_csi": 0.0004739753825492507,
+    "delta_csi": 0.0010019429312153015,
     "far": 0.9493650008246742,
     "pod": 0.07659680638722555,
     "pr_auc": 0.022768732299889124
@@ -3242,7 +3268,7 @@
    {
     "config": "lambda=1.0",
     "csi": 0.03141629144494474,
-    "delta_csi": 0.00044823487337682794,
+    "delta_csi": 0.0009762024220428787,
     "far": 0.9494317245923242,
     "pod": 0.07659680638722555,
     "pr_auc": 0.022771281685652626
@@ -3250,7 +3276,7 @@
    {
     "config": "lambda=10.0",
     "csi": 0.032742950361221164,
-    "delta_csi": 0.0017748937896532521,
+    "delta_csi": 0.002302861338319303,
     "far": 0.9421215242018538,
     "pod": 0.07010978043912176,
     "pr_auc": 0.02279808300103468
@@ -3258,7 +3284,7 @@
    {
     "config": "lambda=100.0",
     "csi": 0.03044008902290186,
-    "delta_csi": -0.0005279675486660508,
+    "delta_csi": 0.0,
     "far": 0.9590140164330595,
     "pod": 0.10578842315369262,
     "pr_auc": 0.022976608233850428
@@ -3266,7 +3292,7 @@
    {
     "config": "lambda=1000 (beyond the selection grid)",
     "csi": 0.03274201723264065,
-    "delta_csi": 0.0017739606610727363,
+    "delta_csi": 0.002301928209738787,
     "far": 0.9477346278317152,
     "pod": 0.08058882235528943,
     "pr_auc": 0.02320894852950359
@@ -3274,7 +3300,7 @@
    {
     "config": "drop precip_max_1h",
     "csi": 0.030149207814182434,
-    "delta_csi": -0.0008188487573854777,
+    "delta_csi": -0.00029088120871942694,
     "far": 0.9582356701470275,
     "pod": 0.09780439121756487,
     "pr_auc": 0.02189355614022639
@@ -3282,7 +3308,7 @@
    {
     "config": "drop precip_total",
     "csi": 0.029413454357442408,
-    "delta_csi": -0.0015546022141255042,
+    "delta_csi": -0.0010266346654594534,
     "far": 0.963194594206024,
     "pod": 0.1277445109780439,
     "pr_auc": 0.021501840228992493
@@ -3290,7 +3316,7 @@
    {
     "config": "drop antecedent_24h",
     "csi": 0.032585278276481146,
-    "delta_csi": 0.001617221704913234,
+    "delta_csi": 0.0021451892535792848,
     "far": 0.9515677118078719,
     "pod": 0.09056886227544911,
     "pr_auc": 0.02292019785023987
@@ -3298,7 +3324,7 @@
    {
     "config": "drop elevation",
     "csi": 0.03198045048873778,
-    "delta_csi": 0.0010123939171698682,
+    "delta_csi": 0.001540361465835919,
     "far": 0.947239263803681,
     "pod": 0.0750998003992016,
     "pr_auc": 0.022007224937442588
@@ -3306,7 +3332,7 @@
    {
     "config": "drop relief",
     "csi": 0.029882216082594153,
-    "delta_csi": -0.0010858404889737584,
+    "delta_csi": -0.0005578729403077076,
     "far": 0.9595352958550754,
     "pod": 0.10254491017964072,
     "pr_auc": 0.02299670180784205
@@ -3314,7 +3340,7 @@
    {
     "config": "drop stormwater",
     "csi": 0.02356736022317796,
-    "delta_csi": -0.007400696348389951,
+    "delta_csi": -0.0068727287997239,
     "far": 0.9740189011693097,
     "pod": 0.20234530938123751,
     "pr_auc": 0.01913958679105086
@@ -3322,7 +3348,7 @@
    {
     "config": "drop kind_indicator",
     "csi": 0.030776515151515152,
-    "delta_csi": -0.00019154142005275987,
+    "delta_csi": 0.00033642612861329094,
     "far": 0.9527410207939508,
     "pod": 0.08108782435129741,
     "pr_auc": 0.022691174998235825
@@ -3330,15 +3356,15 @@
    {
     "config": "operating point: in-fold threshold (not in-fold alert rate)",
     "csi": 0.030352215549423796,
-    "delta_csi": -0.0006158410221441153,
+    "delta_csi": -8.787347347806451e-05,
     "far": 0.95695211786372,
     "pod": 0.09331337325349301,
     "pr_auc": 0.023054726831825845
    },
    {
-    "config": "weighted 1/fan-out (proxy: positives per event x Cell)",
+    "config": "weighted 1/fan-out (proxy: positives per event x Cell; 3,475 rows down-weighted)",
     "csi": 0.028708133971291867,
-    "delta_csi": -0.002259922600276045,
+    "delta_csi": -0.0017319550516099944,
     "far": 0.9611078373600471,
     "pod": 0.09880239520958084,
     "pr_auc": 0.02359422587230839
