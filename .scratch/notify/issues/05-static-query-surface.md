@@ -64,3 +64,27 @@ stamps on EVERY call — 0.115 s per call, 0.097 s of it `versions()`, i.e. ~16 
 7,955-asset export. Resolve the stamps once and reuse one connection (the `ponytail:`
 note at the call site names this upgrade). Do NOT add a date-keyed cache: key any cache
 on the inputs, or it serves stale answers when the spine moves.
+
+## Inherited from frontend 02 (prototype, `4ac3ebe`, 2026-08-24) — the manifest, re-measured
+
+Frontend 02 built the flood-history marker layer against the real `ref/assets JOIN
+gold/flood_labels` and the real `query('events_for_asset', mode='public')`, over all 7,955
+assets. It confirms frontend 01's coordinate MUST and adds two things:
+
+- [ ] **The manifest must carry `name` as well as `lon`/`lat`.** `ref/assets` names only
+  stops and complexes — **a `cell`-kind asset has `name = NULL`** — and the most-flooded
+  assets are exactly the Cells, so a manifest of id+kind+count+lon/lat renders the literal
+  word "null" at the TOP of any ranked list. Re-measured over all 7,955 assets in ONE
+  envelope throughout (GeoJSON, so absolutes differ from frontend 01's flat-manifest
+  figures but the deltas are comparable): **39,203 B gz as specified &rarr; 99,154 with
+  lon/lat (+59,951) &rarr; 147,792 with `name` too (+48,638 more; 1,576,447 raw).**
+  Freeze the whole key set here: `asset_id, kind, n_events, lon, lat, name` — and note
+  `query.py:167`'s `ASSET_COLUMNS` uses `asset_id`, never `id`, so the spec's prose "id"
+  should not become a literal key.
+- [ ] **Size the CLICK on the tail, not on the random-sample median.** notify 02's recorded
+  "median 746 B / max 7,625 B" came from a 60-asset RANDOM sample. Cutting the TOP 40 by
+  event count — same code path, same `mode="public"` — gives median 10,057 B and **max
+  23,444 B** (`cell:882a1062d5fffff`, 73 events): about 3x the recorded max. The 746 B
+  median is still right for sizing the ~10.9 MB tree; it is the wrong number for sizing one
+  per-asset fetch, and a per-asset fetch on click is exactly what frontend 01's payload rule
+  ("paint from one bulk file, detail from one per-asset fetch") makes the page do.
