@@ -55,3 +55,37 @@ the score has exactly one artifact chain. Spec: Exposure score (published object
   299: Dyckman St}`; a name match returns 18 because "86 St" alone names five complexes.
 - Recorded limit: `precip_identity()` names the built AORC Cell-month partition SET, not
   the pixel bytes — a month rewritten under the same name does not move the stamp.
+
+
+## Inherited from flood 09's build (2026-08-24, `research/flood-09-fits.json`, fits_version `8050dfa41fc1`)
+
+The gate FIRED **MODEL** for both roles under the location-blocked split, so this artifact
+carries the FITTED parameters, not B2's. Everything below is a READ of
+`research/flood-09-fits.json` — do not refit to find it.
+
+- **Shipped ids: `point:l2_logistic`, `cell:l2_logistic`** (`gate.shipped`). `gate.branch`
+  is `MODEL` and `gate.panel_strings` holds the headline/caveat/release strings the branch
+  selected; the release checklist asserts THAT branch. `flood_fits.gate(summary)` is a pure
+  function of the published summary — re-evaluate it, never re-type the verdict.
+- Parameters per role live in `final.<role>`: `lambda`, `coef_standardized` +
+  `intercept_standardized`, **`coef_raw` + `intercept_raw`** (the same model on the raw
+  matrix scale — score it as a plain dot product), `standardization` (mean/std per feature),
+  `features`, `stormwater_base_level` = `analyzed-none` (the dummy-coded reference level, so
+  a point row that is `analyzed-none` gets NO stormwater term).
+- **SCOPE THE "non-negative event-side coefficients" ASSERTION TO THE IN-WINDOW TERMS.**
+  Measured: `log1p_precip_max_mm_1h` +0.449 and `log1p_precip_total_mm` +0.601 are positive
+  in both models, but **`log1p_antecedent_mm_24h` is NEGATIVE at point grain (-0.093)**. The
+  monotone-latch claim is about terms that can only RISE inside a Window; the antecedent is
+  frozen at Window open and never moves within one, so it is not an event-side term. Assert
+  the two in-Window coefficients >= 0 and this build passes; assert all three and it fails
+  on a coefficient the latch does not depend on.
+- Reference forcings: `final.<role>.precip_percentiles_log1p` and `precip_percentiles_mm`
+  carry p50/p90 of the fit rows' precip terms in BOTH scales. The matrix stores log1p
+  already — `expm1` before quoting mm, and never log1p twice.
+- **A complex-grain score is NOT validated by this evidence**: the independent complex set
+  caught 1 of 118 positives (CSI 0.0025, PR-AUC 0.0057 against a 0.0027 base rate). The
+  max-over-child-entrances rule still defines the complex score; what it may not carry is a
+  skill claim. Ticket 15's panel strings should say what it is (an aggregate of doorway
+  scores) rather than what it was proven to do.
+- Honest-strings load: under the PRIMARY event-grouped split the point model LOSES to B2
+  (0.0286 vs 0.0340, overlapping CIs). The cell model is the one with separated intervals.

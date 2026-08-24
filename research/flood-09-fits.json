@@ -1,0 +1,3348 @@
+{
+ "census": {
+  "cell": {
+   "base_rate": 0.03647534825219971,
+   "by_kind": {
+    "cell": {
+     "positives": 6554,
+     "rows": 179683
+    }
+   },
+   "cells": 1351,
+   "events": 133,
+   "positives": 6554,
+   "rows": 179683,
+   "units": 1351
+  },
+  "point": {
+   "base_rate": 0.005116480351719727,
+   "by_kind": {
+    "bus_stop": {
+     "positives": 2831,
+     "rows": 502756
+    },
+    "entrance": {
+     "positives": 1177,
+     "rows": 280595
+    }
+   },
+   "cells": 1007,
+   "events": 133,
+   "positives": 4008,
+   "rows": 783351,
+   "units": 15430
+  }
+ },
+ "complex_validation": {
+  "event_grouped": {
+   "alert_rate": 0.005917983708138968,
+   "best_single_cut_csi_selected_here": 0.009230769230769232,
+   "ci": {
+    "csi": [
+     0.003067250145400649,
+     0.01848163228070849
+    ],
+    "far": [
+     0.9726757242308556,
+     0.9956336624264287
+    ],
+    "pod": [
+     0.009431758067360253,
+     0.058823529411764705
+    ]
+   },
+   "csi": 0.01084010840108401,
+   "events": 97,
+   "far": 0.984313725490196,
+   "fn": 114,
+   "fp": 251,
+   "pairs_without_child_entrances": 0,
+   "pod": 0.03389830508474576,
+   "positives": 118,
+   "pr_auc": 0.005504167041782035,
+   "rate_transfer": {
+    "budget": 0.010402838642128523,
+    "csi": 0.0017667844522968198,
+    "far": 0.9977728285077951,
+    "fn": 117,
+    "fp": 448,
+    "pod": 0.00847457627118644,
+    "tp": 1
+   },
+   "rows": 43089,
+   "tp": 4
+  },
+  "location_blocked": {
+   "alert_rate": 0.006521385968576667,
+   "best_single_cut_csi_selected_here": 0.009413067552602437,
+   "ci": {
+    "csi": [
+     0.0,
+     0.008984757757212844
+    ],
+    "far": [
+     0.983329831932773,
+     1.0
+    ],
+    "pod": [
+     0.0,
+     0.024600409836065564
+    ]
+   },
+   "csi": 0.002512562814070352,
+   "events": 97,
+   "far": 0.99644128113879,
+   "fn": 117,
+   "fp": 280,
+   "pairs_without_child_entrances": 0,
+   "pod": 0.00847457627118644,
+   "positives": 118,
+   "pr_auc": 0.0056778426107634405,
+   "rate_transfer": {
+    "budget": 0.011139212418365015,
+    "csi": 0.003355704697986577,
+    "far": 0.9958333333333333,
+    "fn": 116,
+    "fp": 478,
+    "pod": 0.01694915254237288,
+    "tp": 2
+   },
+   "rows": 43089,
+   "tp": 1
+  }
+ },
+ "contrasts": {
+  "cell": {
+   "history_covariate": {
+    "split": "location_blocked",
+    "with": 0.1591271215794943,
+    "without": 0.13429654192325913
+   },
+   "pre_post_2014": {
+    "confound": "LABEL AVAILABILITY, not physics: the sources that mint positives do not reach back equally. Bus stops enter the universe in 2020 (flood 05's era rule), so every pre-2014 row here is an entrance or a Cell, and the 311/DEP record itself thins with age. A pre/post gap is at least as much a difference in who was reporting as a difference in what flooded.",
+    "post_2014": {
+     "alert_rate": 0.05669741990060273,
+     "ci": {
+      "csi": [
+       0.12838400168823277,
+       0.21895915219167636
+      ],
+      "far": [
+       0.6991719261719941,
+       0.8082093614771443
+      ],
+      "pod": [
+       0.2722919334834304,
+       0.4803261358758973
+      ]
+     },
+     "csi": 0.17480419930011665,
+     "events": 112,
+     "far": 0.7554493530714536,
+     "fn": 3423,
+     "fp": 6481,
+     "in_fold_csi_mean": 0.15936637217711253,
+     "lambdas": [
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0
+     ],
+     "pod": 0.38000362253215,
+     "positives": 5521,
+     "pr_auc": 0.22277080897285162,
+     "rows": 151312,
+     "tp": 2098
+    },
+    "pre_2014": {
+     "alert_rate": 0.05636036798138945,
+     "ci": {
+      "csi": [
+       0.05218523706247365,
+       0.11298051005678587
+      ],
+      "far": [
+       0.7495674981320177,
+       0.9191688822747432
+      ],
+      "pod": [
+       0.08301681233065054,
+       0.32451146826660066
+      ]
+     },
+     "csi": 0.08179202630497329,
+     "events": 21,
+     "far": 0.8755472170106317,
+     "fn": 834,
+     "fp": 1400,
+     "in_fold_csi_mean": 0.15936637217711253,
+     "lambdas": [
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0
+     ],
+     "pod": 0.19264278799612777,
+     "positives": 1033,
+     "pr_auc": 0.11719889025421153,
+     "rows": 28371,
+     "tp": 199
+    },
+    "split": "location_blocked"
+   }
+  },
+  "point": {
+   "bus_stop_churn": {
+    "bus_events": 44,
+    "bus_positives": 2831,
+    "bus_rows": 502756,
+    "entrance_only_fit_on_entrance_rows": 0.011851015801354402,
+    "method_note": "the original churn sensitivity \u2014 refit on the bus-stop registry as it stood in each era \u2014 is DROPPED: no historical Picks exist locally (flood 08's build), so the era restriction is all there is. What is published instead is the delta between the pooled fit and the same fit without any bus row.",
+    "pooled_all_rows": 0.030968056571567912,
+    "pooled_on_bus_rows": 0.034102306920762285,
+    "pooled_on_entrance_rows": 0.017573939134162022,
+    "split": "location_blocked"
+   },
+   "pre_post_2014": {
+    "confound": "LABEL AVAILABILITY, not physics: the sources that mint positives do not reach back equally. Bus stops enter the universe in 2020 (flood 05's era rule), so every pre-2014 row here is an entrance or a Cell, and the 311/DEP record itself thins with age. A pre/post gap is at least as much a difference in who was reporting as a difference in what flooded.",
+    "post_2014": {
+     "alert_rate": 0.011554978460373172,
+     "ci": {
+      "csi": [
+       0.0198833746380766,
+       0.039547456994369755
+      ],
+      "far": [
+       0.9009784355398891,
+       0.9667092574095706
+      ],
+      "pod": [
+       0.02924020478040791,
+       0.19273220288033227
+      ]
+     },
+     "csi": 0.03169572107765452,
+     "events": 112,
+     "far": 0.9555191384759453,
+     "fn": 3446,
+     "fp": 8163,
+     "in_fold_csi_mean": 0.03258971204746858,
+     "lambdas": [
+      10.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0
+     ],
+     "pod": 0.09932043910088866,
+     "positives": 3826,
+     "pr_auc": 0.024136068649833083,
+     "rows": 739335,
+     "tp": 380
+    },
+    "pre_2014": {
+     "alert_rate": 0.0030216284987277355,
+     "ci": {
+      "csi": [
+       0.0,
+       0.011430213464696222
+      ],
+      "far": [
+       0.9473684210526315,
+       1.0
+      ],
+      "pod": [
+       0.0,
+       0.017762237762237752
+      ]
+     },
+     "csi": 0.0031847133757961785,
+     "events": 21,
+     "far": 0.9924812030075187,
+     "fn": 181,
+     "fp": 132,
+     "in_fold_csi_mean": 0.03258971204746858,
+     "lambdas": [
+      10.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0
+     ],
+     "pod": 0.005494505494505495,
+     "positives": 182,
+     "pr_auc": 0.006050714467123464,
+     "rows": 44016,
+     "tp": 1
+    },
+    "split": "location_blocked"
+   }
+  }
+ },
+ "coverage": {
+  "by_class": {
+   "coastal": 44,
+   "mixed": 18,
+   "pluvial": 141,
+   "snowmelt": 3
+  },
+  "event_days": 248,
+  "events": 206,
+  "first": "2010-03-13",
+  "last": "2026-08-20",
+  "pluvial": 141,
+  "pluvial_fit_era": 133,
+  "pluvial_fit_era_days": 147,
+  "superseded": "the drafted 115 union event days"
+ },
+ "era_replication": {
+  "caveat": "when it runs, every MRMS number is read under the measured 0.86-0.92 Pass2/AORC scale band, never like-for-like against an AORC-fit number",
+  "events_by_era": {
+   "fit": 195,
+   "replication": 1,
+   "validation_only": 10
+  },
+  "reason": "the matrix carries era='fit' rows only (AORC has no 2026 year), and the replication era holds 1 event as of the matrix build \u2014 replication needs MRMS-era feature rows and more than one storm",
+  "replication_events": 1,
+  "scale_band": [
+   0.86,
+   0.92
+  ],
+  "status": "NOT COMPUTED"
+ },
+ "estimand": "flooded_reported",
+ "fim_band": [
+  0.26,
+  0.45
+ ],
+ "final": {
+  "cell": {
+   "coef_raw": {
+    "density_311_3y": 0.03870592851859978,
+    "log1p_antecedent_mm_24h": 0.010976393100764214,
+    "log1p_precip_max_mm_1h": 0.3791062641359102,
+    "log1p_precip_total_mm": 0.735014540951294,
+    "share_deep": 8.18327036609164,
+    "share_not_analyzed": -1.8863724780575633,
+    "share_nuisance": 2.115880581929641
+   },
+   "coef_standardized": {
+    "density_311_3y": 0.33955095087207904,
+    "log1p_antecedent_mm_24h": 0.011284825689787096,
+    "log1p_precip_max_mm_1h": 0.4203599819170795,
+    "log1p_precip_total_mm": 1.1124655250617723,
+    "share_deep": 0.06917039029871401,
+    "share_not_analyzed": -0.6891122023727294,
+    "share_nuisance": 0.024870216377700892
+   },
+   "features": [
+    "log1p_precip_max_mm_1h",
+    "log1p_precip_total_mm",
+    "log1p_antecedent_mm_24h",
+    "share_deep",
+    "share_nuisance",
+    "share_not_analyzed",
+    "density_311_3y"
+   ],
+   "intercept_raw": -6.349928564425736,
+   "intercept_standardized": -4.388266975956573,
+   "lambda": 100.0,
+   "precip_percentiles_log1p": {
+    "log1p_antecedent_mm_24h": {
+     "p50": 0.0,
+     "p90": 2.3830615491197134
+    },
+    "log1p_precip_max_mm_1h": {
+     "p50": 2.0506813110857274,
+     "p90": 3.0450317152253894
+    },
+    "log1p_precip_total_mm": {
+     "p50": 2.9791051844582794,
+     "p90": 4.075844885418585
+    }
+   },
+   "precip_percentiles_mm": {
+    "log1p_antecedent_mm_24h": {
+     "p50": 0.0,
+     "p90": 9.838033294124761
+    },
+    "log1p_precip_max_mm_1h": {
+     "p50": 6.773195266723635,
+     "p90": 20.01069755132119
+    },
+    "log1p_precip_total_mm": {
+     "p50": 18.670207560062412,
+     "p90": 57.90022351184956
+    }
+   },
+   "standardization": {
+    "density_311_3y": {
+     "mean": 5.59197030325629,
+     "std": 8.772582492341217
+    },
+    "log1p_antecedent_mm_24h": {
+     "mean": 0.631763525025722,
+     "std": 1.0280996303787087
+    },
+    "log1p_precip_max_mm_1h": {
+     "mean": 1.7665653032567832,
+     "std": 1.1088183490589325
+    },
+    "log1p_precip_total_mm": {
+     "mean": 2.465986803632609,
+     "std": 1.5135285944438073
+    },
+    "share_deep": {
+     "mean": 0.003723783799072654,
+     "std": 0.00845265855877496
+    },
+    "share_not_analyzed": {
+     "mean": 0.4186731039792493,
+     "std": 0.3653107805529068
+    },
+    "share_nuisance": {
+     "mean": 0.007246751574578494,
+     "std": 0.011754073736533727
+    }
+   },
+   "stormwater_base_level": "analyzed-none"
+  },
+  "point": {
+   "coef_raw": {
+    "elev_ft": -0.005960019385225402,
+    "is_bus_stop": 0.1575756775651678,
+    "log1p_antecedent_mm_24h": -0.09325519872222368,
+    "log1p_precip_max_mm_1h": 0.4493765003785835,
+    "log1p_precip_total_mm": 0.6007581084477959,
+    "relief_ft": 0.01705566097009999,
+    "sw_deep": 1.417502864688398,
+    "sw_not_analyzed": 0.0252779032995979,
+    "sw_nuisance": 0.7354214294561664
+   },
+   "coef_standardized": {
+    "elev_ft": -0.24237528418171753,
+    "is_bus_stop": 0.0755529412914211,
+    "log1p_antecedent_mm_24h": -0.11382143053722106,
+    "log1p_precip_max_mm_1h": 0.51564243223946,
+    "log1p_precip_total_mm": 0.9273271987694408,
+    "relief_ft": 0.0186423009511908,
+    "sw_deep": 0.15618104969744584,
+    "sw_not_analyzed": 0.006080716381340004,
+    "sw_nuisance": 0.13437076058362016
+   },
+   "features": [
+    "log1p_precip_max_mm_1h",
+    "log1p_precip_total_mm",
+    "log1p_antecedent_mm_24h",
+    "elev_ft",
+    "relief_ft",
+    "sw_deep",
+    "sw_nuisance",
+    "sw_not_analyzed",
+    "is_bus_stop"
+   ],
+   "intercept_raw": -8.225253337087253,
+   "intercept_standardized": -6.092322052657442,
+   "lambda": 100.0,
+   "precip_percentiles_log1p": {
+    "log1p_antecedent_mm_24h": {
+     "p50": 0.0,
+     "p90": 2.8493317808865655
+    },
+    "log1p_precip_max_mm_1h": {
+     "p50": 2.135310286397236,
+     "p90": 3.182680590150368
+    },
+    "log1p_precip_total_mm": {
+     "p50": 3.0213817663732634,
+     "p90": 4.225429966204121
+    }
+   },
+   "precip_percentiles_mm": {
+    "log1p_antecedent_mm_24h": {
+     "p50": 0.0,
+     "p90": 16.276233673095703
+    },
+    "log1p_precip_max_mm_1h": {
+     "p50": 7.4596710205078125,
+     "p90": 23.111299514770504
+    },
+    "log1p_precip_total_mm": {
+     "p50": 19.519625432789326,
+     "p90": 67.40390859544276
+    }
+   },
+   "standardization": {
+    "elev_ft": {
+     "mean": 50.26259992349023,
+     "std": 40.666861719033
+    },
+    "is_bus_stop": {
+     "mean": 0.6418016955362283,
+     "std": 0.47947083242066363
+    },
+    "log1p_antecedent_mm_24h": {
+     "mean": 0.904778155840849,
+     "std": 1.2205371078159124
+    },
+    "log1p_precip_max_mm_1h": {
+     "mean": 1.8717303687061635,
+     "std": 1.1474619429477284
+    },
+    "log1p_precip_total_mm": {
+     "mean": 2.5504209666783164,
+     "std": 1.5435949772952966
+    },
+    "relief_ft": {
+     "mean": -0.11545446097166102,
+     "std": 1.0930271763652153
+    },
+    "sw_deep": {
+     "mean": 0.012290786633322738,
+     "std": 0.1101804120387286
+    },
+    "sw_not_analyzed": {
+     "mean": 0.061669672981843386,
+     "std": 0.24055461836649764
+    },
+    "sw_nuisance": {
+     "mean": 0.0345796456505449,
+     "std": 0.18271259879248475
+    }
+   },
+   "stormwater_base_level": "analyzed-none"
+  }
+ },
+ "fits_version": "8050dfa41fc12e53fa4e124ac62788beffddbda7",
+ "gate": {
+  "branch": "MODEL",
+  "panel_strings": {
+   "caveat": "fitted on reported flooding, 2010-2025 rain events",
+   "headline": "modelled flood exposure",
+   "release": "v1 ships the fitted L2 logistic exposure score"
+  },
+  "roles": {
+   "cell": {
+    "b2_csi": 0.03647534825219971,
+    "b3_csi": 0.08192284232997865,
+    "beats_b2": true,
+    "beats_b3": true,
+    "model_csi": 0.1591271215794943,
+    "model_wins": true
+   },
+   "point": {
+    "b2_csi": 0.005116480351719727,
+    "b3_csi": 0.01302778780223746,
+    "beats_b2": true,
+    "beats_b3": true,
+    "model_csi": 0.030968056571567912,
+    "model_wins": true
+   }
+  },
+  "shipped": {
+   "cell": "cell:l2_logistic",
+   "point": "point:l2_logistic"
+  },
+  "split": "location_blocked"
+ },
+ "matrix_census": {
+  "candidates": 1008459,
+  "dropped_anachronistic": 1274559,
+  "dropped_uncovered": 16020,
+  "events": 133,
+  "grid": 2299038,
+  "negatives": 997779,
+  "positives_outside": 4069,
+  "units": 17286
+ },
+ "matrix_gates": {
+  "events_by_era": {
+   "fit": 195,
+   "replication": 1,
+   "validation_only": 10
+  },
+  "no_grade_ok_complexes_with_elevation": 7,
+  "out_of_footprint": 60,
+  "positives_dropped_unpairable": 4069,
+  "positives_off_universe": 0
+ },
+ "matrix_version": "8bc1e8912b1badadb69fa0bb5c676a65e0b8200b",
+ "per_event": {
+  "cell": [
+   {
+    "event_id": "2010-08-22",
+    "fp": 13,
+    "pod": 0.32142857142857145,
+    "positives": 28,
+    "tp": 9
+   },
+   {
+    "event_id": "2010-10-01",
+    "fp": 69,
+    "pod": 0.1650485436893204,
+    "positives": 103,
+    "tp": 17
+   },
+   {
+    "event_id": "2010-10-11",
+    "fp": 1,
+    "pod": 0.0,
+    "positives": 32,
+    "tp": 0
+   },
+   {
+    "event_id": "2010-12-01",
+    "fp": 10,
+    "pod": 0.024390243902439025,
+    "positives": 82,
+    "tp": 2
+   },
+   {
+    "event_id": "2011-01-18",
+    "fp": 1,
+    "pod": 0.0,
+    "positives": 74,
+    "tp": 0
+   },
+   {
+    "event_id": "2011-02-02",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 98,
+    "tp": 0
+   },
+   {
+    "event_id": "2011-08-01",
+    "fp": 7,
+    "pod": 0.0,
+    "positives": 14,
+    "tp": 0
+   },
+   {
+    "event_id": "2011-08-14",
+    "fp": 737,
+    "pod": 0.9074074074074074,
+    "positives": 54,
+    "tp": 49
+   },
+   {
+    "event_id": "2011-08-19",
+    "fp": 5,
+    "pod": 0.1111111111111111,
+    "positives": 18,
+    "tp": 2
+   },
+   {
+    "event_id": "2011-08-21",
+    "fp": 22,
+    "pod": 0.09090909090909091,
+    "positives": 11,
+    "tp": 1
+   },
+   {
+    "event_id": "2012-05-21",
+    "fp": 20,
+    "pod": 0.05434782608695652,
+    "positives": 92,
+    "tp": 5
+   },
+   {
+    "event_id": "2012-06-22",
+    "fp": 5,
+    "pod": 0.045454545454545456,
+    "positives": 22,
+    "tp": 1
+   },
+   {
+    "event_id": "2012-07-18",
+    "fp": 50,
+    "pod": 0.2962962962962963,
+    "positives": 27,
+    "tp": 8
+   },
+   {
+    "event_id": "2012-08-01",
+    "fp": 9,
+    "pod": 0.0,
+    "positives": 27,
+    "tp": 0
+   },
+   {
+    "event_id": "2012-08-15",
+    "fp": 18,
+    "pod": 0.12,
+    "positives": 50,
+    "tp": 6
+   },
+   {
+    "event_id": "2012-09-08",
+    "fp": 16,
+    "pod": 0.08823529411764706,
+    "positives": 34,
+    "tp": 3
+   },
+   {
+    "event_id": "2013-05-08",
+    "fp": 98,
+    "pod": 0.30718954248366015,
+    "positives": 153,
+    "tp": 47
+   },
+   {
+    "event_id": "2013-05-23",
+    "fp": 11,
+    "pod": 0.043478260869565216,
+    "positives": 23,
+    "tp": 1
+   },
+   {
+    "event_id": "2013-06-02",
+    "fp": 2,
+    "pod": 0.0,
+    "positives": 2,
+    "tp": 0
+   },
+   {
+    "event_id": "2013-06-07",
+    "fp": 304,
+    "pod": 0.5802469135802469,
+    "positives": 81,
+    "tp": 47
+   },
+   {
+    "event_id": "2013-09-02",
+    "fp": 2,
+    "pod": 0.125,
+    "positives": 8,
+    "tp": 1
+   },
+   {
+    "event_id": "2014-02-05",
+    "fp": 24,
+    "pod": 0.0425531914893617,
+    "positives": 94,
+    "tp": 4
+   },
+   {
+    "event_id": "2014-02-13",
+    "fp": 16,
+    "pod": 0.06358381502890173,
+    "positives": 173,
+    "tp": 11
+   },
+   {
+    "event_id": "2014-05-10",
+    "fp": 6,
+    "pod": 0.1111111111111111,
+    "positives": 18,
+    "tp": 2
+   },
+   {
+    "event_id": "2014-05-16",
+    "fp": 40,
+    "pod": 0.2692307692307692,
+    "positives": 26,
+    "tp": 7
+   },
+   {
+    "event_id": "2014-06-13",
+    "fp": 22,
+    "pod": 0.19230769230769232,
+    "positives": 52,
+    "tp": 10
+   },
+   {
+    "event_id": "2014-07-02",
+    "fp": 66,
+    "pod": 0.16666666666666666,
+    "positives": 36,
+    "tp": 6
+   },
+   {
+    "event_id": "2014-07-15",
+    "fp": 83,
+    "pod": 0.3492063492063492,
+    "positives": 63,
+    "tp": 22
+   },
+   {
+    "event_id": "2014-08-31",
+    "fp": 7,
+    "pod": 0.08333333333333333,
+    "positives": 12,
+    "tp": 1
+   },
+   {
+    "event_id": "2014-10-22",
+    "fp": 17,
+    "pod": 0.15,
+    "positives": 20,
+    "tp": 3
+   },
+   {
+    "event_id": "2014-11-17",
+    "fp": 18,
+    "pod": 0.10465116279069768,
+    "positives": 86,
+    "tp": 9
+   },
+   {
+    "event_id": "2014-12-09",
+    "fp": 155,
+    "pod": 0.3719512195121951,
+    "positives": 164,
+    "tp": 61
+   },
+   {
+    "event_id": "2015-05-31",
+    "fp": 78,
+    "pod": 0.35384615384615387,
+    "positives": 65,
+    "tp": 23
+   },
+   {
+    "event_id": "2015-07-15",
+    "fp": 8,
+    "pod": 0.05263157894736842,
+    "positives": 38,
+    "tp": 2
+   },
+   {
+    "event_id": "2015-07-30",
+    "fp": 26,
+    "pod": 0.20588235294117646,
+    "positives": 34,
+    "tp": 7
+   },
+   {
+    "event_id": "2015-12-17",
+    "fp": 14,
+    "pod": 0.14814814814814814,
+    "positives": 27,
+    "tp": 4
+   },
+   {
+    "event_id": "2016-02-16",
+    "fp": 10,
+    "pod": 0.07228915662650602,
+    "positives": 83,
+    "tp": 6
+   },
+   {
+    "event_id": "2016-05-30",
+    "fp": 40,
+    "pod": 0.1111111111111111,
+    "positives": 27,
+    "tp": 3
+   },
+   {
+    "event_id": "2016-06-01",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 7,
+    "tp": 0
+   },
+   {
+    "event_id": "2016-06-09",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 7,
+    "tp": 0
+   },
+   {
+    "event_id": "2016-07-25",
+    "fp": 40,
+    "pod": 0.23728813559322035,
+    "positives": 59,
+    "tp": 14
+   },
+   {
+    "event_id": "2016-08-29",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 4,
+    "tp": 0
+   },
+   {
+    "event_id": "2016-09-13",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 1,
+    "tp": 0
+   },
+   {
+    "event_id": "2016-10-15",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 1,
+    "tp": 0
+   },
+   {
+    "event_id": "2016-10-19",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 3,
+    "tp": 0
+   },
+   {
+    "event_id": "2016-11-15",
+    "fp": 18,
+    "pod": 0.056074766355140186,
+    "positives": 107,
+    "tp": 6
+   },
+   {
+    "event_id": "2016-11-29",
+    "fp": 24,
+    "pod": 0.043478260869565216,
+    "positives": 69,
+    "tp": 3
+   },
+   {
+    "event_id": "2016-12-15",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 4,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-01-09",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 4,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-01-17",
+    "fp": 7,
+    "pod": 0.07692307692307693,
+    "positives": 13,
+    "tp": 1
+   },
+   {
+    "event_id": "2017-01-19",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 6,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-02-13",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 6,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-02-21",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 1,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-03-02",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 3,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-03-20",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 8,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-04-06",
+    "fp": 7,
+    "pod": 0.07865168539325842,
+    "positives": 89,
+    "tp": 7
+   },
+   {
+    "event_id": "2017-05-05",
+    "fp": 199,
+    "pod": 0.44886363636363635,
+    "positives": 176,
+    "tp": 79
+   },
+   {
+    "event_id": "2017-06-14",
+    "fp": 6,
+    "pod": 0.058823529411764705,
+    "positives": 17,
+    "tp": 1
+   },
+   {
+    "event_id": "2017-06-19",
+    "fp": 21,
+    "pod": 0.08108108108108109,
+    "positives": 37,
+    "tp": 3
+   },
+   {
+    "event_id": "2017-07-07",
+    "fp": 110,
+    "pod": 0.36,
+    "positives": 75,
+    "tp": 27
+   },
+   {
+    "event_id": "2017-07-11",
+    "fp": 1,
+    "pod": 0.0,
+    "positives": 4,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-07-20",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 2,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-08-02",
+    "fp": 0,
+    "pod": 0.058823529411764705,
+    "positives": 17,
+    "tp": 1
+   },
+   {
+    "event_id": "2017-08-04",
+    "fp": 16,
+    "pod": 0.0,
+    "positives": 17,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-08-12",
+    "fp": 2,
+    "pod": 0.0,
+    "positives": 7,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-08-18",
+    "fp": 63,
+    "pod": 0.20588235294117646,
+    "positives": 34,
+    "tp": 7
+   },
+   {
+    "event_id": "2017-09-01",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 1,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-10-29",
+    "fp": 177,
+    "pod": 0.5,
+    "positives": 74,
+    "tp": 37
+   },
+   {
+    "event_id": "2018-01-10",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 5,
+    "tp": 0
+   },
+   {
+    "event_id": "2018-05-02",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 3,
+    "tp": 0
+   },
+   {
+    "event_id": "2018-06-28",
+    "fp": 39,
+    "pod": 0.11904761904761904,
+    "positives": 42,
+    "tp": 5
+   },
+   {
+    "event_id": "2018-07-17",
+    "fp": 41,
+    "pod": 0.11538461538461539,
+    "positives": 26,
+    "tp": 3
+   },
+   {
+    "event_id": "2018-07-27",
+    "fp": 41,
+    "pod": 0.34146341463414637,
+    "positives": 41,
+    "tp": 14
+   },
+   {
+    "event_id": "2018-08-04",
+    "fp": 8,
+    "pod": 0.047619047619047616,
+    "positives": 21,
+    "tp": 1
+   },
+   {
+    "event_id": "2018-08-06",
+    "fp": 29,
+    "pod": 0.2631578947368421,
+    "positives": 38,
+    "tp": 10
+   },
+   {
+    "event_id": "2018-08-11",
+    "fp": 95,
+    "pod": 0.14035087719298245,
+    "positives": 57,
+    "tp": 8
+   },
+   {
+    "event_id": "2018-09-25",
+    "fp": 78,
+    "pod": 0.24528301886792453,
+    "positives": 53,
+    "tp": 13
+   },
+   {
+    "event_id": "2018-09-28",
+    "fp": 75,
+    "pod": 0.22641509433962265,
+    "positives": 53,
+    "tp": 12
+   },
+   {
+    "event_id": "2018-12-21",
+    "fp": 48,
+    "pod": 0.11494252873563218,
+    "positives": 87,
+    "tp": 10
+   },
+   {
+    "event_id": "2019-01-17",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 7,
+    "tp": 0
+   },
+   {
+    "event_id": "2019-01-28",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 4,
+    "tp": 0
+   },
+   {
+    "event_id": "2019-03-26",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 2,
+    "tp": 0
+   },
+   {
+    "event_id": "2019-05-29",
+    "fp": 23,
+    "pod": 0.10714285714285714,
+    "positives": 28,
+    "tp": 3
+   },
+   {
+    "event_id": "2019-07-17",
+    "fp": 95,
+    "pod": 0.2,
+    "positives": 25,
+    "tp": 5
+   },
+   {
+    "event_id": "2019-07-22",
+    "fp": 338,
+    "pod": 0.65625,
+    "positives": 128,
+    "tp": 84
+   },
+   {
+    "event_id": "2019-07-31",
+    "fp": 13,
+    "pod": 0.2222222222222222,
+    "positives": 27,
+    "tp": 6
+   },
+   {
+    "event_id": "2019-08-07",
+    "fp": 105,
+    "pod": 0.35294117647058826,
+    "positives": 34,
+    "tp": 12
+   },
+   {
+    "event_id": "2019-09-26",
+    "fp": 2,
+    "pod": 0.0,
+    "positives": 3,
+    "tp": 0
+   },
+   {
+    "event_id": "2019-12-22",
+    "fp": 2,
+    "pod": 0.0,
+    "positives": 1,
+    "tp": 0
+   },
+   {
+    "event_id": "2020-03-04",
+    "fp": 6,
+    "pod": 0.0,
+    "positives": 12,
+    "tp": 0
+   },
+   {
+    "event_id": "2020-05-28",
+    "fp": 1,
+    "pod": 0.0,
+    "positives": 1,
+    "tp": 0
+   },
+   {
+    "event_id": "2020-07-10",
+    "fp": 207,
+    "pod": 0.3854166666666667,
+    "positives": 96,
+    "tp": 37
+   },
+   {
+    "event_id": "2020-11-30",
+    "fp": 24,
+    "pod": 0.16,
+    "positives": 75,
+    "tp": 12
+   },
+   {
+    "event_id": "2021-06-04",
+    "fp": 13,
+    "pod": 0.0975609756097561,
+    "positives": 41,
+    "tp": 4
+   },
+   {
+    "event_id": "2021-06-08",
+    "fp": 47,
+    "pod": 0.27906976744186046,
+    "positives": 43,
+    "tp": 12
+   },
+   {
+    "event_id": "2021-07-02",
+    "fp": 15,
+    "pod": 0.14285714285714285,
+    "positives": 35,
+    "tp": 5
+   },
+   {
+    "event_id": "2021-07-08",
+    "fp": 77,
+    "pod": 0.43859649122807015,
+    "positives": 57,
+    "tp": 25
+   },
+   {
+    "event_id": "2021-07-12",
+    "fp": 10,
+    "pod": 0.07407407407407407,
+    "positives": 27,
+    "tp": 2
+   },
+   {
+    "event_id": "2021-07-26",
+    "fp": 3,
+    "pod": 0.09090909090909091,
+    "positives": 11,
+    "tp": 1
+   },
+   {
+    "event_id": "2021-08-21",
+    "fp": 573,
+    "pod": 0.9041916167664671,
+    "positives": 167,
+    "tp": 151
+   },
+   {
+    "event_id": "2021-08-27",
+    "fp": 37,
+    "pod": 0.2692307692307692,
+    "positives": 26,
+    "tp": 7
+   },
+   {
+    "event_id": "2021-09-01",
+    "fp": 543,
+    "pod": 0.943502824858757,
+    "positives": 354,
+    "tp": 334
+   },
+   {
+    "event_id": "2021-09-24",
+    "fp": 25,
+    "pod": 0.09090909090909091,
+    "positives": 22,
+    "tp": 2
+   },
+   {
+    "event_id": "2021-10-26",
+    "fp": 351,
+    "pod": 0.71875,
+    "positives": 128,
+    "tp": 92
+   },
+   {
+    "event_id": "2022-03-02",
+    "fp": 2,
+    "pod": 0.0,
+    "positives": 3,
+    "tp": 0
+   },
+   {
+    "event_id": "2022-07-16",
+    "fp": 17,
+    "pod": 0.12,
+    "positives": 25,
+    "tp": 3
+   },
+   {
+    "event_id": "2022-07-18",
+    "fp": 21,
+    "pod": 0.16363636363636364,
+    "positives": 55,
+    "tp": 9
+   },
+   {
+    "event_id": "2022-08-18",
+    "fp": 2,
+    "pod": 0.0,
+    "positives": 6,
+    "tp": 0
+   },
+   {
+    "event_id": "2022-09-13",
+    "fp": 144,
+    "pod": 0.47126436781609193,
+    "positives": 87,
+    "tp": 41
+   },
+   {
+    "event_id": "2022-11-21",
+    "fp": 2,
+    "pod": 0.0,
+    "positives": 4,
+    "tp": 0
+   },
+   {
+    "event_id": "2023-01-26",
+    "fp": 15,
+    "pod": 0.038461538461538464,
+    "positives": 26,
+    "tp": 1
+   },
+   {
+    "event_id": "2023-04-30",
+    "fp": 167,
+    "pod": 0.3493975903614458,
+    "positives": 166,
+    "tp": 58
+   },
+   {
+    "event_id": "2023-07-08",
+    "fp": 2,
+    "pod": 0.0,
+    "positives": 6,
+    "tp": 0
+   },
+   {
+    "event_id": "2023-07-16",
+    "fp": 53,
+    "pod": 0.2,
+    "positives": 45,
+    "tp": 9
+   },
+   {
+    "event_id": "2023-08-29",
+    "fp": 2,
+    "pod": 0.0,
+    "positives": 5,
+    "tp": 0
+   },
+   {
+    "event_id": "2023-09-11",
+    "fp": 176,
+    "pod": 0.2708333333333333,
+    "positives": 48,
+    "tp": 13
+   },
+   {
+    "event_id": "2023-09-18",
+    "fp": 43,
+    "pod": 0.16129032258064516,
+    "positives": 31,
+    "tp": 5
+   },
+   {
+    "event_id": "2023-09-29",
+    "fp": 400,
+    "pod": 0.8193979933110368,
+    "positives": 299,
+    "tp": 245
+   },
+   {
+    "event_id": "2023-10-10",
+    "fp": 2,
+    "pod": 0.0,
+    "positives": 4,
+    "tp": 0
+   },
+   {
+    "event_id": "2023-11-24",
+    "fp": 2,
+    "pod": 0.0,
+    "positives": 4,
+    "tp": 0
+   },
+   {
+    "event_id": "2023-12-02",
+    "fp": 2,
+    "pod": 0.0,
+    "positives": 2,
+    "tp": 0
+   },
+   {
+    "event_id": "2024-02-16",
+    "fp": 4,
+    "pod": 0.0,
+    "positives": 1,
+    "tp": 0
+   },
+   {
+    "event_id": "2024-03-06",
+    "fp": 81,
+    "pod": 0.29577464788732394,
+    "positives": 71,
+    "tp": 21
+   },
+   {
+    "event_id": "2024-03-23",
+    "fp": 401,
+    "pod": 0.5887850467289719,
+    "positives": 107,
+    "tp": 63
+   },
+   {
+    "event_id": "2024-07-24",
+    "fp": 2,
+    "pod": 0.0,
+    "positives": 11,
+    "tp": 0
+   },
+   {
+    "event_id": "2024-08-06",
+    "fp": 144,
+    "pod": 0.5,
+    "positives": 56,
+    "tp": 28
+   },
+   {
+    "event_id": "2024-08-19",
+    "fp": 37,
+    "pod": 0.10416666666666667,
+    "positives": 48,
+    "tp": 5
+   },
+   {
+    "event_id": "2025-07-08",
+    "fp": 8,
+    "pod": 0.0,
+    "positives": 7,
+    "tp": 0
+   },
+   {
+    "event_id": "2025-07-14",
+    "fp": 179,
+    "pod": 0.4691358024691358,
+    "positives": 81,
+    "tp": 38
+   },
+   {
+    "event_id": "2025-07-31",
+    "fp": 70,
+    "pod": 0.3627450980392157,
+    "positives": 102,
+    "tp": 37
+   },
+   {
+    "event_id": "2025-08-13",
+    "fp": 24,
+    "pod": 0.05714285714285714,
+    "positives": 35,
+    "tp": 2
+   },
+   {
+    "event_id": "2025-10-30",
+    "fp": 148,
+    "pod": 0.6068181818181818,
+    "positives": 440,
+    "tp": 267
+   },
+   {
+    "event_id": "2025-12-19",
+    "fp": 46,
+    "pod": 0.16842105263157894,
+    "positives": 95,
+    "tp": 16
+   }
+  ],
+  "point": [
+   {
+    "event_id": "2010-08-22",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 7,
+    "tp": 0
+   },
+   {
+    "event_id": "2010-10-01",
+    "fp": 7,
+    "pod": 0.0,
+    "positives": 23,
+    "tp": 0
+   },
+   {
+    "event_id": "2010-10-11",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 6,
+    "tp": 0
+   },
+   {
+    "event_id": "2010-12-01",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 15,
+    "tp": 0
+   },
+   {
+    "event_id": "2011-01-18",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 16,
+    "tp": 0
+   },
+   {
+    "event_id": "2011-02-02",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 31,
+    "tp": 0
+   },
+   {
+    "event_id": "2011-08-01",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2011-08-14",
+    "fp": 103,
+    "pod": 0.0,
+    "positives": 3,
+    "tp": 0
+   },
+   {
+    "event_id": "2011-08-19",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 4,
+    "tp": 0
+   },
+   {
+    "event_id": "2011-08-21",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 4,
+    "tp": 0
+   },
+   {
+    "event_id": "2012-05-21",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 4,
+    "tp": 0
+   },
+   {
+    "event_id": "2012-06-22",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 2,
+    "tp": 0
+   },
+   {
+    "event_id": "2012-07-18",
+    "fp": 2,
+    "pod": 0.0,
+    "positives": 3,
+    "tp": 0
+   },
+   {
+    "event_id": "2012-08-01",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 10,
+    "tp": 0
+   },
+   {
+    "event_id": "2012-08-15",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 8,
+    "tp": 0
+   },
+   {
+    "event_id": "2012-09-08",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2013-05-08",
+    "fp": 4,
+    "pod": 0.0,
+    "positives": 29,
+    "tp": 0
+   },
+   {
+    "event_id": "2013-05-23",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 4,
+    "tp": 0
+   },
+   {
+    "event_id": "2013-06-02",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2013-06-07",
+    "fp": 16,
+    "pod": 0.07692307692307693,
+    "positives": 13,
+    "tp": 1
+   },
+   {
+    "event_id": "2013-09-02",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2014-02-05",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 50,
+    "tp": 0
+   },
+   {
+    "event_id": "2014-02-13",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 46,
+    "tp": 0
+   },
+   {
+    "event_id": "2014-05-10",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2014-05-16",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 14,
+    "tp": 0
+   },
+   {
+    "event_id": "2014-06-13",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 5,
+    "tp": 0
+   },
+   {
+    "event_id": "2014-07-02",
+    "fp": 6,
+    "pod": 0.0,
+    "positives": 6,
+    "tp": 0
+   },
+   {
+    "event_id": "2014-07-15",
+    "fp": 1,
+    "pod": 0.0,
+    "positives": 10,
+    "tp": 0
+   },
+   {
+    "event_id": "2014-08-31",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 5,
+    "tp": 0
+   },
+   {
+    "event_id": "2014-10-22",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 1,
+    "tp": 0
+   },
+   {
+    "event_id": "2014-11-17",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 5,
+    "tp": 0
+   },
+   {
+    "event_id": "2014-12-09",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 17,
+    "tp": 0
+   },
+   {
+    "event_id": "2015-05-31",
+    "fp": 1,
+    "pod": 0.0,
+    "positives": 20,
+    "tp": 0
+   },
+   {
+    "event_id": "2015-07-15",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 3,
+    "tp": 0
+   },
+   {
+    "event_id": "2015-07-30",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2015-12-17",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 13,
+    "tp": 0
+   },
+   {
+    "event_id": "2016-02-16",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 12,
+    "tp": 0
+   },
+   {
+    "event_id": "2016-05-30",
+    "fp": 1,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2016-06-01",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 2,
+    "tp": 0
+   },
+   {
+    "event_id": "2016-06-09",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2016-07-25",
+    "fp": 1,
+    "pod": 0.0,
+    "positives": 5,
+    "tp": 0
+   },
+   {
+    "event_id": "2016-08-29",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2016-09-13",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2016-10-15",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2016-10-19",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2016-11-15",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 28,
+    "tp": 0
+   },
+   {
+    "event_id": "2016-11-29",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 9,
+    "tp": 0
+   },
+   {
+    "event_id": "2016-12-15",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-01-09",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-01-17",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 7,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-01-19",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-02-13",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-02-21",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-03-02",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-03-20",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 8,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-04-06",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 21,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-05-05",
+    "fp": 16,
+    "pod": 0.0,
+    "positives": 40,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-06-14",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 4,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-06-19",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 5,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-07-07",
+    "fp": 1,
+    "pod": 0.0,
+    "positives": 10,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-07-11",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-07-20",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-08-02",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 8,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-08-04",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-08-12",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-08-18",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 1,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-09-01",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2017-10-29",
+    "fp": 6,
+    "pod": 0.0,
+    "positives": 3,
+    "tp": 0
+   },
+   {
+    "event_id": "2018-01-10",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2018-05-02",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2018-06-28",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 6,
+    "tp": 0
+   },
+   {
+    "event_id": "2018-07-17",
+    "fp": 7,
+    "pod": 0.0,
+    "positives": 5,
+    "tp": 0
+   },
+   {
+    "event_id": "2018-07-27",
+    "fp": 1,
+    "pod": 0.0,
+    "positives": 1,
+    "tp": 0
+   },
+   {
+    "event_id": "2018-08-04",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 4,
+    "tp": 0
+   },
+   {
+    "event_id": "2018-08-06",
+    "fp": 1,
+    "pod": 0.0,
+    "positives": 13,
+    "tp": 0
+   },
+   {
+    "event_id": "2018-08-11",
+    "fp": 11,
+    "pod": 0.0,
+    "positives": 1,
+    "tp": 0
+   },
+   {
+    "event_id": "2018-09-25",
+    "fp": 5,
+    "pod": 0.0,
+    "positives": 21,
+    "tp": 0
+   },
+   {
+    "event_id": "2018-09-28",
+    "fp": 1,
+    "pod": 0.0,
+    "positives": 15,
+    "tp": 0
+   },
+   {
+    "event_id": "2018-12-21",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 20,
+    "tp": 0
+   },
+   {
+    "event_id": "2019-01-17",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2019-01-28",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2019-03-26",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2019-05-29",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 5,
+    "tp": 0
+   },
+   {
+    "event_id": "2019-07-17",
+    "fp": 4,
+    "pod": 0.0,
+    "positives": 6,
+    "tp": 0
+   },
+   {
+    "event_id": "2019-07-22",
+    "fp": 5,
+    "pod": 0.0,
+    "positives": 46,
+    "tp": 0
+   },
+   {
+    "event_id": "2019-07-31",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 7,
+    "tp": 0
+   },
+   {
+    "event_id": "2019-08-07",
+    "fp": 2,
+    "pod": 0.0,
+    "positives": 6,
+    "tp": 0
+   },
+   {
+    "event_id": "2019-09-26",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2019-12-22",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2020-03-04",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 14,
+    "tp": 0
+   },
+   {
+    "event_id": "2020-05-28",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2020-07-10",
+    "fp": 81,
+    "pod": 0.056179775280898875,
+    "positives": 89,
+    "tp": 5
+   },
+   {
+    "event_id": "2020-11-30",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 94,
+    "tp": 0
+   },
+   {
+    "event_id": "2021-06-04",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 30,
+    "tp": 0
+   },
+   {
+    "event_id": "2021-06-08",
+    "fp": 26,
+    "pod": 0.0,
+    "positives": 28,
+    "tp": 0
+   },
+   {
+    "event_id": "2021-07-02",
+    "fp": 1,
+    "pod": 0.0,
+    "positives": 34,
+    "tp": 0
+   },
+   {
+    "event_id": "2021-07-08",
+    "fp": 18,
+    "pod": 0.0,
+    "positives": 56,
+    "tp": 0
+   },
+   {
+    "event_id": "2021-07-12",
+    "fp": 5,
+    "pod": 0.0,
+    "positives": 19,
+    "tp": 0
+   },
+   {
+    "event_id": "2021-07-26",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 13,
+    "tp": 0
+   },
+   {
+    "event_id": "2021-08-21",
+    "fp": 969,
+    "pod": 0.25396825396825395,
+    "positives": 189,
+    "tp": 48
+   },
+   {
+    "event_id": "2021-08-27",
+    "fp": 28,
+    "pod": 0.0,
+    "positives": 9,
+    "tp": 0
+   },
+   {
+    "event_id": "2021-09-01",
+    "fp": 5715,
+    "pod": 0.5945121951219512,
+    "positives": 328,
+    "tp": 195
+   },
+   {
+    "event_id": "2021-09-24",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 6,
+    "tp": 0
+   },
+   {
+    "event_id": "2021-10-26",
+    "fp": 134,
+    "pod": 0.07142857142857142,
+    "positives": 112,
+    "tp": 8
+   },
+   {
+    "event_id": "2022-03-02",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2022-07-16",
+    "fp": 2,
+    "pod": 0.0,
+    "positives": 14,
+    "tp": 0
+   },
+   {
+    "event_id": "2022-07-18",
+    "fp": 16,
+    "pod": 0.03571428571428571,
+    "positives": 56,
+    "tp": 2
+   },
+   {
+    "event_id": "2022-08-18",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 6,
+    "tp": 0
+   },
+   {
+    "event_id": "2022-09-13",
+    "fp": 43,
+    "pod": 0.014705882352941176,
+    "positives": 68,
+    "tp": 1
+   },
+   {
+    "event_id": "2022-11-21",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 2,
+    "tp": 0
+   },
+   {
+    "event_id": "2023-01-26",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 11,
+    "tp": 0
+   },
+   {
+    "event_id": "2023-04-30",
+    "fp": 14,
+    "pod": 0.012048192771084338,
+    "positives": 166,
+    "tp": 2
+   },
+   {
+    "event_id": "2023-07-08",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 1,
+    "tp": 0
+   },
+   {
+    "event_id": "2023-07-16",
+    "fp": 1,
+    "pod": 0.0,
+    "positives": 57,
+    "tp": 0
+   },
+   {
+    "event_id": "2023-08-29",
+    "fp": 0,
+    "pod": null,
+    "positives": 0,
+    "tp": 0
+   },
+   {
+    "event_id": "2023-09-11",
+    "fp": 13,
+    "pod": 0.0,
+    "positives": 52,
+    "tp": 0
+   },
+   {
+    "event_id": "2023-09-18",
+    "fp": 1,
+    "pod": 0.0,
+    "positives": 36,
+    "tp": 0
+   },
+   {
+    "event_id": "2023-09-29",
+    "fp": 467,
+    "pod": 0.14285714285714285,
+    "positives": 385,
+    "tp": 55
+   },
+   {
+    "event_id": "2023-10-10",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 7,
+    "tp": 0
+   },
+   {
+    "event_id": "2023-11-24",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 5,
+    "tp": 0
+   },
+   {
+    "event_id": "2023-12-02",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 1,
+    "tp": 0
+   },
+   {
+    "event_id": "2024-02-16",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 3,
+    "tp": 0
+   },
+   {
+    "event_id": "2024-03-06",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 70,
+    "tp": 0
+   },
+   {
+    "event_id": "2024-03-23",
+    "fp": 179,
+    "pod": 0.042105263157894736,
+    "positives": 95,
+    "tp": 4
+   },
+   {
+    "event_id": "2024-07-24",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 8,
+    "tp": 0
+   },
+   {
+    "event_id": "2024-08-06",
+    "fp": 46,
+    "pod": 0.0,
+    "positives": 73,
+    "tp": 0
+   },
+   {
+    "event_id": "2024-08-19",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 39,
+    "tp": 0
+   },
+   {
+    "event_id": "2025-07-08",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 7,
+    "tp": 0
+   },
+   {
+    "event_id": "2025-07-14",
+    "fp": 144,
+    "pod": 0.02912621359223301,
+    "positives": 103,
+    "tp": 3
+   },
+   {
+    "event_id": "2025-07-31",
+    "fp": 21,
+    "pod": 0.038461538461538464,
+    "positives": 130,
+    "tp": 5
+   },
+   {
+    "event_id": "2025-08-13",
+    "fp": 0,
+    "pod": 0.0,
+    "positives": 33,
+    "tp": 0
+   },
+   {
+    "event_id": "2025-10-30",
+    "fp": 167,
+    "pod": 0.06998654104979811,
+    "positives": 743,
+    "tp": 52
+   },
+   {
+    "event_id": "2025-12-19",
+    "fp": 2,
+    "pod": 0.0,
+    "positives": 120,
+    "tp": 0
+   }
+  ]
+ },
+ "summary": {
+  "cell": {
+   "B0_base_rate": {
+    "event_grouped": {
+     "alert_rate": 1.0,
+     "ci": {
+      "csi": [
+       0.028967542839333716,
+       0.04516287016579198
+      ],
+      "far": [
+       0.954837129834208,
+       0.9710324571606662
+      ],
+      "pod": [
+       1.0,
+       1.0
+      ]
+     },
+     "csi": 0.03647534825219971,
+     "events": 133,
+     "far": 0.9635246517478003,
+     "fn": 0,
+     "fp": 173129,
+     "in_fold_csi_mean": null,
+     "lambdas": [],
+     "pod": 1.0,
+     "positives": 6554,
+     "pr_auc": 0.03310642990311838,
+     "rows": 179683,
+     "tp": 6554
+    },
+    "location_blocked": {
+     "alert_rate": 1.0,
+     "ci": {
+      "csi": [
+       0.028967542839333716,
+       0.04516287016579198
+      ],
+      "far": [
+       0.954837129834208,
+       0.9710324571606662
+      ],
+      "pod": [
+       1.0,
+       1.0
+      ]
+     },
+     "csi": 0.03647534825219971,
+     "events": 133,
+     "far": 0.9635246517478003,
+     "fn": 0,
+     "fp": 173129,
+     "in_fold_csi_mean": null,
+     "lambdas": [],
+     "pod": 1.0,
+     "positives": 6554,
+     "pr_auc": 0.03508777947448215,
+     "rows": 179683,
+     "tp": 6554
+    }
+   },
+   "B1_precip_only": {
+    "event_grouped": {
+     "alert_rate": 0.10156776100131899,
+     "ci": {
+      "csi": [
+       0.05794437771088997,
+       0.11442553551235185
+      ],
+      "far": [
+       0.857444691125551,
+       0.9235179723338739
+      ],
+      "pod": [
+       0.1772028807444973,
+       0.42973150654025266
+      ]
+     },
+     "csi": 0.08442268176452586,
+     "events": 133,
+     "far": 0.8941917808219179,
+     "fn": 4623,
+     "fp": 16319,
+     "in_fold_csi_mean": 0.1037406685425066,
+     "lambdas": [
+      100.0,
+      0.1,
+      100.0,
+      0.01,
+      100.0
+     ],
+     "pod": 0.2946292340555386,
+     "positives": 6554,
+     "pr_auc": 0.10193444274586788,
+     "rows": 179683,
+     "tp": 1931
+    },
+    "location_blocked": {
+     "alert_rate": 0.11989448083569397,
+     "ci": {
+      "csi": [
+       0.07104369760712961,
+       0.1357442249985353
+      ],
+      "far": [
+       0.8387042631430924,
+       0.9126022253025795
+      ],
+      "pod": [
+       0.2586889573370657,
+       0.5239466838325215
+      ]
+     },
+     "csi": 0.10257818938115607,
+     "events": 133,
+     "far": 0.8786612820869888,
+     "fn": 3940,
+     "fp": 18929,
+     "in_fold_csi_mean": 0.10300003274704447,
+     "lambdas": [
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0
+     ],
+     "pod": 0.3988404028074458,
+     "positives": 6554,
+     "pr_auc": 0.11252408023070276,
+     "rows": 179683,
+     "tp": 2614
+    }
+   },
+   "B2_unit_climatology": {
+    "event_grouped": {
+     "alert_rate": 0.09643093670519749,
+     "ci": {
+      "csi": [
+       0.06992816735863895,
+       0.09552340795850112
+      ],
+      "far": [
+       0.8725672962385956,
+       0.9147102495243435
+      ],
+      "pod": [
+       0.26376105998268295,
+       0.2955586317898438
+      ]
+     },
+     "csi": 0.08269483610645147,
+     "events": 133,
+     "far": 0.8947307670110233,
+     "fn": 4730,
+     "fp": 15503,
+     "in_fold_csi_mean": null,
+     "lambdas": [],
+     "pod": 0.2783033262129997,
+     "positives": 6554,
+     "pr_auc": 0.09384943579619402,
+     "rows": 179683,
+     "tp": 1824
+    },
+    "location_blocked": {
+     "alert_rate": 1.0,
+     "ci": {
+      "csi": [
+       0.028967542839333716,
+       0.04516287016579198
+      ],
+      "far": [
+       0.954837129834208,
+       0.9710324571606662
+      ],
+      "pod": [
+       1.0,
+       1.0
+      ]
+     },
+     "csi": 0.03647534825219971,
+     "events": 133,
+     "far": 0.9635246517478003,
+     "fn": 0,
+     "fp": 173129,
+     "in_fold_csi_mean": null,
+     "lambdas": [],
+     "pod": 1.0,
+     "positives": 6554,
+     "pr_auc": 0.03508777947448215,
+     "rows": 179683,
+     "tp": 6554
+    }
+   },
+   "B3_density_only": {
+    "event_grouped": {
+     "alert_rate": 0.1021799502457105,
+     "ci": {
+      "csi": [
+       0.06538214663643414,
+       0.09668288366380196
+      ],
+      "far": [
+       0.8728748122574059,
+       0.9210458068533197
+      ],
+      "pod": [
+       0.25452567086042766,
+       0.30768255195980315
+      ]
+     },
+     "csi": 0.08011792248330876,
+     "events": 133,
+     "far": 0.8993464052287582,
+     "fn": 4706,
+     "fp": 16512,
+     "in_fold_csi_mean": 0.08281508094856911,
+     "lambdas": [
+      0.01,
+      0.01,
+      0.01,
+      0.01,
+      0.01
+     ],
+     "pod": 0.28196521208422337,
+     "positives": 6554,
+     "pr_auc": 0.09471346325423576,
+     "rows": 179683,
+     "tp": 1848
+    },
+    "location_blocked": {
+     "alert_rate": 0.12147504215757751,
+     "ci": {
+      "csi": [
+       0.06603595499870914,
+       0.09975069108148395
+      ],
+      "far": [
+       0.8763800426496895,
+       0.9230506697340412
+      ],
+      "pod": [
+       0.29821817085850333,
+       0.3538956348941197
+      ]
+     },
+     "csi": 0.08192284232997865,
+     "events": 133,
+     "far": 0.9015439593164429,
+     "fn": 4405,
+     "fp": 19678,
+     "in_fold_csi_mean": 0.08297560224677032,
+     "lambdas": [
+      0.01,
+      0.01,
+      0.01,
+      0.01,
+      0.01
+     ],
+     "pod": 0.32789136405248703,
+     "positives": 6554,
+     "pr_auc": 0.09683309635518737,
+     "rows": 179683,
+     "tp": 2149
+    }
+   },
+   "model": {
+    "event_grouped": {
+     "alert_rate": 0.05382813065231547,
+     "ci": {
+      "csi": [
+       0.10998290456221263,
+       0.19325061329275092
+      ],
+      "far": [
+       0.7194845381562975,
+       0.8326217728664849
+      ],
+      "pod": [
+       0.23245643299469534,
+       0.42033152132581264
+      ]
+     },
+     "csi": 0.15159687721788503,
+     "events": 133,
+     "far": 0.7791563275434243,
+     "fn": 4418,
+     "fp": 7536,
+     "in_fold_csi_mean": 0.15979950919831126,
+     "lambdas": [
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      10.0
+     ],
+     "pod": 0.32590784253890753,
+     "positives": 6554,
+     "pr_auc": 0.19351864928057289,
+     "rows": 179683,
+     "tp": 2136
+    },
+    "location_blocked": {
+     "alert_rate": 0.05664420117651642,
+     "ci": {
+      "csi": [
+       0.1168814674461541,
+       0.20251805871523856
+      ],
+      "far": [
+       0.7200130758733468,
+       0.8238834715239309
+      ],
+      "pod": [
+       0.24952977588133549,
+       0.44469910235820553
+      ]
+     },
+     "csi": 0.1591271215794943,
+     "events": 133,
+     "far": 0.7743171546472785,
+     "fn": 4257,
+     "fp": 7881,
+     "in_fold_csi_mean": 0.15936637217711253,
+     "lambdas": [
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0
+     ],
+     "pod": 0.3504729935916997,
+     "positives": 6554,
+     "pr_auc": 0.20301656244226518,
+     "rows": 179683,
+     "tp": 2297
+    }
+   }
+  },
+  "point": {
+   "B0_base_rate": {
+    "event_grouped": {
+     "alert_rate": 1.0,
+     "ci": {
+      "csi": [
+       0.00319982398172206,
+       0.007406889415875203
+      ],
+      "far": [
+       0.9925931105841248,
+       0.996800176018278
+      ],
+      "pod": [
+       1.0,
+       1.0
+      ]
+     },
+     "csi": 0.005116480351719727,
+     "events": 133,
+     "far": 0.9948835196482803,
+     "fn": 0,
+     "fp": 779343,
+     "in_fold_csi_mean": null,
+     "lambdas": [],
+     "pod": 1.0,
+     "positives": 4008,
+     "pr_auc": 0.004488162380689547,
+     "rows": 783351,
+     "tp": 4008
+    },
+    "location_blocked": {
+     "alert_rate": 1.0,
+     "ci": {
+      "csi": [
+       0.00319982398172206,
+       0.007406889415875203
+      ],
+      "far": [
+       0.9925931105841248,
+       0.996800176018278
+      ],
+      "pod": [
+       1.0,
+       1.0
+      ]
+     },
+     "csi": 0.005116480351719727,
+     "events": 133,
+     "far": 0.9948835196482803,
+     "fn": 0,
+     "fp": 779343,
+     "in_fold_csi_mean": null,
+     "lambdas": [],
+     "pod": 1.0,
+     "positives": 4008,
+     "pr_auc": 0.004950159471287083,
+     "rows": 783351,
+     "tp": 4008
+    }
+   },
+   "B1_precip_only": {
+    "event_grouped": {
+     "alert_rate": 0.04129949409651612,
+     "ci": {
+      "csi": [
+       0.00629481729878562,
+       0.023305837265614453
+      ],
+      "far": [
+       0.9746702783799939,
+       0.9918571523728483
+      ],
+      "pod": [
+       0.03368434642031982,
+       0.3290865115110354
+      ]
+     },
+     "csi": 0.017347509792949075,
+     "events": 133,
+     "far": 0.9808358061325421,
+     "fn": 3388,
+     "fp": 31732,
+     "in_fold_csi_mean": 0.02352972912320665,
+     "lambdas": [
+      0.01,
+      0.1,
+      100.0,
+      100.0,
+      0.01
+     ],
+     "pod": 0.15469061876247506,
+     "positives": 4008,
+     "pr_auc": 0.01570645095506995,
+     "rows": 783351,
+     "tp": 620
+    },
+    "location_blocked": {
+     "alert_rate": 0.034563050280142615,
+     "ci": {
+      "csi": [
+       0.0006234743753888731,
+       0.027071853238233693
+      ],
+      "far": [
+       0.9671401108472103,
+       0.998276877113131
+      ],
+      "pod": [
+       0.0009761025864431372,
+       0.33608878952982324
+      ]
+     },
+     "csi": 0.021291276490882208,
+     "events": 133,
+     "far": 0.9760664819944599,
+     "fn": 3360,
+     "fp": 26427,
+     "in_fold_csi_mean": 0.022592814105292104,
+     "lambdas": [
+      100.0,
+      100.0,
+      100.0,
+      10.0,
+      10.0
+     ],
+     "pod": 0.16167664670658682,
+     "positives": 4008,
+     "pr_auc": 0.017286859247405875,
+     "rows": 783351,
+     "tp": 648
+    }
+   },
+   "B2_unit_climatology": {
+    "event_grouped": {
+     "alert_rate": 0.012280574097690563,
+     "ci": {
+      "csi": [
+       0.020515694508838812,
+       0.048206411533023345
+      ],
+      "far": [
+       0.9244822939576627,
+       0.9746051353925138
+      ],
+      "pod": [
+       0.08721562428799272,
+       0.13687977922087433
+      ]
+     },
+     "csi": 0.033990895295902886,
+     "events": 133,
+     "far": 0.9534303534303534,
+     "fn": 3560,
+     "fp": 9172,
+     "in_fold_csi_mean": null,
+     "lambdas": [],
+     "pod": 0.11177644710578842,
+     "positives": 4008,
+     "pr_auc": 0.019087619008344745,
+     "rows": 783351,
+     "tp": 448
+    },
+    "location_blocked": {
+     "alert_rate": 1.0,
+     "ci": {
+      "csi": [
+       0.00319982398172206,
+       0.007406889415875203
+      ],
+      "far": [
+       0.9925931105841248,
+       0.996800176018278
+      ],
+      "pod": [
+       1.0,
+       1.0
+      ]
+     },
+     "csi": 0.005116480351719727,
+     "events": 133,
+     "far": 0.9948835196482803,
+     "fn": 0,
+     "fp": 779343,
+     "in_fold_csi_mean": null,
+     "lambdas": [],
+     "pod": 1.0,
+     "positives": 4008,
+     "pr_auc": 0.004950159471287083,
+     "rows": 783351,
+     "tp": 4008
+    }
+   },
+   "B3_density_only": {
+    "event_grouped": {
+     "alert_rate": 0.027697673201412903,
+     "ci": {
+      "csi": [
+       0.006594049380882848,
+       0.021495249477965116
+      ],
+      "far": [
+       0.9735349928864319,
+       0.9926507465225249
+      ],
+      "pod": [
+       0.05598915582004378,
+       0.10579931284298438
+      ]
+     },
+     "csi": 0.013164636790035867,
+     "events": 133,
+     "far": 0.9846061667511637,
+     "fn": 3674,
+     "fp": 21363,
+     "in_fold_csi_mean": 0.013904384013455923,
+     "lambdas": [
+      0.01,
+      0.01,
+      0.01,
+      0.01,
+      0.01
+     ],
+     "pod": 0.08333333333333333,
+     "positives": 4008,
+     "pr_auc": 0.008347870347790871,
+     "rows": 783351,
+     "tp": 334
+    },
+    "location_blocked": {
+     "alert_rate": 0.030718030614628692,
+     "ci": {
+      "csi": [
+       0.00710913445265233,
+       0.02013120141839084
+      ],
+      "far": [
+       0.9754704037781173,
+       0.9921197407051687
+      ],
+      "pod": [
+       0.0680632061699165,
+       0.10744845521906098
+      ]
+     },
+     "csi": 0.01302778780223746,
+     "events": 133,
+     "far": 0.9849977143332087,
+     "fn": 3647,
+     "fp": 23702,
+     "in_fold_csi_mean": 0.014206473375933731,
+     "lambdas": [
+      0.01,
+      0.01,
+      0.01,
+      0.01,
+      0.01
+     ],
+     "pod": 0.09006986027944112,
+     "positives": 4008,
+     "pr_auc": 0.008679784045924269,
+     "rows": 783351,
+     "tp": 361
+    }
+   },
+   "model": {
+    "event_grouped": {
+     "alert_rate": 0.010290406216370439,
+     "ci": {
+      "csi": [
+       0.01407597056649642,
+       0.04090015304287785
+      ],
+      "far": [
+       0.9306280067126609,
+       0.9784952544544079
+      ],
+      "pod": [
+       0.02892614590706406,
+       0.13470766799958214
+      ]
+     },
+     "csi": 0.028637177192533878,
+     "events": 133,
+     "far": 0.9583178265723855,
+     "fn": 3672,
+     "fp": 7725,
+     "in_fold_csi_mean": 0.032963698662618196,
+     "lambdas": [
+      10.0,
+      0.01,
+      100.0,
+      100.0,
+      0.01
+     ],
+     "pod": 0.08383233532934131,
+     "positives": 4008,
+     "pr_auc": 0.02069779493533526,
+     "rows": 783351,
+     "tp": 336
+    },
+    "location_blocked": {
+     "alert_rate": 0.011075494893093901,
+     "ci": {
+      "csi": [
+       0.016665558510638296,
+       0.03841211526164963
+      ],
+      "far": [
+       0.9028254375045763,
+       0.9670611785363677
+      ],
+      "pod": [
+       0.025784566862894806,
+       0.18979185620334124
+      ]
+     },
+     "csi": 0.030968056571567912,
+     "events": 133,
+     "far": 0.9560857538035962,
+     "fn": 3627,
+     "fp": 8295,
+     "in_fold_csi_mean": 0.03258971204746858,
+     "lambdas": [
+      10.0,
+      100.0,
+      100.0,
+      100.0,
+      100.0
+     ],
+     "pod": 0.09505988023952096,
+     "positives": 4008,
+     "pr_auc": 0.023054726831825845,
+     "rows": 783351,
+     "tp": 381
+    }
+   }
+  }
+ },
+ "sweeps": {
+  "cell": [
+   {
+    "config": "lambda=0.01",
+    "csi": 0.15533641068680934,
+    "delta_csi": -0.0037907108926849564,
+    "far": 0.7771199197190165,
+    "pod": 0.3388770216661581,
+    "pr_auc": 0.2021666025910859
+   },
+   {
+    "config": "lambda=0.1",
+    "csi": 0.15526647083508183,
+    "delta_csi": -0.0038606507444124694,
+    "far": 0.7771979124849459,
+    "pod": 0.33872444308819044,
+    "pr_auc": 0.20216767350903622
+   },
+   {
+    "config": "lambda=1.0",
+    "csi": 0.1553146853146853,
+    "delta_csi": -0.0038124362648089827,
+    "far": 0.7771646433229658,
+    "pod": 0.3388770216661581,
+    "pr_auc": 0.20218373354396157
+   },
+   {
+    "config": "lambda=10.0",
+    "csi": 0.155972910703065,
+    "delta_csi": -0.0031542108764293086,
+    "far": 0.77666699990003,
+    "pod": 0.3408605431797376,
+    "pr_auc": 0.20229990940949447
+   },
+   {
+    "config": "lambda=100.0",
+    "csi": 0.1591271215794943,
+    "delta_csi": 0.0,
+    "far": 0.7743171546472785,
+    "pod": 0.3504729935916997,
+    "pr_auc": 0.20301656244226518
+   },
+   {
+    "config": "lambda=1000 (beyond the selection grid)",
+    "csi": 0.1570425960669863,
+    "delta_csi": -0.0020845255125079842,
+    "far": 0.7761711399425572,
+    "pod": 0.3448275862068966,
+    "pr_auc": 0.2016332530618669
+   },
+   {
+    "config": "drop precip_max_1h",
+    "csi": 0.15172884440400364,
+    "delta_csi": -0.0073982771754906584,
+    "far": 0.8052270404438604,
+    "pod": 0.40707964601769914,
+    "pr_auc": 0.19528760415715582
+   },
+   {
+    "config": "drop precip_total",
+    "csi": 0.1452760167001701,
+    "delta_csi": -0.0138511048793242,
+    "far": 0.7724906162973726,
+    "pod": 0.28669514800122065,
+    "pr_auc": 0.190702640860562
+   },
+   {
+    "config": "drop antecedent_24h",
+    "csi": 0.1585945573544609,
+    "delta_csi": -0.000532564225033394,
+    "far": 0.7756991133196921,
+    "pod": 0.351235886481538,
+    "pr_auc": 0.2030460499709392
+   },
+   {
+    "config": "drop stormwater_shares",
+    "csi": 0.14309332421184653,
+    "delta_csi": -0.016033797367647762,
+    "far": 0.8140327480180781,
+    "pod": 0.38297223069880987,
+    "pr_auc": 0.18394785277429263
+   },
+   {
+    "config": "drop history_311_density",
+    "csi": 0.13429654192325913,
+    "delta_csi": -0.02483057965623517,
+    "far": 0.8200285668941438,
+    "pod": 0.3460482148306378,
+    "pr_auc": 0.1664056109848811
+   },
+   {
+    "config": "operating point: in-fold threshold (not in-fold alert rate)",
+    "csi": 0.15858969927410993,
+    "delta_csi": -0.0005374223053843663,
+    "far": 0.7752082312591867,
+    "pod": 0.35001525785779675,
+    "pr_auc": 0.20301656244226518
+   },
+   {
+    "config": "weighted 1/fan-out (proxy: positives per event x Cell)",
+    "csi": 0.1591271215794943,
+    "delta_csi": 0.0,
+    "far": 0.7743171546472785,
+    "pod": 0.3504729935916997,
+    "pr_auc": 0.20301656244226518
+   }
+  ],
+  "point": [
+   {
+    "config": "lambda=0.01",
+    "csi": 0.03144203195411716,
+    "delta_csi": 0.0004739753825492507,
+    "far": 0.9493650008246742,
+    "pod": 0.07659680638722555,
+    "pr_auc": 0.022768461151802737
+   },
+   {
+    "config": "lambda=0.1",
+    "csi": 0.03144203195411716,
+    "delta_csi": 0.0004739753825492507,
+    "far": 0.9493650008246742,
+    "pod": 0.07659680638722555,
+    "pr_auc": 0.022768732299889124
+   },
+   {
+    "config": "lambda=1.0",
+    "csi": 0.03141629144494474,
+    "delta_csi": 0.00044823487337682794,
+    "far": 0.9494317245923242,
+    "pod": 0.07659680638722555,
+    "pr_auc": 0.022771281685652626
+   },
+   {
+    "config": "lambda=10.0",
+    "csi": 0.032742950361221164,
+    "delta_csi": 0.0017748937896532521,
+    "far": 0.9421215242018538,
+    "pod": 0.07010978043912176,
+    "pr_auc": 0.02279808300103468
+   },
+   {
+    "config": "lambda=100.0",
+    "csi": 0.03044008902290186,
+    "delta_csi": -0.0005279675486660508,
+    "far": 0.9590140164330595,
+    "pod": 0.10578842315369262,
+    "pr_auc": 0.022976608233850428
+   },
+   {
+    "config": "lambda=1000 (beyond the selection grid)",
+    "csi": 0.03274201723264065,
+    "delta_csi": 0.0017739606610727363,
+    "far": 0.9477346278317152,
+    "pod": 0.08058882235528943,
+    "pr_auc": 0.02320894852950359
+   },
+   {
+    "config": "drop precip_max_1h",
+    "csi": 0.030149207814182434,
+    "delta_csi": -0.0008188487573854777,
+    "far": 0.9582356701470275,
+    "pod": 0.09780439121756487,
+    "pr_auc": 0.02189355614022639
+   },
+   {
+    "config": "drop precip_total",
+    "csi": 0.029413454357442408,
+    "delta_csi": -0.0015546022141255042,
+    "far": 0.963194594206024,
+    "pod": 0.1277445109780439,
+    "pr_auc": 0.021501840228992493
+   },
+   {
+    "config": "drop antecedent_24h",
+    "csi": 0.032585278276481146,
+    "delta_csi": 0.001617221704913234,
+    "far": 0.9515677118078719,
+    "pod": 0.09056886227544911,
+    "pr_auc": 0.02292019785023987
+   },
+   {
+    "config": "drop elevation",
+    "csi": 0.03198045048873778,
+    "delta_csi": 0.0010123939171698682,
+    "far": 0.947239263803681,
+    "pod": 0.0750998003992016,
+    "pr_auc": 0.022007224937442588
+   },
+   {
+    "config": "drop relief",
+    "csi": 0.029882216082594153,
+    "delta_csi": -0.0010858404889737584,
+    "far": 0.9595352958550754,
+    "pod": 0.10254491017964072,
+    "pr_auc": 0.02299670180784205
+   },
+   {
+    "config": "drop stormwater",
+    "csi": 0.02356736022317796,
+    "delta_csi": -0.007400696348389951,
+    "far": 0.9740189011693097,
+    "pod": 0.20234530938123751,
+    "pr_auc": 0.01913958679105086
+   },
+   {
+    "config": "drop kind_indicator",
+    "csi": 0.030776515151515152,
+    "delta_csi": -0.00019154142005275987,
+    "far": 0.9527410207939508,
+    "pod": 0.08108782435129741,
+    "pr_auc": 0.022691174998235825
+   },
+   {
+    "config": "operating point: in-fold threshold (not in-fold alert rate)",
+    "csi": 0.030352215549423796,
+    "delta_csi": -0.0006158410221441153,
+    "far": 0.95695211786372,
+    "pod": 0.09331337325349301,
+    "pr_auc": 0.023054726831825845
+   },
+   {
+    "config": "weighted 1/fan-out (proxy: positives per event x Cell)",
+    "csi": 0.028708133971291867,
+    "delta_csi": -0.002259922600276045,
+    "far": 0.9611078373600471,
+    "pod": 0.09880239520958084,
+    "pr_auc": 0.02359422587230839
+   }
+  ]
+ }
+}

@@ -113,8 +113,11 @@ anyone the page is shown to; implementer = the agent building a slice.
     honored end to end, including alternate live-panel wording, so that honesty
     survives even an embarrassing result.
 17. As an analyst, I want per-event reporting as POD plus raw false-positive
-    count, so that single-positive events (61% of them) are not laundered through
-    a degenerate per-event CSI.
+    count, so that single-positive events are not laundered through a degenerate
+    per-event CSI. (The drafted "61% of them" is SUPERSEDED by flood 09's
+    measurement on the landed matrix, 2026-08-24: single-positive events are 6 of
+    100 at point grain, 7 of 133 at Cell grain and 55 of 71 at complex grain. The
+    decision stands; the fraction was wrong.)
 18. As an analyst, I want radius and threshold sweeps published as sensitivity
     tables around one frozen primary configuration, so that reviewers see the
     knobs without the knobs having selected the result.
