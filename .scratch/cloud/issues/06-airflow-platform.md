@@ -134,6 +134,13 @@ recipe may not shell out to kubectl/helm; `tests/test_cloud_cost.py` enforces it
   scheduler 30m/407Mi (requests 500m/1Gi), api-server 3m/239Mi (300m/1Gi), dag-processor
   9m/223Mi (200m/512Mi), postgres 17m/50Mi (250m/512Mi). The requests are T1's table and
   were kept so the arithmetic stays comparable; ~59m of real CPU is holding 1070m of floor.
+  **RESOLVED at the wave-2 gate (Ross, 2026-08-24): right-size taken.** Requests are now
+  scheduler 250m, api-server 100m, dag-processor 50m, postgres 50m in
+  `deploy/airflow/values.yaml` + `deploy/k8s/airflow/postgres.yaml`; floor total 3350m vs
+  3860m allocatable with cloud 05's two workloads counted, and the streaming driver fits.
+  T1's table corrected in the same commit. The LIVE cluster still carries the old requests
+  until `bash scripts/airflow-install.sh` re-runs (idempotent) — harmless while no floor
+  workload beyond Airflow is applied, but re-converge BEFORE applying raincheck-stream.
 - Airflow runs as **`raincheck-build`** (ticket 07's existing SA) with
   `envFrom: [{secretRef: {name: r2-build, optional: true}}]`. `optional` is load-bearing:
   the token does not exist yet, and without it every pod would sit in
