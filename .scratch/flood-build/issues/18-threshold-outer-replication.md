@@ -54,3 +54,20 @@ replication); Testing: build-asset evidence.
   299: Dyckman St}`; a name match returns 18 because "86 St" alone names five complexes.
 - Recorded limit: `precip_identity()` names the built AORC Cell-month partition SET, not
   the pixel bytes — a month rewritten under the same name does not move the stamp.
+
+
+## Inherited from flood 09's build (2026-08-24) — WHAT 09 DEFERRED TO YOU
+
+- **The {50, 100, 200} m LABEL RADIUS sweep is yours too, not just the 311 threshold.**
+  Ticket 09 could not run it in fold: `flood_labels.RADIUS_M = 100.0` is a constant inside
+  ticket 05's Sedona `ST_DWithin` join, upstream of `gold/flood_matrix`, so moving it
+  redefines which (Unit, event) pairs are positive — the same class of change as the
+  threshold. Parameterize it the same way (05 re-runs, 08 rebuilds, the fits re-run, the
+  delta table publishes beside the frozen primary), and stamp each alternate universe's
+  `label_version` / `matrix_version` so nothing collides with the primary's bytes.
+- The fits are `make flood-fits` (`raincheck.flood_fits.run(root)` returns the whole result
+  dict; `flood_fits_report.render(result)` is a pure rendering). Re-running them under an
+  alternate universe is a call, not a fork: point the data root at the alternate build.
+- The primary's frozen numbers to publish against: point CSI **0.0310**, cell **0.1591**
+  (location-blocked, out of fold), fits_version `8050dfa41fc1` over matrix_version
+  `8bc1e8912b1b`.

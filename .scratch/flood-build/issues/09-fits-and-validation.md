@@ -7,20 +7,20 @@ evidence, not pytest.
 
 **Blocked by:** 08
 
-**Status:** ready-for-agent
+**Status:** done (2026-08-24, `make flood-fits`)
 
-- [ ] two fits, L2 logistic, unweighted, lambda by inner CV: the pooled POINT model (entrances + bus stops, shared feature vector + kind indicator) and the CELL model over cells_scored; GBM, hand-weighted index and a third complex-level fit stay rejected
-- [ ] complex score = max over child-entrance scores; the alert-sourced complex-event pairs stay out of training (MEASURED 2026-08-24 on the landed labels: 140 complex labels in all, **118** on pluvial fit-era events — the spec's 155 is superseded) and validate at complex grain independently
-- [ ] four baselines: base rate, precip-only, unit climatology (B2), density-only (B3)
-- [ ] splits: primary = event-grouped 5-fold (deterministic sha1 folds); secondary = location-blocked 5-fold (grouped by Cell); the history-covariate with/without contrast reports under the location-blocked split
-- [ ] metrics: pooled CSI/POD/FAR at the in-fold operating point with an event-cluster bootstrap (B=1000); per-event POD + raw false-positive count (61% of events are single-positive — no per-event CSI); PR-AUC secondary
-- [ ] HEADLINE GATE: the model beats B2 AND B3 under the location-blocked split; if B2 wins, the shipped model id is B2 and the alternate panel strings are selected — the release checklist asserts whichever branch fired
-- [ ] sweeps: ~25 one-at-a-time configs around the frozen primary (100 m, p99-union, ring15_med, history-on); one weight-sensitivity fit (1/fan-out); {50,100,200} m radius sweep in-fold — the 311-threshold sweep is NOT here: it redefines the event universe and runs as its own outer-replication ticket (18)
-- [ ] the bus-stop churn deltas publish as a build asset: metrics with and without the era-restricted bus-stop negatives, naming why the original sensitivity method was dropped (no historical Picks locally)
-- [ ] the MRMS-era out-of-sample replication metrics publish alongside the AORC-fit metrics, read under the 0.86–0.92 Pass2/AORC scale band with the band caveat stamped on the table
-- [ ] pre/post-2014 split published with the label-availability confound stamped on it
-- [ ] the published CSI table carries the FIM reference band (published FIM systems run CSI 0.26–0.45) and the comparison is stamped order-of-magnitude-only
-- [ ] all validation tables publish as build assets the release links; the runnable check is a small test that the fold assignment is deterministic and the gate evaluation is a pure function of the published tables
+- [x] two fits, L2 logistic, unweighted, lambda by inner CV: the pooled POINT model (entrances + bus stops, shared feature vector + kind indicator) and the CELL model over cells_scored; GBM, hand-weighted index and a third complex-level fit stay rejected
+- [x] complex score = max over child-entrance scores; the alert-sourced complex-event pairs stay out of training (MEASURED 2026-08-24 on the landed labels: 140 complex labels in all, **118** on pluvial fit-era events — the spec's 155 is superseded) and validate at complex grain independently
+- [x] four baselines: base rate, precip-only, unit climatology (B2), density-only (B3)
+- [x] splits: primary = event-grouped 5-fold (deterministic sha1 folds); secondary = location-blocked 5-fold (grouped by Cell); the history-covariate with/without contrast reports under the location-blocked split
+- [x] metrics: pooled CSI/POD/FAR at the in-fold operating point with an event-cluster bootstrap (B=1000); per-event POD + raw false-positive count (no per-event CSI — the "61%" is SUPERSEDED by measurement: single-positive events are 6 of 100 at point grain, 7 of 133 at Cell grain, 55 of 71 at complex grain); PR-AUC secondary
+- [x] HEADLINE GATE: the model beats B2 AND B3 under the location-blocked split; if B2 wins, the shipped model id is B2 and the alternate panel strings are selected — the release checklist asserts whichever branch fired
+- [x] sweeps: 28 one-at-a-time configs around the frozen primary + the weight-sensitivity fit (1/fan-out, proxy) — **but the {50,100,200} m radius sweep is NOT in fold and was NOT run here: the radius is a constant inside ticket 05's Sedona `ST_DWithin` label join, upstream of the matrix this ticket only reads, so sweeping it redefines the event universe exactly as the 311 threshold does. Both are DEFERRED TO TICKET 18 with the reason published in the asset; 18's checklist now names the radius alongside the threshold.**
+- [x] the bus-stop churn deltas publish as a build asset: metrics with and without the era-restricted bus-stop negatives, naming why the original sensitivity method was dropped (no historical Picks locally)
+- [x] the MRMS-era out-of-sample replication publishes — as **NOT COMPUTED with the count and the reason**: the matrix is fit-era only (AORC has no 2026 year) and the replication era holds ONE event, so there is no MRMS-era feature row to score. The 0.86–0.92 band caveat is stamped on the table for when it can run.
+- [x] pre/post-2014 split published with the label-availability confound stamped on it
+- [x] the published CSI table carries the FIM reference band (published FIM systems run CSI 0.26–0.45) and the comparison is stamped order-of-magnitude-only
+- [x] all validation tables publish as build assets the release links; the runnable check is a small test that the fold assignment is deterministic and the gate evaluation is a pure function of the published tables
 
 ## Correction from flood-04's build (2026-08-23, recorded by the orchestrator)
 
@@ -68,3 +68,47 @@ silver/flood_events at build time here — do not reuse 115-based fractions.
   299: Dyckman St}`; a name match returns 18 because "86 St" alone names five complexes.
 - Recorded limit: `precip_identity()` names the built AORC Cell-month partition SET, not
   the pixel bytes — a month rewritten under the same name does not move the stamp.
+
+
+## What this build MEASURED (2026-08-24, `make flood-fits`, fits_version `8050dfa41fc1`)
+
+Build assets: `research/flood-09-fits.md` (the tables the release links) and
+`research/flood-09-fits.json` (machine-readable; ticket 10 loads it). Code:
+`src/raincheck/flood_fits.py` (machinery + run), `src/raincheck/flood_fits_report.py`
+(a PURE rendering of the JSON — `python -m raincheck.flood_fits --render-only` re-renders
+without refitting), `tests/test_flood_fits.py` (+13). ~7 min on the real matrix.
+
+- **HEADLINE GATE: MODEL, both roles**, under the location-blocked split — point CSI
+  **0.0310** vs B2 0.0051 / B3 0.0130; cell **0.1591** vs B2 0.0365 / B3 0.0819. Shipped
+  ids `point:l2_logistic` and `cell:l2_logistic`; `gate.panel_strings` carries the MODEL
+  branch's headline/caveat/release strings (the alternates live in
+  `flood_fits.PANEL_STRINGS`).
+- **The gate is not the whole truth, and the asset says so.** Under the PRIMARY
+  event-grouped split the POINT model LOSES to B2 unit climatology (0.0286 vs 0.0340) and
+  its 95% CI overlaps both baselines. The cell model is the one with separated intervals
+  (0.117-0.203 against B3's 0.066-0.100). Anything quoting a point-grain number quotes the
+  weaker half.
+- **B2 degenerates to B0 EXACTLY under location blocking** — identical TP/FP/FN, because a
+  held-out Unit's whole history sits in the held-out fold. Not a bug in the baseline: it is
+  what the split is for, and it is why both splits publish.
+- **The independent complex-grain set is the weak number**: 1 of 118 positives caught
+  (location-blocked), CSI 0.0025, PR-AUC 0.0057 against a 0.0027 base rate. All 43,089
+  complex-event pairs have child entrance rows; nothing was skipped. A complex-grain claim
+  is not validated on this evidence.
+- **The operating point transfers as an ALERT BUDGET, not a raw threshold** (in-fold
+  max-CSI cut -> its alert rate -> a quantile of the held-out scores; no held-out label is
+  read). Transferring the raw probability makes any constant-scored baseline read CSI 0.0
+  for a reason about its score scale — it would have flattered this gate. Both rules are
+  published as sweep rows; the difference is <= 0.0006 CSI.
+- Sweeps: **28 one-at-a-time configs** in fold (15 point, 13 cell) including a rung BEYOND
+  the lambda grid. Biggest single contributors: `stormwater` for the point model
+  (-0.0074 CSI when dropped) and the 311 history density for the cell model (-0.0248).
+  The **radius {50, 100, 200} m and p99-union threshold sweeps are DEFERRED to ticket 18**
+  with the reason published: both redefine the event universe upstream of the matrix.
+- MRMS-era replication: **NOT COMPUTED** and counted — the matrix is fit-era only and the
+  replication era holds ONE event. The 0.86-0.92 band caveat is stamped for when it runs.
+- Coverage recomputed: **206 events / 248 event-days** (pluvial fit era 133 / 147). The
+  drafted 115 is superseded, as flood 04's correction above required.
+- Single-positive events, measured: point 6 of 100, cell 7 of 133, complex 55 of 71 — the
+  spec's "61% of events" is superseded; the decision it justified (per-event POD + raw FP,
+  never per-event CSI) stands.

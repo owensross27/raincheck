@@ -8,7 +8,7 @@ export TZ := UTC
 export RAINCHECK_ARCHIVE_ROOT RAINCHECK_BRONZE_GB TRANSITLAND_API_KEY
 PY := .venv/bin/python
 
-.PHONY: warm ref nbp features picks precip-hourly precip-cell schedule events gold baseline gates slice test topics flood-obs flood-spine flood-coastal precip-flood-era flood-labels flood-matrix flood-live
+.PHONY: warm ref nbp features picks precip-hourly precip-cell schedule events gold baseline gates slice test topics flood-obs flood-spine flood-coastal precip-flood-era flood-labels flood-matrix flood-fits flood-live
 
 topics:  ## recreate the two bus topics to spec C - DESTRUCTIVE: drops retained Kafka messages (Bronze keeps the record)
 	$(PY) -m raincheck.topics
@@ -90,6 +90,13 @@ precip-flood-era:  ## AORC precip for every fit-era union-event Window (make pre
 # step is a read and not a judgment call. Needs 03 (features), 05 (labels) and 06 (precip).
 flood-matrix:  ## asset_features x flood_labels x AORC precip -> gold/flood_matrix (make flood-matrix [CENSUS=1])
 	$(PY) -m raincheck.flood_matrix $(if $(CENSUS),--census)
+
+# --- flood-build ticket 09: the fits, the baselines, the gate -----------------------
+# gold/flood_matrix is a READ here; nothing is rebuilt. ~7 min on the real matrix. The
+# module writes BOTH build assets itself instead of taking a shell redirect: the run is
+# minutes long, and `>` would truncate the last good asset the moment anything raised.
+flood-fits:  ## two L2 logistic fits + 4 baselines + the headline gate -> research/flood-09-fits.{md,json}
+	$(PY) -m raincheck.flood_fits
 
 gates:  ## tier-2 slice acceptance gates: 10-T3, 10-T6 wired; T4/T5 report-only slots
 	$(PY) -m raincheck.gates
