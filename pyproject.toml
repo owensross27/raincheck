@@ -22,7 +22,12 @@ dependencies = [
     "pyproj",
     "duckdb",
     "pytz",  # DuckDB hands back tz-aware timestamps through pytz
-    "eccodes>=2.48",  # MRMS GRIB2 decode (ticket 11); self-contained wheels since 2.48
+    # MRMS GRIB2 decode (ticket 11). >=2.47 not >=2.48: `eccodes.__version__` reports the
+    # C LIBRARY version (2.48.0, shipped by the eccodeslib wheel it pulls in), while the
+    # python package it is pinning tops out at 2.47.0. The old pin was that number read
+    # from the wrong namespace and resolved on no platform at all -- the Mac venv predates
+    # it. Found by cloud 08's downscale exercise on a clean arm64 Linux box.
+    "eccodes>=2.47",
 ]
 
 [build-system]
