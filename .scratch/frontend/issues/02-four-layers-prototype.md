@@ -99,12 +99,14 @@ per-layer toggles, no modes. They disagree about **which visual channel each qua
    `Date` &minus; `Last-Modified` off the response the page already made renders a real
    per-source age for all nine sources. No payload stamp, no `test_re_export_is_byte_identical`
    breakage.
-2. **FRESH/STALE/OFF/GATED is one state short.** Only TWO of the nine sources have a
-   staleness budget frozen anywhere in the repo — `app.js`'s `STALE_AFTER_S.live = 120` and
-   `flood_truth.MAX_AGE_MIN = 10 min`. The other seven (cells, zones, headline,
-   subway_alerts, cell_hour_speed, the notify 05 manifest, and the per-asset files) have an
-   age but no budget, so the honest render is an age with **no verdict**. The prototype adds
-   a fifth chip, **AGE**, rather than guess a threshold or paint an unbudgeted layer FRESH.
+2. **FRESH/STALE/OFF/GATED is one state short.** The map has NINE sources and only TWO
+   frozen staleness constants exist in the whole repo — `app.js`'s `STALE_AFTER_S.live = 120`
+   and `flood_truth.py:54`'s `MAX_AGE_MIN = 10`. Between them they cover **3 of the 9**
+   (`live.geojson`, `meta.json`, the FloodNet tier); the other **6** — zones, cells,
+   headline, `archive/subway_alerts`, `gold/cell_hour_speed` and the notify 05 manifest —
+   have an age but no budget, so the honest render is an age with **no verdict**. Counted
+   off the running page, not by hand. The prototype adds a fifth chip, **AGE**, rather than
+   guess a threshold or paint an unbudgeted layer FRESH.
    Either flood 15/17 and notify 05 freeze budgets, or the vocabulary grows this state.
 3. **A `cell`-kind asset has `name = NULL` in `ref/assets`** — only stops and complexes are
    named — and the most-flooded assets are exactly the Cells. The first build labelled the

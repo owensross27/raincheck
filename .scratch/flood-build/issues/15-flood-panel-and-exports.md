@@ -17,3 +17,32 @@ anywhere. Spec: Real-time detector (serving, claims, logging); Testing seam 3.
 - [ ] version-skew between the coefficient and detector JSONs refuses the model tier with the reason rendered; truth tiers stay up
 - [ ] logging: one NDJSON file per day — the full unit-state vector only when the model tier recomputes (~24/day), the flagged subset per cycle, truth snapshots on change; ~3 MB/day, ≤ ~100 MB under the 30-day prune-on-start, inside the data-root byte budget
 - [ ] export-file seam tests: absent keys never nulls; one cycle_id across the set; a deleted live root yields error + stale meta, not a crash; skew refusal; tier chips render from file data alone
+
+## Inherited from frontend 02 (prototype, `4ac3ebe`, 2026-08-24) — measured against YOUR code
+
+Frontend 02 built three throwaway variations of the integrated map and, because your three
+export files do not exist yet, painted the flood tiers from `flood_truth.truth()` itself
+rather than invent a schema. Three things it measured land on this ticket:
+
+- [ ] **Emit COORDINATES on the truth payload's MTA chip.** `flood_truth.chips()` returns
+  `{event_id, stations[{complex_id, name, state}], alert_ids, first_seen, last_seen, state,
+  age_min}` — nothing spatial — so a page cannot put an affected station on the map without
+  a second lookup against `ref/assets`. Measured price of closing it here: **all 445
+  complexes with lon/lat = 30,087 B raw**, against the 161,455 B `truth()` already returns.
+  (`ref/assets` is the only source of a complex's lon/lat, and it is exactly the join a
+  serving page should not have to do.)
+- [ ] **Export the staleness budgets as CONSTANTS, not prose.** Only
+  `flood_truth.MAX_AGE_MIN = 10` exists in `src/`; the precip 90/180 ladder, CO-OPS 30 min
+  and NWS 15 min are frozen in the spec and in no code. The page renders a freshness row
+  PER SOURCE off a per-layer TABLE (frontend 01, D2) and has to get those numbers from
+  somewhere — so name them where the page can be pointed at them. Until then the page can
+  only show a bare AGE with no FRESH/STALE verdict, which is what frontend 02 had to build:
+  it added a fifth chip, **AGE** (age known, no budget frozen). Counted off the running
+  page: the map has **9 sources**, the repo's two frozen constants cover **3** of them, and
+  the other **6 are in that state**.
+- [ ] **NAME your three export files and their keys in the close-out.** Both specs describe
+  them in prose only ("all Cells as geometry; point Units only at ELEVATED+; the truth
+  payload"); nothing in the tree freezes a filename or a field. You are free to choose — and
+  you are the one who freezes it, because the map's layer table is written against them.
+
+Nothing here changes the two-meta-file MUST inherited from frontend 01; it sits beside it.
