@@ -261,15 +261,21 @@ envelope, keeping every unit of work exactly as it is today.
 - **Two footprint reductions are taken up front:** no Airflow triggerer (nothing
   here uses deferrable operators) and one webserver replica. The Mac's `local[6]` +
   3 g driver config is Mac-shaped and is re-measured, not copied [spark.py].
-- **Envelope arithmetic on the table.** EKS control plane ~$73/mo fixed; ~$27
-  remains. Working shape: 2 Graviton spot nodes as the floor, Karpenter spot burst
-  for builds (~$1-2/mo), gp3 for Kafka + checkpoints + Airflow Postgres (~$4/mo at
-  ~50 GB), R2 under $1 (41.65 GB measured, first 10 GB free) [T18, T20]. If the
+- **Envelope arithmetic on the table.** EKS control plane ~$73/mo fixed. *Corrected
+  on measurement [T1, T8]: the original `~$27 remains` was arithmetic that never
+  bought the floor. $27/mo across two nodes is $0.0092/node-hour; the cheapest
+  Graviton in the region, t4g.small spot, is $0.0109 and carries 2 GiB. The floor the
+  requests table actually needs — 2 x t4g.large spot at $0.0234 — is **$34.16/mo**,
+  and the envelope was raised to the $130 hard-look line rather than resized down to
+  fit a number.* Working shape: 2 Graviton spot nodes as the floor, Karpenter spot
+  burst for builds (~$1-2/mo), gp3 for Kafka + checkpoints + Airflow Postgres (~$4/mo
+  at ~50 GB), R2 under $1 (41.65 GB measured, first 10 GB free) [T18, T20]. If the
   measured requests table does not fit the floor, the resolution is a smaller
   streaming driver or a third spot node decided against the budget alarm — never a
   silent overrun.
 - **MSK is rejected on budget** (~$65/mo two-broker floor cannot coexist with the
-  control plane inside $100). Recorded, not re-litigated.
+  control plane inside the envelope — $73 + $65 overruns $130 as surely as it
+  overran $100). Recorded, not re-litigated.
 - **The budget alarm is wired before the first node.**
 
 ### 2. Kafka on the cluster
@@ -409,7 +415,12 @@ envelope, keeping every unit of work exactly as it is today.
   decision.
 - **No NAT Gateway.** At ~$32/mo it would consume more than the entire non-control-plane
   budget. Nodes sit in public subnets with public IPs, security groups that permit no
-  inbound rules, and egress allowed. "No inbound" is enforced by security groups and
+  inbound rules, and egress allowed. *Corrected [T8]: a public IPv4 is **not** free —
+  AWS has charged $0.005/hr for every one, attached or not, since 2024-02. That is
+  $3.65/node/mo, $7.30 for the floor, and it grows with every Karpenter burst node.
+  No-NAT still wins by a wide margin (break-even is ~9 simultaneous nodes), but it is
+  a cost line in the envelope, not an absence of one.* "No inbound" is enforced by
+  security groups and
   the absence of a load balancer — write it that way in the manifests and assert it in
   the manifest test, because subnet placement is not what is providing it here.
 - The box-to-cluster Kafka path is a security-group-scoped in-VPC path: private
@@ -417,9 +428,20 @@ envelope, keeping every unit of work exactly as it is today.
 
 ### 8. Cost guardrails and kill criteria
 
-- AWS Budgets alarm at **$100/mo**, alerting at 80% and 100% of it; **$130 is the
-  hard-look line**. Wired before the first node.
-- Monthly bill review, recorded in the repo alongside the effort.
+- AWS Budgets alarm at **$130/mo** — raised from $100 by Ross on 2026-08-23 once the
+  floor was measured at ~$121.5/mo [T1] — alerting at ACTUAL 80% / 100% / 130% and
+  FORECASTED 100%; **$130 is the hard-look line**, so the 130% notification is the
+  alarm that means it. Wired before the first node, plus an untagged `aws-account-total`
+  backstop at $210 for anything created without `Project=raincheck-cloud`.
+- Monthly bill review, recorded in the repo alongside the effort:
+  `scripts/cloud-bill-review.sh [YYYY-MM] --append` writes one dated entry into
+  `.scratch/cloud/issues/08-cost-guardrails.md` — per-service lines, the run rate
+  scaled from closed days, and the delta against $130. It exits **2 INCONCLUSIVE**
+  when Cost Explorer has no tag data (a $0 tagged total is an artefact, never an
+  under-budget verdict) and **1 HARD LOOK** on a crossing, stamping
+  `Decision: REQUIRED - not yet recorded`. `--check` re-reads the log and keeps
+  failing while any crossing carries that stamp, which is what makes silent
+  continuation impossible without also making it an auto-stop.
 - **The documented downscale path** is the two-EC2 alternative the map recorded: an
   always-on t4g.large-class instance plus a scheduled build instance, ~$25-60/mo,
   same freshness, no per-day parallelism. Reversibility is design, not admission.
@@ -594,4 +616,7 @@ box) needs re-deciding rather than working around.
 every ticket: no stage may depend on a cluster-only feature. Every stage stays runnable
 as `make <target>` inside the same image on a single box. The moment that stops being
 true, the documented downscale path becomes a paragraph rather than a plan, and the
-$100/month decision becomes irreversible in practice.
+$130/month decision becomes irreversible in practice. *[T8] this is now enforced
+rather than repeated: `tests/test_cloud_cost.py` asserts that no `make` recipe shells
+out to cluster-only tooling and that no stage module reaches for a Kubernetes client,
+and `scripts/downscale.sh plan|up|run|down` is the path itself.*
