@@ -98,6 +98,19 @@ means **`live/`-on-R2 and unpinning `prune` are NOT unblocked by this ticket** -
 need a writer change, which is a separate ticket. What IS unblocked: a root can now BE an
 R2 URL, no root-derived check lies, and read-only stages run against the real bucket.
 
+> **OWNED AND CLOSED — this is cloud 13** (`.scratch/cloud/issues/13-object-store-writes.md`,
+> branch `cloud13-object-store-writes`, RUN LOG 2026-08-24). The writer change filed
+> forward here now exists: `RemotePath` gained the WHOLE-OBJECT writes
+> (`write_bytes`/`write_text`/`touch`, `mkdir` as an honest no-op) plus module-level
+> `paths.move`/`paths.rmtree`/`paths.rmdir_if_empty`/`paths.read_table`, and
+> `events.one_file`, gapfill's parts+markers, `checks.write` and `stream.prune` are
+> converted. `replace`/`rename` and the rest STILL REFUSE - the default this ticket
+> established is intact, only narrowed by five names, and both halves are now pinned
+> (`tests/test_paths.py` for what refuses, `tests/test_object_store_writes.py` for what
+> does not). PROVEN: `events 2026-08-20` built onto `s3a://raincheck-bronze` from the Mac
+> and compares EQUAL to the local partition. `prune` was CONVERTED; `precip_live` stays
+> out. Do not read this paragraph's "WRITES refuse" as current for the converted sites.
+
 **Real-root smoke, read-only against `raincheck-bronze`** (Mac cold credentials,
 `RAINCHECK_ARCHIVE_ROOT=s3a://raincheck-bronze`):
 
