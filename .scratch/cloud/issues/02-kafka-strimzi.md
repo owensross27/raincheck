@@ -78,9 +78,20 @@ broker moves (spot reclaim, node roll) only the `/etc/hosts` line changes, and t
 is **not** restarted for it - librdkafka re-resolves on reconnect, and a restart is a capture
 gap.
 
-- Security group: exactly one rule added, `sgr-0de39175084e9c5fb` - tcp/9094 from
-  `sg-0cb33dca0ac107599` (box) to `sg-04b76aed2bb2fb61f` (the EKS cluster SG, which is what
-  pod ENIs carry). Tagged `Project=raincheck-cloud`. 9092 never leaves the cluster.
+- Security group: exactly one rule, `sgr-06a813c9433a3ce6d` - tcp/9094 from
+  **`sg-032f4467f24e8d773` (`raincheck-capture-box`, created here)** to
+  `sg-04b76aed2bb2fb61f` (the EKS cluster SG, which is what pod ENIs carry). Tagged
+  `Project=raincheck-cloud`. 9092 never leaves the cluster.
+- **The Work section above is wrong about the source group and stays as written for the
+  record.** `sg-0cb33dca0ac107599` ("lewis-signs-dev-sg") is NOT the box's own group: an
+  unrelated staging instance (`i-0a924268a565ad38a`) carries it too, and it allows
+  0.0.0.0/0 on tcp/443 (measured by cloud 07, same day). A rule sourced from it would have
+  handed Kafka to staging. So the box got its own empty security group,
+  `sg-032f4467f24e8d773`, attached to `eni-098f5f2acbc73fe7d` ALONGSIDE the dev group
+  (`modify-network-interface-attribute` replaces the whole set - list every existing group
+  or the box loses them), the rule was re-sourced from it, and the first rule was revoked.
+  cloud 07's `deploy/cloud/inbound-allowlist.yaml` needs this group added to
+  `allowed_source_security_groups`, and its `pending:` cloud-02 entry removed.
 - Strimzi's pod template has **no `nodeSelector` field**: the floor pin is `nodeAffinity`
   on `KafkaNodePool.spec.template.pod`. Plain pods (the topics Job) still use `nodeSelector`.
 - The gp3 StorageClass carries `tagSpecification_1: Project=raincheck-cloud` - the CSI driver
