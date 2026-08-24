@@ -452,3 +452,19 @@ def test_a_day_old_central_park_reading_is_not_handed_over_as_ok(monkeypatch):
     old = fl.winter_obs(NOW + timedelta(hours=6))
     assert fresh["status"] == "ok" and fresh["stale"] is False
     assert old["status"] == "stale" and old["stale"] is True and old["temp_c"] == 23.9
+
+
+def test_a_malformed_timestamp_does_not_take_the_tier_down(monkeypatch):
+    """`_iso` runs outside winter_obs's try. A `timestamp` that is not a string raised
+    AttributeError past every handler — the tier died on the one line not covered."""
+    assert fl._iso({"not": "a string"}) is None and fl._iso(17) is None
+
+    class R:
+        def raise_for_status(self): pass
+        def json(self):
+            return {"properties": {"timestamp": {"bad": 1},
+                                   "temperature": {"value": 23.9, "qualityControl": "V"}}}
+
+    monkeypatch.setattr(fl.requests, "get", lambda url, timeout, headers: R())
+    w = fl.winter_obs(NOW)
+    assert w["age_min"] is None and w["stale"] is True and w["temp_c"] == 23.9

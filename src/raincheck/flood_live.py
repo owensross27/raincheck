@@ -341,9 +341,12 @@ def winter_obs(now: datetime | None = None, timeout: float = TIMEOUT) -> dict:
 
 
 def _iso(s: str | None) -> datetime | None:
+    """The NWS stamp. TypeError/AttributeError are caught alongside ValueError because this
+    runs OUTSIDE winter_obs's try: a body whose `timestamp` is a dict rather than a string
+    would otherwise take the whole tier down from the one line the error handling misses."""
     try:
         d = datetime.fromisoformat((s or "").replace("Z", "+00:00"))
-    except ValueError:
+    except (AttributeError, TypeError, ValueError):
         return None
     return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
 

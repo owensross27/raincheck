@@ -82,9 +82,9 @@ flag; 11 owns the pure function and the 0.5 C cutpoint, per its own checklist.
 
 ## Review round (2026-08-24, four-lens adversarial verify)
 
-Four lenses (criteria / correctness / contract-drift / house-style), each finding then
-faced by an independent refuter. Four findings survived refutation and are fixed; the
-rest were killed. What survived:
+Four lenses (criteria / correctness / contract-drift / house-style) raised 34 findings;
+each faced an independent refuter that reproduced or killed it. **Six survived**, all
+fixed. What survived:
 
 1. **A forecast failure erased a live EXCEEDING observation.** All three CO-OPS reads
    shared one try block, so a timed-out hilo call greyed the gauge and took a real
@@ -98,6 +98,20 @@ rest were killed. What survived:
    must now clear.
 4. **A JSON null `v` raised instead of being dropped** — `str(None).strip()` is the truthy
    `"None"` that reached `float()`, greying a whole gauge over one bad sample.
+5. **A naive or non-UTC `now` shifted the forward window** by the UTC offset, silently,
+   from outside `gauge()`'s error handling. Every entry point normalizes to UTC now.
+6. **`_iso` ran outside `winter_obs`'s try and caught only `ValueError`.** An NWS body
+   whose `timestamp` is not a string raised `AttributeError` past every handler and took
+   the tier down from the one line the error handling missed.
+
+Plus two shape/consistency fixes that came in with them: the fetch-failure chip is now
+built through `chip()` like every other (a consumer iterating chips no longer KeyErrors on
+the failure path), and a stale Central Park reading no longer arrives labelled `ok`.
+
+Notable refutations, accepted: an OUTAGE gauge publishing an anomaly-adjusted forecast is
+arithmetically unreachable through the frozen `range=1` window; `n_below_minor`'s
+`or 0` coercion is value-identical over the column's real domain; and `unitCode` is
+already pinned at the fixture level.
 
 Two further changes were made against REFUTED findings, deliberately, and are recorded as
 deviations rather than fixes:
