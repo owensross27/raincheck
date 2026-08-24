@@ -73,8 +73,11 @@ carries the FITTED parameters, not B2's. Everything below is a READ of
   `features`, `stormwater_base_level` = `analyzed-none` (the dummy-coded reference level, so
   a point row that is `analyzed-none` gets NO stormwater term).
 - **SCOPE THE "non-negative event-side coefficients" ASSERTION TO THE IN-WINDOW TERMS.**
-  Measured: `log1p_precip_max_mm_1h` +0.449 and `log1p_precip_total_mm` +0.601 are positive
-  in both models, but **`log1p_antecedent_mm_24h` is NEGATIVE at point grain (-0.093)**. The
+  Measured on `coef_raw`, per role (assert against the role you are building):
+  `log1p_precip_max_mm_1h` point **+0.449** / cell **+0.379**, `log1p_precip_total_mm` point
+  **+0.601** / cell **+0.735** — positive in both. But
+  **`log1p_antecedent_mm_24h` is NEGATIVE at point grain (-0.093)** while positive at Cell
+  grain (+0.011). The
   monotone-latch claim is about terms that can only RISE inside a Window; the antecedent is
   frozen at Window open and never moves within one, so it is not an event-side term. Assert
   the two in-Window coefficients >= 0 and this build passes; assert all three and it fails

@@ -1,8 +1,10 @@
 """The markdown build asset for flood-build ticket 09 — a pure rendering of the JSON.
 
-Split from `flood_fits` on purpose: the JSON is the artifact ticket 10 loads and the
-release checklist re-evaluates the gate from, so the prose can never disagree with the
-numbers — every string below reads a field, and nothing is recomputed here.
+Split from `flood_fits` on purpose: the JSON is the artifact ticket 10 loads and a release
+checklist re-evaluates the gate from, so the prose cannot disagree with the numbers — every
+number below reads a field of that JSON, including the ones flood 08 measured and stamped
+into the matrix's own metadata (they arrive here as `matrix_census` / `matrix_gates` and are
+labelled as inherited where they print). Nothing is recomputed from the data here.
 """
 from collections.abc import Mapping, Sequence
 
@@ -65,8 +67,9 @@ CSI 0.0 for a reason that is about its score's scale rather than about the basel
           "yes" if v['beats_b2'] else "**no**", "yes" if v['beats_b3'] else "**no**",
           f"`{g['shipped'][role]}`"] for role, v in sorted(g['roles'].items())])}
 The gate is a pure function of the table above (`flood_fits.gate`), re-evaluable from the
-published JSON — the release checklist asserts whichever branch fired rather than trusting
-this sentence. The branch also SELECTS THE STRINGS, which is the spec's
+published JSON — so whichever branch fired is CHECKABLE rather than remembered. The checking
+itself is owed downstream: ticket 10 builds the release artifacts and is where the assertion
+lands. Nothing in this repo asserts it today. The branch also SELECTS THE STRINGS, which is the spec's
 if-the-baseline-wins-ship-the-baseline clause carried through to the panel: headline
 "{g['panel_strings']['headline']}", caveat "{g['panel_strings']['caveat']}", release
 "{g['panel_strings']['release']}" (`gate.panel_strings` in the JSON; ticket 15 and notify 09
@@ -144,8 +147,12 @@ anything. Measured on this matrix — """)
         single = sum(1 for e in pe if e["positives"] == 1)
         out.append(f"{role}: {single} of {len(pe)} events with a positive have exactly one"
                    + ("; " if role != sorted(r["per_event"])[-1] else ". "))
-    out.append(f"""(the drafted "61% of events are single-positive" is superseded by these
-counts.) The full per-event table is in the JSON; the ten events with the most positives:
+    cxg = r["complex_validation"][GATE_SPLIT]
+    out.append(f"""complex: {cxg['single_positive_events']} of
+{cxg['events_with_a_positive']} — the grain where the drafted "61% of events are
+single-positive" was closest to true, and still not what it said. All three counts are
+measured here and superseded it. The full per-event table is in the JSON; the ten events
+with the most positives:
 
 """)
     for role in sorted(r["per_event"]):
@@ -170,32 +177,55 @@ it did.
 """)
         if "bus_stop_churn" in con:
             b = con["bus_stop_churn"]
+            cen = r["matrix_census"]
+            dropped = r["matrix_gates"].get("positives_dropped_unpairable", 0)
+            kept = r["census"]["point"]["by_kind"]["bus_stop"]["positives"]
+            # the denominator is arithmetic on the matrix's own census, not a typed number:
+            # candidates - negatives = the positives that survived, + the ones pairable cut
+            before = cen.get("candidates", 0) - cen.get("negatives", 0) + dropped
             out.append(f"""
 ### Bus-stop churn delta, {role} ({b['split']})
 
-{_table(("cut", "CSI"),
-        [["pooled fit, all point rows", _f(b['pooled_all_rows'])],
-         ["pooled fit, scored on entrance rows only", _f(b['pooled_on_entrance_rows'])],
-         ["pooled fit, scored on bus rows only", _f(b['pooled_on_bus_rows'])],
+{_table(("cut", "CSI", "realized alert rate"),
+        [["pooled fit, all point rows", _f(b['pooled_all_rows']), _f(b['rate_all'], 4)],
+         ["pooled fit, scored on entrance rows only", _f(b['pooled_on_entrance_rows']),
+          _f(b['rate_entrance'], 4)],
+         ["pooled fit, scored on bus rows only", _f(b['pooled_on_bus_rows']),
+          _f(b['rate_bus'], 4)],
          ["fit WITHOUT any bus row, scored on entrance rows",
-          _f(b['entrance_only_fit_on_entrance_rows'])]])}
+          _f(b['entrance_only_fit_on_entrance_rows']), _f(b['rate_entrance_only'], 4)]])}
+**Every subset row here is CUT ON THE ROWS IT SCORES** — each fold spends its declared
+in-fold budget within the subset, which is why the realized rates in the last column sit
+close together. That is deliberate: with one cut spread over the whole point population the
+two arms of the churn delta landed at 0.43% and 1.26%, and CSI is monotone in alert rate at
+a 0.5% base rate, so the delta would have been measuring the budget. The top row (all point
+rows) is the operational read — one deployed cut over everything — and the rate column is
+what lets the two readings be told apart.
 {b['bus_rows']:,} bus rows, {b['bus_positives']:,} positives, {b['bus_events']} events.
 {b['method_note']}
 
 **The symmetry any bus-stop sentence has to carry:** running the positives through
-`flood_labels.pairable()` dropped **4,069 of 14,749** pluvial fit-era positives, **4,068**
-of them pre-2020 bus stops, against **2,831** bus-stop positives kept. The same era rule
-already deletes those rows' negatives, so this is a symmetry rather than a loss — but every
-base rate and every bus-stop performance number above is computed on the kept side of it.
-It is published in the matrix file's own parquet metadata (`census`, `gates`).
+`flood_labels.pairable()` dropped **{dropped:,} of {before:,}** pluvial fit-era positives,
+against **{kept:,}** bus-stop positives KEPT. All three are read off the matrix's own
+metadata rather than typed here: `matrix_gates.positives_dropped_unpairable`,
+`matrix_census.candidates - matrix_census.negatives + that drop`, and
+`census.point.by_kind.bus_stop.positives`. The one number this asset cannot re-derive —
+**4,068** of the drop being pre-2020 bus stops — is flood 08's measurement, quoted here as
+inherited, not as measured by this run. The same era rule already deletes
+those rows' negatives, so this is a symmetry rather than a loss; but every base rate and
+every bus-stop number above is computed on the kept side of it.
 """)
         p = con["pre_post_2014"]
         out.append(f"""
 ### Pre/post-2014, {role} ({p['split']})
 
-{_table(("era", "rows", "positives", "events", "CSI", "POD", "FAR"),
+{_table(("era", "rows", "positives", "events", "CSI", "POD", "FAR", "realized alert rate"),
         [[k, f"{p[k]['rows']:,}", p[k]['positives'], p[k]['events'], _f(p[k]['csi']),
-          _f(p[k]['pod'], 3), _f(p[k]['far'], 3)] for k in ("pre_2014", "post_2014")])}
+          _f(p[k]['pod'], 3), _f(p[k]['far'], 3), _f(p[k]['alert_rate'], 4)]
+         for k in ("pre_2014", "post_2014")])}
+Same caveat as any masked row here: one budget is spent over the whole population, so the
+two eras alarm at different realized rates and the CSI gap carries that as well as the
+confound below.
 CONFOUND, stamped on the split: {p['confound']}
 """)
 
@@ -203,20 +233,34 @@ CONFOUND, stamped on the split: {p['confound']}
     for role in sorted(r["sweeps"]):
         out.append(f"\n**{role}** ({GATE_SPLIT}, lambda held at the modal CV choice)\n\n"
                    + _table(("config", "CSI", "delta CSI", "POD", "FAR", "PR-AUC"),
-                            [[s["config"], _f(s["csi"]), f"{s['delta_csi']:+.4f}",
+                            [[s["config"], _f(s["csi"]),
+                              "-" if s["delta_csi"] is None else f"{s['delta_csi']:+.4f}",
                               _f(s["pod"], 3), _f(s["far"], 3), _f(s["pr_auc"])]
                              for s in r["sweeps"][role]]))
-    spread = {role: max(x["pr_auc"] for x in r["sweeps"][role] if x["config"].startswith("lambda"))
-              - min(x["pr_auc"] for x in r["sweeps"][role] if x["config"].startswith("lambda"))
-              for role in sorted(r["sweeps"])}
-    out.append(f"""
-Lambda is selected on inner-CV PR-AUC, and PR-AUC across the WHOLE grid moves by
-{', '.join(f'{v:.4f} ({k})' for k, v in spread.items())} — including the rung beyond the
-grid's top, where CSI falls for the cell model. The CSI column's wobble across lambdas is
-noise at that scale, not a knob with a preference.
-
+    said = []
+    for role in sorted(r["sweeps"]):
+        rows = [x for x in r["sweeps"][role] if x["config"].startswith("lambda")]
+        shipped = r["final"][role]["lambda"]
+        mine = f"lambda={shipped:g}"
+        best, worst = max(rows, key=lambda x: x["csi"]), min(rows, key=lambda x: x["csi"])
+        spread = max(x["pr_auc"] for x in rows) - min(x["pr_auc"] for x in rows)
+        where = ("which IS the shipped rung" if best["config"].startswith(mine)
+                 else "the WORST of the rungs" if worst["config"].startswith(mine)
+                 else "not the shipped rung")
+        said.append(
+            f"- **{role}**: shipped lambda {shipped:g} (the modal inner-CV choice across the "
+            f"outer folds). On the GATE metric the best rung is `{best['config']}` at CSI "
+            f"{_f(best['csi'])} — the shipped one is {where}. PR-AUC, the metric lambda is "
+            f"actually selected on, moves by {spread:.4f} across the whole grid including "
+            f"the rung beyond its top.\n")
+    out.append("\nRead the lambda rows before trusting the shipped penalty:\n\n"
+               + "".join(said)
+               + "\nA CSI ordering that flips while the selection metric moves in the "
+                 "fourth decimal is noise rather than a preference — the honest reading in "
+                 "both directions, including where the shipped rung is the lowest-CSI one.\n")
+    out.append("""
 **Deferred, with the reason — not run here and not silently dropped:** the label radius
-sweep {{50, 100, 200}} m and the p99-union 311 threshold sweep both REDEFINE THE EVENT
+sweep {50, 100, 200} m and the p99-union 311 threshold sweep both REDEFINE THE EVENT
 UNIVERSE. The radius lives inside ticket 05's Sedona `ST_DWithin` label join and the
 threshold inside ticket 04's spine derivation, both upstream of `gold/flood_matrix`, which
 this ticket reads and never rebuilds. They run as ticket 18's outer replication, whose

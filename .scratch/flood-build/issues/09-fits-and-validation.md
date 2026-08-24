@@ -14,8 +14,8 @@ evidence, not pytest.
 - [x] four baselines: base rate, precip-only, unit climatology (B2), density-only (B3)
 - [x] splits: primary = event-grouped 5-fold (deterministic sha1 folds); secondary = location-blocked 5-fold (grouped by Cell); the history-covariate with/without contrast reports under the location-blocked split
 - [x] metrics: pooled CSI/POD/FAR at the in-fold operating point with an event-cluster bootstrap (B=1000); per-event POD + raw false-positive count (no per-event CSI — the "61%" is SUPERSEDED by measurement: single-positive events are 6 of 100 at point grain, 7 of 133 at Cell grain, 55 of 71 at complex grain); PR-AUC secondary
-- [x] HEADLINE GATE: the model beats B2 AND B3 under the location-blocked split; if B2 wins, the shipped model id is B2 and the alternate panel strings are selected — the release checklist asserts whichever branch fired
-- [x] sweeps: 28 one-at-a-time configs around the frozen primary + the weight-sensitivity fit (1/fan-out, proxy) — **but the {50,100,200} m radius sweep is NOT in fold and was NOT run here: the radius is a constant inside ticket 05's Sedona `ST_DWithin` label join, upstream of the matrix this ticket only reads, so sweeping it redefines the event universe exactly as the 311 threshold does. Both are DEFERRED TO TICKET 18 with the reason published in the asset; 18's checklist now names the radius alongside the threshold.**
+- [x] HEADLINE GATE: the model beats B2 AND B3 under the location-blocked split; if B2 wins, the shipped model id is B2 and the alternate panel strings are selected. **Delivered: the gate fired, `flood_fits.gate()` re-evaluates it purely from the published tables, and `gate.panel_strings` carries the fired branch's strings. NOT delivered here and OWED TO TICKET 10: the release checklist that asserts the branch — no such checklist exists in the repo yet, and the asset says so rather than claiming it**
+- [x] sweeps: 26 one-at-a-time configs around the frozen primary, plus the 1/fan-out weight-sensitivity fit and a frozen-lambda REFERENCE row per role — 30 published rows (16 point, 14 cell). Every delta is against the reference row, which is the same estimator the configs are (fixed lambda); differencing against the nested-CV primary would have put a lambda-estimator offset on top of every feature effect. At Cell grain the 1/fan-out proxy is DEGENERATE and says so instead of republishing the primary: there is exactly one fit_cell row per (event, Cell), so the proxy has nothing to collapse — **but the {50,100,200} m radius sweep is NOT in fold and was NOT run here: the radius is a constant inside ticket 05's Sedona `ST_DWithin` label join, upstream of the matrix this ticket only reads, so sweeping it redefines the event universe exactly as the 311 threshold does. Both are DEFERRED TO TICKET 18 with the reason published in the asset; 18's checklist now names the radius alongside the threshold.**
 - [x] the bus-stop churn deltas publish as a build asset: metrics with and without the era-restricted bus-stop negatives, naming why the original sensitivity method was dropped (no historical Picks locally)
 - [x] the MRMS-era out-of-sample replication publishes — as **NOT COMPUTED with the count and the reason**: the matrix is fit-era only (AORC has no 2026 year) and the replication era holds ONE event, so there is no MRMS-era feature row to score. The 0.86–0.92 band caveat is stamped on the table for when it can run.
 - [x] pre/post-2014 split published with the label-availability confound stamped on it
@@ -74,9 +74,11 @@ silver/flood_events at build time here — do not reuse 115-based fractions.
 
 Build assets: `research/flood-09-fits.md` (the tables the release links) and
 `research/flood-09-fits.json` (machine-readable; ticket 10 loads it). Code:
-`src/raincheck/flood_fits.py` (machinery + run), `src/raincheck/flood_fits_report.py`
-(a PURE rendering of the JSON — `python -m raincheck.flood_fits --render-only` re-renders
-without refitting), `tests/test_flood_fits.py` (+13). ~7 min on the real matrix.
+`src/raincheck/flood_fits.py` (the fits, the metrics, the baselines, the gate, `run()`),
+`src/raincheck/flood_fits_sweeps.py` (the sensitivity battery: sweeps, the named contrasts,
+the coverage recompute, the MRMS-era status), `src/raincheck/flood_fits_report.py` (a PURE
+rendering of the JSON — `python -m raincheck.flood_fits --render-only` re-renders without
+refitting), `tests/test_flood_fits.py` (**+14**). ~7 min on the real matrix.
 
 - **HEADLINE GATE: MODEL, both roles**, under the location-blocked split — point CSI
   **0.0310** vs B2 0.0051 / B3 0.0130; cell **0.1591** vs B2 0.0365 / B3 0.0819. Shipped
@@ -100,7 +102,8 @@ without refitting), `tests/test_flood_fits.py` (+13). ~7 min on the real matrix.
   read). Transferring the raw probability makes any constant-scored baseline read CSI 0.0
   for a reason about its score scale — it would have flattered this gate. Both rules are
   published as sweep rows; the difference is <= 0.0006 CSI.
-- Sweeps: **28 one-at-a-time configs** in fold (15 point, 13 cell) including a rung BEYOND
+- Sweeps: **26 one-at-a-time configs** in fold plus a frozen-lambda reference row and the
+  1/fan-out fit per role — 30 published rows (16 point, 14 cell), including a rung BEYOND
   the lambda grid. Biggest single contributors: `stormwater` for the point model
   (-0.0074 CSI when dropped) and the 311 history density for the cell model (-0.0248).
   The **radius {50, 100, 200} m and p99-union threshold sweeps are DEFERRED to ticket 18**
@@ -112,3 +115,30 @@ without refitting), `tests/test_flood_fits.py` (+13). ~7 min on the real matrix.
 - Single-positive events, measured: point 6 of 100, cell 7 of 133, complex 55 of 71 — the
   spec's "61% of events" is superseded; the decision it justified (per-event POD + raw FP,
   never per-event CSI) stands.
+
+
+## What the adversarial review changed (same session, 4 lenses x skeptics, 4 findings CONFIRMED)
+
+- **A keep-restricted CV run was spending its alert budget on rows it was told not to fit.**
+  `cv(keep=ent)` picks each fold's budget on entrance training rows; `decide` was taking the
+  quantile across the whole point vector, diluting it with 502,756 bus rows, so every fold
+  under-delivered its declared rate on entrance rows by 28-47% and the published churn delta
+  was inflated ~2.5x. Fixed: a run carries its `population` and the cut is spent inside it;
+  every subset row in the churn table is now cut on the rows it scores (realized rates
+  0.0111 / 0.0111 / 0.0111 / 0.0126) and the delta reads **0.0152 vs 0.0129**, not
+  0.0176 vs 0.0119. The pre/post-2014 table deliberately keeps ONE global cut — there is no
+  deployable per-era recut — and publishes each era's realized rate beside it.
+- **The 1/fan-out row was a no-op at Cell grain** (one fit_cell row per (event, Cell), so the
+  proxy had nothing to collapse and republished the primary as a +0.0000 "sensitivity").
+  Now detected and published as DEGENERATE, NOT RUN.
+- **Sweep deltas were differenced against a lambda-reselected primary** while the configs
+  held lambda fixed, putting a constant estimator offset on every feature effect. Now every
+  delta is against a published frozen-lambda REFERENCE row (the same estimator).
+- **Two claims outran their evidence**: the complex-grain single-positive count (55 of 71)
+  was asserted in prose but computed nowhere — it is now measured in `complex_validation`
+  and published; and the pairable-symmetry paragraph hardcoded four counts — three now read
+  off the matrix's own metadata (the 14,749 denominator is `candidates - negatives + drop`)
+  and the one that cannot be re-derived is labelled as flood 08's, not as measured here.
+  Also corrected: `modal_lambda`'s tie-break is now a stated rule (stronger penalty), and the
+  lambda paragraph names, per role, whether the shipped rung is the best CSI rung — for the
+  point model it is the WORST, which the earlier wording had left out.

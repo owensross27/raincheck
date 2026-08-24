@@ -51,12 +51,23 @@ def sweep_configs(rows: Rows) -> list[dict]:
 
 def run_sweeps(rows: Rows, split: str, lam: float, primary: dict,
                primary_run: dict) -> list[dict]:
-    got = []
+    """Every config against ONE reference, and the reference is the same estimator they are.
+
+    `primary` re-selects lambda by inner CV inside every outer fold; the configs hold lambda
+    at the modal choice. Differencing across those two would put a constant lambda-estimator
+    offset on top of every feature effect — the confound `modal_lambda` exists to avoid. So
+    the delta reference is the frozen-lambda run, published as its own row."""
+    ref = evaluate(rows, cv(rows, split, lam=lam))
+    got = [{"config": f"REFERENCE: the primary at the frozen modal lambda={lam}",
+            "csi": ref["csi"], "pod": ref["pod"], "far": ref["far"],
+            "pr_auc": ref["pr_auc"], "delta_csi": 0.0,
+            "note": (f"the nested-CV primary this is measured beside scores "
+                     f"{primary['csi']:.4f}; every delta below is against THIS row")}]
     for c in sweep_configs(rows):
         m = (evaluate(rows, primary_run, op=c["op"]) if c.get("op") else
              evaluate(rows, cv(rows, split, drop=c.get("drop", ()), lam=c.get("lam", lam))))
         got.append({"config": c["name"], "csi": m["csi"], "pod": m["pod"], "far": m["far"],
-                    "pr_auc": m["pr_auc"], "delta_csi": m["csi"] - primary["csi"]})
+                    "pr_auc": m["pr_auc"], "delta_csi": m["csi"] - ref["csi"]})
     return got
 
 
@@ -103,12 +114,24 @@ def era_replication(info: Mapping) -> dict:
                        f"like-for-like against an AORC-fit number")}
 
 
-def _weight_sweep(r: Rows, split: str, lam: float, primary: dict) -> dict:
+def _weight_sweep(r: Rows, split: str, lam: float, ref: dict) -> dict:
+    """The 1/fan-out sensitivity fit — and, at Cell grain, the honest refusal to publish it.
+
+    The proxy collapses positives that share an (event, Cell). `gold/flood_matrix` holds
+    exactly ONE fit_cell row per (event, Cell), so at that grain there is nothing to
+    collapse and the weight vector is identically 1.0: refitting would republish the primary
+    byte-for-byte and a +0.0000 delta would read as "the weighting changed nothing" when
+    nothing was weighted. Named as degenerate instead."""
     w = fanout_weights(r)
+    if np.allclose(w, 1.0):
+        return {"config": "weighted 1/fan-out — DEGENERATE at this grain, NOT RUN "
+                          "(one row per event x Cell: the proxy has nothing to collapse)",
+                "csi": None, "pod": None, "far": None, "pr_auc": None, "delta_csi": None}
     m = evaluate(r, cv(r, split, lam=lam, weights=w))
-    return {"config": "weighted 1/fan-out (proxy: positives per event x Cell)",
+    return {"config": (f"weighted 1/fan-out (proxy: positives per event x Cell; "
+                       f"{int((w < 1).sum()):,} rows down-weighted)"),
             "csi": m["csi"], "pod": m["pod"], "far": m["far"], "pr_auc": m["pr_auc"],
-            "delta_csi": m["csi"] - primary["csi"]}
+            "delta_csi": m["csi"] - ref["csi"]}
 
 
 def _contrasts(root: Path, r: Rows, runs: dict, models: dict, lam: float) -> dict:
@@ -126,12 +149,23 @@ def _contrasts(root: Path, r: Rows, runs: dict, models: dict, lam: float) -> dic
         ent = r.extra["kind"] == "entrance"
         bus = ~ent
         run_ent = cv(r, GATE_SPLIT, lam=lam, keep=ent)
+        pooled = runs[(r.role, GATE_SPLIT)]
+        # EVERY subset row is cut on the rows it scores. This table is a model contrast, not
+        # an operational read: leaving the cut on the whole population means the two arms of
+        # the churn delta land at 2-3x different realized alert rates, and CSI is monotone
+        # in alert rate at a 0.5% base rate — the delta would then be measuring the budget.
+        # `population` is what makes each fold spend its declared budget on its own rows.
+        on_ent = evaluate(r, {**pooled, "population": ent}, ent)
+        on_bus = evaluate(r, {**pooled, "population": bus}, bus)
+        ent_only = evaluate(r, run_ent, ent)     # cv(keep=ent) already carries population
         out["bus_stop_churn"] = {
             "split": GATE_SPLIT,
             "pooled_all_rows": models["model"][GATE_SPLIT]["csi"],
-            "pooled_on_entrance_rows": evaluate(r, runs[(r.role, GATE_SPLIT)], ent)["csi"],
-            "pooled_on_bus_rows": evaluate(r, runs[(r.role, GATE_SPLIT)], bus)["csi"],
-            "entrance_only_fit_on_entrance_rows": evaluate(r, run_ent, ent)["csi"],
+            "rate_all": models["model"][GATE_SPLIT]["alert_rate"],
+            "pooled_on_entrance_rows": on_ent["csi"], "rate_entrance": on_ent["alert_rate"],
+            "pooled_on_bus_rows": on_bus["csi"], "rate_bus": on_bus["alert_rate"],
+            "entrance_only_fit_on_entrance_rows": ent_only["csi"],
+            "rate_entrance_only": ent_only["alert_rate"],
             "bus_rows": int(bus.sum()), "bus_positives": int(r.y[bus].sum()),
             "bus_events": len(set(r.event_id[bus].tolist())),
             "method_note": (

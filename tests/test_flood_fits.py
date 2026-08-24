@@ -103,7 +103,7 @@ def fit_root(tmp_path_factory):
     pq.write_table(table.replace_schema_metadata({
         b"matrix_version": b"fixture" + b"0" * 34, b"estimand": b"flooded_reported",
         b"census": json.dumps({"units": 124, "events": len(events)}).encode(),
-        b"gates": json.dumps({"out_of_footprint": 0,
+        b"gates": json.dumps({"out_of_footprint": 0, "positives_dropped_unpairable": 11,
                               "events_by_era": {"fit": len(events), "replication": 1}
                               }).encode()}), dest)
     ev = root / "silver" / "flood_events" / "part-00000.parquet"
@@ -192,6 +192,21 @@ def test_skill_thresholds_and_pr_auc_are_arithmetic():
     assert ff.best_threshold(flat, np.zeros(6)) == (math.inf, 0.0, 0.0)   # no positives
 
 
+def test_a_keep_restricted_run_spends_its_budget_on_the_rows_it_was_fitted_on():
+    """The bus-stop churn contrast fits on entrance rows only. Its in-fold budget is picked
+    on entrance rows, so spending it across the bus rows the run was told not to fit
+    under-delivers the declared rate and inflates the published delta."""
+    scores = np.r_[np.linspace(0.9, 1.0, 10), np.zeros(90)]   # 10 "entrance", 90 "bus"
+    pop = np.r_[np.ones(10, bool), np.zeros(90, bool)]
+    fold = np.zeros(100, int)
+    run = {"thr": np.full(ff.K_FOLDS, 0.5), "rate": np.full(ff.K_FOLDS, 0.2),
+           "population": pop}
+    got = ff.decide(scores, fold, run)
+    assert got[pop].sum() == 2                    # 20% OF THE FITTED POPULATION, as declared
+    assert ff.decide(scores, fold, {**run, "population": None})[pop].sum() == 10
+    # ... which is the bug: the whole-vector cut spends the entrance budget on bus rows
+
+
 def test_the_operating_point_transfers_as_a_rate_not_as_a_raw_threshold():
     """The rule that keeps the gate honest. A baseline whose held-out score is a per-fold
     CONSTANT sitting under the training cut alarms on nothing under threshold transfer and
@@ -273,7 +288,14 @@ def test_the_whole_battery_runs_and_republishes_identically(fit_root):
         a["summary"]["point"]["B0_base_rate"][ff.PRIMARY_SPLIT]["csi"]
     assert a["final"]["point"]["coef_raw"]["log1p_precip_max_mm_1h"] > 0
     assert a["final"]["point"]["coef_raw"]["elev_ft"] < 0     # higher ground floods less
-    assert len(a["sweeps"]["point"]) == 15 and len(a["sweeps"]["cell"]) == 13
+    # 15 point / 13 cell configs + the frozen-lambda REFERENCE row each
+    assert len(a["sweeps"]["point"]) == 16 and len(a["sweeps"]["cell"]) == 14
+    for role in ("point", "cell"):                # the delta reference is row 0, delta 0
+        assert a["sweeps"][role][0]["config"].startswith("REFERENCE:")
+        assert a["sweeps"][role][0]["delta_csi"] == 0.0
+    # the fan-out proxy is DEGENERATE at Cell grain and says so instead of republishing
+    assert a["sweeps"]["cell"][-1]["csi"] is None
+    assert "DEGENERATE" in a["sweeps"]["cell"][-1]["config"]
     assert a["gate"]["panel_strings"] == ff.PANEL_STRINGS[a["gate"]["branch"]]
     for split in ff.SPLITS:                       # the complex set is scored, never fitted
         assert a["complex_validation"][split]["rate_transfer"]["budget"] > 0
@@ -298,7 +320,11 @@ def test_the_report_is_a_rendering_of_the_json(fit_root):
     md = render(r)
     assert f"**{r['gate']['branch']}**" in md
     assert r["fits_version"][:12] in md and "0.26-0.45" in md      # the FIM band, stamped
-    assert "4,069 of 14,749" in md and "2,831" in md               # the pairable symmetry
+    # the pairable symmetry: the two counts the asset READS, and the two it inherits from
+    # flood 08's build and labels as inherited
+    assert f"{r['matrix_gates']['positives_dropped_unpairable']:,}" in md
+    assert "inherited, not as measured by this run" in md   # the ONE inherited count
+    assert f"{r['matrix_gates']['positives_dropped_unpairable']:,} of" in md
     assert "NOT COMPUTED" in md and "0.86-0.92" in md              # the MRMS-era honesty
     assert "{50, 100, 200} m" in md                                # the deferral, named
     assert str(r["coverage"]["event_days"]) in md and "never 115" in md

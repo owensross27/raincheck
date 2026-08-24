@@ -19,8 +19,9 @@ CSI 0.0 for a reason that is about its score's scale rather than about the basel
 | point | 0.0310 | 0.0051 | 0.0130 | yes | yes | `point:l2_logistic` |
 
 The gate is a pure function of the table above (`flood_fits.gate`), re-evaluable from the
-published JSON — the release checklist asserts whichever branch fired rather than trusting
-this sentence. The branch also SELECTS THE STRINGS, which is the spec's
+published JSON — so whichever branch fired is CHECKABLE rather than remembered. The checking
+itself is owed downstream: ticket 10 builds the release artifacts and is where the assertion
+lands. Nothing in this repo asserts it today. The branch also SELECTS THE STRINGS, which is the spec's
 if-the-baseline-wins-ship-the-baseline clause carried through to the panel: headline
 "modelled flood exposure", caveat "fitted on reported flooding, 2010-2025 rain events", release
 "v1 ships the fitted L2 logistic exposure score" (`gate.panel_strings` in the JSON; ticket 15 and notify 09
@@ -128,8 +129,11 @@ number is not a validated claim on this evidence.
 ## Per-event POD and raw false-positive count
 
 Per-event CSI is NOT published: the positives per event are too thin for it to mean
-anything. Measured on this matrix — cell: 7 of 133 events with a positive have exactly one; point: 6 of 100 events with a positive have exactly one. (the drafted "61% of events are single-positive" is superseded by these
-counts.) The full per-event table is in the JSON; the ten events with the most positives:
+anything. Measured on this matrix — cell: 7 of 133 events with a positive have exactly one; point: 6 of 100 events with a positive have exactly one. complex: 55 of
+71 — the grain where the drafted "61% of events are
+single-positive" was closest to true, and still not what it said. All three counts are
+measured here and superseded it. The full per-event table is in the JSON; the ten events
+with the most positives:
 
 
 **cell** (location_blocked)
@@ -174,39 +178,56 @@ it did.
 
 ### Pre/post-2014, cell (location_blocked)
 
-| era | rows | positives | events | CSI | POD | FAR |
-|---|---|---|---|---|---|---|
-| pre_2014 | 28,371 | 1033 | 21 | 0.0818 | 0.193 | 0.876 |
-| post_2014 | 151,312 | 5521 | 112 | 0.1748 | 0.380 | 0.755 |
+| era | rows | positives | events | CSI | POD | FAR | realized alert rate |
+|---|---|---|---|---|---|---|---|
+| pre_2014 | 28,371 | 1033 | 21 | 0.0818 | 0.193 | 0.876 | 0.0564 |
+| post_2014 | 151,312 | 5521 | 112 | 0.1748 | 0.380 | 0.755 | 0.0567 |
 
+Same caveat as any masked row here: one budget is spent over the whole population, so the
+two eras alarm at different realized rates and the CSI gap carries that as well as the
+confound below.
 CONFOUND, stamped on the split: LABEL AVAILABILITY, not physics: the sources that mint positives do not reach back equally. Bus stops enter the universe in 2020 (flood 05's era rule), so every pre-2014 row here is an entrance or a Cell, and the 311/DEP record itself thins with age. A pre/post gap is at least as much a difference in who was reporting as a difference in what flooded.
 
 ### Bus-stop churn delta, point (location_blocked)
 
-| cut | CSI |
-|---|---|
-| pooled fit, all point rows | 0.0310 |
-| pooled fit, scored on entrance rows only | 0.0176 |
-| pooled fit, scored on bus rows only | 0.0341 |
-| fit WITHOUT any bus row, scored on entrance rows | 0.0119 |
+| cut | CSI | realized alert rate |
+|---|---|---|
+| pooled fit, all point rows | 0.0310 | 0.0111 |
+| pooled fit, scored on entrance rows only | 0.0152 | 0.0111 |
+| pooled fit, scored on bus rows only | 0.0341 | 0.0111 |
+| fit WITHOUT any bus row, scored on entrance rows | 0.0129 | 0.0126 |
 
+**Every subset row here is CUT ON THE ROWS IT SCORES** — each fold spends its declared
+in-fold budget within the subset, which is why the realized rates in the last column sit
+close together. That is deliberate: with one cut spread over the whole point population the
+two arms of the churn delta landed at 0.43% and 1.26%, and CSI is monotone in alert rate at
+a 0.5% base rate, so the delta would have been measuring the budget. The top row (all point
+rows) is the operational read — one deployed cut over everything — and the rate column is
+what lets the two readings be told apart.
 502,756 bus rows, 2,831 positives, 44 events.
 the original churn sensitivity — refit on the bus-stop registry as it stood in each era — is DROPPED: no historical Picks exist locally (flood 08's build), so the era restriction is all there is. What is published instead is the delta between the pooled fit and the same fit without any bus row.
 
 **The symmetry any bus-stop sentence has to carry:** running the positives through
-`flood_labels.pairable()` dropped **4,069 of 14,749** pluvial fit-era positives, **4,068**
-of them pre-2020 bus stops, against **2,831** bus-stop positives kept. The same era rule
-already deletes those rows' negatives, so this is a symmetry rather than a loss — but every
-base rate and every bus-stop performance number above is computed on the kept side of it.
-It is published in the matrix file's own parquet metadata (`census`, `gates`).
+`flood_labels.pairable()` dropped **4,069 of 14,749** pluvial fit-era positives,
+against **2,831** bus-stop positives KEPT. All three are read off the matrix's own
+metadata rather than typed here: `matrix_gates.positives_dropped_unpairable`,
+`matrix_census.candidates - matrix_census.negatives + that drop`, and
+`census.point.by_kind.bus_stop.positives`. The one number this asset cannot re-derive —
+**4,068** of the drop being pre-2020 bus stops — is flood 08's measurement, quoted here as
+inherited, not as measured by this run. The same era rule already deletes
+those rows' negatives, so this is a symmetry rather than a loss; but every base rate and
+every bus-stop number above is computed on the kept side of it.
 
 ### Pre/post-2014, point (location_blocked)
 
-| era | rows | positives | events | CSI | POD | FAR |
-|---|---|---|---|---|---|---|
-| pre_2014 | 44,016 | 182 | 21 | 0.0032 | 0.005 | 0.992 |
-| post_2014 | 739,335 | 3826 | 112 | 0.0317 | 0.099 | 0.956 |
+| era | rows | positives | events | CSI | POD | FAR | realized alert rate |
+|---|---|---|---|---|---|---|---|
+| pre_2014 | 44,016 | 182 | 21 | 0.0032 | 0.005 | 0.992 | 0.0030 |
+| post_2014 | 739,335 | 3826 | 112 | 0.0317 | 0.099 | 0.956 | 0.0116 |
 
+Same caveat as any masked row here: one budget is spent over the whole population, so the
+two eras alarm at different realized rates and the CSI gap carries that as well as the
+confound below.
 CONFOUND, stamped on the split: LABEL AVAILABILITY, not physics: the sources that mint positives do not reach back equally. Bus stops enter the universe in 2020 (flood 05's era rule), so every pre-2014 row here is an entrance or a Cell, and the 311/DEP record itself thins with age. A pre/post gap is at least as much a difference in who was reporting as a difference in what flooded.
 
 ## Sensitivity sweeps — one at a time around the frozen primary
@@ -216,6 +237,7 @@ CONFOUND, stamped on the split: LABEL AVAILABILITY, not physics: the sources tha
 
 | config | CSI | delta CSI | POD | FAR | PR-AUC |
 |---|---|---|---|---|---|
+| REFERENCE: the primary at the frozen modal lambda=100.0 | 0.1591 | +0.0000 | 0.350 | 0.774 | 0.2030 |
 | lambda=0.01 | 0.1553 | -0.0038 | 0.339 | 0.777 | 0.2022 |
 | lambda=0.1 | 0.1553 | -0.0039 | 0.339 | 0.777 | 0.2022 |
 | lambda=1.0 | 0.1553 | -0.0038 | 0.339 | 0.777 | 0.2022 |
@@ -228,32 +250,35 @@ CONFOUND, stamped on the split: LABEL AVAILABILITY, not physics: the sources tha
 | drop stormwater_shares | 0.1431 | -0.0160 | 0.383 | 0.814 | 0.1839 |
 | drop history_311_density | 0.1343 | -0.0248 | 0.346 | 0.820 | 0.1664 |
 | operating point: in-fold threshold (not in-fold alert rate) | 0.1586 | -0.0005 | 0.350 | 0.775 | 0.2030 |
-| weighted 1/fan-out (proxy: positives per event x Cell) | 0.1591 | +0.0000 | 0.350 | 0.774 | 0.2030 |
+| weighted 1/fan-out — DEGENERATE at this grain, NOT RUN (one row per event x Cell: the proxy has nothing to collapse) | - | - | - | - | - |
 
 **point** (location_blocked, lambda held at the modal CV choice)
 
 | config | CSI | delta CSI | POD | FAR | PR-AUC |
 |---|---|---|---|---|---|
-| lambda=0.01 | 0.0314 | +0.0005 | 0.077 | 0.949 | 0.0228 |
-| lambda=0.1 | 0.0314 | +0.0005 | 0.077 | 0.949 | 0.0228 |
-| lambda=1.0 | 0.0314 | +0.0004 | 0.077 | 0.949 | 0.0228 |
-| lambda=10.0 | 0.0327 | +0.0018 | 0.070 | 0.942 | 0.0228 |
-| lambda=100.0 | 0.0304 | -0.0005 | 0.106 | 0.959 | 0.0230 |
-| lambda=1000 (beyond the selection grid) | 0.0327 | +0.0018 | 0.081 | 0.948 | 0.0232 |
-| drop precip_max_1h | 0.0301 | -0.0008 | 0.098 | 0.958 | 0.0219 |
-| drop precip_total | 0.0294 | -0.0016 | 0.128 | 0.963 | 0.0215 |
-| drop antecedent_24h | 0.0326 | +0.0016 | 0.091 | 0.952 | 0.0229 |
-| drop elevation | 0.0320 | +0.0010 | 0.075 | 0.947 | 0.0220 |
-| drop relief | 0.0299 | -0.0011 | 0.103 | 0.960 | 0.0230 |
-| drop stormwater | 0.0236 | -0.0074 | 0.202 | 0.974 | 0.0191 |
-| drop kind_indicator | 0.0308 | -0.0002 | 0.081 | 0.953 | 0.0227 |
-| operating point: in-fold threshold (not in-fold alert rate) | 0.0304 | -0.0006 | 0.093 | 0.957 | 0.0231 |
-| weighted 1/fan-out (proxy: positives per event x Cell) | 0.0287 | -0.0023 | 0.099 | 0.961 | 0.0236 |
+| REFERENCE: the primary at the frozen modal lambda=100.0 | 0.0304 | +0.0000 | 0.106 | 0.959 | 0.0230 |
+| lambda=0.01 | 0.0314 | +0.0010 | 0.077 | 0.949 | 0.0228 |
+| lambda=0.1 | 0.0314 | +0.0010 | 0.077 | 0.949 | 0.0228 |
+| lambda=1.0 | 0.0314 | +0.0010 | 0.077 | 0.949 | 0.0228 |
+| lambda=10.0 | 0.0327 | +0.0023 | 0.070 | 0.942 | 0.0228 |
+| lambda=100.0 | 0.0304 | +0.0000 | 0.106 | 0.959 | 0.0230 |
+| lambda=1000 (beyond the selection grid) | 0.0327 | +0.0023 | 0.081 | 0.948 | 0.0232 |
+| drop precip_max_1h | 0.0301 | -0.0003 | 0.098 | 0.958 | 0.0219 |
+| drop precip_total | 0.0294 | -0.0010 | 0.128 | 0.963 | 0.0215 |
+| drop antecedent_24h | 0.0326 | +0.0021 | 0.091 | 0.952 | 0.0229 |
+| drop elevation | 0.0320 | +0.0015 | 0.075 | 0.947 | 0.0220 |
+| drop relief | 0.0299 | -0.0006 | 0.103 | 0.960 | 0.0230 |
+| drop stormwater | 0.0236 | -0.0069 | 0.202 | 0.974 | 0.0191 |
+| drop kind_indicator | 0.0308 | +0.0003 | 0.081 | 0.953 | 0.0227 |
+| operating point: in-fold threshold (not in-fold alert rate) | 0.0304 | -0.0001 | 0.093 | 0.957 | 0.0231 |
+| weighted 1/fan-out (proxy: positives per event x Cell; 3,475 rows down-weighted) | 0.0287 | -0.0017 | 0.099 | 0.961 | 0.0236 |
 
-Lambda is selected on inner-CV PR-AUC, and PR-AUC across the WHOLE grid moves by
-0.0014 (cell), 0.0004 (point) — including the rung beyond the
-grid's top, where CSI falls for the cell model. The CSI column's wobble across lambdas is
-noise at that scale, not a knob with a preference.
+Read the lambda rows before trusting the shipped penalty:
+
+- **cell**: shipped lambda 100 (the modal inner-CV choice across the outer folds). On the GATE metric the best rung is `lambda=100.0` at CSI 0.1591 — the shipped one is which IS the shipped rung. PR-AUC, the metric lambda is actually selected on, moves by 0.0014 across the whole grid including the rung beyond its top.
+- **point**: shipped lambda 100 (the modal inner-CV choice across the outer folds). On the GATE metric the best rung is `lambda=10.0` at CSI 0.0327 — the shipped one is the WORST of the rungs. PR-AUC, the metric lambda is actually selected on, moves by 0.0004 across the whole grid including the rung beyond its top.
+
+A CSI ordering that flips while the selection metric moves in the fourth decimal is noise rather than a preference — the honest reading in both directions, including where the shipped rung is the lowest-CSI one.
 
 **Deferred, with the reason — not run here and not silently dropped:** the label radius
 sweep {50, 100, 200} m and the p99-union 311 threshold sweep both REDEFINE THE EVENT
@@ -275,14 +300,14 @@ delta beside the frozen primary".
 
 ## MRMS-era out-of-sample replication — NOT COMPUTED
 
-the matrix carries era='fit' rows only (AORC has no 2026 year), and the replication era holds 1 event as of the matrix build — replication needs MRMS-era feature rows and more than one storm. Events by era in the landed spine: {'fit': 195, 'replication': 1, 'validation_only': 10}.
+the matrix carries era='fit' rows only (AORC has no 2026 year), and the replication era holds 1 event as of the matrix build — replication needs MRMS-era feature rows and more than one storm. Events by era in the landed spine: {'fit': 195, 'validation_only': 10, 'replication': 1}.
 Band caveat, stamped for when it does run: when it runs, every MRMS number is read under the measured 0.86-0.92 Pass2/AORC scale band, never like-for-like against an AORC-fit number.
 
 ## Coverage honesty (recomputed, not inherited)
 
 The landed spine `silver/flood_events` carries **206 events over
 248 event-days**, 2010-03-13..2026-08-20 — by class
-{'coastal': 44, 'mixed': 18, 'pluvial': 141, 'snowmelt': 3}. The pluvial fit-era universe these fits read is **133
+{'pluvial': 141, 'coastal': 44, 'mixed': 18, 'snowmelt': 3}. The pluvial fit-era universe these fits read is **133
 events over 147 event-days**. The drafted 115 union event days is
 SUPERSEDED; any coverage fraction quoted downstream is against 248
 event-days, never 115.
