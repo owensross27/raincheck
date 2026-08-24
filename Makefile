@@ -8,7 +8,7 @@ export TZ := UTC
 export RAINCHECK_ARCHIVE_ROOT RAINCHECK_BRONZE_GB TRANSITLAND_API_KEY
 PY := .venv/bin/python
 
-.PHONY: warm ref nbp features picks precip-hourly precip-cell schedule events gold baseline gates slice test topics flood-obs flood-spine
+.PHONY: warm ref nbp features picks precip-hourly precip-cell schedule events gold baseline gates slice test topics flood-obs flood-spine flood-coastal
 
 topics:  ## recreate the two bus topics to spec C - DESTRUCTIVE: drops retained Kafka messages (Bronze keeps the record)
 	$(PY) -m raincheck.topics
@@ -58,6 +58,13 @@ flood-obs:  ## label-grade flood observations -> silver/flood_obs (make flood-ob
 
 flood-spine:  ## the dated flood event spine -> silver/flood_events (make flood-spine [SKIP_CANARY=1])
 	$(PY) -m raincheck.flood_spine $(if $(SKIP_CANARY),--skip-canary)
+
+# --- flood-build ticket 07: the coastal rule layer -------------------------------
+# Publishes nothing to <root>: surge_margin_ft is arithmetic over silver/asset_features
+# and the frozen gauge constants, computed by flood_coastal.unit_margins() at read. This
+# target re-cuts the published validation table.
+flood-coastal:  ## surge_margin_ft report -> research/flood-07-coastal.md (make flood-coastal [SKIP_CANARY=1])
+	$(PY) -m raincheck.flood_coastal $(if $(SKIP_CANARY),--skip-canary) > research/flood-07-coastal.md
 
 gates:  ## tier-2 slice acceptance gates: 10-T3, 10-T6 wired; T4/T5 report-only slots
 	$(PY) -m raincheck.gates
