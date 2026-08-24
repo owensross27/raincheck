@@ -42,16 +42,29 @@ defaultAirflowTag: "3.2.2"
 
 executor: "KubernetesExecutor"
 
+# BOTH of these are the DAG image (orchestration ticket 04): the official Airflow 3.2.2
+# base with this repo's dags/ folder and cloud 03's stage-placement table baked in, built
+# from the same tree and the same git sha as the runtime image, by the same
+# scripts/cloud-image.sh run, and tagged `<sha>-airflow` in the one ECR repository. That is
+# what makes DAG code and pipeline code the same version by construction - and it is why
+# `dags:` at the bottom needs no persistence, no gitSync and no bundle configuration.
+#
+# `airflow` is scheduler / api-server / dag-processor / the migration Job. `pod_template`
+# is EVERY task pod the KubernetesExecutor stamps, and it needs the DAGs too: in Airflow 3
+# the worker re-parses the DAG file before it runs the task. Leave one of them on the
+# stock image and that component is the one that cannot see a DAG.
+#
+# These two lines are rewritten by scripts/cloud-image.sh, never by hand, exactly as the
+# kustomize `images:` transformer is; tests/test_dag_delivery.py fails if the two pins stop
+# naming one sha in one repository.
 images:
   airflow:
-    repository: apache/airflow
-    tag: "3.2.2"
+    repository: 384555717200.dkr.ecr.us-east-1.amazonaws.com/raincheck
+    tag: "3fa22a6b59ec-airflow"
     pullPolicy: IfNotPresent
-  # The image task pods run. Same pin today; cloud 03's sha-tagged ECR image replaces
-  # this one line when the repo needs to be inside the task pod.
   pod_template:
-    repository: apache/airflow
-    tag: "3.2.2"
+    repository: 384555717200.dkr.ecr.us-east-1.amazonaws.com/raincheck
+    tag: "3fa22a6b59ec-airflow"
     pullPolicy: IfNotPresent
 
 # ---------------------------------------------------------------------------------------
@@ -144,9 +157,14 @@ logs:
   persistence:
     enabled: false      # remote logging is the retention story; a 100Gi PVC is not
 
-# DAG delivery belongs to the orchestration effort (orch 04), not to the platform. Neither
-# gitSync nor a DAG PVC is drawn here: whatever it picks - baked into cloud 03's image or
-# synced - is one values edit away, and guessing now would be a wrong guess to unpick.
+# DAG delivery, decided by orch 04: BAKED INTO THE IMAGE above, at /opt/airflow/dags, which
+# is both this chart's default dags.mountPath and Airflow's default dags_folder. So both of
+# these stay false and there is nothing else to set - no sidecar, no PVC, and no
+# `dag_bundle_config_list`. The last one matters: a bundle is configured per COMPONENT, and
+# one configured on the scheduler alone is not configured on the task pod, which then dies
+# with "Requested bundle is not configured" after the pod has already started (cloud 06
+# lost a run to exactly that). The default `dags-folder` bundle needs no configuration at
+# all, so there is nothing to get half-configured.
 dags:
   persistence:
     enabled: false

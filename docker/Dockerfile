@@ -15,7 +15,7 @@
 #
 # The base is noble, not the upstream jammy: jammy's python3 is 3.10 and pyproject
 # requires >=3.11. Noble is PEP 668 externally-managed, hence the venv.
-FROM eclipse-temurin:17-jre-noble
+FROM eclipse-temurin:17-jre-noble AS runtime
 
 ENV PYTHONUNBUFFERED=1 \
     VIRTUAL_ENV=/opt/venv \
@@ -92,3 +92,41 @@ RUN mkdir -p /opt/raincheck \
 ENV PATH="${SPARK_HOME}/bin:${PATH}"
 WORKDIR /opt/raincheck
 CMD ["python", "-c", "import raincheck; print('raincheck image ok')"]
+
+# ----------------------------------------------------------------------------------------
+# THE DAG IMAGE (orchestration ticket 04). A second stage, not a second Dockerfile and not
+# a second repository: one `scripts/cloud-image.sh` run builds both from one tree and tags
+# both with one git sha, which is what makes "the DAG and the code it schedules are the
+# same version" true by construction rather than by discipline.
+#
+# It is a thin layer on the OFFICIAL Airflow image because the Airflow components have to
+# run Airflow; the runtime stage above has no Airflow in it, and installing one into the
+# other would be two runtimes drifting inside one image. Nothing raincheck-shaped runs
+# here: no repo, no venv, no make. This image PARSES DAGs and stamps pods; the stages run
+# in the runtime image above, in pods of their own. Keep the tag in step with
+# deploy/airflow/values.yaml's airflowVersion - tests/test_dag_delivery.py fails if it
+# drifts, because a DAG image a chart upgrade left behind parses with the old Airflow.
+#
+# /opt/airflow/dags is the chart's own dags.mountPath and Airflow's default dags_folder,
+# so baking here IS the delivery: `dags.persistence` and `dags.gitSync` both stay false and
+# no volume, sidecar or bundle configuration is involved. That last part is load-bearing -
+# a bundle configured on the scheduler alone is not configured on the TASK pod, and the
+# worker dies with "Requested bundle is not configured" after it has already started.
+FROM apache/airflow:3.2.2 AS dags
+
+# The one sha the runtime stage above was just tagged with, passed by scripts/cloud-image.sh.
+# It reaches every pod stamped from this image - workers included - BECAUSE it is in the
+# image: env set on the Airflow Deployments does not reach task pods.
+ARG RAINCHECK_IMAGE
+ENV RAINCHECK_IMAGE=${RAINCHECK_IMAGE}
+
+COPY --chown=airflow:root dags /opt/airflow/dags
+# cloud 03's stage-placement table, verbatim - the pod spec every task is built from, so
+# that no capacity number is retyped into a DAG. raincheck_stage.PLACEMENT defaults to this path.
+COPY --chown=airflow:root deploy/k8s/raincheck/build.yaml /opt/airflow/placement/build.yaml
+
+# An unset --build-arg would bake an empty pin and every task would try to pull the bare
+# name `raincheck` from Docker Hub, at 03:00, having looked fine here.
+RUN test -n "$RAINCHECK_IMAGE" \
+ && python -c "import sys; sys.path.insert(0, '/opt/airflow/dags'); import raincheck_smoke" \
+ && test "$(python -c "import sys; sys.path.insert(0, '/opt/airflow/dags'); import raincheck_stage as s; print(s.pod('raincheck-spark')['spec']['containers'][0]['image'])")" = "$RAINCHECK_IMAGE"
