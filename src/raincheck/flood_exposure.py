@@ -20,7 +20,7 @@ Three coverage rules, all of them already paid for upstream, none re-solved here
   * NO NULL scores. `flood_matrix.elev_source()` applied the ring15_med fallback PER ROW at
     the feature layer, so the seven complexes with no graded entrance still aggregate over
     a real set. They are frozen by `complex_id` (never by station name — "86 St" alone
-    names five complexes, so a name gate matches 18 and asserts nothing) and RE-DERIVED at
+    names SIX complexes, so a name gate matches 18 and asserts nothing) and RE-DERIVED at
     build against `NO_GRADE_OK`.
   * The 60 MTA Bus Company stops outside the NYC DEM footprint are NOT IN THE MATRIX
     (flood 08 excluded them with a count) and cannot be scored off it. They are Units, so
@@ -181,9 +181,20 @@ def score_version(identities: Mapping, models: Mapping, refs: Mapping) -> str:
     downstream artifact stamped with an old one is detectably stale. Ticket 11 stamps this
     beside its own detector_version and refuses the model tier on skew.
 
-    It covers exactly what can move a PUBLISHED SCORE and nothing else. The flag vocabulary,
-    the assertion scope and the informational scale band are deliberately out: bumping the
-    stamp for a reworded flag would refuse the live model tier over a cosmetic edit.
+    WHAT IS IN: everything about the upstream data and the fitted parameters — the four
+    identities, the per-role model constants, the reference forcings, which model scores
+    which kind, and the encoding that turns a Unit's stormwater level into a coefficient
+    (permuting `SW_DUMMY` moves every point score, and the set-containment guard in
+    `models_of` cannot see a permutation).
+
+    WHAT IS DELIBERATELY OUT: the flag vocabulary, the assertion scope and the informational
+    scale band — bumping the stamp for a reworded flag would refuse the live model tier over
+    a cosmetic edit.
+
+    WHAT IS NOT COVERED, and is a real limit rather than a choice: this is a hash of VALUES,
+    so the module's own code — `POINT_SQL`'s aggregation, `eta`'s summation, the argmax
+    behind the complex rule — rides only as the labels below. Editing that code changes
+    scores without moving the digest; the tests, not this stamp, are what hold it.
     """
     return hashlib.sha1(json.dumps({
         "estimand": fl.ESTIMAND, "identities": dict(identities),
@@ -192,6 +203,7 @@ def score_version(identities: Mapping, models: Mapping, refs: Mapping) -> str:
                        "stormwater_base_level": m["stormwater_base_level"]}
                    for r, m in models.items()},
         "reference_forcings": dict(refs), "kind_model": KIND_MODEL,
+        "stormwater_dummy": SW_DUMMY, "kind_indicator": "is_bus_stop",
         "complex_rule": "max over child entrance scores",
         "fallback": "kind median score_ref/score_severe",
     }, sort_keys=True).encode()).hexdigest()
@@ -204,14 +216,19 @@ def coefficients(path: Path = COEFFICIENTS) -> dict:
 
 # ---- the build -----------------------------------------------------------------------
 
+# Every aggregate here is a "this is constant per Unit" claim, so each one carries its own
+# distinct-count and the gate compares the TUPLE. Summing the counts would not work:
+# count(DISTINCT ...) skips NULLs, so 2 + 1 + 0 also reaches 3 and a drifting column passes.
 POINT_SQL = """
 SELECT asset_id, any_value(kind) AS kind, any_value(complex_id) AS complex_id,
        min(elev_ft) AS elev_ft, min(relief_ft) AS relief_ft,
        min(stormwater_cat) AS stormwater_cat,
        count(DISTINCT elev_ft) AS n_elev, count(DISTINCT relief_ft) AS n_relief,
-       count(DISTINCT stormwater_cat) AS n_cat
+       count(DISTINCT stormwater_cat) AS n_cat, count(DISTINCT kind) AS n_kind,
+       count(DISTINCT complex_id) AS n_cx
   FROM m WHERE role = 'fit_point' GROUP BY asset_id ORDER BY asset_id
 """
+POINT_STATIC = ("n_elev", "n_relief", "n_cat", "n_kind")
 
 # The chronic-reporter control is the one static feature that MOVES: it is a 3-year
 # trailing count, so a Cell carries one value per event. The frozen choice is the newest
@@ -222,10 +239,13 @@ SELECT asset_id, min(share_deep) AS share_deep, min(share_nuisance) AS share_nui
        min(share_not_analyzed) AS share_not_analyzed,
        arg_max(density_311_3y, event_id)::DOUBLE AS density_311_3y,
        max(event_id) AS as_of,
-       count(DISTINCT share_deep) + count(DISTINCT share_nuisance)
-         + count(DISTINCT share_not_analyzed) AS n_static
+       count(DISTINCT share_deep) AS n_deep,
+       count(DISTINCT share_nuisance) AS n_nuisance,
+       count(DISTINCT share_not_analyzed) AS n_not_analyzed,
+       sum(density_311_3y IS NULL)::INT AS n_null_density
   FROM m WHERE role = 'fit_cell' GROUP BY asset_id ORDER BY asset_id
 """
+CELL_STATIC = ("n_deep", "n_nuisance", "n_not_analyzed")
 
 
 def shipped(fits: Mapping) -> dict:
@@ -310,8 +330,10 @@ def _elevation_classes(root: Path, rows: Sequence[Mapping]
             continue                      # stations and complexes carry no elevation
         # a point with neither a graded sample nor a ring has NO elevation at all: that is
         # `no_dem_footprint`, a more specific reason than the ring fallback, and it must
-        # never claim a ring median it does not have
-        if fm.elev_source(f) is None:
+        # never claim a ring median it does not have. BOTH conditions, not just
+        # elev_source(): that returns None for a grade_ok row whose canonical sample is
+        # NULL, and such a row does have a ring — it is not outside the DEM footprint.
+        if fm.elev_source(f) is None and f["ring15_med_m"] is None:
             no_elev.add(r["asset_id"])
         elif r["kind"] == "bus_stop" and not f["grade_ok"]:
             stops.add(r["asset_id"])
@@ -342,15 +364,25 @@ def build(root: Path, expect: dict | None = EXPECT, fits: Mapping | None = None,
     con.close()
 
     drift = [p["asset_id"] for p in points
-             if (p["n_elev"], p["n_relief"], p["n_cat"]) != (1, 1, 1)]
+             if tuple(p[k] for k in POINT_STATIC) != (1,) * len(POINT_STATIC)
+             or p["n_cx"] > 1]
     if drift:
         raise RuntimeError(f"{len(drift)} point Units carry more than one static feature "
                            f"value across events, e.g. {drift[:3]} — the matrix is not "
                            f"Unit-static and a single exposure row cannot represent them")
-    drift = [c["asset_id"] for c in cells if c["n_static"] != 3]
+    drift = [c["asset_id"] for c in cells
+             if tuple(c[k] for k in CELL_STATIC) != (1,) * len(CELL_STATIC)]
     if drift:
         raise RuntimeError(f"{len(drift)} Cells carry more than one stormwater share, "
                            f"e.g. {drift[:3]}")
+    # arg_max SKIPS rows whose value is NULL while max(event_id) does not, so a NULL density
+    # on the newest event would score the Cell off an older one while `as_of` still published
+    # the newest. Refuse the input instead of publishing a date the density does not match.
+    blank = [c["asset_id"] for c in cells if c["n_null_density"]]
+    if blank:
+        raise RuntimeError(f"{len(blank)} Cells carry a NULL 311 density, e.g. {blank[:3]} — "
+                           f"the frozen as-of date would no longer name the event the "
+                           f"density was taken from")
     as_of = sorted({c["as_of"] for c in cells})
     if len(as_of) != 1:
         raise RuntimeError(f"the 311 density freeze needs ONE as-of event across Cells, "
@@ -506,6 +538,16 @@ def _gates(rows: Sequence[Mapping], ring_complexes: Mapping, expect: dict | None
                            f"NO NULL scores is the contract")
     if len({r["asset_id"] for r in rows}) != len(rows):
         raise RuntimeError("gold/flood_exposure is one row per Unit; asset_id repeats")
+    # NOT implied by the in-Window assertion, which is why it is checked separately. The
+    # p50 -> p90 shift is a per-Unit CONSTANT summing the in-Window gain and the antecedent
+    # term: at point grain that is +1.1940 and -0.2657, net +0.9283. A refit that leaves both
+    # in-Window coefficients positive but strengthens the antecedent past about -0.42 would
+    # ship a "severe" storm scoring BELOW a median one, and nothing above would notice.
+    inverted = [r["asset_id"] for r in rows if r["score_severe"] < r["score_ref"]]
+    if inverted:
+        raise RuntimeError(f"{len(inverted)} Units score LOWER at the severe reference "
+                           f"forcing than at the median one, e.g. {inverted[:3]} — the "
+                           f"published pair would be backwards")
     unknown = sorted({f for r in rows for f in r["flags"]} - set(FLAGS))
     if unknown:
         raise RuntimeError(f"flags outside the published vocabulary: {unknown}")
@@ -526,7 +568,7 @@ def _gates(rows: Sequence[Mapping], ring_complexes: Mapping, expect: dict | None
                            f"this registry every complex has a scorable doorway and every "
                            f"scored Cell is in the matrix, so this is a regression")
     # keyed on complex_id; the NAME rides beside it as the drift canary and is checked too.
-    # A name-keyed gate would match 18 complexes and assert nothing ("86 St" names five).
+    # A name-keyed gate would match 18 complexes and assert nothing ("86 St" names SIX).
     if dict(ring_complexes) != dict(expect["no_grade_ok"]):
         raise RuntimeError(
             f"the complexes with no graded entrance moved: "
@@ -582,8 +624,14 @@ def _artifact(version: str, stamp: Mapping, gate: Mapping, models: Mapping,
                               "event-side term",
             "stormwater_levels": list(STORMWATER_CATS),
             "stormwater_base_level": ff.STORMWATER_BASE,
-            "stormwater_note": "dummy-coded against the base level, which gets NO term",
-            "kind_indicator": "is_bus_stop",
+            "stormwater_dummy": dict(sorted(SW_DUMMY.items())),
+            "stormwater_note": "dummy-coded against the base level, which gets NO term; "
+                               "stormwater_dummy is the level -> coefficient-name map, "
+                               "published so no consumer has to re-derive it from spelling",
+            "kind_indicator": {"feature": "is_bus_stop", "one_when_kind_is": "bus_stop",
+                               "note": "a complex's child entrances score as entrances, so "
+                                       "is_bus_stop is 0 for every doorway behind a "
+                                       "complex score"},
             "density_311_3y_as_of": density_as_of,
             "density_note": "the chronic-reporter control is a 3-year trailing count, "
                             "frozen at the newest fit-era event",
@@ -597,9 +645,14 @@ def _artifact(version: str, stamp: Mapping, gate: Mapping, models: Mapping,
             "score_ref evaluates at p50 and score_severe at p90 of the fit rows' precip "
             "terms; every other feature is the Unit's own",
         "cdf": {"score": "score_ref", "by_kind": dict(sorted(cdf.items())),
+                "method": "numpy percentile, linear interpolation",
                 "note": "the static view: percentile knots of the PUBLISHED score_ref "
-                        "(fallback rows included, exactly as they ship) — the same "
-                        "distribution score_index reports"},
+                        "(fallback rows included, exactly as they ship). It is the same "
+                        "DATA as gold/flood_exposure.score_index but not the same "
+                        "estimator — score_index is the empirical CDF (# <= x)/n, these "
+                        "knots invert a linearly interpolated quantile, so reading a "
+                        "percentile off them agrees with score_index to within ~0.6 "
+                        "percentage points, not exactly"},
         "scale_band": {
             "pass2_over_aorc": list(ff.SCALE_BAND),
             "note": "MRMS Pass2 measured at 0.86-0.92 of AORC (flood 06). The fit is "
