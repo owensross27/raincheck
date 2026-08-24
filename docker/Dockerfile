@@ -121,12 +121,24 @@ ARG RAINCHECK_IMAGE
 ENV RAINCHECK_IMAGE=${RAINCHECK_IMAGE}
 
 COPY --chown=airflow:root dags /opt/airflow/dags
+# The nightly's run-id timetable (orchestration ticket 05). It has to be a PLUGIN: a custom
+# timetable is stored in the serialized DAG by qualified name and looked up in the plugin
+# registry to decode, so an unregistered one cannot even be written. Airflow's own
+# settings.initialize() appends this folder to sys.path in every component, which is how the
+# DAG file's `import raincheck_timetable` resolves - there is no PYTHONPATH to set.
+COPY --chown=airflow:root plugins /opt/airflow/plugins
 # cloud 03's stage-placement table, verbatim - the pod spec every task is built from, so
 # that no capacity number is retyped into a DAG. raincheck_stage.PLACEMENT defaults to this path.
 COPY --chown=airflow:root deploy/k8s/raincheck/build.yaml /opt/airflow/placement/build.yaml
+# The stage contract (ticket 01), likewise verbatim: the nightly DAG READS daily.STAGES for
+# its order, its soft stage and its retry classes rather than holding a second copy of them.
+# It is data here, not code - this image has no raincheck package and a DAG may not import
+# one. raincheck_stage.DECLARATION defaults to this path.
+COPY --chown=airflow:root src/raincheck/daily.py /opt/airflow/placement/daily.py
 
 # An unset --build-arg would bake an empty pin and every task would try to pull the bare
 # name `raincheck` from Docker Hub, at 03:00, having looked fine here.
 RUN test -n "$RAINCHECK_IMAGE" \
  && python -c "import sys; sys.path.insert(0, '/opt/airflow/dags'); import raincheck_smoke" \
+ && python -c "import sys; sys.path.insert(0, '/opt/airflow/dags'); import airflow; import raincheck_daily" \
  && test "$(python -c "import sys; sys.path.insert(0, '/opt/airflow/dags'); import raincheck_stage as s; print(s.pod('raincheck-spark')['spec']['containers'][0]['image'])")" = "$RAINCHECK_IMAGE"

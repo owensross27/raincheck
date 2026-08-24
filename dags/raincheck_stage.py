@@ -25,6 +25,7 @@ parses this file and builds the spec below.
 """
 from __future__ import annotations
 
+import ast
 import os
 from pathlib import Path
 
@@ -33,6 +34,8 @@ import yaml
 # Baked beside the DAGs by docker/Dockerfile's `dags` stage. Overridable so the tests can
 # point it at the placement table in the repo - which is the same file.
 PLACEMENT = Path(os.environ.get("RAINCHECK_PLACEMENT", "/opt/airflow/placement/build.yaml"))
+# The stage contract (orchestration ticket 01), likewise baked and likewise the same file.
+DECLARATION = Path(os.environ.get("RAINCHECK_DECLARATION", "/opt/airflow/placement/daily.py"))
 
 # The spelling every raincheck manifest writes, and the transformer rewrites.
 IMAGE_NAME = "raincheck"
@@ -50,6 +53,70 @@ def module(name: str, *args: str) -> list[str]:
     three check outcomes apart: GNU make exits 2 for any recipe failure, so a module rc of
     1 arrives as 2 and INCONCLUSIVE becomes indistinguishable from broken (orch 03)."""
     return ["python", "-m", f"raincheck.{name}", *args]
+
+
+def stages() -> list[dict]:
+    """`raincheck.daily.STAGES` - the nightly stage contract - as plain dicts.
+
+    READ, not imported, for two reasons that point the same way. This image is the Airflow
+    base plus this folder: there is no raincheck package in it, because the stages run in
+    pods of their own on cloud 03's image. And a DAG file that COULD import raincheck is a
+    DAG file that could run a stage in the scheduler's process, which is why
+    tests/test_dag_delivery.py forbids the import outright.
+
+    So the declaration arrives the way the pod spec does - as data, baked beside the DAGs -
+    and it is PARSED rather than generated, so that the one home ticket 01 built stays the
+    one home. A generated copy is a copy, and the whole point of the declaration is that
+    "gapfill before gapcheck" cannot be true in one runtime and false in the other.
+    """
+    tree = ast.parse(DECLARATION.read_text())
+    row = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "Stage")
+    fields = [f.target.id for f in row.body if isinstance(f, ast.AnnAssign)]
+    blank = {f.target.id: ast.literal_eval(f.value) for f in row.body
+             if isinstance(f, ast.AnnAssign) and f.value is not None}
+    declared = next(n.value for n in tree.body if isinstance(n, ast.Assign)
+                    and any(getattr(t, "id", None) == "STAGES" for t in n.targets))
+    out = []
+    for call in declared.elts:
+        stage = dict(blank, **dict(zip(fields, [ast.literal_eval(a) for a in call.args])))
+        stage.update({k.arg: ast.literal_eval(k.value) for k in call.keywords})
+        out.append(stage)
+    return out
+
+
+def command(stage: dict) -> list[str]:
+    """What ONE declared stage runs as its own process.
+
+    Two forms and one rule, both from the declaration: a stage that carries an `argv`
+    invokes the module directly, and every GATE carries one - GNU make exits 2 for any
+    recipe failure, so a check reached through make cannot report INCONCLUSIVE apart from
+    broken (orch 03). Everything else runs the make target the single box runs.
+    """
+    if stage["argv"]:
+        return module(*stage["argv"])
+    kind, _, target = stage["entrypoint"].partition(":")
+    if kind != "make":
+        raise ValueError(f"{stage['name']}: a {kind}: entrypoint has no process form; it "
+                         "needs an argv in the declaration")
+    return make(target)
+
+
+def shape_of(name: str) -> str:
+    """The placement table's OWN answer to "which pod does this stage get".
+
+    cloud 03 measured the two shapes and wrote which stages belong to each into the
+    templates' `raincheck.io/stages` annotation. Reading that back is what keeps a DAG from
+    holding a second opinion about it - and a stage the table does not place is an error
+    here rather than a silent 250m pod running a Spark job.
+    """
+    for template in yaml.safe_load_all(PLACEMENT.read_text()):
+        if not template or template.get("kind") != "PodTemplate":
+            continue
+        listed = template["metadata"]["annotations"].get("raincheck.io/stages", "")
+        # Entries read "events (one pod per Service date)" - the name is the first word.
+        if name in [entry.split()[0] for entry in listed.split(",") if entry.strip()]:
+            return template["metadata"]["name"]
+    raise KeyError(f"{name} is in no shape's raincheck.io/stages in {PLACEMENT}")
 
 
 def pod(shape: str, image: str | None = None) -> dict:
