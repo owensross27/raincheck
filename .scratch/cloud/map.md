@@ -192,3 +192,13 @@ nothing we run. The map is done when nothing is left to decide before
   one derived-file boundary case).
 - Touching the 2026-08-31 cutover task or its gate.
 - Alerting/notification channels — `.scratch/notify/map.md` owns those.
+
+## Build progress
+
+- **T1 resolved 2026-08-23** — EKS `raincheck` (1.34, us-east-1, the capture box's own
+  VPC and AZ) with a 2 x t4g.large spot floor pinned to us-east-1f, Karpenter 1.14.1
+  with a scale-to-zero Graviton-spot `burst` NodePool, and the budget alarm wired
+  before the first node. Burst provisioning and consolidation both verified on the
+  cluster. The $100 envelope did not survive measurement — control plane $73, public
+  IPv4 $3.65/node/mo, floor $34 — so Ross raised it to the $130 hard-look line spec §8
+  already named. Details and the corrected arithmetic: `issues/01-eks-cluster.md`.

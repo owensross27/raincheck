@@ -1,0 +1,73 @@
+# Karpenter burst capacity for raincheck cloud T1.
+#
+# The floor (2 x t4g.large spot in us-east-1f) is a managed nodegroup and is not
+# managed here. This NodePool exists so per-day `events` builds and the 7-year
+# backfill fan out in parallel and then cost nothing when idle: it scales to zero.
+#
+# Not AZ-constrained on purpose — burst pods are stateless (spec §1); only the
+# floor is pinned, because EBS is AZ-bound.
+---
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: burst
+spec:
+  amiFamily: AL2023
+  amiSelectorTerms:
+    - alias: al2023@latest
+  role: eksctl-KarpenterNodeRole-raincheck
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: raincheck
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: raincheck
+  # Nodes get a public IP because there is no NAT Gateway (spec §7). This is billed
+  # at $0.005/hr per address and is counted in the envelope; inbound is closed by
+  # the security group, not by subnet placement.
+  associatePublicIPAddress: true
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 40Gi
+        volumeType: gp3
+        deleteOnTermination: true
+  tags:
+    Project: raincheck-cloud   # keeps burst nodes inside the $130 budget filter
+    raincheck.io/pool: burst
+---
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: burst
+spec:
+  template:
+    metadata:
+      labels:
+        raincheck.io/pool: burst
+    spec:
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: burst
+      requirements:
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["arm64"]              # Graviton only; the image is arm64
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["spot"]               # spot-first with no on-demand fallback
+        - key: karpenter.k8s.aws/instance-category
+          operator: In
+          values: ["c", "m", "r", "t"]
+        - key: karpenter.k8s.aws/instance-generation
+          operator: Gt
+          values: ["5"]
+      expireAfter: 168h
+  disruption:
+    consolidationPolicy: WhenEmptyOrUnderutilized
+    consolidateAfter: 1m                 # a finished build should stop costing money fast
+  # A hard ceiling, not a target: this is what stops a runaway fan-out from
+  # outrunning the budget alarm's reporting lag.
+  limits:
+    cpu: "32"
