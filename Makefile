@@ -128,10 +128,10 @@ cutover:  ## retire the Mac agent once the box proves 7 clean coldgaps days (mak
 gapfill:  ## fill missing Bronze hours from gtfsrt.io (make gapfill [FEED=vp] [DATE=D[:D]]; default all five kinds, 2026-08-15..yesterday)
 	$(PY) -m raincheck.gapfill fill $(if $(FEED),--feed $(FEED)) $(if $(DATE),--date $(DATE))
 
-gapcheck:  ## hour-completeness per kind x closed day (exit 1 on fillable gaps; gapfill.DEAD hours are reported, not failed)
+gapcheck:  ## hour-completeness per kind x closed day -> check-result rows under <root>/checks/ (exit 1 on fillable gaps or a stale gapfill.DEAD entry; DEAD hours still missing are reported, not failed)
 	$(PY) -m raincheck.gapfill check
 
-gapverify:  ## sanity: filled hours vs adjacent archiver hours (rows, key coverage, schema)
+gapverify:  ## sanity: filled hours vs adjacent archiver hours (rows, key coverage, schema); exit 2 INCONCLUSIVE when a kind has no pair to compare
 	$(PY) -m raincheck.gapfill verify $(if $(FEED),--feed $(FEED))
 
 # --- ticket 11: MRMS live precip ---------------------------------------------------

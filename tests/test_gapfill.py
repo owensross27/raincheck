@@ -3,6 +3,7 @@ file:// tree of parquet files written one row group per poll snapshot (the real 
 verified shape), and mapper schemas are censused against archiver.flush on the same pb
 fixtures the feeds tests use."""
 import hashlib
+import json
 import sys
 from datetime import date
 from pathlib import Path
@@ -12,7 +13,7 @@ import pyarrow.parquet as pq
 import pytest
 from google.transit import gtfs_realtime_pb2
 
-from raincheck import archiver, gapfill
+from raincheck import archiver, checks, gapfill
 from raincheck.feeds import decode_alerts, decode_subway_tu, decode_tu, decode_vp
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -44,29 +45,122 @@ def one_day(monkeypatch):
     return "2026-08-15"
 
 
-def test_check_allowlists_dead_hours(tmp_path, one_day, monkeypatch, capsys):
+def rendered(rows):
+    return "\n".join(gapfill.line(r) for r in rows)
+
+
+def test_check_allowlists_dead_hours(tmp_path, one_day, monkeypatch):
     """Hours gtfsrt.io never stored are reported but must not fail a scheduled check."""
     monkeypatch.setattr(gapfill, "DEAD", {("subway_alerts", one_day): ("07", "12")})
     bronze_day(tmp_path, one_day, {"subway_alerts": ["07", "12"]})
-    assert gapfill.check(tmp_path) == 0
-    out = capsys.readouterr().out
+    rows = gapfill.check(tmp_path)
+    assert checks.rc(rows) == 0
+    (sa,) = [r for r in rows if r.measures["kind"] == "subway_alerts"]
+    assert sa.outcome == checks.OK
+    assert (sa.measures["dead"], sa.measures["fillable"], sa.measures["hours_held"]) == (
+        "07,12", "", 22)
+    out = rendered(rows)
     assert "dead at source: 07,12" in out and "22/24" in out  # reported, never hidden
     assert "GAP" not in out
 
 
-def test_check_still_fails_on_a_fillable_gap_beside_a_dead_one(tmp_path, one_day, monkeypatch, capsys):
+def test_check_still_fails_on_a_fillable_gap_beside_a_dead_one(tmp_path, one_day, monkeypatch):
     monkeypatch.setattr(gapfill, "DEAD", {("subway_alerts", one_day): ("07",)})
     bronze_day(tmp_path, one_day, {"subway_alerts": ["07", "18"]})
-    assert gapfill.check(tmp_path) == 1
-    out = capsys.readouterr().out
-    assert "missing 18" in out and "[dead at source: 07]" in out  # 18 fillable, 07 not
+    rows = gapfill.check(tmp_path)
+    assert checks.rc(rows) == 1
+    (sa,) = [r for r in rows if r.measures["kind"] == "subway_alerts"]
+    assert (sa.outcome, sa.measures["fillable"], sa.measures["dead"]) == (
+        checks.FAIL, "18", "07")  # 18 fillable, 07 not
+    out = rendered(rows)
+    assert "missing 18" in out and "[dead at source: 07]" in out
 
 
-def test_check_flags_a_stale_dead_entry(tmp_path, one_day, monkeypatch, capsys):
+def test_check_fails_on_a_stale_dead_entry(tmp_path, one_day, monkeypatch):
+    """An allowlisted hour that is actually HERE means the allowlist is protecting nothing.
+    This used to pass as OK with a note; a rotted entry is a defect, and the next real gap
+    behind it would be waved through."""
     monkeypatch.setattr(gapfill, "DEAD", {("vp", one_day): ("05",)})
     bronze_day(tmp_path, one_day, {})  # every hour present: the entry has rotted
-    assert gapfill.check(tmp_path) == 0
-    assert "stale DEAD entry" in capsys.readouterr().out
+    rows = gapfill.check(tmp_path)
+    assert checks.rc(rows) == 1
+    (vp,) = [r for r in rows if r.measures["kind"] == "vp"]
+    assert (vp.outcome, vp.measures["stale_dead"], vp.measures["hours_held"]) == (
+        checks.FAIL, "05", 24)
+    assert "stale DEAD entry" in rendered(rows)
+
+
+def _part(path: Path, n: int) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    pq.write_table(pa.table({"vehicle_id": [f"v{i}" for i in range(n)], "ts": [1] * n}), path)
+
+
+def pair_day(root: Path, filled: int = 10, captured: int = 10, day: str = DAY) -> None:
+    """A vp day holding one gapfilled hour and one archiver-captured hour."""
+    d = root / "archive" / "vp" / f"date={day}"
+    _part(d / "hour=03" / "part-gapfill-vp.parquet", filled)
+    (d / "hour=03" / "_gapfill").touch()
+    _part(d / "hour=07" / "part-00.parquet", captured)
+
+
+def test_verify_with_nothing_to_compare_is_inconclusive_never_ok(tmp_path):
+    """The live bug this ticket fixes: verify() returned 0 having compared nothing - the
+    same false-OK class ticket 20 documented for the pre-live range, in reverse."""
+    (tmp_path / "archive" / "vp").mkdir(parents=True)
+    rows = gapfill.verify(tmp_path, "vp")
+    assert len(rows) == 1
+    assert rows[0].outcome == checks.INCONCLUSIVE
+    assert checks.rc(rows) == 2
+    assert rendered(rows) == "verify vp: no filled hour with an archiver hour on the same day yet"
+    assert rows[0].measures["day"] is None  # nothing compared -> nothing measured
+
+
+def test_verify_a_sane_pair_is_ok_and_carries_the_pair_it_compared(tmp_path):
+    pair_day(tmp_path)
+    (row,) = gapfill.verify(tmp_path, "vp")
+    assert (row.outcome, checks.rc([row])) == (checks.OK, 0)
+    m = row.measures
+    assert (m["day"], m["filled_hour"], m["captured_hour"]) == (DAY, "03", "07")
+    assert (m["filled_rows"], m["captured_rows"], m["row_ratio"], m["schema"]) == (
+        10, 10, 1.0, "=")
+
+
+def test_verify_fails_a_pair_outside_the_enforced_bands(tmp_path):
+    pair_day(tmp_path, filled=1000, captured=10)  # 100x rows, 100x keys
+    (row,) = gapfill.verify(tmp_path, "vp")
+    assert row.outcome == checks.FAIL and checks.rc([row]) == 1
+    assert row.measures["row_ratio"] > gapfill.ROW_BAND[1]
+    assert "BAD" in rendered([row])
+
+
+def test_verify_reports_every_kind_even_when_only_one_has_a_pair(tmp_path):
+    pair_day(tmp_path)
+    rows = gapfill.verify(tmp_path)
+    assert len(rows) == len(gapfill.KINDS)
+    assert [r.outcome for r in rows].count(checks.INCONCLUSIVE) == len(gapfill.KINDS) - 1
+    assert checks.rc(rows) == 2  # one clean kind never speaks for the four unchecked ones
+
+
+# Every Bronze/source column name these checks must never carry into a batch: GX renders
+# unexpected values into Data Docs, so a payload column here publishes MTA rows.
+PAYLOAD = (set().union(*gapfill.RAW_COLS.values()) | set(archiver.TYPES)
+           | set(archiver.KEY.values())
+           | {"header", "description", "cause", "effect", "agency", "occupancy",
+              "direction", "train_id", "scheduled_track", "actual_track", "feed"})
+
+
+@pytest.mark.parametrize("name", ["gapcheck", "gapverify"])
+def test_batch_columns_equal_the_declared_set_and_hold_no_payload(tmp_path, one_day, name):
+    bronze_day(tmp_path, one_day, {"vp": ["09"]})  # a fillable gap -> a failing row
+    pair_day(tmp_path)  # on its own day: bronze_day's parts are empty touch files
+    cols = gapfill.CHECK_COLUMNS[name]
+    rows = gapfill.check(tmp_path) if name == "gapcheck" else gapfill.verify(tmp_path)
+    out = checks.write(tmp_path, name, rows, cols)
+    written = [json.loads(x) for x in out.read_text().splitlines()]
+    assert written and all(tuple(w) == cols for w in written)
+    assert not set(cols) & PAYLOAD, set(cols) & PAYLOAD
+    assert all(isinstance(v, (int, float, str, type(None)))
+               for w in written for v in w.values())
 
 
 def test_dead_entries_are_well_formed():

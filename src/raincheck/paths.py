@@ -1,6 +1,6 @@
 """The data root (spec A): RAINCHECK_ARCHIVE_ROOT, default the repo's data/ (the external SSD
 in practice). Every dataset root hangs off it: archive/ (Bronze), ref/, silver/, gold/,
-live/, checkpoints/, .staging/. Unset or empty means the default."""
+live/, checkpoints/, checks/, .staging/. Unset or empty means the default."""
 import os
 from pathlib import Path
 

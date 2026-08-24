@@ -15,6 +15,8 @@ NULLs   subway TU NYCT-extension columns (train_id, direction, is_assigned,
 Fill:   python -m raincheck.gapfill fill [--feed vp] [--date 2026-08-19[:2026-08-21]]
 Check:  python -m raincheck.gapfill check   (hour completeness per kind x closed day)
 Verify: python -m raincheck.gapfill verify  (filled hours vs adjacent archiver hours)
+Both return checks.Row batches (ticket 02): printed as today, persisted under
+<root>/checks/, exit 1 any fail / 2 any inconclusive / 0.
 """
 import argparse
 import base64
@@ -27,6 +29,7 @@ import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
 
+from raincheck import checks
 from raincheck.archiver import KEY, TYPES
 from raincheck.feeds import CAUSE, EFFECT, FEEDS, OCCUPANCY, SUBWAY_FEEDS, TRIP_REL
 from raincheck.paths import data_root
@@ -47,6 +50,21 @@ DEAD = {
     # 2026-08-23; see ticket 20). It is deliberately NOT listed: check() iterates from
     # START, so a pre-START key would never match and would sit here looking like
     # protection it does not provide. Add it if and when START moves back.
+}
+# The bands verify() actually enforces - deliberately an order of magnitude wider than
+# ticket 20's MEASURED 0.85-1.2x same-day result. A GX suite expects on these, never on
+# the observed number: a suite that expects tighter than the code makes the suite the real
+# gate and silently changes what passes.
+ROW_BAND = (0.1, 10.0)
+KEY_BAND = (0.3, 10 / 3)
+# The declared column set of each check's batch, asserted by checks.write. Counts, dates,
+# kinds, hour labels and ratios only - never a feed column, because GX renders unexpected
+# values into Data Docs and publishing Data Docs would then publish MTA rows.
+CHECK_COLUMNS = {
+    "gapcheck": checks.CORE + ("kind", "day", "hours_held", "fillable", "dead", "stale_dead"),
+    "gapverify": checks.CORE + ("kind", "day", "filled_hour", "captured_hour", "filled_rows",
+                                "captured_rows", "filled_keys", "captured_keys", "row_ratio",
+                                "key_ratio", "schema"),
 }
 RAW_COLS = {  # the gtfsrt.io columns each mapper reads (their files carry ~35-46)
     "vehicle_positions": ["entity_id", "vehicle_id", "trip_id", "route_id", "direction_id",
@@ -306,38 +324,46 @@ def days(start: date | None = None, end: date | None = None):
         d += timedelta(days=1)
 
 
-def check(root: Path) -> int:
-    """Hour completeness per kind x closed day. Exits 1 on fillable gaps only: DEAD hours
-    are still reported (never hidden) but cannot fail the check, so a scheduled run pages
-    on real gaps instead of forever on holes gtfsrt.io never had."""
-    gaps = 0
+def check(root: Path) -> list[checks.Row]:
+    """Hour completeness per kind x closed day, one row each. Fails on fillable gaps and on
+    a stale DEAD entry (an hour listed dead at source that is actually here: the allowlist
+    is now protecting nothing and must be pruned, so it is a defect and not a note). DEAD
+    hours that really are missing are reported but never fail - a scheduled run pages on
+    real gaps instead of forever on holes gtfsrt.io never had."""
+    rows = []
     for kind in KINDS:
         for day in days():
             date_dir = root / "archive" / kind / f"date={day}"
             have = {d.name[5:] for d in date_dir.glob("hour=*") if any(d.glob("*.parquet"))}
             miss = {f"{h:02d}" for h in range(24)} - have
             dead = set(DEAD.get((kind, day), ()))
-            fillable = sorted(miss - dead)
-            gaps += bool(fillable)
+            fillable, covered, stale = sorted(miss - dead), sorted(dead & miss), sorted(dead - miss)
             note = f"  missing {','.join(fillable)}" if fillable else ""
-            if dead & miss:
-                note += f"  [dead at source: {','.join(sorted(dead & miss))}]"
-            if dead - miss:
-                note += (f"  [stale DEAD entry - hour(s) present: "
-                         f"{','.join(sorted(dead - miss))}]")
-            print(f"{'GAP' if fillable else 'OK '} {kind:13s} {day} {24 - len(miss):2d}/24{note}")
-    print("note: subway_vp hours are unrecoverable (gtfsrt.io archives subway TU only)")
-    return 1 if gaps else 0
+            if covered:
+                note += f"  [dead at source: {','.join(covered)}]"
+            if stale:
+                note += f"  [stale DEAD entry - hour(s) present: {','.join(stale)}]"
+            rows.append(checks.Row(
+                "gapcheck", f"{kind} {day}",
+                checks.FAIL if fillable or stale else checks.OK, note,
+                {"kind": kind, "day": day, "hours_held": 24 - len(miss),
+                 "fillable": ",".join(fillable), "dead": ",".join(covered),
+                 "stale_dead": ",".join(stale)}))
+    return rows
 
 
-def verify(root: Path, kind: str | None = None) -> int:
-    """For each kind, one filled hour vs the fullest archiver hour of the same day (by
+def verify(root: Path, kind: str | None = None) -> list[checks.Row]:
+    """One row per kind: a filled hour vs the fullest archiver hour of the same day (by
     bytes: startup remnants and partial hours lose): non-empty, row count and distinct-key
     coverage not wildly off (their poll cadence is thinned to ours, so ratios should be
     near 1), and every archiver column present in the filled part with the same type
     (subset, not equality: pre-ticket-07 vp parts lack schedule_relationship - era drift
-    that predates the fill)."""
-    fails = 0
+    that predates the fill).
+
+    A kind with no filled/captured pair on any day is INCONCLUSIVE, never ok. It used to
+    return 0 - the same false-OK class ticket 20 documented for the pre-live range, in the
+    opposite direction: a check that compared nothing reported clean."""
+    rows = []
     for k in [kind] if kind else KINDS:
         pair = None
         for date_dir in sorted((root / "archive" / k).glob("date=*")):
@@ -349,21 +375,44 @@ def verify(root: Path, kind: str | None = None) -> int:
                     p.stat().st_size for p in c.glob("*.parquet"))))
                 break
         if not pair:
-            print(f"verify {k}: no filled hour with an archiver hour on the same day yet")
+            rows.append(checks.Row(
+                "gapverify", k, checks.INCONCLUSIVE,
+                "no filled hour with an archiver hour on the same day yet",
+                dict.fromkeys(CHECK_COLUMNS["gapverify"][len(checks.CORE):]) | {"kind": k}))
             continue
         tf, ta = pq.read_table(pair[0]), pq.read_table(pair[1])
         kf = len(pc.unique(tf.column(KEY[k]).drop_null())) or 1
         ka = len(pc.unique(ta.column(KEY[k]).drop_null())) or 1
         schema_ok = all(f.name in tf.schema.names and tf.schema.field(f.name).type == f.type
                         for f in ta.schema)
+        row_ratio, key_ratio = tf.num_rows / max(ta.num_rows, 1), kf / ka
         bad = (tf.num_rows == 0 or not schema_ok
-               or not 0.1 <= tf.num_rows / max(ta.num_rows, 1) <= 10
-               or not 0.3 <= kf / ka <= 10 / 3)
-        fails += bad
-        print(f"{'BAD' if bad else 'OK '} {k:13s} {pair[0].parent.name}: filled {pair[0].name} "
-              f"rows={tf.num_rows} keys={kf} vs {pair[1].name} rows={ta.num_rows} keys={ka} "
-              f"schema={'=' if tf.schema.equals(ta.schema) else 'superset' if schema_ok else 'DIFFERS'}")
-    return 1 if fails else 0
+               or not ROW_BAND[0] <= row_ratio <= ROW_BAND[1]
+               or not KEY_BAND[0] <= key_ratio <= KEY_BAND[1])
+        rows.append(checks.Row(
+            "gapverify", k, checks.FAIL if bad else checks.OK, "",
+            {"kind": k, "day": pair[0].parent.name[5:],
+             "filled_hour": pair[0].name[5:], "captured_hour": pair[1].name[5:],
+             "filled_rows": tf.num_rows, "captured_rows": ta.num_rows,
+             "filled_keys": kf, "captured_keys": ka,
+             "row_ratio": round(row_ratio, 4), "key_ratio": round(key_ratio, 4),
+             "schema": "=" if tf.schema.equals(ta.schema) else "superset" if schema_ok
+             else "DIFFERS"}))
+    return rows
+
+
+def line(r: checks.Row) -> str:
+    """The row rendered as the line these checks have always printed."""
+    m = r.measures
+    if r.check == "gapcheck":
+        return (f"{'GAP' if r.outcome == checks.FAIL else 'OK '} {m['kind']:13s} {m['day']} "
+                f"{m['hours_held']:2d}/24{r.detail}")
+    if r.outcome == checks.INCONCLUSIVE:
+        return f"verify {m['kind']}: {r.detail}"
+    return (f"{'BAD' if r.outcome == checks.FAIL else 'OK '} {m['kind']:13s} "
+            f"date={m['day']}: filled hour={m['filled_hour']} rows={m['filled_rows']} "
+            f"keys={m['filled_keys']} vs hour={m['captured_hour']} rows={m['captured_rows']} "
+            f"keys={m['captured_keys']} schema={m['schema']}")
 
 
 def main() -> None:
@@ -373,10 +422,16 @@ def main() -> None:
     ap.add_argument("--date", help="YYYY-MM-DD or START:END (UTC); default 2026-08-15..yesterday")
     args = ap.parse_args()
     root = data_root()
-    if args.cmd == "check":
-        sys.exit(check(root))
-    if args.cmd == "verify":
-        sys.exit(verify(root, args.feed))
+    if args.cmd in ("check", "verify"):
+        name = "gapcheck" if args.cmd == "check" else "gapverify"
+        rows = check(root) if args.cmd == "check" else verify(root, args.feed)
+        for r in rows:
+            print(line(r))
+        if args.cmd == "check":
+            print("note: subway_vp hours are unrecoverable "
+                  "(gtfsrt.io archives subway TU only)")
+        checks.write(root, name, rows, CHECK_COLUMNS[name])
+        sys.exit(checks.rc(rows))
     if args.date:
         a, _, b = args.date.partition(":")
         span = list(days(date.fromisoformat(a), date.fromisoformat(b or a)))
