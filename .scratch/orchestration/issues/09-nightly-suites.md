@@ -39,3 +39,20 @@ these rows, do not re-derive the checks.
   in `daily.STAGES` today (adding it moves daily's printed stage list).
 - Reading the batch: `make <check>` returns 0 or 2 for everything, because GNU make
   exits 2 on any recipe failure. Use the module or the persisted rows.
+
+## From orch 05's landing (2026-08-24, `0e2dc1b`) — what the placement decision now costs
+
+Adding `eras` to `daily.STAGES` puts it in the nightly DAG **automatically**:
+`dags/raincheck_daily.py` loops the declaration, so a new `Stage(...)` becomes a task, an
+edge and a report line with no DAG edit. Three consequences travel with that.
+
+- **A gate MUST carry an `argv`** — `Stage("eras", "make:eras", "gate", argv=("eras",))` —
+  because GNU make exits 2 for any recipe failure and `make eras` cannot tell its rc 1 from
+  its rc 2. `tests/test_dag_nightly.py` fails a gate that has none.
+- **The pod shape is read from `deploy/k8s/raincheck/build.yaml`'s `raincheck.io/stages`
+  annotation**, so add the stage name there in the same commit or `shape_of()` raises.
+- **There is no git-sync**: the change reaches the cluster only through
+  `scripts/cloud-image.sh` (both tags) with both pins committed.
+
+And the standing warning still binds: it moves `make daily`'s printed stage list, which
+`tests/test_daily.py` pins.
