@@ -11,7 +11,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from raincheck import duck, precip
+from raincheck import duck, precip, precip_flood_era
 
 FIXTURES = Path(__file__).parent / "fixtures"
 CENTRAL_PARK_CELL = int("882a100895fffff", 16)
@@ -273,3 +273,101 @@ def test_ceil_hour(spark):
     ).select(ceil_hour(F.col("s").cast("timestamp")).alias("h"))
     got = [r.h.isoformat() for r in df.collect()]
     assert got == ["2021-09-02T02:00:00", "2021-09-02T03:00:00"]
+
+
+# --- flood-era seam (flood-build ticket 06) -------------------------------------------
+
+def test_window_months_derives_lookback_month(): 
+    """The Cell month list holds the Window hours; the Pixel list additionally holds the
+    24 h lookback, because the Cell build reads its frames out of `precip_hourly` and a
+    Window opening early in a month would otherwise get silently short mm_3h/6h/24h."""
+    mid = (utc("2011-08-27T00:00"), utc("2011-08-28T23:00"))          # wholly inside 2011-08
+    early = (utc("2010-10-01T02:00"), utc("2010-10-02T03:00"))        # lookback reaches 2010-09
+    span = (utc("2012-10-29T21:00"), utc("2012-11-01T03:00"))         # crosses the boundary
+    assert precip_flood_era.window_months([mid]) == (["2011-08"], ["2011-08"])
+    assert precip_flood_era.window_months([early]) == (["2010-09", "2010-10"], ["2010-10"])
+    assert precip_flood_era.window_months([span]) == (["2012-10", "2012-11"], ["2012-10", "2012-11"])
+    # the union of all three, deduped and sorted - the real call shape
+    both = precip_flood_era.window_months([span, mid, early])
+    assert both == (["2010-09", "2010-10", "2011-08", "2012-10", "2012-11"],
+                    ["2010-10", "2011-08", "2012-10", "2012-11"])
+
+
+def test_disk_gate_blocks_when_cold_storage_is_short(tmp_path):
+    """The gate names the path before a 120-month run starts; 'blocked' is the
+    window-sliced fallback's trigger, and main() refuses to build under it."""
+    assert precip_flood_era.disk_gate(tmp_path, 1, 1)[0] == "full"
+    path, needed, _ = precip_flood_era.disk_gate(tmp_path, 10**7, 10**7)
+    assert path == "blocked" and needed > 1e5
+
+
+@pytest.fixture(scope="module")
+def irene(spark, tmp_path_factory):
+    """2011-08, Hurricane Irene: a flood-era union-event month through the same
+    per-(src, month) job, from a 48 h cut of the real Bronze Zarr."""
+    root = tmp_path_factory.mktemp("irene")
+    (root / "archive" / "precip" / "aorc").mkdir(parents=True)
+    shutil.copytree(FIXTURES / "aorc-irene.zarr", root / "archive" / "precip" / "aorc" / "2011-08.zarr")
+    (root / "ref" / "cell_pixel").mkdir(parents=True)
+    shutil.copy(FIXTURES / "ref-cell_pixel-aorc.parquet", root / "ref" / "cell_pixel" / "part-00000.parquet")
+    (root / "ref" / "cells").mkdir(parents=True)
+    shutil.copy(FIXTURES / "ref-cells-ids.parquet", root / "ref" / "cells" / "part-00000.parquet")
+    (root / "ref" / "grids").mkdir(parents=True)
+    pq.write_table(pa.table({"grid_id": ["aorc"], "origin_lon": [-130.0], "origin_lat": [20.0],
+                             "step_deg": [0.008332999999993262]}),
+                   root / "ref" / "grids" / "part-00000.parquet")
+    precip.hourly(root, "aorc", "2011-08")
+    precip.cell_hourly(root, spark, "aorc", "2011-08")
+    return root
+
+
+IRENE_PEAK = "2011-08-28 06:00:00+00"  # Irene's Central Park peak hour, UTC hour-ending
+
+
+def test_irene_flood_era_pinned_numbers(irene):
+    """Known answers computed independently (xarray x the crosswalk weights, outside the
+    job) on this fixture: Central Park's peak Irene hour and the 24 h storm total ending
+    on it. mm_24h spends 23 hours of lookback that live inside the same fixture month."""
+    con = duck.connect()
+    p = f"{irene}/silver/precip_cell_hourly/**/*.parquet"
+    mm1, mm24, n24, t2m = con.execute(
+        f"SELECT mm_1h, mm_24h, n_hours_24h, t2m_c FROM read_parquet(?) "
+        f"WHERE cell = ? AND hour_end_utc = timestamp '{IRENE_PEAK}'",
+        [p, CENTRAL_PARK_CELL]).fetchone()
+    assert mm1 == pytest.approx(25.01, abs=0.05)
+    assert mm24 == pytest.approx(94.67, abs=0.05) and n24 == 24
+    assert t2m == pytest.approx(20.76, abs=0.05)
+
+
+def test_irene_window_coverage_gate(irene):
+    """The ticket's headline assertion on a month that has the hours, and the same
+    assertion FAILING (SystemExit, never a silent pass) on a Window hour it does not."""
+    scored = [CENTRAL_PARK_CELL, CENTRAL_PARK_CELL + 1]
+    (irene / "ref" / "assets").mkdir(parents=True, exist_ok=True)
+    pq.write_table(pa.table({
+        "asset_id": [f"cell:{c:x}" for c in scored] + ["bus:1"],
+        "kind": ["cell", "cell", "bus_stop"],
+        "cell": pa.array(scored + [CENTRAL_PARK_CELL], pa.int64()),
+        # only the Central Park Cell is scored: its neighbour is a Cell row we do not score
+        "scored": [True, False, False],
+    }), irene / "ref" / "assets" / "part-00000.parquet")
+    window = [(utc("2011-08-28T00:00"), utc("2011-08-28T12:00"))]
+    assert precip_flood_era.assert_window_coverage(irene, window, ["2011-08"]) == 13
+    outside = [(utc("2011-08-20T00:00"), utc("2011-08-20T03:00"))]  # month built, hours absent
+    with pytest.raises(SystemExit, match="Window coverage"):
+        precip_flood_era.assert_window_coverage(irene, outside, ["2011-08"])
+
+
+def test_no_mrms_rows_in_the_fit_era(irene):
+    """ADR-0002 / never-pooled: an MRMS partition carrying a fit-era hour is a build
+    failure, and an absent MRMS partition is not."""
+    precip_flood_era.assert_no_mrms_in_fit_era(irene)  # no src=mrms yet: passes
+    out = irene / "silver" / "precip_cell_hourly" / "src=mrms" / "month=2011-08"
+    out.mkdir(parents=True)
+    pq.write_table(pa.table({"cell": pa.array([CENTRAL_PARK_CELL], pa.int64()),
+                             "hour_end_utc": pa.array([utc(IRENE_PEAK[:19])], TS),
+                             "mm_1h": pa.array([1.0], pa.float32())}),
+                   out / "part-00000.parquet")
+    with pytest.raises(SystemExit, match="never pooled"):
+        precip_flood_era.assert_no_mrms_in_fit_era(irene)
+    shutil.rmtree(out.parent)

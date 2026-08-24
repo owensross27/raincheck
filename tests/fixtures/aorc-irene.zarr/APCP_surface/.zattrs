@@ -1,0 +1,14 @@
+{
+  "AORC_Contact": "aorc.info@noaa.gov",
+  "aorc_version": "v1.1",
+  "crs": "EPSG:4326",
+  "level": "surface",
+  "long_name": "Total Precipitation",
+  "short_name": "APCP_surface",
+  "units": "kg/m^2",
+  "_ARRAY_DIMENSIONS": [
+    "time",
+    "latitude",
+    "longitude"
+  ]
+}

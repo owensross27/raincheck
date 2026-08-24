@@ -1,0 +1,8 @@
+{
+  "long_name": "longitude",
+  "units": "degrees_east",
+  "missing_value": -32767.0,
+  "_ARRAY_DIMENSIONS": [
+    "longitude"
+  ]
+}

@@ -72,6 +72,12 @@ flood-coastal:  ## surge_margin_ft report -> research/flood-07-coastal.md (make 
 flood-labels:  ## flood_obs x ref/assets x the spine -> gold/flood_labels (make flood-labels [CENSUS=1])
 	$(PY) -m raincheck.flood_labels $(if $(CENSUS),--census)
 
+# --- flood-build ticket 06: the AORC flood-era precip extension --------------------
+# The needed month list is derived from silver/flood_events, never typed; the run is
+# disk-checked before it starts and writes a receipt naming the path it took.
+precip-flood-era:  ## AORC precip for every fit-era union-event Window (make precip-flood-era [DRY_RUN=1])
+	$(PY) -m raincheck.precip_flood_era $(if $(DRY_RUN),--dry-run)
+
 gates:  ## tier-2 slice acceptance gates: 10-T3, 10-T6 wired; T4/T5 report-only slots
 	$(PY) -m raincheck.gates
 

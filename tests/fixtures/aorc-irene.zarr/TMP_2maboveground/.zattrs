@@ -1,0 +1,14 @@
+{
+  "AORC_Contact": "aorc.info@noaa.gov",
+  "aorc_version": "v1.1",
+  "crs": "EPSG:4326",
+  "level": "2 m above ground",
+  "long_name": "Temperature",
+  "short_name": "TMP_2maboveground",
+  "units": "K",
+  "_ARRAY_DIMENSIONS": [
+    "time",
+    "latitude",
+    "longitude"
+  ]
+}
