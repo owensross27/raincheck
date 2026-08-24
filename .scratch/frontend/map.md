@@ -88,11 +88,51 @@ layers).
   measurements went forward as MUSTs on flood 15/17 and notify 05 (`e61a98d`).
   Full decision: `.scratch/frontend/issues/02-four-layers-prototype.md`.
 
+- 2026-08-24 · ticket 03 (grilling) RESOLVED — **STATIC-ONLY. No Worker.** The v1
+  read API is the DOCUMENTED STATIC CONTRACT already in code at
+  `publish.py:120-149` — five families, stable keys, per-family Cache-Control —
+  plus ONE new file, `files/index.json`: the discovery document (per-family key /
+  content-type / cadence / schema pointer / version stamps) carrying a `contract`
+  INTEGER that bumps on a breaking change, so a consumer can refuse rather than
+  misread; keys themselves stay unversioned because the page deploys with its
+  payloads. Three candidate Worker duties died on ticket 04's own facts — **CORS**
+  is a bucket-level policy (and the page is same-origin anyway), **rate limiting**
+  is a free-plan WAF rule at the edge ahead of origin, and **compression cuts
+  AGAINST the Worker**: the edge cache fronts a custom-domain bucket automatically
+  but NEVER a Worker, so a compressing Worker trades a free automatic cache for a
+  billable invocation plus a Class B read per request. Compression is instead
+  (a) measure `Accept-Encoding: gzip` on the custom domain, then only if negative
+  (b) one kwarg — `ContentEncoding="gzip"` at `publish.py:226`, which does NOT
+  break `test_re_export_is_byte_identical` (that asserts LOCAL bytes; unconditional
+  pre-compression's named cost is a client that omits `Accept-Encoding`). The
+  fourth duty, **aggregation**, loses on price: 2 edge-cached fetches beat 1
+  uncached billable invocation doing 2 Class B reads — and the build-time merge of
+  the live tier into notify 05's per-asset history is **REFUSED**, not
+  un-chosen (`frozen-age-is-not-an-age`). **The load-bearing precondition is a
+  CUSTOM DOMAIN** (free on a Cloudflare Free zone): on r2.dev there is no cache and
+  no WAF, and two legs of this answer vanish — and a Worker on `*.workers.dev`
+  rescues nothing (no-op Cache API). Consumers: the map page (zero), Ross's future
+  external apps, agents, orch 13's showcase reading `docs/**` — **NOT notify
+  08/10/12, which run in-process on the 30 s loop and must never route through
+  HTTP.** Refuses: cluster ingress (tested invariant), local mode, SQL passthrough,
+  any query language at all, bulk/protobuf, served live history, bucket versioning,
+  write/subscribe/auth/keys. **Nothing graduates to `/to-spec`** — the build
+  consequences are MUSTs (an `index.json` checkbox on notify 05, its publish
+  family, the conditional `publish.py` kwarg) plus four [YOU] dashboard steps
+  (custom domain · bucket CORS · the one free WAF rule · the gzip curl BEFORE any
+  gzip code). Ross accepted all six recommendations in one round. Full decision:
+  `.scratch/frontend/issues/03-read-api-decision.md`.
+
 ## Not yet specified (fog)
 
 - Embeds/sharing: whether any view is embeddable elsewhere once visibility
   changes (repo is private today; the host bucket is public-by-design).
-- Auth/keys and abuse control for an API, if ticket 03 decides one exists.
+- ~~Auth/keys and abuse control for an API, if ticket 03 decides one exists.~~
+  **HALF-CLOSED 2026-08-24 by ticket 03: abuse control is SOLVED (the one free
+  IP-keyed WAF rate-limiting rule, a [YOU] dashboard step). AUTH is decided by
+  being BARRED — no keys, no write path, no per-consumer anything — which is not
+  the same as solved. A consumer that genuinely needs a key is a new decision on a
+  new map, and the one condition under which a Worker would earn its place.**
 - Schedule-vs-actual comparison as a visual layer ("current bus slowdowns or
   schedules" — the slowdown half exists as insight exports; the schedule half is
   fog until a concrete question can be phrased).
