@@ -52,9 +52,12 @@ Three deliverables on the existing rails, each honest about what it can claim:
   sensor water detections, tide-gauge threshold status, MTA "remove water" alerts)
   and the bus/subway impact overlays from the pipeline's own Gold. Every source
   ages independently on screen; missing rainfall hours are their own visible
-  state; and the panel says plainly that it ranks where a flood report is likely,
-  trails the storm, and is a page you open during a storm, not a service that
-  watches.
+  state; and the panel says plainly what it is, in the frozen operating-truth
+  string it shares verbatim with every flood notification [notify 01,
+  2026-08-23]: "raincheck ranks where a flood REPORT is likely from rain that
+  has already fallen, on hour-grain evidence that trails the storm. A rank is
+  not an observation of water, and a quiet panel or a quiet inbox means nothing
+  was flagged, not that nothing flooded."
 
 ## User Stories
 
@@ -409,8 +412,13 @@ anyone the page is shown to; implementer = the agent building a slice.
   whose residents report more rank higher for that reason"); Window named in
   the tier label; degraded-state strings; per-kind base rates worded as fit-era
   frequencies; the within-Cell note (live ordering inside a Cell is purely
-  static); "a page you open during a storm, not a service that watches"; and
-  the B2-branch alternate strings selected by the shipped model id.
+  static); the frozen operating-truth string — "raincheck ranks where a flood
+  REPORT is likely from rain that has already fallen, on hour-grain evidence
+  that trails the storm. A rank is not an observation of water, and a quiet
+  panel or a quiet inbox means nothing was flagged, not that nothing flooded."
+  (frozen by notify 01; the notifier's render reuses it verbatim, so the panel
+  and a message cannot contradict each other); and the B2-branch alternate
+  strings selected by the shipped model id.
 - Constants artifact: a second in-repo JSON (detector constants — window rule,
   cutpoints, gates, staleness budgets, vocabularies, query strings, UGC zone
   list, winter gate, canary patterns) with detector_version = sha1 of the file.
@@ -482,9 +490,12 @@ literal and endpoint answers.
 
 ## Out of Scope
 
-- Alerting channels of any kind (standing rule); public hosting or re-serving
-  of MTA-derived data; hydrodynamic sewer/inundation modeling; commercial flood
-  scores; scraping paywalled/ToS-barred news sources.
+- Alerting channels of any kind (standing rule) — LIFTED for flood tiers only
+  (Ross's decision, 2026-08-23; scope, policy and message rules in
+  `.scratch/notify/spec.md` section 7). Non-flood alerting, bus delay included,
+  stays barred and would need its own validation and its own map. Still out:
+  public hosting or re-serving of MTA-derived data; hydrodynamic
+  sewer/inundation modeling; commercial flood scores; scraping paywalled/ToS-barred news sources.
 - NFIP and sewer-backup covariates (no access path owned; the with/without
   discipline is reserved for when they graduate).
 - Truth-tier capture pollers (FloodNet/CO-OPS/NWS history of what the panel
@@ -538,8 +549,11 @@ wins the location-blocked headline, v1 ships B2 and both the release and the
 live panel say so in the alternate strings. Published FIM systems run CSI
 0.26–0.45 — expectations are calibrated to that band, and the FIM comparison
 is stamped order-of-magnitude-only. The live panel trails the storm, is
-rank-only and uncalibrated in v1, and is a page you open during a storm, not a
-service that watches.
+rank-only and uncalibrated in v1, and states the frozen operating-truth string
+verbatim, as every flood notification does [notify 01]: "raincheck ranks where a
+flood REPORT is likely from rain that has already fallen, on hour-grain evidence
+that trails the storm. A rank is not an observation of water, and a quiet panel
+or a quiet inbox means nothing was flagged, not that nothing flooded."
 
 **HITL gates.** None open. The two standing daemon approvals (archiver,
 live-precip agent) cover everything this spec runs; any capture poller or new

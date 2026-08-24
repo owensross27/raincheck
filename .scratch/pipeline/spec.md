@@ -703,9 +703,12 @@ querying the tables with DuckDB; implementer = the agent building this.
 ## Out of Scope
 
 - The flood map (second effort per the map: flood-event history, exposure scores per
-  entrance/stop/segment, a real-time detector); alerting channels of any kind; public
-  hosting or re-serving of MTA feeds (GitHub Pages is a note, not a step); SIRI
-  endpoints; scraping news sites.
+  entrance/stop/segment, a real-time detector); alerting channels of any kind — the
+  standing rule is LIFTED for flood tiers only (Ross's decision, 2026-08-23; scope,
+  policy and message rules in `.scratch/notify/spec.md` section 7), and non-flood
+  alerting, bus delay included, stays barred; public hosting or re-serving of
+  MTA feeds (GitHub Pages is a note, not a step); SIRI endpoints; scraping news
+  sites.
 - Promotion beyond the laptop: always-on capture box, object storage for Bronze, the
   daemonized streaming job, the slim Sedona image / EKS; a Kafka output topic; subway
   Kafka topics and any subway Silver; Iceberg (revisit at a concurrent writer or the

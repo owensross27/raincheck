@@ -198,9 +198,14 @@ local>"); degraded strings fixed ("ranks computed on N of M rainfall
 hours"); per-kind base rates reworded so they cannot read as this-unit
 probabilities ("in the fit era, X% of this kind were reported flooded
 during a trigger event"); the within-cell static-ordering note; and the
-operating truth: "a page you open during a storm, not a service that
-watches." B2-honesty branch designed now: alternate panel strings in
-detector.json keyed by the shipped model id ("where flooding was reported
+operating truth — AMENDED 2026-08-23 by notify 01, which retired the
+storm-page claim (a notifier falsifies it) and froze this replacement,
+reused verbatim by the panel and by every flood notification: "raincheck
+ranks where a flood REPORT is likely from rain that has already fallen, on
+hour-grain evidence that trails the storm. A rank is not an observation of
+water, and a quiet panel or a quiet inbox means nothing was flagged, not
+that nothing flooded." B2-honesty branch designed now: alternate panel
+strings in detector.json keyed by the shipped model id ("where flooding was reported
 before, scaled by current rain") — 08's if-B2-wins clause has a live face.
 
 **Logging (draft's ~KB/cycle refuted — off by ~3 orders).** Slim NDJSON,

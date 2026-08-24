@@ -101,15 +101,17 @@ before `/to-spec` / `/to-tickets`.
    guard.
 5. **Channel + policy decision (Ross's call, recorded here).** Formally
    lift the no-alerting rule for flood tiers only — amending the bus
-   map, the flood map (l.125), AND the flood spec (l.485); choose
+   map, the flood map (l.125), AND the flood spec (l.485) — corrected
+   to FIVE documents by the spec's Further Notes, and all five amended
+   2026-08-23 by notify 01; choose
    channel(s) — email first (SES-class, cheap, unsubscribable);
    recommend against SMS v1 (cost + consent burden); quiet hours;
    per-event max-messages; claim language reuses F15's fixed strings
-   EXCEPT the one a notification service falsifies — "a page you open
-   during a storm, not a service that watches" must be retired and
-   replaced, and the flood spec's honesty clause amended with it
-   (verbatim reuse is not available); message wording states the
-   hour-grain evidence window.
+   EXCEPT the one a notification service falsifies — the storm-page
+   claim, retired 2026-08-23 and replaced by the frozen operating-truth
+   string quoted in full in the spec's section 7, which the flood spec's
+   honesty clause now carries; message wording states the hour-grain
+   evidence window.
 6. **Trigger semantics.** Tier branch: notify on tier ENTRY only — the
    latch dedupes [F11]. Watch mode (rank-only v1): the rank is
    recomputed every cycle and has NO latch, so watch mode needs its own
@@ -129,9 +131,11 @@ before `/to-spec` / `/to-tickets`.
 1. BLOCKER signup ingress: no map provided a write path (static host +
    no-inbound rule made signup impossible as written); ticket 4 now
    decides the ingress and cloud ticket 7 carves the exception.
-2. BLOCKER F15 fixed string: "a page you open during a storm, not a
-   service that watches" is falsified by a notifier — ticket 5 records
-   its retirement + spec amendment; verbatim-reuse claim dropped.
+2. BLOCKER F15 fixed string: the storm-page claim is falsified by a
+   notifier — ticket 5 records its retirement + spec amendment;
+   verbatim-reuse claim dropped. DONE 2026-08-23 (notify 01): retired
+   everywhere, replaced by the frozen operating-truth string in the
+   spec's section 7.
 3. Cadence honesty: "~2-5 min precip / imminent means minutes" corrected
    to hourly `:00` forcing, <= 90 min freshness, hour-grain claims
    (Notes; tickets 5/6) — the minutes figure belongs to the bus chain.

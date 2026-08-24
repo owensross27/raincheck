@@ -423,15 +423,31 @@ carries the rule that would overturn it.
   three; the measured count is **five distinct documents** (see Further Notes).
   Each gets the same amendment: the rule now reads as barred except for flood
   tiers under this spec, with a pointer here.
-- **The falsified claim string is retired everywhere.** "a page you open during
-  a storm, not a service that watches" is false the moment a notifier exists. It
-  appears **six times across two files** (measured; see Further Notes) — in each
-  spec's destination bullet, its fixed-strings list, and its honesty clause. All
-  six are replaced by a string that survives a notifier and keeps the honesty
-  the original carried: the page and the message both rank where a flood REPORT
-  is likely, on hour-grain evidence that trails the storm, and neither observes
-  water. The replacement text is frozen in the same constants artifact as the
-  other claim strings and is asserted by test, exactly as F15's strings are.
+- **The falsified claim string is retired everywhere.** The storm-page claim —
+  that raincheck is something you open during a storm rather than anything that
+  reaches you — is false the moment a notifier exists. It appeared **six times
+  across two files** (measured; see Further Notes) — in each spec's destination
+  bullet, its fixed-strings list, and its honesty clause. RETIRED 2026-08-23
+  (notify 01): zero occurrences remain anywhere under `.scratch/`, and its
+  absence is what a grep for it asserts.
+- **The replacement is frozen, and this is its text.** One string, reused
+  verbatim by the panel [F15] and by every flood message [notify 09] so the two
+  cannot contradict each other — do not re-word it and do not write a
+  message-only variant. Source line-wrapping differs per document; the rendered
+  text does not:
+
+  "raincheck ranks where a flood REPORT is likely from rain that has
+  already fallen, on hour-grain evidence that trails the storm. A rank is
+  not an observation of water, and a quiet panel or a quiet inbox means
+  nothing was flagged, not that nothing flooded."
+
+  It keeps every honesty the retired claim carried: the rank is the likelihood
+  of a flood REPORT (not of water), the evidence is hour-grain and trails the
+  storm, nothing on the page or in a message is an observation of water, and
+  silence is not an all-clear — while surviving the existence of a notifier,
+  which is the sentence the old claim could not survive. It lands in the same
+  constants artifact as F15's other claim strings and is asserted by test,
+  exactly as they are.
 - **Every other F15 fixed string is reused verbatim** — the reporting-propensity
   sentence, the estimand name, the Window in the tier label, the degraded-state
   strings, the B2-branch alternates selected by the shipped model id. The
@@ -640,12 +656,18 @@ than a gap.
    `.scratch/flood-build/spec.md:495` — the last being a diverged copy of the
    flood spec that the map's count missed entirely. Amending three of five
    leaves the rule contradicting itself in two live documents.
-2. *The falsified claim string appears six times across two files, not once.*
-   "a page you open during a storm, not a service that watches" occurs in
-   `.scratch/flood/spec.md` at lines 56, 412 and 541-542, and in
-   `.scratch/flood-build/spec.md` at lines 56, 422 and 551-552 — the destination
-   bullet, the fixed-strings list and the honesty clause of each. Line numbers
-   are as of 2026-08-23 and will drift; the string is the key, not the line.
+2. *The falsified claim string appeared six times across two files, not once.*
+   The retired storm-page claim occurred in `.scratch/flood/spec.md` at lines
+   56, 412 and 541-542, and in `.scratch/flood-build/spec.md` at lines 56, 422
+   and 551-552 — the destination bullet, the fixed-strings list and the honesty
+   clause of each. RETIRED 2026-08-23 by notify 01, which also replaced the two
+   further copies the count had missed because they are instructions rather than
+   claims: F15's own ticket bullet
+   (`.scratch/flood-build/issues/15-flood-panel-and-exports.md`) and the design
+   record it came from (`.scratch/flood/issues/10-realtime-detector.md`), both
+   of which would have had a builder ship the retired claim back onto the page.
+   The frozen replacement is quoted in full in section 7 and is the only wording
+   any surface may use.
 
 **Hard predecessors.** This spec ships nothing until the flood chain lands:
 F05 (`gold/flood_labels`) gates every query; F10 (`gold/flood_exposure`) gates

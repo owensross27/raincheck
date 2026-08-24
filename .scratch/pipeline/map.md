@@ -131,7 +131,10 @@ Flood-exposure scoring is a later map, not this one.
   `research/subway-flood-labels.md`, the two vault docs). Charted 2026-08-22:
   `.scratch/flood/map.md`, ten tickets, research fired. COMPLETE 2026-08-23:
   all ten resolved; the way is clear for `/to-spec`.
-- Alerting channels of any kind (standing rule from quakestream).
+- Alerting channels of any kind (standing rule from quakestream) — LIFTED for
+  flood tiers only (Ross's decision, 2026-08-23; scope, policy and message rules
+  in `.scratch/notify/spec.md` section 7). Non-flood alerting, bus delay
+  included, stays barred and would need its own validation and its own map.
 - Production deployment, public hosting of MTA-derived feeds (WMATA-style license
   issues do not apply to MTA, but re-serving raw feeds is not the goal).
 - SIRI endpoints (keyed, add nothing).
