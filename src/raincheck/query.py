@@ -38,7 +38,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from raincheck import duck, flood_labels as fl, ref
-from raincheck.paths import data_root as default_root
+from raincheck.paths import as_root, data_root as default_root
 
 MODES = ("public", "local")     # public FIRST: the default is the restrictive one
 STAMP = "%Y-%m-%dT%H:%M:%SZ"    # the repo's JSON timestamp, as in live_export/export.sql
@@ -268,7 +268,7 @@ def query(name: str, params: Mapping | None = None, data_root: Path | str | None
         raise QueryError("unknown_mode", mode=mode, modes=list(MODES))
     if name not in QUERIES:
         raise QueryError("unknown_query", query=name, queries=sorted(QUERIES))
-    root = Path(data_root) if data_root is not None else default_root()
+    root = as_root(data_root) if data_root is not None else default_root()
     con = duck.connect()
     # ponytail: one connection and one stamp resolution PER CALL. Measured on the real root
     # 2026-08-24: 0.115 s/call, 0.097 s of it versions() -- the same three stamps every

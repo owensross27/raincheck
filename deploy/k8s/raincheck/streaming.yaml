@@ -55,6 +55,40 @@ spec:
       nodeSelector:
         raincheck.io/pool: floor
       serviceAccountName: raincheck-build
+      # cloud 12: `ref/` arrives HERE, not in the image. It is 27 MB of gitignored parquet
+      # that no commit holds, and this image's tag is a git sha whose whole contract is that
+      # content follows from it - so ref is PULLED from the private archive bucket into the
+      # same `<root>/ref` the Mac uses (never a second path abstraction), and `ref/src` - 23
+      # of the 27 MB of GTFS sources no pod reads - is skipped. See raincheck/refpull.py.
+      # DARK until [YOU] copies ref/ into the bucket and mints r2-build; until then this
+      # fails HERE, loudly, instead of as a FileNotFoundError halfway through a stage.
+      initContainers:
+        - name: refpull
+          image: raincheck
+          imagePullPolicy: IfNotPresent
+          workingDir: /opt/raincheck
+          command: ["python", "-m", "raincheck.refpull"]
+          envFrom:
+            - secretRef:
+                name: r2-build
+                optional: true          # same measured reason as the app container's
+          env:
+            - name: RAINCHECK_ARCHIVE_ROOT
+              value: /data
+            - name: RAINCHECK_COLD_BUCKET
+              value: raincheck-bronze
+          resources:
+            # deliberately at or below the app container's request: K8s takes a pod's effective
+            # request as max(largest init, sum of containers), so an init that asked for more
+            # would move the pod's real footprint without appearing in the floor capacity sum.
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 256Mi
+          volumeMounts:
+            - name: work
+              mountPath: /data
       containers:
         - name: stream
           image: raincheck

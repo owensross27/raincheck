@@ -29,7 +29,7 @@ from pathlib import Path
 
 import pyarrow.parquet as pq
 
-from .paths import data_root
+from .paths import as_root, data_root
 
 DB_NAME = "subscriptions.db"
 
@@ -81,7 +81,7 @@ class Refused(Exception):
 
 def db_path(root: Path | None = None) -> Path:
     """Beside the notifier: the export loop's data root, live/."""
-    return (Path(root) if root else data_root()) / "live" / DB_NAME
+    return (as_root(root) if root else data_root()) / "live" / DB_NAME
 
 
 def connect(path: Path) -> sqlite3.Connection:
@@ -107,7 +107,7 @@ def clean_handle(handle: str) -> str:
 def resolve_unit(root: Path, asset_id: str) -> tuple[str, str]:
     """(asset_id, kind) at subscribable grain: a station or entrance resolves to its
     complex, a Cell is refused, an id absent from ref/assets is refused."""
-    t = pq.read_table(Path(root) / "ref" / "assets",
+    t = pq.read_table(as_root(root) / "ref" / "assets",
                       columns=["asset_id", "kind", "parent_asset_id"])
     by_id = {a: (k, p) for a, k, p in zip(t.column("asset_id").to_pylist(),
                                           t.column("kind").to_pylist(),

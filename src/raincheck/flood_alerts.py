@@ -30,7 +30,7 @@ import re
 from pathlib import Path
 
 from raincheck import duck
-from raincheck.paths import data_root
+from raincheck.paths import as_root, data_root
 
 # ---- frozen normalization (ported verbatim from the measured prototype) ----
 WORD_CANON = {
@@ -131,7 +131,7 @@ def load_aliases(root: Path | None = None) -> dict[str, list[dict]]:
     their own aliases ("W 4 St-Wash Sq" is written "W 4 St" in alerts)."""
     root = root or data_root()
     con = duck.connect()
-    rows = duck.table(con, Path(root) / "ref" / "assets").filter(
+    rows = duck.table(con, as_root(root) / "ref" / "assets").filter(
         "kind = 'station'"
     ).project("asset_id, name, complex_id, daytime_routes").fetchall()
     stations = [{"asset_id": a, "name": n, "complex_id": c, "daytime_routes": d or ""}
@@ -335,7 +335,7 @@ def observations(rows: list[dict], by_alias: dict, alias_pat: re.Pattern,
 
 def measure(root: Path | None = None) -> list[dict]:
     """Read every captured water row and print the observation table."""
-    root = Path(root or data_root())
+    root = as_root(root or data_root())
     by_alias = load_aliases(root)
     pat = build_pattern(by_alias)
     con = duck.connect()

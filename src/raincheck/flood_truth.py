@@ -30,7 +30,7 @@ from pathlib import Path
 import requests
 
 from raincheck import duck, flood_alerts as fa
-from raincheck.paths import data_root
+from raincheck.paths import as_root, data_root
 
 # ---- FloodNet: frozen endpoints and query ----------------------------------------
 GRAPHQL_URL = "https://api.floodnet.nyc/v1/graphql"
@@ -92,7 +92,7 @@ def fetch_depth(now: datetime, timeout: float = TIMEOUT) -> dict:
 def fetch_deployments(root: Path, now: datetime, timeout: float = TIMEOUT) -> dict:
     """Deployment metadata, cached one file per UTC day: it carries the point, the name
     and the sensor status, and it changes on a scale of days, not cycles."""
-    cache = Path(root) / "live" / "floodnet" / f"deployments_{now.date()}.json"
+    cache = as_root(root) / "live" / "floodnet" / f"deployments_{now.date()}.json"
     if not cache.exists():
         r = requests.get(DEPLOYMENTS_URL, timeout=timeout)
         r.raise_for_status()
@@ -234,7 +234,7 @@ CHIP_HOURS = 6  # how far back a chip can have been first seen and still be show
 
 def alert_rows(root: Path, now: datetime, hours: int = CHIP_HOURS) -> list[dict]:
     """The newest captured subway-alert rows: partition-bounded, then water-prefiltered."""
-    capture = Path(root) / "archive" / "subway_alerts"
+    capture = as_root(root) / "archive" / "subway_alerts"
     if not capture.exists():
         return []
     cutoff = now - timedelta(hours=hours)
@@ -281,7 +281,7 @@ def chips(rows: list[dict], by_alias: dict, alias_pat, now: datetime) -> list[di
 
 
 def mta(root: Path, now: datetime, hours: int = CHIP_HOURS) -> dict:
-    root = Path(root)
+    root = as_root(root)
     tier = {"source": "mta_alerts", "vocabulary": fa.LIVE_ANCHOR, "hours": hours,
             "asof": now.isoformat()}
     try:
@@ -297,7 +297,7 @@ def mta(root: Path, now: datetime, hours: int = CHIP_HOURS) -> dict:
 def truth(root: Path | None = None, now: datetime | None = None,
           wet_cells: set | None = None, cell_of: dict | None = None) -> dict:
     """Both tiers, independent: one source's error never hides the other."""
-    root = Path(root or data_root())
+    root = as_root(root or data_root())
     now = now or datetime.now(timezone.utc)
     return {"floodnet": floodnet(root, now, wet_cells, cell_of), "mta": mta(root, now)}
 
