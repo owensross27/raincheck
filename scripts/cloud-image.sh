@@ -115,13 +115,18 @@ lines = open(path).read().splitlines(keepends=True)
 start = next(i for i, l in enumerate(lines) if l.startswith("images:"))
 end = next((i for i in range(start + 1, len(lines))
             if lines[i].strip() and not lines[i][0].isspace()), len(lines))
-edits = 0
+# Count the lines that MATCH, not the lines that CHANGE: re-running with the repository
+# already correct rewrites two lines and pins four, and a diff-counting guard reads that
+# as a half-finished pin (measured, orch 04).
+pins = 0
 for i in range(start + 1, end):
-    new = re.sub(r"^(\s+repository:\s).*$", rf"\g<1>{image}", lines[i].rstrip("\n"))
-    new = re.sub(r"^(\s+tag:\s).*$", rf'\g<1>"{tag}"', new) + "\n"
-    edits += new != lines[i]
-    lines[i] = new
-assert edits == 4, f"expected 4 image pins under images:, rewrote {edits}"
+    body = lines[i].rstrip("\n")
+    if re.match(r"^\s+repository:\s", body):
+        body, pins = re.sub(r"^(\s+repository:\s).*$", rf"\g<1>{image}", body), pins + 1
+    elif re.match(r"^\s+tag:\s", body):
+        body, pins = re.sub(r"^(\s+tag:\s).*$", rf'\g<1>"{tag}"', body), pins + 1
+    lines[i] = body + "\n"
+assert pins == 4, f"expected 4 image pins under images:, found {pins}"
 open(path, "w").writelines(lines)
 PIN
 echo "cloud-image: pinned deploy/airflow/values.yaml -> $IMAGE:$SHA-airflow"
