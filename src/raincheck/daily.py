@@ -30,7 +30,10 @@ their own make targets, so the Makefile stays the one place that knows JAVA_HOME
 and the .env credentials.
 
 Run: make daily   (python -m raincheck.daily)
+One stage: python -m raincheck.daily <stage>   - the form every task pod of the
+nightly DAG runs (ticket 05), where Airflow owns the ordering this driver owns here.
 """
+import json
 import subprocess
 import sys
 import time
@@ -60,18 +63,30 @@ class Stage(NamedTuple):
     retry: str                 # transport: idempotent, retry with backoff | gate: 0 retries
     soft: bool = False         # reports, never fails the job
     fanout: str | None = None  # the axis a runtime MAY map over; None = never mapped
+    argv: tuple[str, ...] = () # `python -m raincheck.<argv>`: this stage as its OWN
+                               # PROCESS, for a runtime that gives it a container instead
+                               # of a function call (ticket 05). () means "run the make
+                               # target in entrypoint". Every GATE carries one, and that is
+                               # not a preference: GNU make exits 2 for ANY recipe failure,
+                               # so a module rc of 1 arrives as 2 and INCONCLUSIVE stops
+                               # being distinguishable from broken (orch 03, measured both
+                               # ways). main() below never reads this - it is already in
+                               # process, and its own any-non-zero rule is unchanged
 
 
 STAGES = (
     Stage("gapfill", "make:gapfill", "transport", fanout="kind"),
-    Stage("gapverify", "make:gapverify", "gate", fanout="kind"),
-    Stage("gapcheck", "make:gapcheck", "gate"),  # ticket 20: strictly after the fill
+    Stage("gapverify", "make:gapverify", "gate", fanout="kind", argv=("gapfill", "verify")),
+    # ticket 20: strictly after the fill
+    Stage("gapcheck", "make:gapcheck", "gate", argv=("gapfill", "check")),
     Stage("coldpush", "make:coldpush", "transport"),
-    Stage("coldcheck", "py:raincheck.daily:coldcheck", "gate", soft=True),
-    Stage("events", "py:raincheck.daily:build", "transport", fanout="service_date"),
-    Stage("precip", "py:raincheck.daily:precip", "transport", fanout="month"),
-    Stage("prune", "py:raincheck.daily:prune_live", "transport"),
+    Stage("coldcheck", "py:raincheck.daily:coldcheck", "gate", soft=True, argv=("daily", "coldcheck")),
+    Stage("events", "py:raincheck.daily:build", "transport", fanout="service_date", argv=("daily", "events")),
+    Stage("precip", "py:raincheck.daily:precip", "transport", fanout="month", argv=("daily", "precip")),
+    Stage("prune", "py:raincheck.daily:prune_live", "transport", argv=("daily", "prune")),
 )
+
+FAILED_STATES = ("failed", "upstream_failed")  # Airflow's, for report() below
 
 
 def run(target: str, **var: str) -> int:
@@ -248,16 +263,69 @@ def steps(ctx: dict, axes: dict) -> list[tuple[str, Callable, bool]]:
     return out
 
 
-def main() -> None:
-    root, now = data_root(), datetime.now(timezone.utc)
-    ctx = {"root": root, "closed": closed_through(now)}
-    # MRMS months are UTC, unlike the service day above
-    axes = {"month": precip_months(now.date())}
-    failed = [name for name, fn, soft in steps(ctx, axes) if not stage(name, fn) and not soft]
+def verdict(failed: list[str]) -> None:
+    """The job's last line, and the ONE place it is written. `make daily` exits with it
+    after running the stages itself; the DAG's report task prints the SAME sentence from
+    Airflow's own record of a run whose stages were pods. Two copies of it is how the two
+    runtimes start disagreeing about what a nightly failure reads like."""
     if failed:
         sys.exit(f"daily: FAILED - {', '.join(failed)} (every stage ran; see above)")
     print("daily: OK", flush=True)
 
 
+def report(crumbs: str) -> None:
+    """The nightly DAG's last task (ticket 05): this driver's own ending, rebuilt from the
+    run's finished task states.
+
+    A pod cannot see the run it belongs to, and a callable in the DAG file would be a stage
+    running inside the scheduler on the floor (orch 04) - so Airflow renders
+    `ti.get_task_breadcrumbs()` into this argument: one JSON object per finished task,
+    carrying its state and its duration, which is exactly what stage() prints here.
+
+    Lines come out in DECLARED order, the order this driver prints them in. A task id the
+    declaration does not name keeps its own place at the end, and a mapped index (ticket
+    06) prints beside its stage the way steps() names an expanded step. A SOFT stage never
+    joins the failed list, for the same reason it does not here."""
+    order = {s.name: i for i, s in enumerate(STAGES)}
+    soft = {s.name for s in STAGES if s.soft}
+    rows = sorted(json.loads(crumbs),
+                  key=lambda r: (order.get(r["task_id"], len(order)), r["task_id"],
+                                 r.get("map_index", -1)))
+    failed = []
+    for r in rows:
+        name = r["task_id"] if r.get("map_index", -1) < 0 else f"{r['task_id']} {r['map_index']}"
+        broke = r["state"] in FAILED_STATES
+        # `state` and not "ok" for anything that neither succeeded nor failed: ticket 07
+        # renders INCONCLUSIVE as a skip, and a skip printed as ok is the one rendering
+        # five incidents bought the rule against.
+        outcome = "FAILED" if broke else ("ok" if r["state"] == "success" else r["state"])
+        print(f"daily: {name} {outcome} in {r.get('duration') or 0:.0f}s", flush=True)
+        if broke and r["task_id"] not in soft:
+            failed.append(name)
+    verdict(failed)
+
+
+def main(argv: list[str] | None = None) -> None:
+    """No argument: the whole nightly, as launchd has always run it. One stage name: that
+    stage alone, expanded over its axes exactly as it would be here, exiting on ITS
+    outcome - which is what a scheduler that owns the ordering needs, and what every task
+    pod in the nightly DAG runs."""
+    args = list(argv or [])
+    if args and args[0] == "report":       # not a stage: the DAG's ending, from Airflow
+        return report(args[1])
+    root, now = data_root(), datetime.now(timezone.utc)
+    ctx = {"root": root, "closed": closed_through(now)}
+    # MRMS months are UTC, unlike the service day above
+    axes = {"month": precip_months(now.date())}
+    todo = steps(ctx, axes)
+    if args:
+        todo = [s for s in todo if s[0] == args[0] or s[0].startswith(f"{args[0]} ")]
+        if not todo:
+            sys.exit(f"daily: {args[0]} is not a declared stage "
+                     f"({', '.join(s.name for s in STAGES)})")
+    failed = [name for name, fn, soft in todo if not stage(name, fn) and not soft]
+    verdict(failed)
+
+
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
