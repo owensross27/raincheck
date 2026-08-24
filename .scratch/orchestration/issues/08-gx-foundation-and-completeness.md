@@ -19,3 +19,17 @@ at Bronze would publish feed rows to a public host.
 - [ ] Data Docs build once at the end of a run
 - [ ] The Great Expectations major version is pinned and recorded; suites are written against that API only, since the 0.x and 1.x context/checkpoint APIs differ substantially
 - [ ] A suite test, skipping cleanly when the library is absent, validates a fixture batch holding one passing, one failing and one inconclusive subject, and asserts the inconclusive one is neither
+
+## Inherited from orchestration 03 (landed 2026-08-24, b37a761)
+
+- The batches to point suites at, with their declared column constants (assert against
+  the CONSTANT, never a literal list): `gapfill.CHECK_COLUMNS["gapcheck"]` and
+  `["gapverify"]` (orch 02), `cold.CHECK_COLUMNS`, `eras.CHECK_COLUMNS`, and
+  `CHECK_COLUMNS` inside `scripts/backfill-verify.py`.
+- Check names on disk: `gapcheck`, `gapverify`, `coldcheck`, `backfill`, `eras` —
+  each at `<root>/checks/check=<name>/run=<YYYYmmddTHHMMSSZ>.jsonl`, one JSON object
+  per row. `checks.write` already asserts the flat column tuple and value scalarity,
+  so a suite that drifts from the constant is a crash upstream of GX, not a leak.
+- Note the cold mirror writes a batch **per invocation**, and `daily.coldcheck()`
+  invokes it twice on a mismatch (check, re-push, re-check). The later `run=` stamp is
+  the authoritative one; both are true records of a run that happened.
