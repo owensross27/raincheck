@@ -330,19 +330,32 @@ const DELAY_CUT_S = 300;   // 06's Delay cutoff, borrowed for an agency-computed
 
 let liveTimer = null, liveFeatures = null;
 
-const ago = (s) => (s === null || s === undefined) ? "age unknown"
+const ago = (s) => (s === null || s === undefined || !Number.isFinite(s)) ? "age unknown"
   : s < 90 ? `${Math.round(s)} s ago` : `${Math.round(s / 60)} min ago`;
 const plural = (n, one, many) => `${n ?? "—"} ${n === 1 ? one : many}`;
 // meta.error is a DuckDB message carrying a filesystem path; everything else on the panel
 // is a number we generated. Escape it so a '<' in a path cannot garble the markup.
 const esc = (s) => String(s).replace(/[<&]/g, c => (c === "<" ? "&lt;" : "&amp;"));
 
+// How old meta.json itself is, by OUR clock (cloud 09). `vp_age_s` is a number the
+// EXPORTER computed and froze into the file: if the exporter dies - or the publisher
+// does, or a CDN keeps serving a cached copy - the page re-fetches the same small
+// vp_age_s forever and paints a stopped city as a live one. Dating the file closes that.
+// Clock skew errs safe: a browser clock behind the exporter's contributes 0, which is
+// exactly the old behaviour, and one ahead only ever reads staler. An unparseable or
+// absent stamp is Infinity - stale, never fresh.
+function metaAge(m) {
+  const t = Date.parse(m.as_of_utc);
+  return Number.isNaN(t) ? Infinity : Math.max(0, (Date.now() - t) / 1000);
+}
+
 // STALE unless proven otherwise. `vp_age_s` is the exporter's wall-clock age of the
-// newest row in the pruned partitions, so it keeps counting up after the stream dies.
+// newest row in the pruned partitions, so it keeps counting up after the stream dies;
+// + metaAge keeps it counting up after the EXPORTER dies.
 function isStale(m) {
   if (!m || m.error || m.stale) return true;
   const limit = STALE_AFTER_S[m.source] ?? STALE_AFTER_S.live;
-  return !(typeof m.vp_age_s === "number" && m.vp_age_s <= limit);
+  return !(typeof m.vp_age_s === "number" && m.vp_age_s + metaAge(m) <= limit);
 }
 
 function renderLive(m) {
@@ -363,6 +376,9 @@ function renderLive(m) {
     `${m.n_in_rain_cells ?? "—"} in Cells at &ge; 1 mm RadarOnly,`,
     `${m.n_with_prediction ?? "—"} with a next-stop Prediction.`,
     `Feed ${ago(m.vp_age_s)} (VP ${m.vp_fetched_at_utc ?? "never"}).`,
+    // the exporter's own age, so "STALE" beside a 30 s feed age reads as the one thing it
+    // can mean: nobody has written this file since (cloud 09)
+    `Exported ${ago(metaAge(m))}.`,
     p ? `Stream batch ${p.batch_id}, ${p.rows} rows, ${ago(p.age_s)}.`
       : "No stream progress file.",
     `source: ${m.source}.`,

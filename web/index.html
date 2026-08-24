@@ -51,6 +51,11 @@
   <p id="livemeta" class="note" aria-live="polite">off - tick the box below to fetch
      <code>files/meta.json</code> every 30 s. Nothing is fetched until you do, so nothing
      here can look live when it is not.</p>
+  <!-- cloud 09: the served view is the CURRENT SNAPSHOT and nothing else - no history of
+       vehicle positions is kept on the host, and there is no bulk or protobuf endpoint.
+       Saying so on the page is what makes it a view of the feed rather than a copy. -->
+  <p class="note">Current snapshot only: no vehicle history is served here, and there is
+     no bulk or protobuf download.</p>
   <p class="note">MTA-reported trip delay: <span id="delaystate">unavailable (decoder build item)</span></p>
   <p class="note">rain: MRMS RadarOnly QPE 01H, uncalibrated, hour-ending,
      <span id="rainstate">no live tick yet</span></p>
@@ -64,6 +69,13 @@
   pure-SQL JSON writer) &rarr; MapLibre GL JS 5.9.0, vendored. Rain: NOAA AORC hourly (analysis),
   MRMS RadarOnly QPE (live). Ground: TLC taxi zones, no basemap.
   <span id="prov-files"></span>
+  <!-- cloud 09: MTA attribution is a CONDITION of publishing the live view, not a credit
+       line. It stays in the always-visible panel rather than only inside MapLibre's
+       compact attribution control, which ships collapsed behind a button. -->
+  <p id="attribution">Bus positions and predictions are derived from the
+  <strong>MTA</strong>&rsquo;s GTFS-Realtime feeds (MTA Bus Time). This page is not
+  affiliated with, endorsed by, or a service of the MTA, and the MTA does not warrant
+  anything shown here.</p>
 </div>
 
 <div id="tip" role="tooltip"></div>
