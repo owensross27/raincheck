@@ -183,3 +183,11 @@ web:  ## serve web/ with the stdlib server (make web [PORT=8000]); nothing needs
 .PHONY: live-export
 live-export:  ## live.geojson + meta.json every 30 s (make live-export [SOURCE=bronze] [ONCE=1])
 	$(PY) -m raincheck.live_export $(if $(SOURCE),--source $(SOURCE)) $(if $(ONCE),--once)
+
+# --- cloud ticket 07: the AWS half of "no inbound from the internet" ---------------
+# The manifest test covers the Kubernetes half with no cluster; security groups live in
+# AWS where no test can see them, and with no NAT Gateway they are what keeps the
+# internet out. rc 0 clean, 1 violations, 2 INCONCLUSIVE (the describe itself failed).
+.PHONY: inboundaudit
+inboundaudit:  ## cluster security groups vs deploy/cloud/inbound-allowlist.yaml (needs AWS creds)
+	$(PY) scripts/inbound-audit.py
