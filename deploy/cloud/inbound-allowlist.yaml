@@ -37,20 +37,16 @@ allowed_source_security_groups:
   - id: sg-0c610cd458155ee42
     name: eksctl-raincheck-cluster-ControlPlaneSecurityGroup
     why: "eksctl control-plane SG; carries no inbound rules of its own [ticket 01]"
+  - id: sg-032f4467f24e8d773
+    name: raincheck-capture-box
+    why: "capture box -> Kafka box listener tcp/9094, the one permitted addition [ticket 02]"
 
-# Ticket 02's box -> broker rule is the ONE permitted addition to this list. It is not
-# here yet because cloud 02 had not landed when this file was written; cloud 02 adds its
-# entry here in the same commit as the rule, or the audit goes red - which is the point.
-#
-# HAZARD FOR CLOUD 02, MEASURED 2026-08-24: the capture box (i-098a6ea89c4b15502,
-# 172.31.66.109) carries sg-0cb33dca0ac107599 "lewis-signs-dev-sg" - a SHARED dev SG that
-# a SECOND, unrelated instance also uses (i-0a924268a565ad38a, vinylpig-staging), and
-# which itself allows 0.0.0.0/0 on tcp/443. Sourcing the broker rule from that SG grants
-# Kafka to vinylpig-staging as well. Source it from 172.31.66.109/32, or give the box its
-# own SG first - a /32 CIDR source is a cidr_exception below, deliberately reviewed.
-pending:
-  - ticket: cloud 02
-    rule: "capture box -> broker port, in-VPC private path, no external listener"
+# The capture-box entry above is ticket 02's box -> broker rule (sgr-06a813c9433a3ce6d),
+# the ONE permitted addition to this list. It is deliberately NOT sourced from the box's
+# other group sg-0cb33dca0ac107599 "lewis-signs-dev-sg": that SG is shared with an
+# unrelated staging instance (vinylpig-staging) and itself allows 0.0.0.0/0 on tcp/443,
+# so a rule sourced from it would grant Kafka to that instance too. cloud 02 gave the box
+# its own empty group instead, which also keeps cidr_exceptions empty.
 
 # EMPTY, AND IT STAYS EMPTY. A CIDR source here is a reviewed exception with a ticket
 # number, not a convenience.
