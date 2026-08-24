@@ -17,7 +17,28 @@ set -euo pipefail
 
 STRIMZI_VERSION="${STRIMZI_VERSION:-1.2.0}"
 REGION=us-east-1
-BOX_SG=sg-0cb33dca0ac107599              # i-098a6ea89c4b15502, the capture box
+# The capture box's OWN security group, created for this rule. NOT sg-0cb33dca0ac107599
+# ("lewis-signs-dev-sg"): that group is shared with an unrelated staging instance
+# (i-0a924268a565ad38a) and itself allows 0.0.0.0/0 on tcp/443, so sourcing the broker
+# rule from it would hand Kafka to staging too (measured by cloud 07, 2026-08-24).
+BOX_SG=$(aws ec2 describe-security-groups --region "$REGION" \
+  --filters Name=group-name,Values=raincheck-capture-box Name=vpc-id,Values=vpc-049a68bf6017d6ead \
+  --query 'SecurityGroups[0].GroupId' --output text)
+if [ "$BOX_SG" = "None" ] || [ -z "$BOX_SG" ]; then
+  cat >&2 <<'EOS'
+no raincheck-capture-box security group. It is created and attached ONCE, by hand,
+because it changes the capture box's networking - list every existing group in the
+modify call or the box loses what it has:
+
+  aws ec2 create-security-group --region us-east-1 --group-name raincheck-capture-box \
+    --description "raincheck capture box: source group for the private path to Kafka" \
+    --vpc-id vpc-049a68bf6017d6ead \
+    --tag-specifications 'ResourceType=security-group,Tags=[{Key=Project,Value=raincheck-cloud}]'
+  aws ec2 modify-network-interface-attribute --region us-east-1 \
+    --network-interface-id eni-098f5f2acbc73fe7d --groups sg-0cb33dca0ac107599 <new-sg-id>
+EOS
+  exit 1
+fi
 CLUSTER_SG=$(aws ec2 describe-security-groups --region "$REGION" \
   --filters Name=tag:aws:eks:cluster-name,Values=raincheck Name=group-name,Values='eks-cluster-sg-*' \
   --query 'SecurityGroups[0].GroupId' --output text)

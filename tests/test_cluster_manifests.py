@@ -140,8 +140,20 @@ def test_no_manifest_or_script_opens_the_broker_to_the_world():
     """The one permitted inbound addition is the capture box's security group. A CIDR
     rule in the deploy path would hand the broker to the internet."""
     for path in sorted((ROOT / "scripts").glob("cloud-kafka*.sh")) + sorted((ROOT / "deploy" / "k8s").rglob("*.yaml")):
-        text = path.read_text()
-        assert "0.0.0.0/0" not in text, f"{path.name} opens an inbound CIDR"
+        # comments cannot open a port, and one of them has to name the CIDR to warn about it
+        code = "\n".join(l for l in path.read_text().splitlines() if not l.lstrip().startswith("#"))
+        assert "0.0.0.0/0" not in code, f"{path.name} opens an inbound CIDR"
+
+
+def test_the_broker_rule_is_not_sourced_from_the_shared_dev_security_group():
+    """The ticket says "from sg-0cb33dca0ac107599 (the box)" and that premise is false:
+    lewis-signs-dev-sg is carried by an UNRELATED staging instance too, and itself allows
+    0.0.0.0/0 on tcp/443, so sourcing the broker rule from it would grant Kafka to staging
+    (measured by cloud 07). The rule sources the box's own group, looked up by name."""
+    body = (ROOT / "scripts" / "cloud-kafka-install.sh").read_text()
+    code = "\n".join(l for l in body.splitlines() if not l.lstrip().startswith("#"))
+    assert "Values=raincheck-capture-box" in code
+    assert "BOX_SG=sg-" not in code, "the source group is looked up by name, never pinned by id"
 
 
 def test_broker_is_one_combined_role_node_on_the_floor_in_one_az():
