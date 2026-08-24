@@ -8,7 +8,7 @@ export TZ := UTC
 export RAINCHECK_ARCHIVE_ROOT RAINCHECK_BRONZE_GB TRANSITLAND_API_KEY
 PY := .venv/bin/python
 
-.PHONY: warm ref nbp features picks precip-hourly precip-cell schedule events gold baseline gates slice test topics flood-obs flood-spine flood-coastal
+.PHONY: warm ref nbp features picks precip-hourly precip-cell schedule events gold baseline gates slice test topics flood-obs flood-spine flood-coastal precip-flood-era flood-labels
 
 topics:  ## recreate the two bus topics to spec C - DESTRUCTIVE: drops retained Kafka messages (Bronze keeps the record)
 	$(PY) -m raincheck.topics
@@ -65,6 +65,12 @@ flood-spine:  ## the dated flood event spine -> silver/flood_events (make flood-
 # target re-cuts the published validation table.
 flood-coastal:  ## surge_margin_ft report -> research/flood-07-coastal.md (make flood-coastal [SKIP_CANARY=1])
 	$(PY) -m raincheck.flood_coastal $(if $(SKIP_CANARY),--skip-canary) > research/flood-07-coastal.md
+
+# --- flood-build ticket 05: the labels -------------------------------------------
+# Positives only. Negatives are generated at read by flood_labels.negatives(); nothing
+# in gold/ ever holds a negative row.
+flood-labels:  ## flood_obs x ref/assets x the spine -> gold/flood_labels (make flood-labels [CENSUS=1])
+	$(PY) -m raincheck.flood_labels $(if $(CENSUS),--census)
 
 gates:  ## tier-2 slice acceptance gates: 10-T3, 10-T6 wired; T4/T5 report-only slots
 	$(PY) -m raincheck.gates
