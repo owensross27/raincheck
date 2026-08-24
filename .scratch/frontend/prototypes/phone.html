@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>raincheck prototype at 375px - all three variants</title>
+<!-- THROWAWAY. Ticket 01 graduated "mobile/small-screen" into frontend 02, so this is the
+     same prototype at the width the question is about. Real iframes, not a CSS transform:
+     app.css's 900px breakpoint keys on the VIEWPORT, and an iframe has its own. -->
+<style>
+  body { margin: 0; background: #06080a; color: #e8ebef; font: 13px/1.5 -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  header { padding: 14px 18px 4px; }
+  h1 { font-size: 15px; margin: 0 0 4px; }
+  p { color: #9aa4b2; font-size: 12px; margin: 0 0 10px; max-width: 70ch; }
+  .rack { display: flex; gap: 18px; padding: 0 18px 24px; overflow-x: auto; align-items: flex-start; }
+  figure { margin: 0; flex: none; }
+  figcaption { font-size: 12px; color: #9aa4b2; padding: 6px 2px; }
+  iframe { width: 375px; height: 812px; border: 1px solid #2a2f38; border-radius: 14px;
+    background: #0b0d10; display: block; }
+  a { color: #8ecbff; }
+</style></head><body>
+<header>
+  <h1>375 px &mdash; iPhone-class width, all three variants side by side</h1>
+  <p><code>web/app.css:69</code> already stacks the panels under a 60vh map at 900px. The
+  question ticket 01 handed here is whether that survives SEVEN toggles and their freshness
+  rows. Scroll each frame. Add <code>?gate=open</code> on
+  <a href="proto.html?variant=A&amp;gate=open">the desktop page</a> to see the lit state.</p>
+</header>
+<div class="rack">
+  <figure><iframe src="proto.html?variant=A" title="variant A at 375px"></iframe>
+    <figcaption>A &mdash; Stack (one fill)</figcaption></figure>
+  <figure><iframe src="proto.html?variant=B" title="variant B at 375px"></iframe>
+    <figcaption>B &mdash; Channels (all at once)</figcaption></figure>
+  <figure><iframe src="proto.html?variant=C" title="variant C at 375px"></iframe>
+    <figcaption>C &mdash; Ledger (map is the index)</figcaption></figure>
+</div>
+</body></html>

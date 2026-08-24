@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>raincheck prototype - seven layers, three variants (frontend 02)</title>
+<!-- THROWAWAY PROTOTYPE for .scratch/frontend/issues/02-four-layers-prototype.md.
+     NOT the implementation. Serve from the REPO ROOT:  python3 -m http.server 8080
+     then open  http://localhost:8080/.scratch/frontend/prototypes/proto.html?variant=A
+     Variants: ?variant=A|B|C   ·  ?gate=open flips the three MTA-gated layers on so the
+     lit state can be judged too (they are DARK by default, which is today's truth). -->
+<link href="../../../web/vendor/maplibre-gl.css" rel="stylesheet">
+<link href="../../../web/app.css" rel="stylesheet">
+<link href="proto.css" rel="stylesheet">
+</head>
+<body>
+<div id="map" role="application" aria-label="Map of NYC: bus delay Cells, live fleet, flood tiers and flood history"></div>
+
+<!-- ============================================================== the left column -->
+<div id="left">
+  <section id="insight" class="panel" aria-labelledby="insight-h">
+    <h1 id="insight-h">Does rain slow the NYC buses, and where?</h1>
+    <p class="note" id="preview-note">loading&hellip;</p>
+    <h2 class="lbl" id="views-h">Delay layer</h2>
+    <div id="views" class="btns" role="group" aria-labelledby="views-h"></div>
+    <div id="hours" class="btns" role="group" aria-label="Storm hour (hour ending, UTC)"></div>
+    <div id="headline" aria-live="polite"></div>
+  </section>
+
+  <!-- C only: the map is the index, this is the answer -->
+  <section id="ledger" class="panel" aria-labelledby="ledger-h" hidden>
+    <h2 id="ledger-h">What is happening, ranked</h2>
+    <p class="note">The map paints ONE quantity. Everything else is a row here: hover to
+       locate it, click to open its record. Nothing is fetched for a section you leave off.</p>
+    <div id="ledger-body"></div>
+  </section>
+
+  <div id="keys" class="panel">
+    <div class="lbl">Cell fill &mdash; Speed ratio, wet over dry</div>
+    <div class="swatches" id="swatches" aria-hidden="true"></div>
+    <div class="ticks"><span id="tick-lo"></span><span id="tick-mid"></span><span id="tick-hi"></span></div>
+    <div class="swatches one" aria-hidden="true"><span class="grey"></span></div>
+    <div class="note">grey = no publishable value for this layer (the property is absent, not null)</div>
+    <div class="lbl">Points</div>
+    <div class="k"><span class="sw" style="background:var(--water)"></span> FloodNet sensor reporting water now</div>
+    <div class="k"><span class="sw" style="background:#3a4049"></span> FloodNet sensor dry or stale</div>
+    <div class="k"><span class="sw sq" style="background:var(--alert)"></span> station with water on the tracks (MTA)</div>
+    <div class="k"><span class="sw" style="background:var(--hist)"></span> stop or Cell with a flood record</div>
+    <div class="note" id="keys-extra"></div>
+  </div>
+</div>
+
+<!-- ================================================ A: one row per layer, stacked -->
+<section id="layers" class="panel" aria-labelledby="layers-h" hidden>
+  <h2 id="layers-h">Layers</h2>
+  <p class="note">Nothing is fetched until a box is ticked, so nothing here can look live
+     when it is not. Each layer states its own age, per source.</p>
+  <div class="grp">
+    <div class="lbl">Cell fill &mdash; pick one</div>
+    <div id="a-fill"></div>
+  </div>
+  <div class="grp">
+    <div class="lbl">Points &mdash; any</div>
+    <div id="a-pts"></div>
+  </div>
+</section>
+
+<!-- ============================================= B: one dense grid, everything at once -->
+<section id="grid" class="panel" aria-labelledby="grid-h" hidden>
+  <h2 id="grid-h">Seven layers, seven channels</h2>
+  <p class="note">Every quantity gets its own visual channel &mdash; fill, outline, point
+     &mdash; so nothing has to be switched off to read something else.</p>
+  <table><thead><tr><th>on</th><th>layer</th><th>state</th><th>age</th></tr></thead>
+  <tbody id="grid-body"></tbody></table>
+</section>
+
+<!-- ==================================================== always mounted (spec section 9) -->
+<div id="provenance" class="panel note">
+  Kafka 3.9 &rarr; Spark 3.5.3 + Sedona 1.9.1 &rarr; GeoParquet &rarr; DuckDB 1.5.5 &rarr;
+  MapLibre GL JS 5.9.0, vendored. Rain: NOAA AORC hourly (analysis), MRMS RadarOnly QPE (live).
+  Flood truth: FloodNet NYC sensors. Ground: TLC taxi zones, no basemap.
+  <span id="prov-files"></span>
+  <p class="note">Current snapshot only: no vehicle history is served here, and there is
+     no bulk or protobuf download.</p>
+  <p id="attribution">Bus positions and predictions are derived from the
+  <strong>MTA</strong>&rsquo;s GTFS-Realtime feeds (MTA Bus Time). This page is not
+  affiliated with, endorsed by, or a service of the MTA, and the MTA does not warrant
+  anything shown here.</p>
+</div>
+
+<div id="card" class="panel"><button class="x" id="card-x" aria-label="close">&times;</button>
+  <div id="card-body"></div></div>
+<div id="tip" role="tooltip"></div>
+
+<nav id="switch" aria-label="prototype variant switcher">
+  <button type="button" id="prev" aria-label="previous variant">&#8592;</button>
+  <span class="name" id="vname">A</span>
+  <button type="button" id="next" aria-label="next variant">&#8594;</button>
+  <button type="button" id="gate" title="flip the three MTA-gated layers">gate</button>
+  <a href="phone.html" target="_blank"><button type="button">375px</button></a>
+</nav>
+
+<script src="../../../web/vendor/maplibre-gl.js"></script>
+<script src="proto.js"></script>
+</body>
+</html>
