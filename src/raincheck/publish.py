@@ -232,6 +232,12 @@ def publish(name: str, src: Path | None = None, dest: str | None = None,
 
     cloud 05's live Deployment calls `publish("live")` in-process on its 30 s tick rather
     than shelling out to the CLI - an interpreter start every 30 s buys nothing."""
+    # ponytail: one object at a time, in order. Order is a correctness requirement for the
+    # live pair (two files) and irrelevant for the tree families - but notify 02 measured
+    # notify 05's history surface at 7,955 files, which serially is minutes per spine
+    # rebuild. If that lands and hurts, parallelise the TREE families only (s3fs's
+    # fs.put(..., recursive=True) takes uniform ContentType/CacheControl kwargs) and leave
+    # the ordered pair alone.
     dest = dest or bucket()
     items = plan(name, src)
     for item in items:
