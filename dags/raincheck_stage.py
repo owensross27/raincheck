@@ -140,7 +140,14 @@ def pod(shape: str, image: str | None = None) -> dict:
             "the code image its tasks run (scripts/cloud-image.sh --build-arg)")
 
     spec = template["template"]["spec"]
-    pinned = [c for c in spec["containers"] if c["image"] == IMAGE_NAME]
+    # EVERY container, init ones included. cloud 12's `refpull` initContainer runs the same
+    # image and carries the same ungoverned `image: raincheck` spelling, and pinning only
+    # the app container leaves it resolving to `docker.io/library/raincheck:latest` - which
+    # no test could see (the placement-table test walked `containers` alone) and which fails
+    # as ImagePullBackOff on the INIT step of every stage pod. Measured on the cluster
+    # 2026-08-24, orch 05.
+    pinned = [c for c in spec.get("initContainers", []) + spec["containers"]
+              if c["image"] == IMAGE_NAME]
     if not pinned:
         raise RuntimeError(f"{shape} has no `image: {IMAGE_NAME}` container to pin")
     for container in pinned:

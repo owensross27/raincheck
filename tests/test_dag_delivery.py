@@ -135,15 +135,27 @@ def test_the_dag_image_is_built_on_the_airflow_the_chart_installs():
 def test_the_task_pod_is_the_placement_tables_pod_with_only_the_image_filled_in():
     """The ticket's row: no capacity number is invented here. Both shapes come through
     whole - requests, limits, the staging volume, the burst selector, the ServiceAccount -
-    and the ONLY difference from the table is the resolved image."""
+    and the ONLY difference from the table is the resolved image.
+
+    EVERY container, `initContainers` included. That list is walked here because it once was
+    not: cloud 12's refpull init carries the same ungoverned `image: raincheck` spelling, and
+    while only `containers` was pinned this test stayed green with every stage pod resolving
+    its init step to `docker.io/library/raincheck:latest` - ImagePullBackOff on the cluster,
+    invisible in the repo (measured 2026-08-24, orch 05)."""
     for shape, template in templates().items():
         built = raincheck_stage.pod(shape, image=IMAGE)
         expected = templates()[shape]["template"]["spec"]     # re-read from disk, unmutated
-        for want, got in zip(expected["containers"], built["spec"]["containers"]):
-            assert got["resources"] == want["resources"], f"{shape} lost its measured requests"
-            assert got["volumeMounts"] == want["volumeMounts"]
-            assert got["envFrom"] == want["envFrom"]
-            assert got["image"] == IMAGE
+        for key in ("initContainers", "containers"):
+            assert len(built["spec"].get(key, [])) == len(expected.get(key, [])), \
+                f"{shape} lost a {key} entry"
+            for want, got in zip(expected.get(key, []), built["spec"].get(key, [])):
+                assert got["resources"] == want["resources"], f"{shape} lost its measured requests"
+                assert got["volumeMounts"] == want["volumeMounts"]
+                assert got["envFrom"] == want["envFrom"]
+                assert got["image"] == IMAGE
+        assert raincheck_stage.IMAGE_NAME not in [c["image"] for c in
+                                  built["spec"].get("initContainers", []) + built["spec"]["containers"]], \
+            f"{shape} leaves a container on the unpinned name, which resolves to Docker Hub"
         assert built["spec"]["volumes"] == expected["volumes"], f"{shape} lost its staging volume"
         assert built["spec"]["nodeSelector"] == {"raincheck.io/pool": "burst"}
         assert built["spec"]["serviceAccountName"] == "raincheck-build"
