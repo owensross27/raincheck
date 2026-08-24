@@ -112,3 +112,13 @@ this is precisely where that shows.
 (quiet / approaching / exceeding) need the *action* stage too, which only the Battery and
 Sandy Hook publish (Kings Point's is null) — 14 will have to choose a rule for the gauge
 that has none rather than inventing a value.
+
+**2026-08-24 — the open item is closed by ticket 14, and closed by not needing an answer.**
+07 left it to 14 to pick a rule for the gauge with no `action` stage (Kings Point's is
+null). The live chip family never reads the action stage: APPROACHING is
+`observed OR next forecast high >= nws_minor - 1.0 ft`, and all three gauges publish a
+minor stage. One rule covers three gauges and no value is invented for the one that has
+none. `flood_live.py` imports `GAUGES`/`STAGE`/`minor_navd88_ft` from here rather than
+copying them, and its `check_shared_family()` chains this module's
+`check_shared_thresholds()` — so spine, margin and live chip are one number or a failed
+build.

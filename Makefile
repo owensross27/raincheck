@@ -8,7 +8,7 @@ export TZ := UTC
 export RAINCHECK_ARCHIVE_ROOT RAINCHECK_BRONZE_GB TRANSITLAND_API_KEY
 PY := .venv/bin/python
 
-.PHONY: warm ref nbp features picks precip-hourly precip-cell schedule events gold baseline gates slice test topics flood-obs flood-spine flood-coastal precip-flood-era flood-labels
+.PHONY: warm ref nbp features picks precip-hourly precip-cell schedule events gold baseline gates slice test topics flood-obs flood-spine flood-coastal precip-flood-era flood-labels flood-live
 
 topics:  ## recreate the two bus topics to spec C - DESTRUCTIVE: drops retained Kafka messages (Bronze keeps the record)
 	$(PY) -m raincheck.topics
@@ -65,6 +65,12 @@ flood-spine:  ## the dated flood event spine -> silver/flood_events (make flood-
 # target re-cuts the published validation table.
 flood-coastal:  ## surge_margin_ft report -> research/flood-07-coastal.md (make flood-coastal [SKIP_CANARY=1])
 	$(PY) -m raincheck.flood_coastal $(if $(SKIP_CANARY),--skip-canary) > research/flood-07-coastal.md
+
+# --- flood-build ticket 14: the coastal live tier and the winter-gate fetch --------
+# Live reads, no artifact: three CO-OPS gauges against ticket 07's frozen thresholds plus
+# one KNYC observation. `--json` is the shape the panel (ticket 15) consumes.
+flood-live:  ## coastal chips + the winter-gate observation, now (make flood-live [JSON=1])
+	$(PY) -m raincheck.flood_live $(if $(JSON),--json)
 
 # --- flood-build ticket 05: the labels -------------------------------------------
 # Positives only. Negatives are generated at read by flood_labels.negatives(); nothing
