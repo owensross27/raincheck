@@ -8,12 +8,12 @@ replication); Testing: build-asset evidence.
 
 **Blocked by:** 09
 
-**Status:** ready-for-agent
+**Status:** done (2026-08-24, `make flood-replication`)
 
-- [ ] the spine re-derives at the alternate 311 daily-count thresholds (around the frozen p99-union primary), reusing ticket 04's derivation as a pure function of the threshold constant — no fork of the logic
-- [ ] labels (05), the flood-era coverage check (06) and the training table (08) rebuild under each alternate event universe through the same jobs, version stamps distinguishing every alternate universe from the primary
-- [ ] the fits re-run per universe and a delta table publishes as a build asset: headline metrics per alternate threshold beside the frozen primary, so reviewers see the knob without the knob having selected the result
-- [ ] the primary artifacts are untouched: nothing under the frozen primary's version stamps changes byte-wise during the replication
+- [x] the spine re-derives at the alternate 311 daily-count thresholds (around the frozen p99-union primary), reusing ticket 04's derivation as a pure function of the threshold constant — no fork of the logic
+- [x] labels (05), the flood-era coverage check (06) and the training table (08) rebuild under each alternate event universe through the same jobs, version stamps distinguishing every alternate universe from the primary
+- [x] the fits re-run per universe and a delta table publishes as a build asset: headline metrics per alternate threshold beside the frozen primary, so reviewers see the knob without the knob having selected the result
+- [x] the primary artifacts are untouched: nothing under the frozen primary's version stamps changes byte-wise during the replication
 
 
 ## Inherited from flood 08's build (2026-08-24, `gold/flood_matrix`, commit 9c8b501)
@@ -71,3 +71,61 @@ replication); Testing: build-asset evidence.
 - The primary's frozen numbers to publish against: point CSI **0.0310**, cell **0.1591**
   (location-blocked, out of fold), fits_version `8050dfa41fc1` over matrix_version
   `8bc1e8912b1b`.
+
+
+## Delivered (2026-08-24, branch `flood18-threshold-replication`)
+
+`make flood-replication` -> `research/flood-18-replication.{md,json}`. FOUR universes, each a
+full rebuild of 04 -> 05 -> 06 -> 08 -> 09 through the same jobs onto its own root under
+`<root>/alt/<uid>/`: **q9750** (311 q0.975 = 59/45) · **q9950** (q0.995 = 126/153) · **r050**
+(radius 50 m) · **r200** (radius 200 m). The 311 arm asks `flood_spine.remeasure_311(root,
+asof, q)` for a QUANTILE and never types a count.
+
+**THE FINDING — the headline is robust to the 311 threshold and sensitive to the label
+radius, and the raw CSI ranks the radius BACKWARDS.** Point CSI (location-blocked, out of
+fold) runs 0.0237 (50 m) · **0.0310 (primary, 100 m)** · 0.0667 (200 m), so the raw column
+says the widest radius is twice as good. Divided by each universe's OWN B0 — which under
+location blocking IS its base rate, B2 having degenerated onto it (flood 09's trap) — the
+lift runs **11.13x (50 m) · 6.05x (primary) · 4.42x (200 m)**: the widest radius has the
+highest raw CSI and the LOWEST skill. 200 m nearly triples the point base rate (0.00512 ->
+0.01509, positives 4,008 -> 11,818) because a 200 m circle round a doorway catches 311
+reports from the next street. **The radius moves what "flooded" MEANS at point grain, not how
+well the model finds it.** The 311 threshold is mild by comparison: +-2.5 percentiles moves
+the point lift 5.94x-6.31x and the raw point CSI by at most 0.0010. Every gate re-fired
+MODEL in all four universes.
+
+**The radius is structurally INERT at Cell grain and that is checked, not assumed**: the cell
+branch attaches on `a.cell = oe.cell` with no distance predicate, so both radius universes'
+`fit_cell` rows are BYTE-IDENTICAL to the primary's (179,683 rows, same sha256 over the
+sorted rows minus the stamp) while their `fit_point` positives move 4,008 -> 1,668 / 11,818.
+Two real-root tests pin both halves.
+
+**The primary is untouched, receipted twice.** `verify_primary()` hashes the frozen artifacts
+AND recomputes `assets_version` / `features_version` / `precip_identity`, then re-derives
+`label_version` and `matrix_version` from them, before and after the run; `diff_manifest` was
+empty on both the build run and the re-run. Hashing artifacts alone would NOT have sufficed:
+a new AORC month under the primary root moves `precip_identity` — and so stops
+`matrix_version 8bc1e8912b1b` reproducing — without touching an artifact byte, which is why
+q9750's 31 new AORC months (15 Pixel + 16 Cell) had to land in the ALTERNATE root. Stamps
+asserted distinct rather than trusted; `spine_version` is exempt for the radius arm and
+collides on purpose (the event list did not move).
+
+**Cost, measured**: fits leg **187 s** per universe against the box's ~7 min expectation;
+whole universes 313 s (q9950) · 301 s (r050) · 284 s (r200) · 499 s (q9750, which built the
+31 AORC months). ~23 min for all four. Per-universe results cache at
+`<root>/alt/<uid>/universe.json` (`UNIVERSE=<uid>`, `REBUILD=1`).
+
+**Parameterization, no forks**: `flood_labels.attach_sql(radius_m)` (was the module-level
+`ATTACH` constant) · `flood_labels.build(root, spark, asof, radius_m)` ·
+`flood_labels.label_version(root, spine_version, asof, radius_m)` ·
+`flood_spine.remeasure_311(root, asof, q)`. **Every default reproduces flood 05's frozen text
+and the primary's own `label_version 46bbfd665b78` byte for byte** — verified before anything
+else was built, and pinned by a test.
+
+**A staging defect this ticket found and fixed before it could publish**: the first staging
+enumerated the inputs a universe needs and missed `archive/subway_alerts` (the live alert
+capture `flood_obs.alert_rows` folds in beside the Socrata snapshots). The alternate spine
+silently lost an alert-triggered 2026 event — and `spine_version`, `label_version` and
+`matrix_version` were all IDENTICAL to the corrected run's, because those stamps hash what
+the build DECLARED, not what it read. Staging now DISCOVERS the tree by walking it. A stamp
+in this chain cannot catch a missing input tree; only the walk can.
