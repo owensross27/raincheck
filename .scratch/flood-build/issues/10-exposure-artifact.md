@@ -6,15 +6,60 @@ the score has exactly one artifact chain. Spec: Exposure score (published object
 
 **Blocked by:** 07, 09
 
-**Status:** ready-for-agent
+**Status:** done (2026-08-24, branch `flood10-exposure-artifact`)
 
-- [ ] `gold/flood_exposure`: one row per Unit — score_ref and score_severe (evaluated at frozen reference forcings: median and p90 of fit-era trigger-event precip), score_index (within-kind percentile on score_ref), surge_margin_ft from ticket 07, flags, all version stamps; NO NULL scores (fallbacks guarantee coverage, reasons ride flags); probabilities live in validation tables only
-- [ ] plain Parquet, single sorted part, byte-identical rebuild gate
-- [ ] the coefficient JSON (one in-repo file): coefficients, preprocessing constants, feature definitions, per-kind CDFs, reference forcings, the 0.86–0.92 scale band, and score_version = sha1 over label/features/precip identities plus model constants
-- [ ] if the ticket-09 gate shipped B2, this artifact carries B2's parameters and the model id says so — the exposure table publishes either way
-- [ ] non-negative event-side coefficients asserted here at build (the detector's monotone-latch claim depends on it)
-- [ ] both artifacts name the estimand: `flooded_reported` — in the exposure table's metadata and as a top-level field of the coefficient JSON
-- [ ] DuckDB contract tests: one row per Unit, no NULL scores, percentile bounds, version stamps chain structurally
+- [x] `gold/flood_exposure`: one row per Unit — score_ref and score_severe (evaluated at frozen reference forcings: median and p90 of fit-era trigger-event precip), score_index (within-kind percentile on score_ref), surge_margin_ft from ticket 07, flags, all version stamps; NO NULL scores (fallbacks guarantee coverage, reasons ride flags); probabilities live in validation tables only
+- [x] plain Parquet, single sorted part, byte-identical rebuild gate
+- [x] the coefficient JSON (one in-repo file): coefficients, preprocessing constants, feature definitions, per-kind CDFs, reference forcings, the 0.86–0.92 scale band, and score_version = sha1 over label/features/precip identities plus model constants
+- [x] if the ticket-09 gate shipped B2, this artifact carries B2's parameters and the model id says so — the exposure table publishes either way — **AMENDED: the gate fired MODEL, so the fitted parameters shipped, and the B2 branch is REFUSED LOUDLY rather than guessed.** `models_of()` raises `NotImplementedError` naming `flood_fits.climatology()`: `final.<role>` publishes the FITTED model only, so a B2 ship needs per-Unit climatology values that flood 09 publishes nowhere. Building that path now would be speculative machinery for a branch that measurably did not fire; the refusal names exactly what a future B2 ticket must add.
+- [x] non-negative event-side coefficients asserted here at build (the detector's monotone-latch claim depends on it) — **SCOPED to the two IN-WINDOW terms; see the close-out**
+- [x] both artifacts name the estimand: `flooded_reported` — in the exposure table's metadata and as a top-level field of the coefficient JSON
+- [x] DuckDB contract tests: one row per Unit, no NULL scores, percentile bounds, version stamps chain structurally
+
+
+## Close-out (2026-08-24, `make flood-exposure`, +42 tests)
+
+**Both artifacts exist and rebuild byte-identical.** `gold/flood_exposure/part-00000.parquet`
+(**15,166 rows** = 445 complexes + 13,370 bus stops + 1,351 Cells, sorted by (kind, asset_id),
+zstd, no Hive partitioning) and **`research/flood-10-coefficients.json`** — THE file the
+detector loads, via `flood_exposure.coefficients()`.
+
+- **A score is the LINEAR PREDICTOR (eta), never a probability.** The spec puts probabilities
+  in the validation tables only and ticket 11's display is a rank, so a sigmoid would add a
+  monotone transform nobody reads and invite calibration claims the evidence cannot support.
+  `score_ref` = eta at p50 of the fit rows' precip terms, `score_severe` = at p90, every other
+  feature the Unit's own. `eta(model, feats)` is the SAME function offline and live, which is
+  what stops the two numbers drifting apart.
+- **Verified by independent replay on the real root, not by re-running the builder:** all
+  13,310 model-scored bus stops and all 445 complexes reproduce to 1e-12 from the coefficient
+  JSON alone (pure SQL, no repo code); all 15,166 `score_index` values equal DuckDB's
+  `cume_dist() OVER (PARTITION BY kind ORDER BY score_ref)`; the per-kind CDF knots match the
+  table's own count/min/max.
+- **Coverage, and where the fallback bites.** `flags` is a closed vocabulary, never NULL, and
+  empty for 14,726 rows: `elev_ring15_fallback` **36** (29 bus stops + the seven complexes) ·
+  `no_dem_footprint` **60** · `no_matrix_row` **0** · `score_fallback_kind_median` **60** ·
+  `no_surge_margin` **404** (344 Cells scored through a taxi Zone + the same 60 stops). The 60
+  out-of-DEM stops take the **kind-median** score — an imputed SCORE, declared in flags, which
+  is the one thing that is not an imputed elevation.
+- **`no_matrix_row` is a new flag and it is 0 here on purpose.** A complex with no scorable
+  doorway cannot be a max over doorways; on this registry every complex has one, so the count
+  is gated at 0 and any regression fails the build. On a partial fixture root it is NOT 0,
+  which is why the fallback generalises instead of crashing.
+- **The seven zero-grade_ok complexes are RE-DERIVED every build** and gated as
+  `{complex_id: name}` — ids are the gate, names ride along as the drift canary. A name-keyed
+  set matches 18 on the real root, asserted in a test so the trap cannot quietly stop being
+  real.
+- **The version chain reconciles end to end.** `matrix_version` is read from the matrix footer
+  AND recomputed from `label_version`/`features_version`/`precip_identity` (equal on the real
+  root), and the fits' own `matrix_version` must equal it — so coefficients fitted on a
+  different table are refused rather than silently scored. `score_version` covers exactly what
+  can move a published score; the flag vocabulary, the assertion scope and the informational
+  scale band are deliberately OUT, so a reworded sentence cannot make the live model tier
+  refuse itself on version skew.
+- **Mutation-checked, 5/5 red, pristine control restored and run last:** widening `IN_WINDOW`
+  to include the antecedent (6 failed + 19 errors — it breaks the build outright, exactly as
+  the ticket warned) · dropping the non-negative assertion · scoring through a sigmoid ·
+  taking MIN instead of MAX over child entrances · dropping the `no_dem_footprint` reason.
 
 
 ## Inherited from flood 08's build (2026-08-24, `gold/flood_matrix`, commit 9c8b501)

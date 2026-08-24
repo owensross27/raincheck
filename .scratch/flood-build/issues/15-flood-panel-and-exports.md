@@ -46,3 +46,43 @@ rather than invent a schema. Three things it measured land on this ticket:
   you are the one who freezes it, because the map's layer table is written against them.
 
 Nothing here changes the two-meta-file MUST inherited from frontend 01; it sits beside it.
+
+
+## Inherited from flood 10's build (2026-08-24, branch `flood10-exposure-artifact`)
+
+`gold/flood_exposure` and `research/flood-10-coefficients.json` both exist. Two things on
+this ticket's list are now settled by measurement rather than left to the panel:
+
+- **`score_index` is real and bounded (0, 1]** — the within-kind empirical CDF of `score_ref`,
+  one row per Unit, 15,166 rows, NO NULLS. That is your dormant-weather static view. The
+  matching CDF knots are published in the coefficient JSON under `cdf.by_kind.<kind>`, so the
+  panel can place a score on the same curve without reading the Gold table.
+- **A score is the LINEAR PREDICTOR, not a probability, and it is NEGATIVE for almost every
+  Unit** (real-root ranges: bus_stop -7.39..-3.91, complex -6.54..-4.12, cell -5.27..+1.06).
+  **Never render a raw score.** Render `score_index`, or the live rank. A raw eta on a panel
+  reads as a broken number, and printing it would also be the calibration claim the honesty
+  strings exist to prevent.
+- **Your per-kind legends have a fourth thing to say: `flags`.** A closed vocabulary, never
+  NULL, empty for 14,726 of 15,166 rows: `elev_ring15_fallback` (36) · `no_dem_footprint`
+  (60 — outside the NYC DEM, scored at the kind median, NOT an imputed elevation) ·
+  `no_matrix_row` (0 here) · `score_fallback_kind_median` (60) · `no_surge_margin` (404 —
+  NULL margin, never a zero). Every flag's own one-line explanation ships in the coefficient
+  JSON under `flags`, so the panel can label a fallback row from the artifact it already
+  loads rather than inventing wording. **A fallback row must not be presented as a modelled
+  rank**; it is the kind's median with a reason attached.
+- **`surge_margin_ft` is NULL for 404 Units and that is data, not a hole.** 344 Cells have no
+  point child (they are scored through a taxi Zone) and 60 bus stops have no elevation at all.
+  Render the absence, never a zero.
+- **NO COMPLEX-GRAIN SKILL CLAIM anywhere on the panel.** A complex's number is the MAX over
+  its child entrance scores — an aggregate of doorway scores. The independent complex-grain
+  set caught 1 of 118 positives, so the strings say what the number IS, never what it was
+  proven to do. The coefficient JSON carries no performance metric of any grain (asserted).
+- **Version skew (your bullet 17) has a concrete comparison now.** `score_version` is stamped
+  on every row of `gold/flood_exposure`, in its parquet footer as `b"score_version"`, and at
+  the top of the coefficient JSON. Compare the artifact against the TABLE you actually read.
+  It moves only when a published score can move — a reworded flag or a changed scale-band note
+  does not bump it, so a refusal means something real.
+- **`gate.panel_strings` is pre-selected in the coefficient JSON** (branch MODEL: headline
+  "modelled flood exposure", release "v1 ships the fitted L2 logistic exposure score", caveat
+  "fitted on reported flooding, 2010-2025 rain events"). The B2-branch alternates in your
+  bullet 16 are therefore NOT the live branch; read `gate.branch` rather than choosing.

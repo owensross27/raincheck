@@ -20,3 +20,66 @@ network and no live table. Spec: Real-time detector; Testing seam 2.
 - [ ] the MRMS filename-pattern canary runs at build against the live source and fails the build if the pattern stops resolving (this ticket owns the canary patterns constant)
 - [ ] fixture tests (seam 2): the Window rule reproduces the offline window on a fixture event day; deleting one interior hour trips HOLES/INSUFFICIENT_DATA; live eta at Window close equals the offline event eta on a replayed fixture event (the converges-from-below contract as an assert)
 - [ ] Window and Tier graduate to CONTEXT.md's glossary
+
+
+## Inherited from flood 10's build (2026-08-24, branch `flood10-exposure-artifact`)
+
+THE coefficient JSON exists. It is a READ; there is no second model and nothing is refitted.
+
+    from raincheck import flood_exposure as fe
+    art = fe.coefficients()                      # research/flood-10-coefficients.json
+    fe.COEFFICIENTS                              # the Path, if you need to digest the file
+    fe.eta(art["models"][role], feats) -> float  # THE score, offline and live
+
+- **`eta()` is the function that built `gold/flood_exposure`.** Call it with your live precip
+  terms in `feats` and the offline and live numbers cannot drift apart. It is a plain dot
+  product of `coef_raw` plus `intercept_raw`, and it RAISES `KeyError` on a missing feature
+  rather than scoring it as zero — a silently absent term is a different model wearing a
+  plausible number. Verified on the real root: all 13,310 model-scored bus stops and all 445
+  complexes reproduce to 1e-12 from the JSON alone.
+- **A score is the LINEAR PREDICTOR (eta), NOT a probability** (`art["score"]["is_probability"]`
+  is `false`). Do not sigmoid it: your tiers are a within-kind rank, the spec keeps
+  probabilities in the validation tables, and a squashed score would invite a calibration
+  claim the evidence does not support.
+- **Key shape** (every key is present; `art` is a plain dict from one `json.loads`):
+  `estimand` (`flooded_reported`) · `score_version` · `identities`
+  {`label_version`, `features_version`, `precip_identity`, `matrix_version`, `fits_version`} ·
+  `gate` {`branch`, `shipped`, `split`, `panel_strings`} · `score` · `kind_model`
+  {`bus_stop`->`point`, `complex`->`point`, `cell`->`cell`} · `complex_rule` ·
+  `models.<role>` {`model_id`, `features`, `coef_raw`, `intercept_raw`, `coef_standardized`,
+  `intercept_standardized`, `standardization`, `stormwater_base_level`, `lambda`} ·
+  `preprocessing` · `reference_forcings.<role>.<score_ref|score_severe>.<log1p|mm>` ·
+  `cdf` {`score`, `by_kind.<kind>` = {`n`, `percentile`[101], `score_ref`[101]}} ·
+  `scale_band` · `flags` · `table`.
+- **THE score_version RULE, for your version-skew refusal.** `art["score_version"]` is the
+  same string stamped on every row of `gold/flood_exposure` and in its parquet footer
+  (`b"score_version"`); compare against the table you read, not against a remembered value.
+  It is sha1 over exactly what can MOVE A PUBLISHED SCORE: the four upstream identities, the
+  per-role model constants (`model_id`, `features`, `coef_raw`, `intercept_raw`,
+  `stormwater_base_level`), the reference forcings, `kind_model`, the complex rule and the
+  fallback rule. **Deliberately NOT in it: the flag vocabulary, the assertion scope and the
+  scale band** — a reworded flag must never make the live model tier refuse itself. So: a
+  changed digest always means a changed score, which is what makes refusing on skew honest.
+- **`stormwater_base_level` is `analyzed-none` and gets NO term.** Use `fe.dummies(kind, cat)`
+  rather than rebuilding the dummy coding; it raises on an unknown category, because
+  stormwater is never imputed.
+- **The precip terms are log1p.** `reference_forcings` publishes both scales;
+  `preprocessing.precip_note` says it in the file. `expm1` before quoting mm, never log1p
+  twice — a build-time check refuses a JSON where the two scales disagree.
+- **`scale_band.pass2_over_aorc` = [0.86, 0.92] is INFORMATIONAL and no code applies it.**
+  The fit is AORC-only and your live forcing is MRMS RadarOnly, which runs 8-14% low against
+  it. That is a decision this ticket owns: either divide your live mm_1h by the band and
+  render a tier only where both ends agree, or ship rank-only. Do not threshold an unadjusted
+  biased input behind a footer.
+- **`cdf.by_kind.<kind>` is the STATIC view only** — 101 percentile knots of the published
+  `score_ref`, the same distribution `gold/flood_exposure.score_index` reports (asserted equal
+  to `cume_dist()` over all 15,166 rows). Fed a LIVE eta it reads ~0 in light rain and ties at
+  the ceiling in a storm, which is exactly why your display value is the current-vector rank.
+- **NO COMPLEX-GRAIN SKILL CLAIM.** `complex_rule` says what it is — max over child entrance
+  scores, an aggregate of doorway scores — and the artifact publishes no metric of any grain
+  at all (asserted: no `csi`/`pod`/`far`/`pr_auc`/`tp`/`fp` key anywhere in it). Entrances
+  publish no row of their own in `gold/flood_exposure`; only the three Unit kinds do.
+- **`gate.panel_strings` is already selected** by the re-evaluated branch (MODEL). Read it;
+  do not re-derive the branch and never re-type the verdict — `flood_fits.gate(summary)` is
+  the pure function, and this build refuses a fits asset whose stored verdict disagrees with
+  its own tables.

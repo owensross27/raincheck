@@ -56,3 +56,50 @@ kind outside `flood_labels.LABEL_KINDS` — reuse that reason and that `ask` det
 reuse the complex rollup it already does (`parent_asset_id`, max depth, union of support)
 instead of writing a second one. `score_version` / `model_id` join `versions()` when you
 read F10's scores: today they are ABSENT (not null) because no score is read.
+
+
+## Inherited from flood-build 10 (2026-08-24, branch `flood10-exposure-artifact`)
+
+`gold/flood_exposure` EXISTS — one part file, `<root>/gold/flood_exposure/part-00000.parquet`,
+**15,166 rows, one per Unit**, sorted by (kind, asset_id). Read it as a narrowed
+`create_view` relation like every other query (never `rel.arrow()`).
+
+Columns, exactly: `asset_id` · `kind` (`bus_stop`|`complex`|`cell`) · `model_id`
+(`point:l2_logistic` | `cell:l2_logistic`) · `score_ref` · `score_severe` · `score_index` ·
+`surge_margin_ft` · `flags` (LIST of VARCHAR) · `score_version` · `matrix_version` ·
+`fits_version`.
+
+- **Your complex rollup is ALREADY DONE — read the row, do not re-derive it.** A complex's
+  score IS the max over its child entrance scores; that is what the `kind='complex'` row
+  holds, computed at build and verified against an independent SQL recomputation for all 445.
+  Re-doing the max in `exposure_of` would be a second implementation of a rule that has one
+  home. Your `parent_asset_id` rollup from `events_for_asset` stays the right shape for the
+  HISTORY half; for the SCORE half, one lookup by `asset_id` answers.
+- **Entrances and stations publish NO row here** — asserted in flood 10's tests. So your
+  `not_a_scored_unit` reason (reusing notify 02's `QueryError` reason and its `ask` detail
+  key) fires exactly when `asset_id` is absent from this table AND the kind is a Carrier.
+  Do not special-case: the table's membership IS the Unit/Carrier rule made concrete.
+- **NO NULL scores, guaranteed and gated at build.** `score_ref`, `score_severe` and
+  `score_index` are non-null for all 15,166 rows. `surge_margin_ft` IS nullable — 404 rows
+  (344 Cells with no point child, 60 bus stops with no elevation) — and those rows carry the
+  `no_surge_margin` flag. Emit it as ABSENT via notify 02's `pack(**kv)` (absent, never null),
+  with the flag carrying the reason.
+- **`flags` is a closed vocabulary and the reasons ride it**, exactly as your "no NULL score
+  reaches a payload" bullet expects: `elev_ring15_fallback` · `no_dem_footprint` ·
+  `no_matrix_row` · `score_fallback_kind_median` · `no_surge_margin`. Pass the list through;
+  every flag's one-line meaning is published in `research/flood-10-coefficients.json` under
+  `flags`, so a payload consumer can render it without wording anything itself. **60 bus stops
+  carry a fallback score (the kind median, not a model evaluation) — a payload must not
+  present those as a modelled rank.**
+- **`score_version` and `model_id` are COLUMNS on the row**, so your `versions()` envelope
+  reads them from the answer rather than from a side channel — and `score_version` is
+  identical across every row (asserted). It also matches the top-level `score_version` in the
+  coefficient JSON, which is how a stale read is detected.
+- **A score is the LINEAR PREDICTOR (eta), not a probability**, and it is negative for nearly
+  every Unit (bus_stop -7.39..-3.91, complex -6.54..-4.12, cell -5.27..+1.06). Ship
+  `score_index` (the within-kind percentile, bounded (0, 1]) as the human-facing number;
+  `score_ref`/`score_severe` travel as the raw model output they are.
+- **NO COMPLEX-GRAIN SKILL CLAIM in any payload or docstring.** The complex number is an
+  aggregate of doorway scores; the independent complex set caught 1 of 118 positives.
+- **A Cell's `asset_id` is `cell:<h3 hex>`** and already matches notify 02's frozen hex-string
+  boundary rule — no int64 crosses anything.

@@ -41,7 +41,8 @@ progress, and the table below says exactly how far it has got.
         Silver: Passages, Delay, flood observations, asset features
                   |
                   v
-        Gold: cell_hour_speed, cell_hour_route, flood_labels, flood_matrix
+        Gold: cell_hour_speed, cell_hour_route, flood_labels, flood_matrix,
+              flood_exposure
                   |
         +---------+-------------------------------+
         |                                         |
