@@ -1,0 +1,21 @@
+# The broker's volume. Pinned to us-east-1f because EBS is AZ-bound and the floor
+# nodegroup lives there (spec 1); WaitForFirstConsumer + allowedTopologies means a
+# broker that is rescheduled can only land back in 1f, never orphaned in another AZ.
+# tagSpecification_1 is what keeps the volume inside the $130 Project filter - the CSI
+# driver creates the volume, so eksctl's cluster tags never reach it.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gp3-1f
+provisioner: ebs.csi.aws.com
+parameters:
+  type: gp3
+  encrypted: "true"
+  tagSpecification_1: "Project=raincheck-cloud"
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+allowedTopologies:
+  - matchLabelExpressions:
+      - key: topology.ebs.csi.aws.com/zone
+        values: ["us-east-1f"]

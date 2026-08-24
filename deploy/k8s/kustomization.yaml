@@ -1,0 +1,21 @@
+# The cluster's manifest seam. Render it with:
+#
+#   kubectl kustomize --load-restrictor LoadRestrictionsNone deploy/k8s
+#
+# The flag is required because the topics ConfigMap is generated from the REAL
+# src/raincheck/topics.py, which sits outside this directory. That is the point: the six
+# partitions / 48 h retention live in exactly one file, and the Job runs that file.
+# tests/test_cluster_manifests.py renders through this same command.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - karpenter-nodepool.yaml
+  - kafka/namespace.yaml
+  - kafka/storageclass.yaml
+  - kafka/kafka.yaml
+  - kafka/topics-job.yaml
+configMapGenerator:
+  - name: raincheck-topics
+    namespace: kafka
+    files:
+      - topics.py=../../src/raincheck/topics.py
