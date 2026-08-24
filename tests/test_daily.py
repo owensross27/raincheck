@@ -204,3 +204,46 @@ def test_prune_drops_live_hours_past_the_horizon(seeded, stubs):
         (d / "part-00000.parquet").write_bytes(b"live")
     daily.main()
     assert not old.exists() and fresh.exists()
+
+
+# Orchestration ticket 01: the stage contract is one declaration both runtimes read.
+
+
+def test_every_declared_stage_resolves_to_an_entrypoint():
+    """A stage naming a target or callable that does not exist is a dangling stage - it
+    would fail at 06:00 in the driver, or at import in the DAG."""
+    import re
+
+    makefile = (daily.REPO / "Makefile").read_text()
+    for s in daily.STAGES:
+        kind, _, ref = s.entrypoint.partition(":")
+        if kind == "make":
+            assert re.search(rf"^{ref}:", makefile, re.M), f"{s.name}: no make target {ref}"
+        else:
+            assert callable(daily.resolve(ref)), f"{s.name}: {ref} is not callable"
+
+
+def test_the_declaration_pins_gapfill_before_gapcheck():
+    """The same scheduling note as above, read off the declaration so it covers the DAG
+    too: checking before filling reports gaps the fill closes."""
+    order = [s.name for s in daily.STAGES]
+    assert order.index("gapfill") < order.index("gapcheck")
+
+
+def test_the_driver_names_its_steps_from_the_declaration(seeded):
+    """main()'s printed lines, in order: every declared stage once, precip expanded per
+    month - the only axis this runtime maps."""
+    root, _ = seeded
+    months = daily.precip_months(NOW.date())
+    names = [name for name, _fn, _soft in daily.steps({"root": root, "closed": CLOSED},
+                                                      {"month": months})]
+    assert names == ["gapfill", "gapverify", "gapcheck", "coldpush", "coldcheck", "events",
+                     *[f"precip {m}" for m in months], "prune"]
+
+
+def test_a_soft_stage_that_fails_does_not_fail_the_job(seeded, monkeypatch):
+    """coldcheck is soft in the declaration, not just by returning 0 from inside itself."""
+    monkeypatch.setattr(daily, "build", lambda root, closed: None)
+    monkeypatch.setattr(daily, "run", lambda target, **var: 0)
+    monkeypatch.setattr(daily, "coldcheck", lambda: 1)
+    daily.main()  # no SystemExit

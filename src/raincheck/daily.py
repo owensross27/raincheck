@@ -33,7 +33,10 @@ import subprocess
 import sys
 import time
 from datetime import date, datetime, timedelta, timezone
+from importlib import import_module
+from inspect import signature
 from pathlib import Path
+from typing import Callable, NamedTuple
 from zoneinfo import ZoneInfo
 
 from raincheck.paths import REPO, data_root
@@ -43,6 +46,29 @@ TAIL_H = 10       # UTC hours of D+1 a service day's Legs run into (03:00 local,
 SILVER = ("leg_hours", "events")
 PART = "part-00000.parquet"
 NY = ZoneInfo("America/New_York")  # a service day is a local date, and runs past midnight
+
+
+class Stage(NamedTuple):
+    """One nightly stage as METADATA - no stage logic lives here, only the name of where
+    it already lives. Both runtimes build their steps from STAGES below: main() here, and
+    the Airflow DAG, so the order and the soft/retry rules cannot drift between them."""
+    name: str
+    entrypoint: str            # "make:<target>" or "py:<module>:<callable>"
+    retry: str                 # transport: idempotent, retry with backoff | gate: 0 retries
+    soft: bool = False         # reports, never fails the job
+    fanout: str | None = None  # the axis a runtime MAY map over; None = never mapped
+
+
+STAGES = (
+    Stage("gapfill", "make:gapfill", "transport", fanout="kind"),
+    Stage("gapverify", "make:gapverify", "gate", fanout="kind"),
+    Stage("gapcheck", "make:gapcheck", "gate"),  # ticket 20: strictly after the fill
+    Stage("coldpush", "make:coldpush", "transport"),
+    Stage("coldcheck", "py:raincheck.daily:coldcheck", "gate", soft=True),
+    Stage("events", "py:raincheck.daily:build", "transport", fanout="service_date"),
+    Stage("precip", "py:raincheck.daily:precip", "transport", fanout="month"),
+    Stage("prune", "py:raincheck.daily:prune_live", "transport"),
+)
 
 
 def run(target: str, **var: str) -> int:
@@ -181,18 +207,43 @@ def stage(name: str, fn) -> bool:
     return not rc
 
 
+def resolve(ref: str) -> Callable:
+    """`<module>:<callable>`, looked up per call - tests and the DAG replace these
+    attributes, so a reference captured at import time would run the wrong function."""
+    mod, _, attr = ref.rpartition(":")
+    return getattr(import_module(mod), attr)
+
+
+def call(s: Stage, ctx: dict):
+    """Run one stage's entrypoint, handing it only the ctx values its own signature names.
+    That binding is why the runtime below dispatches without naming a single stage."""
+    kind, _, ref = s.entrypoint.partition(":")
+    if kind == "make":
+        return run(ref)
+    fn = resolve(ref)
+    return fn(**{p: ctx[p] for p in signature(fn).parameters})
+
+
+def steps(ctx: dict, axes: dict) -> list[tuple[str, Callable, bool]]:
+    """(name, thunk, soft) per declared stage, expanded over the axes THIS runtime maps -
+    for `make daily` only precip's months, exactly as before. A declared axis nobody
+    supplies items for stays one step that fans out inside itself (events loops gaps(),
+    gapfill sweeps all five kinds); the DAG supplies those axes and gets pods instead."""
+    out = []
+    for s in STAGES:
+        for item in axes.get(s.fanout) or [None]:
+            name = s.name if item is None else f"{s.name} {item}"
+            bound = ctx if item is None else ctx | {s.fanout: item}
+            out.append((name, lambda s=s, c=bound: call(s, c), s.soft))
+    return out
+
+
 def main() -> None:
     root, now = data_root(), datetime.now(timezone.utc)
-    steps = [("gapfill", lambda: run("gapfill")),
-             ("gapverify", lambda: run("gapverify")),
-             ("gapcheck", lambda: run("gapcheck")),  # ticket 20: strictly after the fill
-             ("coldpush", lambda: run("coldpush")),
-             ("coldcheck", coldcheck),
-             ("events", lambda: build(root, closed_through(now))),
-             # MRMS months are UTC, unlike the service day above
-             *[(f"precip {m}", lambda m=m: precip(m)) for m in precip_months(now.date())],
-             ("prune", lambda: prune_live(root))]
-    failed = [name for name, fn in steps if not stage(name, fn)]
+    ctx = {"root": root, "closed": closed_through(now)}
+    # MRMS months are UTC, unlike the service day above
+    axes = {"month": precip_months(now.date())}
+    failed = [name for name, fn, soft in steps(ctx, axes) if not stage(name, fn) and not soft]
     if failed:
         sys.exit(f"daily: FAILED - {', '.join(failed)} (every stage ran; see above)")
     print("daily: OK", flush=True)
