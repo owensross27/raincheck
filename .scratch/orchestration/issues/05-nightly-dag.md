@@ -19,3 +19,17 @@ already a catch-up over a bounded window; replaying missed intervals would run t
 - [ ] Gate stages carry zero retries (re-reading the same data cannot change a verdict, and a retrying gate turns a stable red into a flapping one); transport stages retry with exponential backoff
 - [ ] A structure test, skipping cleanly when Airflow is absent, asserts task ids and edges equal the declaration, that every edge is `all_done`, that catch-up is off and the timezone is America/New_York, and that no task's callable is defined in the DAG file
 - [ ] The remote-census check that covers unrecoverable subway positions is **not** in this DAG
+
+## Inherited from orchestration 03 (landed 2026-08-24, b37a761)
+
+- **A stage that must tell FAIL from INCONCLUSIVE calls the module, not the make
+  target.** GNU make exits **2 for any recipe failure**, so `make gapcheck` /
+  `make gapverify` / `make coldcheck` / `make eras` return 0 or 2 and a module rc of
+  1 arrives as 2 (measured both ways). Call `python -m raincheck.<mod>`, or read the
+  batch at `<root>/checks/check=<name>/run=<ts>.jsonl`. `daily.py` is unaffected — it
+  treats any non-zero as a failed stage, deliberately.
+- The cold mirror is now `python -m raincheck.cold` behind `make coldcheck`, and it
+  stays SOFT exactly as before: `daily.coldcheck()` re-pushes once, warns, returns 0.
+- `make eras` (`raincheck.eras`) is a new check and is deliberately **NOT** in
+  `daily.STAGES` — adding it there moves daily's printed stage list, which
+  `tests/test_daily.py` pins. Its placement is ticket 09's call.
