@@ -1,0 +1,121 @@
+"""Cloud ticket 05: the live path's supervised cycle.
+
+The module owns three things and nothing else - the cadence, the failure policy, and the
+log line - so those are what is pinned here. The export SQL, the detector's parsing and
+the publisher's ordering are tested where they live (test_live.py, test_flood_live.py,
+test_publish.py) and are not re-tested through this seam.
+
+No network and no data root: the detector and the publisher are substituted, and
+`live_export.once()` runs against an empty tmp root, which is its designed
+"read failed -> stale meta" path and needs nothing on disk.
+"""
+from datetime import datetime, timedelta, timezone
+
+import pytest
+
+from raincheck import duck, live_loop, publish
+
+NOW = datetime(2026, 8, 24, 12, 0, 0, tzinfo=timezone.utc)
+
+
+@pytest.fixture
+def con():
+    return duck.connect()
+
+
+def run(con, tmp_path, monkeypatch, detector=None, publisher=None, times=(NOW,)):
+    """Cycle over `times`, recording what the detector and publisher were asked."""
+    calls = {"detect": [], "publish": []}
+
+    def fake_live(margins=None):
+        calls["detect"].append(margins)
+        return detector() if callable(detector) else {"coastal": {"stage": "quiet"},
+                                                      "winter": {"status": "ok"}}
+
+    def fake_publish(name, src=None, **kw):
+        calls["publish"].append((name, src))
+        return publisher() if callable(publisher) else [1, 2]
+
+    monkeypatch.setattr(live_loop.flood_live, "live", fake_live)
+    monkeypatch.setattr(live_loop.publish, "publish", fake_publish)
+    state = {}
+    states = []
+    for now in times:
+        state = live_loop.cycle(con, tmp_path, tmp_path / "web", "live", state, now)
+        states.append(state)
+    return states, calls
+
+
+def test_every_cycle_exports_and_publishes(con, tmp_path, monkeypatch):
+    """The 30 s cadence is the export and the publish. Both, every tick, in that order."""
+    states, calls = run(con, tmp_path, monkeypatch, times=[NOW, NOW + timedelta(seconds=30)])
+    assert len(calls["publish"]) == 2
+    assert [s["publish"] for s in states] == ["published 2", "published 2"]
+    # T14 rule 3, flowing through this loop unchanged: a tick that could not READ writes
+    # meta.json with error + stale and leaves live.geojson ALONE. The root here is empty,
+    # so that is the path taken - a dead exporter must look stale, never absent, never
+    # fresh, and this loop must not "helpfully" write an empty fleet over the last good one.
+    assert (tmp_path / "web" / "meta.json").exists()
+    assert not (tmp_path / "web" / "live.geojson").exists()
+
+
+def test_the_publisher_is_given_the_directory_this_loop_wrote(con, tmp_path, monkeypatch):
+    """`publish("live")` defaults to the family's own REPO/web/files. If the loop does not
+    pass its OWN out_dir, `--out` silently ships whatever happens to be in the repo
+    instead of the pair this tick just produced."""
+    _, calls = run(con, tmp_path, monkeypatch)
+    assert calls["publish"] == [("live", tmp_path / "web")]
+
+
+def test_the_detector_ticks_at_its_own_rate_not_the_export_rate(con, tmp_path, monkeypatch):
+    """CO-OPS publishes every 6 min and KNYC hourly (flood 14, measured). Re-fetching them
+    every 30 s asks two public APIs 12x and 120x per publication for an answer that cannot
+    have moved, and a rate-limited 429 renders as a false OUTAGE chip on the panel. The
+    tick stays SUPERVISED at 30 s; only the fetch runs at the source's rate."""
+    times = [NOW + timedelta(seconds=s) for s in (0, 30, 60, live_loop.DETECT_S,
+                                                  live_loop.DETECT_S + 30)]
+    states, calls = run(con, tmp_path, monkeypatch, times=times)
+    assert len(calls["detect"]) == 2, "fetched at t=0 and again one DETECT_S later, no more"
+    # ...and the cycles in between still REPORT the detector, they just do not re-fetch it
+    assert all(s["detector"]["coastal"]["stage"] == "quiet" for s in states)
+
+
+def test_a_dead_detector_does_not_stop_the_fleet_publishing(con, tmp_path, monkeypatch):
+    """A CO-OPS outage is a chip on the panel, never a stopped export loop."""
+    def boom():
+        raise RuntimeError("co-ops is down")
+    states, calls = run(con, tmp_path, monkeypatch, detector=boom)
+    assert "RuntimeError" in states[0]["detector"]["error"]
+    assert calls["publish"], "the export half must still publish"
+    assert "coastal=RuntimeError: co-ops is down" in live_loop.line(states[0]), (
+        "the log line must name the outage, not render it as an absent reading")
+
+
+def test_a_closed_gate_is_a_designed_state_logged_once(con, tmp_path, monkeypatch, capsys):
+    """Cloud 09's rc 3: the MTA terms are unverified, so the pair is written locally and
+    not published. It is a standing condition - a line every 30 s would bury the tick that
+    genuinely broke, so it is logged when it CHANGES."""
+    def gated():
+        raise publish.GateClosed("terms unverified")
+    states, _ = run(con, tmp_path, monkeypatch, publisher=gated,
+                    times=[NOW, NOW + timedelta(seconds=30), NOW + timedelta(seconds=60)])
+    assert [s["publish"] for s in states] == ["gated"] * 3
+    assert capsys.readouterr().out.count("publish gated") == 1
+
+
+def test_a_failed_upload_is_reported_and_survived(con, tmp_path, monkeypatch):
+    """Distinct from the gate: something is actually broken, so it is named every tick."""
+    def broken():
+        raise OSError("connection reset")
+    states, _ = run(con, tmp_path, monkeypatch, publisher=broken,
+                    times=[NOW, NOW + timedelta(seconds=30)])
+    assert all(s["publish"].startswith("failed OSError") for s in states)
+    assert "publish=failed OSError" in live_loop.line(states[-1])
+
+
+def test_the_export_half_carries_its_own_previous_meta(con, tmp_path, monkeypatch):
+    """live_export.once() needs the last good meta to say HOW old a stale panel is. Losing
+    it between cycles turns "stale, 4 minutes" into "stale, unknown"."""
+    states, _ = run(con, tmp_path, monkeypatch, times=[NOW, NOW + timedelta(seconds=30)])
+    assert states[1]["meta"]["stale"] is True          # empty root: the failure path
+    assert "n_vehicles" in states[1]["meta"]

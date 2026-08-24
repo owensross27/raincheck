@@ -538,3 +538,109 @@ def test_the_cluster_mode_driver_can_make_executors_and_nothing_else():
     binding = next(b for b in kind("RoleBinding")
                    if b["metadata"]["name"] == "raincheck-spark-driver")
     assert [s["name"] for s in binding["subjects"]] == ["raincheck-build"]
+
+
+# --- ticket 05: the live path as pods ---------------------------------------------------
+
+def cronjob(name: str) -> dict:
+    return next(c for c in kind("CronJob") if c["metadata"]["name"] == name)
+
+
+def test_the_precip_tick_runs_the_module_itself_and_never_two_at_once():
+    """THE row this ticket exists for. `precip_live.tick()` fetches every `:00` stamp the
+    table is MISSING inside MRMS's ~25 h retention, not just the newest one - measured
+    2026-08-24 against the live feed: 0.70 s and one fetch with the table warm, 10.61 s and
+    all 25 hours from empty. A shell equivalent (curl the latest, write it) is
+    indistinguishable on a healthy day and silently drops catch-up, which re-blocks the
+    flood replay gate [T11, F12] the first time a tick is missed. So the command is
+    asserted LITERALLY, not by substring: `... && python -m raincheck.precip_live` or a
+    wrapper script would pass a looser check while changing what runs.
+
+    Forbid is the other half: two overlapping walks of the same 25 h window would both
+    write into `live/precip_cell/valid_ts=.../`, leaving "latest fetched_at wins" to
+    arbitrate between two half-finished passes."""
+    cj = cronjob("precip-live")["spec"]
+    assert cj["schedule"] == "*/5 * * * *"
+    assert cj["concurrencyPolicy"] == "Forbid"
+    job = cj["jobTemplate"]["spec"]
+    assert job["backoffLimit"] == 0, (
+        "NODD having published nothing in 25 h is not a transient error - a retry ten "
+        "seconds later asks the same empty bucket, and the next tick is five minutes away")
+    c = job["template"]["spec"]["containers"][0]
+    assert c["command"] == ["python", "-m", "raincheck.precip_live"], (
+        "the CronJob must run the module itself - that is the catch-up contract")
+    assert not c.get("args"), "an args list after that command is a wrapper by another name"
+
+
+def test_the_precip_cronjob_cannot_permanently_stop_scheduling_itself():
+    """With Forbid and no `startingDeadlineSeconds`, the controller counts every missed
+    schedule since the last successful run and STOPS scheduling the CronJob for good past
+    100 of them ("Too many missed start times"). At 5-minute ticks that is 8 h 20 m of
+    downtime - comfortably inside the 25 h retention the catch-up walk depends on - so the
+    unbounded version converts a recoverable outage into a dead tick, and then, one
+    retention window later, into permanently lost hours. Bounded, only that window is
+    counted: a tick that cannot start is skipped and the next one's catch-up heals it."""
+    cj = cronjob("precip-live")["spec"]
+    deadline = cj.get("startingDeadlineSeconds")
+    assert deadline is not None, "unbounded missed-schedule counting can retire this CronJob"
+    assert deadline < 100 * 5 * 60
+
+
+def test_the_five_minute_tick_runs_on_the_floor_and_never_buys_a_node():
+    """The one raincheck workload where `burst` costs MORE than the floor. The tick runs
+    for well under a second and exits, 8,640 times a month; on burst that is 8,640 spot
+    nodes provisioned for a sub-second job and consolidated a minute later. Its measured
+    average draw (~0.2% of a core over its 300 s period) fits in the floor's idle CPU."""
+    spec = cronjob("precip-live")["spec"]["jobTemplate"]["spec"]["template"]["spec"]
+    assert spec["nodeSelector"] == {"raincheck.io/pool": "floor"}
+    assert spec["restartPolicy"] == "Never"
+
+
+def test_the_live_export_and_the_detector_are_one_process_in_one_pod():
+    """Spec story 28: the panel's two halves must never age apart. One container running
+    one loop is what makes that a property rather than a hope - and it is also the cost
+    rule, because the alternatives pay per tick. At 2,880 ticks a day, a container per
+    concern is three interpreters and three requests on the floor, and a shell `while`
+    loop around `python -m ...` is an interpreter start, a full import graph and a COLD
+    DuckDB connection every 30 s for what the image already holds (which is why cloud 09's
+    `publish()` asks this ticket to call it in-process).
+
+    A second container here, or a `sh -c` command, is the regression this row catches."""
+    dep = next(d for d in kind("Deployment") if d["metadata"]["name"] == "raincheck-live")
+    spec = dep["spec"]["template"]["spec"]
+    assert len(spec["containers"]) == 1, "one process ticks export -> detect -> publish"
+    c = spec["containers"][0]
+    assert c["command"] == ["python", "-m", "raincheck.live_loop"]
+    assert not c.get("args")
+    assert "sh" not in c["command"] and "bash" not in c["command"]
+    # resident beside the streaming driver: burst is spot-only and consolidates after a
+    # 1 m idle window, which would kill a 30 s loop on a schedule
+    assert spec["nodeSelector"] == {"raincheck.io/pool": "floor"}
+    assert dep["spec"]["replicas"] == 1
+    assert dep["spec"]["strategy"]["type"] == "Recreate", (
+        "cloud 09 froze the order INSIDE the live pair (live.geojson first, meta.json "
+        "last, so a dying publisher leaves a fresh fleet under an older meta - stale, "
+        "which is safe). Two overlapping publishers can interleave into exactly the "
+        "combination that ordering exists to prevent")
+
+
+def test_the_live_pod_publishes_the_pair_it_writes():
+    """live_export writes into REPO/web/files and publish reads the family from there, so
+    the two halves of the 30 s cadence must share a filesystem. They do it by being one
+    pod; this pins the mount, because a missing one sends the loop's output to the image
+    layer and the publisher to an empty directory."""
+    dep = next(d for d in kind("Deployment") if d["metadata"]["name"] == "raincheck-live")
+    c = dep["spec"]["template"]["spec"]["containers"][0]
+    mounts = {m["name"]: m["mountPath"] for m in c["volumeMounts"]}
+    assert mounts["web"] == c["workingDir"] + "/web/files"
+
+
+def test_the_highest_frequency_pods_never_re_pull_a_pinned_image():
+    """The cost rule where it bites hardest: these two are the 8,640/month CronJob and the
+    2,880/day loop. `imagePullPolicy: Always` on an IMMUTABLE sha tag pays a registry round
+    trip per tick for a layer set that cannot have changed."""
+    for name in ("precip-live", "raincheck-live"):
+        doc = next(d for d in workloads() if d["metadata"]["name"] == name)
+        for spec in pod_specs(doc):
+            for c in spec["containers"]:
+                assert c.get("imagePullPolicy") == "IfNotPresent", f"{name} re-pulls per tick"

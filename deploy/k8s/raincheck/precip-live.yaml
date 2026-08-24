@@ -1,0 +1,120 @@
+# Cloud ticket 05 / spec section 5: the MRMS live precip tick, as a CronJob.
+#
+# This replaces the Mac's 300 s StartInterval LaunchAgent
+# (launchd/com.raincheck.precip-live.plist) and runs THE SAME MODULE, unmodified. That is
+# the whole design, and it is an acceptance criterion rather than a preference:
+#
+#   `raincheck.precip_live.tick()` walks back 25 hours and fetches every `:00` stamp the
+#   table is MISSING, not just the newest one. A shell equivalent - curl the latest file,
+#   write it - looks identical on a healthy day and silently drops the catch-up, which
+#   re-blocks the flood replay gate [T11, F12] the next time a tick is missed. Running the
+#   module is what makes the contract true by construction; the manifest test asserts the
+#   command literally is `python -m raincheck.precip_live` so a "simplification" to a
+#   shell one-liner cannot land quietly.
+#   MEASURED here 2026-08-24 on the real NODD feed, against a seeded and an empty table:
+#     steady state (25 h present)  0.70 s, peak RSS 384 MiB, 1 file fetched
+#     cold start   (empty table)  10.61 s, peak RSS 592 MiB, all 25 hours landed
+#   The cold-start row IS the catch-up contract, observed rather than argued.
+#
+# `concurrencyPolicy: Forbid` - two ticks must never overlap. A cold-start tick takes
+# ~11 s and a normal one under a second, so an overlap needs a pathological stall, but the
+# failure it would cause is not pathological: two processes walking the same 25 h window
+# would both fetch and both write into `live/precip_cell/valid_ts=.../`, and the "latest
+# fetched_at wins" read rule would then arbitrate between two half-written passes.
+#
+# `startingDeadlineSeconds: 120` is NOT a nicety. With Forbid and no deadline, the
+# controller counts every missed schedule since the last run, and at more than 100 misses
+# it stops scheduling this CronJob permanently ("Cannot determine if job needs to be
+# started. Too many missed start times"). 100 misses is 8 h 20 m of cluster downtime -
+# well inside the 25 h retention that catch-up depends on - so the unbounded version turns
+# a recoverable outage into a dead tick and, 25 h later, permanently lost hours. With the
+# deadline set, only the last 120 s are counted, a tick that cannot start in its own slot
+# is skipped, and the NEXT tick's catch-up heals the hole. Missing a tick is cheap here by
+# design; not scheduling any more of them is not.
+#
+# `backoffLimit: 0` - `precip_live` exits non-zero when NODD has published nothing in the
+# whole 25 h window. Retrying that ten seconds later asks the same question of the same
+# empty bucket; the next tick is five minutes away and heals it.
+#
+# THE FLOOR, not burst. The tick runs for well under a second and exits, 8,640 times a
+# month: on burst, Karpenter would provision a spot node for a sub-second job and
+# consolidate it a minute later, ~8,640 times, buying node-boot latency and node-hours for
+# work that fits in the floor's idle CPU (measured average draw: see the requests below).
+# This is the one raincheck workload where `burst` would cost MORE than the floor.
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: precip-live
+  namespace: raincheck
+  labels:
+    app.kubernetes.io/name: raincheck
+spec:
+  schedule: "*/5 * * * *"          # cron's 1-minute granularity is what makes 300 s expressible
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 120
+  successfulJobsHistoryLimit: 1    # 288 ticks a day: keep one receipt, keep failures longer
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: raincheck
+            raincheck.io/shape: precip-live
+        spec:
+          restartPolicy: Never
+          nodeSelector:
+            raincheck.io/pool: floor
+          serviceAccountName: raincheck-build
+          containers:
+            - name: precip-live
+              image: raincheck
+              imagePullPolicy: IfNotPresent   # 8,640 pulls a month otherwise, for one immutable sha
+              workingDir: /opt/raincheck
+              command: ["python", "-m", "raincheck.precip_live"]
+              envFrom:
+                # cloud 07's build token. `optional` is load-bearing and was measured by
+                # cloud 06: the Secret does not exist until Ross mints the tokens, and a
+                # non-optional secretRef leaves every pod in CreateContainerConfigError -
+                # which here would mean 288 failed ticks a day rather than 288 ticks that
+                # do their local work and need R2 only once `live/` can live there.
+                - secretRef:
+                    name: r2-build
+                    optional: true
+              env:
+                - name: RAINCHECK_ARCHIVE_ROOT
+                  value: /data
+              resources:
+                requests:
+                  # MEASURED 2026-08-24: a steady-state tick is 0.70 s wall / ~0.5 CPU-s,
+                  # i.e. ~0.2% of one core averaged over its 300 s period. 100m is ~50x the
+                  # average draw and still finishes a cold-start catch-up inside a minute.
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  # the (3500 x 7000) CONUS grid decode dominates: 384 MiB steady, 592 MiB
+                  # on a cold start. 1Gi is the cold-start peak plus room for a slower prune.
+                  memory: 1Gi
+              volumeMounts:
+                - name: data
+                  mountPath: /data
+          volumes:
+            # emptyDir, and this is the one thing about this manifest that is NOT how it
+            # should end up. `live/precip_cell` must OUTLIVE the tick: the catch-up walk
+            # skips hours the table already has, so a table that dies with the pod makes
+            # every tick a cold start. MEASURED cost of that: 10.61 s and 25 NODD fetches
+            # per tick instead of 0.70 s and one - 288 cold starts a day, 7,200 fetches
+            # instead of 288, a 25x multiplier on both.
+            #
+            # It cannot be fixed here. A PVC is barred (cloud 03: block volumes attach only
+            # to the single-writer streaming Deployment, and a second live/ store would
+            # still be invisible to the live-export loop that has to read it). The real home
+            # is R2, which is blocked on `paths.data_root()` returning a `Path` - and for
+            # THIS module by more than that: it writes with `mkdir`/`Path.replace`/
+            # `shutil.rmtree` and reads with `Path.glob`, so an s3a:// root alone does not
+            # move it. See the RUN LOG and KNOWN TRAPS.
+            - name: data
+              emptyDir:
+                sizeLimit: 2Gi

@@ -17,6 +17,8 @@ resources:
   - kafka/topics-job.yaml
   - raincheck/build.yaml
   - raincheck/streaming.yaml
+  - raincheck/precip-live.yaml
+  - raincheck/live.yaml
 # THE one place any image is named (cloud 03). Every manifest writes `image: raincheck`
 # and this transformer rewrites all of them together, so a half-updated rollout - some
 # pods on the new sha, some on the old - is not expressible. scripts/cloud-image.sh

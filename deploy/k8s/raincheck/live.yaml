@@ -1,0 +1,119 @@
+# Cloud ticket 05 / spec section 5 + story 28: live-export and the detector tick as ONE
+# supervised Deployment, beside the streaming driver, publishing on the existing 30 s
+# cadence.
+#
+# ONE Deployment, ONE container, ONE process - `python -m raincheck.live_loop`, which ticks
+# export -> detect -> publish in that order. Three shapes were available and two are worse:
+#
+#   three containers      K8s supervises each, but each is its own interpreter and its own
+#                         resource request on a floor that is already tight, and the three
+#                         drift onto three clocks - "the panel's two halves must never age
+#                         apart" is then a hope rather than a property.
+#   a shell `while` loop  `python -m ...` per tick is an interpreter start, a full import
+#                         graph and a COLD DuckDB connection 2,880 times a day, for work
+#                         the image already holds. Cloud 09's `publish()` docstring asks
+#                         this ticket for an in-process call for exactly that reason.
+#   one process (this)    one warm DuckDB connection for the life of the pod, and the tick
+#                         publishes the pair it just wrote.
+#
+# MEASURED 2026-08-24 against the real data root, full fleet (1,722 vehicles, 611 KB of
+# GeoJSON) with the detector firing:
+#   40 cycles: 6.36 CPU-seconds total = 0.159 CPU-s per cycle = ~5.3 millicores averaged
+#   over the 30 s period; RSS plateaus at 368 MiB (301 -> 360 -> 368 over 40 cycles, no
+#   leak), 383 MiB with the detector fetching on EVERY cycle rather than its own.
+#
+# THE FLOOR: burst is spot-only and consolidates after a 1 m idle window, which is a
+# death sentence for a 30 s loop. This is a resident workload like the stream, not a job.
+#
+# `strategy: Recreate` and one replica, though there is no volume to protect. Two
+# overlapping pods would both publish the live PAIR, and cloud 09 froze the order inside
+# it (live.geojson first, meta.json LAST, so a dying publisher leaves a fresh fleet under
+# an older meta - stale, which is safe, never the reverse). Two interleaved publishers can
+# produce exactly the combination that ordering exists to prevent. A few seconds of gap
+# during a rollout is the cheaper failure: the page reads its own staleness.
+#
+# NO Service, no Ingress, no hostPort: the 30 s payloads reach the world by being PUSHED to
+# the public bucket, and the static host serves them from outside the cluster. Nothing here
+# is reachable from the internet, which is the point of cloud 07's network rows.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: raincheck-live
+  namespace: raincheck
+  labels:
+    app.kubernetes.io/name: raincheck
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: raincheck
+      raincheck.io/shape: live
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: raincheck
+        raincheck.io/shape: live
+    spec:
+      nodeSelector:
+        raincheck.io/pool: floor
+      # The PUBLISHING half decides the identity: this pod writes the PUBLIC bucket, so it
+      # is cloud 07's serve role and carries the serve token and nothing else. One Secret,
+      # one ServiceAccount. (The export half reads `live/` off the volume below and needs
+      # no credential at all today - see the volume comment for when that changes.)
+      serviceAccountName: raincheck-serve
+      containers:
+        - name: live
+          image: raincheck
+          imagePullPolicy: IfNotPresent
+          workingDir: /opt/raincheck
+          command: ["python", "-m", "raincheck.live_loop"]
+          envFrom:
+            # cloud 07's serve token, scoped to raincheck-public. `optional` for the same
+            # measured reason as the CronJob: until Ross mints it, this pod must still run
+            # and export locally rather than sit in CreateContainerConfigError. With no
+            # token the publish step raises and is logged; with no VERIFIED MTA terms it
+            # raises GateClosed (cloud 09 rc 3) first, which is a designed state.
+            - secretRef:
+                name: r2-serve
+                optional: true
+          env:
+            - name: RAINCHECK_ARCHIVE_ROOT
+              value: /data
+            - name: SOURCE
+              value: live
+          resources:
+            requests:
+              # MEASURED: ~5.3 millicores average draw. 100m is ~19x that and still lets a
+              # cycle finish in ~1.6 s of serialised CPU against a 30 s period. No CPU
+              # limit: the cycle is a short burst and throttling it buys nothing.
+              cpu: 100m
+              memory: 384Mi     # measured plateau 368 MiB
+            limits:
+              memory: 768Mi     # 2x the plateau; 383 MiB is the every-cycle-detector worst case
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            # web/files is where live_export writes the pair and where publish reads it.
+            # An emptyDir here masks nothing: web/files/ is gitignored, so it is not in the
+            # image - the mount creates the directory the loop expects at REPO/web/files.
+            - name: web
+              mountPath: /opt/raincheck/web/files
+      volumes:
+        # THE HONEST STATE OF THIS MOUNT: the export half reads <root>/live/vp, /live/tu
+        # and /live/precip_cell - written by the streaming Deployment and the precip-live
+        # CronJob, in THEIR pods, on THEIR volumes. An emptyDir here is empty, so the fleet
+        # reads zero rows and the panel renders honestly stale rather than wrong (T14's
+        # rules do that work). It is not a placement mistake: `live/` has several writers
+        # across pods, which no single-attach block volume can serve, so its home is R2 and
+        # it is blocked on `paths.data_root()` returning a `Path`. Everything else here -
+        # the cadence, the ordering, the credentials, the placement - is final; the day the
+        # root can be a string, this mount is what changes.
+        - name: data
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: web
+          emptyDir:
+            sizeLimit: 256Mi
