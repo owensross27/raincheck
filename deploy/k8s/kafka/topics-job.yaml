@@ -7,8 +7,12 @@
 # raincheck/ subdirectory makes `python -m raincheck.topics` work as a namespace package,
 # i.e. the same entry point as `make topics`.
 #
-# T3 replaces the pip install with the shared sha-tagged ECR image; until that image
-# exists this is the cheapest way to run the real module against the cluster broker.
+# T3 has now replaced the pip install with the shared sha-tagged ECR image. The install was
+# ~15 s of network on EVERY run of this Job for a package the image already carries, and
+# per-run setup is a recurring bill - it belongs in the image layer, once per git sha.
+# The ConfigMap mount stays: PYTHONPATH=/src still shadows the image's own copy (verified
+# in the image, /src/raincheck/topics.py wins over the editable install), so the six
+# partitions still come from the one file rather than from whenever the image was built.
 # The Job name is fixed, so re-running means deleting it first (the install script does).
 apiVersion: batch/v1
 kind: Job
@@ -27,10 +31,9 @@ spec:
         raincheck.io/pool: floor
       containers:
         - name: topics
-          image: python:3.12-slim
-          command: ["/bin/sh", "-c"]
-          args:
-            - pip install --quiet --no-cache-dir "confluent-kafka>=2.5" && exec python -m raincheck.topics
+          image: raincheck
+          command: ["python"]
+          args: ["-m", "raincheck.topics"]
           env:
             - name: PYTHONPATH
               value: /src

@@ -1,0 +1,167 @@
+# Cloud ticket 03 / spec section 3: the batch shapes, as pod templates.
+#
+# Execution mode is decided by JOB SHAPE, and there is deliberately no spark-operator:
+#
+#   per-day work   one pod per Service date, Spark IN-POD (`raincheck-spark` below).
+#                  `events` is ~275 s/day and each Service date is independent, so a
+#                  cluster-mode driver plus executor scheduling per day would spend more
+#                  on scheduling than on work. The parallelism is Airflow dynamic task
+#                  mapping over days onto Karpenter burst.
+#   wide work      cluster-mode `spark-submit --master k8s://` - the `gold` monthly reduce
+#                  and the T17 backfill (scripts/cloud-spark-submit.sh). The RBAC at the
+#                  bottom of this file is what lets that driver create its executors.
+#   streaming      a Deployment - see streaming.yaml.
+#
+# These are `kind: PodTemplate`, which is the API's own object for "a pod spec that is not
+# a running workload". A Job here would RUN on every `kubectl apply -k`; a comment saying
+# "do not apply" would not stop it. Airflow's KubernetesPodOperator and
+# scripts/cloud-spark-submit.sh both read these and fill in only the command.
+#
+# nodeSelector raincheck.io/pool: burst is LOAD-BEARING on every one of them. Omit it and
+# a build pod lands on the floor, where it competes with the Kafka broker and the
+# streaming driver for 2 vCPU - the nightly build starves the thing capturing the feed.
+---
+apiVersion: v1
+kind: PodTemplate
+metadata:
+  name: raincheck-stage
+  namespace: raincheck
+  annotations:
+    # The six no-Spark stages of the eight-stage placement table [T15]. gapfill and
+    # coldpush share the staging volume by design: coldpush is scoped to what gapfill
+    # just wrote, and gapverify reads those same filled hours back.
+    raincheck.io/stages: "gapfill, gapverify, gapcheck, coldpush, coldcheck, prune"
+template:
+  metadata:
+    labels:
+      app.kubernetes.io/name: raincheck
+      raincheck.io/shape: stage
+  spec:
+    restartPolicy: Never
+    nodeSelector:
+      raincheck.io/pool: burst
+    serviceAccountName: raincheck-build
+    containers:
+      - name: stage
+        image: raincheck
+        # No command: the caller supplies the stage's own `make <target>` /
+        # `python -m raincheck.<module>`. The image installs the repo editable at
+        # /opt/raincheck precisely so those are the same entry points a single box runs.
+        workingDir: /opt/raincheck
+        envFrom:
+          - secretRef:
+              name: r2-build     # cloud 07 - AWS_ACCESS_KEY_ID/SECRET/ENDPOINT_URL/REGION
+        env:
+          - name: RAINCHECK_ARCHIVE_ROOT
+            value: /staging
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            memory: 1Gi
+        volumeMounts:
+          - name: staging
+            mountPath: /staging
+    volumes:
+      # gapfill stages ~1.24 GB/day before push-then-prune [T20]; the ticket asks for
+      # >= 3 GB and this is 4, because a partly-filled day plus its push is the worst case.
+      # emptyDir, not a PVC: it is scratch for one run, and a claim here would be a
+      # single-attach volume on a workload Airflow maps over many days at once.
+      - name: staging
+        emptyDir:
+          sizeLimit: 4Gi
+---
+apiVersion: v1
+kind: PodTemplate
+metadata:
+  name: raincheck-spark
+  namespace: raincheck
+  annotations:
+    raincheck.io/stages: "events (one pod per Service date), gold (single reduce behind them), precip (MRMS months are UTC)"
+    # MEASURED on the cluster 2026-08-24, not copied from the Mac. An events-shaped run
+    # (5,597,465 Bronze VP rows -> 1,354,911 rows through events.py's coalesce(1)
+    # sortWithinPartitions write) on a 2 vCPU / 8 GiB Graviton2 burst node:
+    #   driver 2g -> pod peak 2913 MiB, 136 s
+    #   driver 1g -> pod peak 1927 MiB, 137 s   (identical wall time)
+    # So pod RSS is driver heap + ~0.93 GiB of python and JVM off-heap, and this shape
+    # does not need the heap it is given. The Mac's `local[6]` + 3 g was never the number:
+    # these nodes have two vCPUs. 2 g here is ONE deliberate doubling of headroom for the
+    # real job's larger join graph (13 joins against the reproduction's 3), on a node that
+    # exists for about two minutes - not a copied placeholder.
+    raincheck.io/sizing: "measured 2026-08-24 on m6g.large: driver 2g -> 2913MiB/136s, 1g -> 1927MiB/137s"
+    # Karpenter's burst NodePool CANNOT provision t4g: its `instance-generation Gt 5`
+    # requirement excludes the whole t4g family (t4g is generation 4, and there is no
+    # t5g/t6g). m6g.large is t4g.large's exact 2 vCPU / 8 GiB Graviton2 shape without the
+    # burstable CPU credits, which for a memory measurement is the same node and for a
+    # timing one is the conservative direction.
+template:
+  metadata:
+    labels:
+      app.kubernetes.io/name: raincheck
+      raincheck.io/shape: spark
+  spec:
+    restartPolicy: Never
+    nodeSelector:
+      raincheck.io/pool: burst
+    serviceAccountName: raincheck-build
+    containers:
+      - name: spark
+        image: raincheck
+        workingDir: /opt/raincheck
+        envFrom:
+          - secretRef:
+              name: r2-build
+        env:
+          # spark.py reads these; there is no forked session builder, because a second
+          # SparkSession factory would be a second set of Spark semantics.
+          - name: RAINCHECK_SPARK_MASTER
+            value: local[2]
+          - name: RAINCHECK_SPARK_DRIVER_MEM
+            value: 2g
+          - name: RAINCHECK_ARCHIVE_ROOT
+            value: /staging
+        resources:
+          requests:
+            cpu: 1500m
+            memory: 3Gi
+          limits:
+            memory: 4Gi
+        volumeMounts:
+          - name: staging
+            mountPath: /staging
+    volumes:
+      - name: staging
+        emptyDir:
+          sizeLimit: 8Gi
+---
+# Cluster mode needs the driver to create, watch and delete its own executor pods. This is
+# the whole reason `--master k8s://` works without an operator; it is namespace-scoped to
+# `raincheck`, and it grants no access to Secrets - the driver gets R2 through envFrom on
+# its own pod, never by reading one.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: raincheck-spark-driver
+  namespace: raincheck
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["pods/log", "services", "configmaps", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: raincheck-spark-driver
+  namespace: raincheck
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: raincheck-spark-driver
+subjects:
+  - kind: ServiceAccount
+    name: raincheck-build
+    namespace: raincheck

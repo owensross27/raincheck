@@ -122,6 +122,30 @@ def test_an_unpartitioned_root_is_its_own_partition(tmp_path):
     assert not parity.compare(a, b).ok
 
 
+# --- cloud 03: the same gate against an R2 prefix ---------------------------------------
+
+def test_a_remote_root_is_recognised_by_either_scheme():
+    """The cluster writes s3a:// (Spark's spelling) and DuckDB reads s3://. Both name the
+    same object store, so the gate takes whichever spelling the writing side used - and a
+    local path stays local, which is what keeps the Mac side going through rglob."""
+    assert parity.remote("s3://b/silver/events") == "s3://b/silver/events"
+    assert parity.remote("s3a://b/silver/events/") == "s3://b/silver/events"
+    assert parity.remote(Path("/data/silver/events")) is None
+    assert parity.remote("/data/s3a://not-a-scheme") is None
+
+
+def test_an_unreachable_remote_side_is_inconclusive_never_equal(tmp_path, monkeypatch):
+    """The failure mode this gate exists to survive. A credential that is absent, expired
+    or scoped to the wrong bucket must read as "could not check" - rc 2 - because rendering
+    it as a pass would let the T17 backfill start on a comparison that never happened."""
+    for var in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("AWS_ENDPOINT_URL", "https://127.0.0.1:1")  # nothing listens there
+    local = write(tmp_path / "a", ROWS)
+    assert parity.main(["s3://raincheck-bronze/silver/events", str(local)]) == 2
+    assert parity.main([str(local), "s3://raincheck-bronze/silver/events"]) == 2
+
+
 def test_main_returns_zero_one_two(tmp_path, capsys):
     a, b = write(tmp_path / "a", ROWS), write(tmp_path / "b", ROWS)
     assert parity.main([str(a), str(b)]) == 0

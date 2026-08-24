@@ -15,6 +15,18 @@ resources:
   - kafka/storageclass.yaml
   - kafka/kafka.yaml
   - kafka/topics-job.yaml
+  - raincheck/build.yaml
+  - raincheck/streaming.yaml
+# THE one place any image is named (cloud 03). Every manifest writes `image: raincheck`
+# and this transformer rewrites all of them together, so a half-updated rollout - some
+# pods on the new sha, some on the old - is not expressible. scripts/cloud-image.sh
+# rewrites these two lines after it pushes, and the pin is committed with the code it
+# names. NEVER `:latest`: a moving tag makes "which code produced this partition?"
+# unanswerable, and with imagePullPolicy IfNotPresent it serves a stale image forever.
+images:
+  - name: raincheck
+    newName: 384555717200.dkr.ecr.us-east-1.amazonaws.com/raincheck
+    newTag: aaefb74a1a0d
 configMapGenerator:
   - name: raincheck-topics
     namespace: kafka
