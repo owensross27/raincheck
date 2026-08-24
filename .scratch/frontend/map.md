@@ -43,7 +43,14 @@ layers).
 
 ## Decisions so far
 
-(none — the frontier below is open)
+- 2026-08-24 · ticket 04 (research) RESOLVED — Cloudflare Worker/R2 facts:
+  Workers free tier 100k req/day / 10 ms CPU; CORS + per-object cache-control
+  work on a public bucket WITHOUT a Worker; the edge cache fronts a
+  custom-domain bucket automatically but never r2.dev and never a Worker
+  (Worker runs first, pays Class B on binding reads); custom domains free on
+  both; WAF rate limiting exists on the Free plan (1 IP-keyed rule). Full
+  cited findings: `.scratch/frontend/research/04-worker-r2.md`; gist on the
+  ticket. Ticket 03 unblocked.
 
 ## Not yet specified (fog)
 
