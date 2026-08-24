@@ -213,9 +213,12 @@ def days_311(root: Path, asof: date = fo.ASOF,
     return out
 
 
-def remeasure_311(root: Path, asof: date = fo.ASOF) -> dict[str, int]:
-    """What the frozen pins would be if measured today — the build asserts they match."""
-    return {ds: p99(fo.daily_311(rows))
+def remeasure_311(root: Path, asof: date = fo.ASOF, q: float = 0.99) -> dict[str, int]:
+    """What the pins would be if measured today at quantile `q` — the build asserts the
+    default (0.99) matches the frozen pair. Ticket 18's alternate universes ask for other
+    quantiles here rather than typing counts: a threshold typed by hand is a threshold
+    chosen, and the whole point of the replication is that nobody chose it."""
+    return {ds: p99(fo.daily_311(rows), q)
             for ds, rows in fo.rows_311(root, asof).items()}
 
 

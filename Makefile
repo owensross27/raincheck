@@ -8,7 +8,7 @@ export TZ := UTC
 export RAINCHECK_ARCHIVE_ROOT RAINCHECK_BRONZE_GB TRANSITLAND_API_KEY
 PY := .venv/bin/python
 
-.PHONY: warm ref nbp features picks precip-hourly precip-cell schedule events gold baseline gates slice test topics flood-obs flood-spine flood-coastal precip-flood-era flood-labels flood-matrix flood-fits flood-live
+.PHONY: warm ref nbp features picks precip-hourly precip-cell schedule events gold baseline gates slice test topics flood-obs flood-spine flood-coastal precip-flood-era flood-labels flood-matrix flood-fits flood-replication flood-live
 
 topics:  ## recreate the two bus topics to spec C - DESTRUCTIVE: drops retained Kafka messages (Bronze keeps the record)
 	$(PY) -m raincheck.topics
@@ -97,6 +97,16 @@ flood-matrix:  ## asset_features x flood_labels x AORC precip -> gold/flood_matr
 # minutes long, and `>` would truncate the last good asset the moment anything raised.
 flood-fits:  ## two L2 logistic fits + 4 baselines + the headline gate -> research/flood-09-fits.{md,json}
 	$(PY) -m raincheck.flood_fits
+
+# --- flood-build ticket 18: the outer replication -----------------------------------
+# The 311-threshold and label-radius sweeps, which redefine the event universe and so cannot
+# run in fold. Each universe rebuilds 04 -> 05 -> 06 -> 08 -> 09 onto its OWN root under
+# <root>/alt/<uid>/ (symlinked inputs); the primary's bytes and its three chained identities
+# are hashed before and after. ~10 min a universe, plus AORC months a loosened threshold
+# needs. Resumable: per-universe results cache on the alternate root (UNIVERSE=<uid> to
+# re-run one, REBUILD=1 to ignore the cache).
+flood-replication:  ## alternate 311 thresholds + label radii -> research/flood-18-replication.{md,json}
+	$(PY) -m raincheck.flood_replication $(if $(UNIVERSE),--universe $(UNIVERSE)) $(if $(REBUILD),--rebuild)
 
 gates:  ## tier-2 slice acceptance gates: 10-T3, 10-T6 wired; T4/T5 report-only slots
 	$(PY) -m raincheck.gates

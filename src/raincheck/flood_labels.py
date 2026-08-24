@@ -178,16 +178,17 @@ def census(assets: Iterable[Mapping], events: Iterable[Mapping],
 
 # ---- label_version ----------------------------------------------------------------
 
-def label_version(root: Path, spine_version: str, asof: date = fo.ASOF) -> str:
+def label_version(root: Path, spine_version: str, asof: date = fo.ASOF,
+                  radius_m: float = RADIUS_M) -> str:
     """sha1 over everything that can move a label: the source as-of stamp, the frozen 311
-    thresholds, RADIUS_M, assets_version — and spine_version, which already chains the
+    thresholds, the attachment radius, assets_version — and spine_version, which chains the
     window rule and the trigger vocabularies. Chaining it is what stops labels from ever
     silently mixing spines, and makes ticket 18's alternate universes stamp differently by
     construction. The negative rules are in here too: they are part of the label set even
     though no negative row is stored."""
     payload = json.dumps({
         "asof": asof.isoformat(), "assets_version": ref.assets_version(root),
-        "spine_version": spine_version, "p99": fs.P99_311, "radius_m": RADIUS_M,
+        "spine_version": spine_version, "p99": fs.P99_311, "radius_m": radius_m,
         "source_bit": SOURCE_BIT, "label_kinds": LABEL_KINDS,
         "radius_kinds": RADIUS_KINDS, "detectors": DETECTORS, "estimand": ESTIMAND,
         "opened": {k: v[0].isoformat() for k, v in OPENED.items()},
@@ -207,9 +208,13 @@ def _quoted(values: Iterable[str]) -> str:
 # The radius branch leans on Sedona's distance join: ST_DWithin(..., useSpheroid = true)
 # was cross-checked against an independent H3 kRing(1) prefilter plus an explicit
 # ST_DistanceSpheroid filter on the real tables — 51,690 pairs both ways.
-ATTACH = f"""
+def attach_sql(radius_m: float = RADIUS_M) -> str:
+    """The attachment union at a given radius. Ticket 18's {50,100,200} m sweep moves this
+    constant, which redefines which (Unit, event) pairs are positive — an outer
+    replication, never an in-fold knob."""
+    return f"""
 SELECT a.asset_id, a.kind, a.cell, oe.event_id, oe.source, oe.depth_mm, 'radius' AS support
-  FROM oe JOIN a ON ST_DWithin(oe.geometry, a.geometry, {RADIUS_M}, true)
+  FROM oe JOIN a ON ST_DWithin(oe.geometry, a.geometry, {radius_m}, true)
  WHERE oe.source IN ({_quoted(POINT_SOURCES)}) AND a.kind IN ({_quoted(RADIUS_KINDS)})
 UNION ALL
 SELECT a.asset_id, a.kind, a.cell, oe.event_id, oe.source, oe.depth_mm, 'cell'
@@ -231,7 +236,8 @@ SELECT a.asset_id, a.kind, a.cell, oe.event_id, oe.source, oe.depth_mm, 'station
  WHERE oe.source IN ({_quoted(STATION_SOURCES)}) AND a.kind = 'complex'
 """
 
-def build(root: Path, spark, asof: date = fo.ASOF) -> int:
+
+def build(root: Path, spark, asof: date = fo.ASOF, radius_m: float = RADIUS_M) -> int:
     import shutil
 
     def geo(*parts: str):
@@ -263,7 +269,7 @@ def build(root: Path, spark, asof: date = fo.ASOF) -> int:
     print(f"flood_obs: {n_obs} observations, {n_in} inside an event window "
           f"({n_obs - n_in} on no event-day)", flush=True)
 
-    spark.sql(ATTACH).createOrReplaceTempView("attached")
+    spark.sql(attach_sql(radius_m)).createOrReplaceTempView("attached")
     alerts = spark.sql("SELECT count(*) FROM attached WHERE support = 'station'").collect()
     want = spark.sql("SELECT count(*) FROM oe WHERE source = 'mta_alert'").collect()
     if alerts[0][0] != want[0][0]:
@@ -271,7 +277,7 @@ def build(root: Path, spark, asof: date = fo.ASOF) -> int:
                            f"from {want[0][0]} observations — ref/assets re-keyed?")
     _assert_openings(spark)
 
-    stamp = label_version(root, version, asof)
+    stamp = label_version(root, version, asof, radius_m)
     out = spark.sql(f"""
         SELECT asset_id, kind, event_id, cell,
                CAST(bit_or(bit) AS SMALLINT) AS source_mix,
