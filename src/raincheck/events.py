@@ -197,18 +197,31 @@ def warn_unloaded(root: Path, day: str) -> None:
               f"but is not loaded - run make schedule PICK={r['pick_id']}", flush=True)
 
 
-def tu_rows(root: Path, spark, day: str) -> DataFrame | None:
-    """Stop-level TU predictions for service day D, one row per (trip_id, vehicle_id,
-    stop_id, fetched_at) with `pred` = the predicted arrival epoch. None when no TU
-    Bronze exists (the archive era: nycbuspositions has no stop-level TU rows)."""
+def bronze_tu(root: Path, spark, day: str) -> DataFrame | None:
+    """Bronze TU for service day D: partitions date IN (D, D+1), whichever exist. None when
+    no TU Bronze exists (the archive era: nycbuspositions has no stop-level TU rows).
+
+    mergeSchema: parts written before the decoder gained direction_id/trip_delay_s/trip_ts/
+    header_ts coexist with parts written after. Dropping it does not raise - it SILENTLY
+    loses those columns with the row count still correct, which is why raincheck.eras
+    checks this reader's columns are PRESENT rather than counting rows."""
     d = date.fromisoformat(day)
     tu = root / "archive" / "tu"
     paths = [tu / f"date={x}" for x in (d, d + timedelta(days=1)) if (tu / f"date={x}").exists()]
     if not paths:
         return None
-    # mergeSchema: parts written before the decoder gained trip_delay_s/header_ts coexist
     return (spark.read.option("basePath", str(tu)).option("mergeSchema", "true")
-            .parquet(*(str(p) for p in paths))
+            .parquet(*(str(p) for p in paths)))
+
+
+def tu_rows(root: Path, spark, day: str) -> DataFrame | None:
+    """Stop-level TU predictions for service day D, one row per (trip_id, vehicle_id,
+    stop_id, fetched_at) with `pred` = the predicted arrival epoch. None when no TU
+    Bronze exists (the archive era: nycbuspositions has no stop-level TU rows)."""
+    tu = bronze_tu(root, spark, day)
+    if tu is None:
+        return None
+    return (tu
             .where((F.col("start_date") == day.replace("-", ""))
                    & F.col("arrival_time").isNotNull() & F.col("vehicle_id").isNotNull()
                    & F.col("stop_id").isNotNull())
@@ -453,15 +466,12 @@ def baselines(root: Path, spark, day: str, out: Path, sched) -> None:
           f"{denom or 0} scheduled non-terminal arrivals of matched (trip, vehicle) pairs"
           f"{f' = {cov:.3f}' if cov else ''} [regression bound]", flush=True)
 
-    d = date.fromisoformat(day)
-    tu_paths = [p for x in (d, d + timedelta(days=1))
-                for p in [root / "archive" / "tu" / f"date={x}"] if p.exists()]
-    if not tu_paths:
+    bronze = bronze_tu(root, spark, day)
+    if bronze is None:
         print(f"events {day}: Passage-vs-Prediction agreement n/a (no TU rows; archive era)",
               flush=True)
         return
-    tu = (spark.read.option("basePath", str(root / "archive" / "tu")).option("mergeSchema", "true")
-          .parquet(*(str(p) for p in tu_paths))
+    tu = (bronze
           .where(F.col("start_date") == day.replace("-", ""))
           .where(F.col("arrival_time").isNotNull())
           .withColumn("rk", F.row_number().over(

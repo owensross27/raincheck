@@ -114,11 +114,13 @@ coldpush:  ## one-way push of <root>/archive to the R2 bucket; idempotent, never
 	@echo "coldpush: $${RAINCHECK_ARCHIVE_ROOT:-data}/archive -> s3://$(RAINCHECK_COLD_BUCKET)/archive"
 	@$(COLD) sync "$${RAINCHECK_ARCHIVE_ROOT:-data}/archive" "s3://$(RAINCHECK_COLD_BUCKET)/archive" --no-progress
 
-coldcheck:  ## loud gap check: every local Bronze file present remotely with matching size
-	@$(COLD_READY)
-	@out=$$($(COLD) sync "$${RAINCHECK_ARCHIVE_ROOT:-data}/archive" "s3://$(RAINCHECK_COLD_BUCKET)/archive" --size-only --dryrun); \
-	if [ -n "$$out" ]; then printf '%s\n' "$$out"; echo "coldcheck: GAP - files above are missing or size-mismatched remotely"; exit 1; \
-	else echo "coldcheck: OK - local Bronze fully present remotely"; fi
+# @-silenced like the rest: the credentials are passed through the environment, never argv.
+# The old recipe captured the sync's stdout and never looked at its EXIT STATUS, so a failed
+# listing printed "OK - local Bronze fully present remotely" and exited 0 (orchestration 03).
+coldcheck:  ## every local Bronze object present remotely at the same size -> rows under <root>/checks/ (exit 1 gap, 2 the remote was never listed)
+	@RAINCHECK_COLD_BUCKET=$(RAINCHECK_COLD_BUCKET) RAINCHECK_COLD_ENDPOINT=$(RAINCHECK_COLD_ENDPOINT) \
+	RAINCHECK_COLD_KEY_ID=$(RAINCHECK_COLD_KEY_ID) RAINCHECK_COLD_SECRET=$(RAINCHECK_COLD_SECRET) \
+	$(PY) -m raincheck.cold
 
 # --- ticket 19: cloud capture runner (box scripts live in systemd/ + scripts/) ----
 coldgaps:  ## hour-completeness of one closed UTC day in the bucket (make coldgaps [DATE=YYYY-MM-DD])
@@ -140,6 +142,11 @@ gapcheck:  ## hour-completeness per kind x closed day -> check-result rows under
 
 gapverify:  ## sanity: filled hours vs adjacent archiver hours (rows, key coverage, schema); exit 2 INCONCLUSIVE when a kind has no pair to compare
 	$(PY) -m raincheck.gapfill verify $(if $(FEED),--feed $(FEED))
+
+# --- orchestration ticket 03: Bronze bus schema eras -------------------------------
+.PHONY: eras
+eras:  ## every verified Bronze bus reader still surfaces the era columns -> rows under <root>/checks/ (exit 1 a reader dropped one, 2 no mixed-era day to read)
+	$(PY) -m raincheck.eras
 
 # --- ticket 11: MRMS live precip ---------------------------------------------------
 .PHONY: precip-live
