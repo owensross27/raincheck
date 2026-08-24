@@ -8,7 +8,7 @@ export TZ := UTC
 export RAINCHECK_ARCHIVE_ROOT RAINCHECK_BRONZE_GB TRANSITLAND_API_KEY
 PY := .venv/bin/python
 
-.PHONY: warm ref nbp features picks precip-hourly precip-cell schedule events gold baseline gates slice test topics flood-obs flood-spine flood-coastal precip-flood-era flood-labels flood-matrix flood-fits flood-live
+.PHONY: warm ref nbp features picks precip-hourly precip-cell schedule events gold baseline gates slice test topics flood-obs flood-spine flood-coastal precip-flood-era flood-labels flood-matrix flood-fits flood-exposure flood-live
 
 topics:  ## recreate the two bus topics to spec C - DESTRUCTIVE: drops retained Kafka messages (Bronze keeps the record)
 	$(PY) -m raincheck.topics
@@ -97,6 +97,13 @@ flood-matrix:  ## asset_features x flood_labels x AORC precip -> gold/flood_matr
 # minutes long, and `>` would truncate the last good asset the moment anything raised.
 flood-fits:  ## two L2 logistic fits + 4 baselines + the headline gate -> research/flood-09-fits.{md,json}
 	$(PY) -m raincheck.flood_fits
+
+# --- flood-build ticket 10: the exposure artifact and the coefficient JSON ----------
+# Both flood-09-fits.json and gold/flood_matrix are READS; nothing is refitted or rebuilt.
+# Writes gold/flood_exposure (one row per Unit) AND research/flood-10-coefficients.json,
+# the one file the detector loads. Byte-identical on a rebuild, so re-running is free.
+flood-exposure:  ## flood_matrix x flood-09-fits x flood_coastal -> gold/flood_exposure + the coefficient JSON
+	$(PY) -m raincheck.flood_exposure $(if $(CENSUS),--census)
 
 gates:  ## tier-2 slice acceptance gates: 10-T3, 10-T6 wired; T4/T5 report-only slots
 	$(PY) -m raincheck.gates
