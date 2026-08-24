@@ -279,8 +279,10 @@ anyone the page is shown to; implementer = the agent building a slice.
 - Two fitted models, L2 logistic, pluvial events only, unweighted, lambda by
   inner CV: a pooled POINT model (entrances + bus stops, shared feature vector +
   kind indicator) and a CELL model over cells_scored. Complex score = max over
-  child-entrance scores, which frees the 155 alert-sourced complex-event pairs
-  to be an independent complex-grain validation set. Rejected and staying
+  child-entrance scores, which frees the alert-sourced complex-event pairs
+  to be an independent complex-grain validation set (MEASURED 2026-08-24 by
+  flood 08 against the landed gold/flood_labels: 140 complex labels in all,
+  118 of them on pluvial fit-era events — the drafted 155 is superseded). Rejected and staying
   rejected: GBM, hand-weighted index, a third complex-level fit.
 - Features, frozen pre-fit, Precip source pinned, log1p on precip: point model =
   running max mm_1h in Window, Window total, antecedent mm_24h frozen at Window
