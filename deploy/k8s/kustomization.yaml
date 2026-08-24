@@ -15,6 +15,7 @@ resources:
   - kafka/storageclass.yaml
   - kafka/kafka.yaml
   - kafka/topics-job.yaml
+  - airflow/postgres.yaml
 configMapGenerator:
   - name: raincheck-topics
     namespace: kafka

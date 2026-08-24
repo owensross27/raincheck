@@ -8,7 +8,16 @@ Ticket 07 owns the credential and network rows: every ServiceAccount binds exact
 token Secret and no two share one; no secret material sits in a manifest, an image or a
 plain env literal; no Service of type LoadBalancer or NodePort exists; and no inbound rule
 is sourced from a CIDR beyond the named exceptions - of which there are exactly two, both
-undrawn. Tickets 03/06 extend this same file.
+undrawn. Ticket 06 owns the Airflow rows: the metadata database is a StatefulSet on a
+volume rather than in a pod, nothing installs software at container start, every Airflow
+component reuses ticket 07's one ServiceAccount, task pods go to burst - and the sum of
+everything pinned to the floor still fits the floor's MEASURED allocatable capacity.
+Ticket 03 extends this same file.
+
+The Airflow half reads deploy/airflow/values.yaml directly rather than through the
+kustomize render, because Helm values are not Kubernetes objects. That is the same seam
+deploy/cloud/inbound-allowlist.yaml sits on: a declaration this repo owns, consumed by a
+tool the test does not run.
 
 Skips when kubectl is absent - it is the renderer here, the way the shell tests skip on
 their tools. `--load-restrictor LoadRestrictionsNone` is required and load-bearing: the
@@ -41,13 +50,16 @@ TOPICS_PY = ROOT / "src" / "raincheck" / "topics.py"
 RENDER = ["kubectl", "kustomize", "--load-restrictor", "LoadRestrictionsNone",
           str(ROOT / "deploy" / "k8s")]
 ALLOWLIST = ROOT / "deploy" / "cloud" / "inbound-allowlist.yaml"
+FLOOR_CAPACITY = ROOT / "deploy" / "cloud" / "floor-capacity.yaml"
+AIRFLOW_VALUES = ROOT / "deploy" / "airflow" / "values.yaml"
 AUDIT = ROOT / "scripts" / "inbound-audit.py"
 SG_CAPTURE = Path(__file__).parent / "fixtures" / "ec2_describe_cluster_sgs.json"
 
 # Env names that carry credentials. A manifest may reference them through secretKeyRef or
 # envFrom; a literal `value:` on any of them is a secret in the repo.
 CREDENTIAL_ENV = ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
-                  "RAINCHECK_COLD_KEY_ID", "RAINCHECK_COLD_SECRET", "TRANSITLAND_API_KEY")
+                  "RAINCHECK_COLD_KEY_ID", "RAINCHECK_COLD_SECRET", "TRANSITLAND_API_KEY",
+                  "POSTGRES_PASSWORD")
 
 
 @functools.lru_cache(maxsize=1)
@@ -98,6 +110,75 @@ def containers() -> list[dict]:
 
 def allowlist() -> dict:
     return yaml.safe_load(ALLOWLIST.read_text())
+
+
+def airflow_values() -> dict:
+    return yaml.safe_load(AIRFLOW_VALUES.read_text())
+
+
+def floor_capacity() -> dict:
+    return yaml.safe_load(FLOOR_CAPACITY.read_text())
+
+
+def millicores(q: str | int) -> int:
+    """K8s CPU quantity -> millicores. "500m" -> 500, 1 -> 1000."""
+    q = str(q)
+    return int(q[:-1]) if q.endswith("m") else int(float(q) * 1000)
+
+
+def mib(q: str) -> int:
+    """K8s memory quantity -> MiB. Only the units this repo uses, on purpose: a silent
+    fallthrough on an unexpected suffix is how a Gi gets counted as a Mi."""
+    for suffix, factor in (("Gi", 1024), ("Mi", 1), ("Ki", 1 / 1024)):
+        if str(q).endswith(suffix):
+            return int(float(str(q)[: -len(suffix)]) * factor)
+    raise AssertionError(f"unhandled memory quantity {q!r}")
+
+
+def floor_requests() -> list[tuple[str, int, int]]:
+    """(what, millicores, MiB) for everything this repo pins to the floor NodePool.
+
+    Two shapes, because the floor pin has two spellings: a plain `nodeSelector` on a pod
+    spec, and - for Strimzi's operator-managed pods, which have no nodeSelector field -
+    node affinity on a custom resource that carries its requests at the top level."""
+    out = []
+    for doc in docs():
+        name = doc["metadata"]["name"]
+        for spec in pod_specs(doc):
+            if (spec.get("nodeSelector") or {}).get("raincheck.io/pool") != "floor":
+                continue
+            for c in (spec.get("containers") or []):
+                req = (c.get("resources") or {}).get("requests") or {}
+                assert req.get("cpu") and req.get("memory"), (
+                    f"{name}/{c['name']} is on the floor with no resource request - it is "
+                    "invisible to this sum and to the scheduler's bin packing")
+                out.append((f"{name}/{c['name']}", millicores(req["cpu"]), mib(req["memory"])))
+        if doc["kind"] == "KafkaNodePool":
+            affinity = doc["spec"]["template"]["pod"]["affinity"]["nodeAffinity"]
+            term = affinity["requiredDuringSchedulingIgnoredDuringExecution"]["nodeSelectorTerms"][0]
+            if {"key": "raincheck.io/pool", "operator": "In", "values": ["floor"]} in term["matchExpressions"]:
+                req = doc["spec"]["resources"]["requests"]
+                out.append((name, millicores(req["cpu"]), mib(req["memory"])))
+    return out
+
+
+def airflow_floor_requests() -> list[tuple[str, int, int]]:
+    """Same, for the Helm components. Discovered by walking the values rather than by a
+    hardcoded component list, so adding a component to the floor cannot slip past the
+    capacity sum by not being on someone's list."""
+    out = []
+    for name, block in airflow_values().items():
+        if not isinstance(block, dict) or block.get("enabled") is False:
+            continue
+        if (block.get("nodeSelector") or {}).get("raincheck.io/pool") != "floor":
+            continue
+        for label, sub in [(name, block), (f"{name}/log-groomer", block.get("logGroomerSidecar") or {})]:
+            req = ((sub.get("resources") or {}).get("requests")) or {}
+            if req:
+                out.append((label, millicores(req["cpu"]), mib(req["memory"])))
+        assert (block.get("resources") or {}).get("requests"), (
+            f"Airflow {name} is pinned to the floor with no resource request")
+    return out
 
 
 # --- ticket 02: Kafka on the cluster ----------------------------------------------------
@@ -373,3 +454,141 @@ def test_audit_reads_the_allowlist_it_is_given(tmp_path):
     r = audit(stub_aws(tmp_path, f'cat {SG_CAPTURE}\n'), thin)
     assert r.returncode == 1
     assert "sg-03b1743dee87eb474" in r.stdout
+
+
+# --- ticket 06: the Airflow platform ----------------------------------------------------
+
+def test_run_history_lives_on_a_volume_and_not_in_a_pod():
+    """The ticket's acceptance criterion is "run history survives deleting the scheduler
+    pod", which is a claim about WHERE the metadata database is. A StatefulSet with a
+    volumeClaimTemplate survives it; the chart's bundled postgres (an emptyDir by default,
+    and a subchart kustomize never renders) does not, which is why it is disabled."""
+    sts = next(d for d in kind("StatefulSet") if d["metadata"]["name"] == "airflow-metadata-db")
+    assert sts["spec"]["replicas"] == 1
+    claim = sts["spec"]["volumeClaimTemplates"][0]["spec"]
+    sc = one("StorageClass")
+    assert claim["storageClassName"] == sc["metadata"]["name"], "not the AZ-pinned gp3 class"
+    assert sc["parameters"]["type"] == "gp3"
+    # EBS cannot follow a pod into another AZ, so the pod must be pinned where the volume is
+    assert sts["spec"]["template"]["spec"]["nodeSelector"] == {"raincheck.io/pool": "floor"}
+    assert sc["allowedTopologies"][0]["matchLabelExpressions"][0]["values"] == ["us-east-1f"]
+    assert airflow_values()["postgresql"]["enabled"] is False
+    assert airflow_values()["data"]["metadataSecretName"], "the URI must come from a Secret"
+
+
+def test_the_platform_is_the_shape_the_ticket_specified():
+    """KubernetesExecutor, no triggerer, one web replica. In Airflow 3 the webserver was
+    split into an API server, so the ticket's "one webserver replica" is apiServer here -
+    and `webserver` is the 2.x component, which must stay off rather than render twice."""
+    v = airflow_values()
+    assert v["executor"] == "KubernetesExecutor"
+    assert v["triggerer"]["enabled"] is False, "spec 1: nothing here uses deferrable operators"
+    assert v["apiServer"]["replicas"] == 1
+    assert v["webserver"]["enabled"] is False
+    # Celery's half of the chart costs floor and does nothing under KubernetesExecutor
+    assert v["redis"]["enabled"] is False and v["flower"]["enabled"] is False
+
+
+def test_nothing_installs_software_at_container_start():
+    """A per-start install is a recurring bill: scheduler, api-server and EVERY task pod
+    restart routinely, so `_PIP_ADDITIONAL_REQUIREMENTS` (the chart's own dev-only escape
+    hatch) would be paid thousands of times a month. Setup belongs in an image layer."""
+    body = AIRFLOW_VALUES.read_text()
+    code = "\n".join(l for l in body.splitlines() if not l.lstrip().startswith("#"))
+    assert "_PIP_ADDITIONAL_REQUIREMENTS" not in code
+    for token in ("pip install", "apt-get", "pip3 install"):
+        assert token not in code, f"{token} in the values means a per-start install"
+
+
+def test_every_airflow_image_is_pinned_and_not_repulled():
+    """`latest` is a standing trap here (images are git-sha tags), and imagePullPolicy
+    Always re-pulls on every pod start - which for task pods is every task."""
+    for name, img in airflow_values()["images"].items():
+        assert img.get("tag"), f"images.{name} has no tag"
+        assert img["tag"] != "latest", f"images.{name} is :latest"
+        assert img["pullPolicy"] == "IfNotPresent", f"images.{name} re-pulls on every start"
+    for c in containers():                      # the metadata DB, from the kustomize render
+        assert ":" in c["image"] and not c["image"].endswith(":latest"), c["image"]
+
+
+def test_airflow_reuses_ticket_07s_service_account_and_never_mints_a_second():
+    """One Secret, one ServiceAccount. Every Airflow component runs as the SA that already
+    holds r2-build; a chart-created SA would be a second identity for the same token."""
+    v = airflow_values()
+    bound = {sa["metadata"]["name"]: (sa["metadata"]["annotations"])["raincheck.io/r2-secret"]
+             for sa in kind("ServiceAccount")}
+    for name, block in v.items():
+        if isinstance(block, dict) and isinstance(block.get("serviceAccount"), dict):
+            sa = block["serviceAccount"]
+            assert sa["create"] is False, f"{name} would create a ServiceAccount of its own"
+            assert sa["name"] in bound, f"{name} runs as {sa['name']}, which binds no R2 secret"
+    assert "r2-build" in v["extraEnvFrom"], "the R2 credential never reaches the pods"
+    # cloud 07 measured that nothing in-cluster calls an AWS API. The first pod that does
+    # needs a NEW IAM role, and that is a Ross decision - not a values-file annotation.
+    # Comments are stripped first: the annotation is NAMED in the file's own prose, and a
+    # grep that cannot tell a warning from a setting can never pass (notify 01's lesson).
+    code = "\n".join(l for l in AIRFLOW_VALUES.read_text().splitlines()
+                     if not l.lstrip().startswith("#"))
+    assert "eks.amazonaws.com/role-arn" not in code
+
+
+def test_remote_logging_goes_to_r2_with_no_credential_in_the_config():
+    """Logs off pod disk, and the credential arriving from the environment rather than
+    from an Airflow Connection - a connection URI would put a secret in this file."""
+    log = airflow_values()["config"]["logging"]
+    assert log["remote_logging"] == "True"
+    bucket = {sa["metadata"]["name"]: (sa["metadata"]["annotations"])["raincheck.io/r2-bucket"]
+              for sa in kind("ServiceAccount")}["raincheck-build"]
+    assert log["remote_base_log_folder"].startswith(f"s3://{bucket}/"), (
+        "task logs must land in the bucket the build token is actually scoped to")
+    # empty conn id => the amazon provider falls through to boto3's default chain, which is
+    # what reads AWS_ENDPOINT_URL and the key pair out of Secret r2-build
+    assert log["remote_log_conn_id"] == ""
+    assert airflow_values()["logs"]["persistence"]["enabled"] is False
+
+
+def test_task_pods_land_on_burst_and_never_on_the_floor():
+    """T1's handoff: a build pod without the burst selector lands on the floor and competes
+    with Kafka and the streaming driver. Task pods ARE build pods, and there can be many."""
+    workers = airflow_values()["workers"]
+    # `workers.kubernetes` is the per-executor home; the flat `workers.nodeSelector` still
+    # works but the chart deprecation-warns on it. Accept whichever is set, require one.
+    selector = (workers.get("kubernetes") or {}).get("nodeSelector") or workers.get("nodeSelector")
+    assert selector == {"raincheck.io/pool": "burst"}
+
+
+def test_no_airflow_component_is_reachable_from_outside_the_cluster():
+    """The UI is reached with port-forward. A LoadBalancer here would be the first inbound
+    path into a cluster whose security groups have zero CIDR sources."""
+    v = airflow_values()
+    assert v["apiServer"]["service"]["type"] == "ClusterIP"
+    assert not (v.get("ingress") or {}).get("apiServer", {}).get("enabled")
+
+
+def test_the_floor_workloads_fit_the_declared_floor_capacity():
+    """The ticket's test, and the reason floor-capacity.yaml exists: adding the DAG
+    platform must not evict the pipeline. Allocatable is MEASURED (a t4g.large offers
+    1930m/7069Mi of its 2 vCPU / 8 GiB), and so is what is already on the floor without
+    being declared here - kube-system, Karpenter and the Strimzi operator.
+
+    When this goes red the answer is the third spot node (`maxSize: 3` is in place), taken
+    as a decision against the budget alarm at ~$20.73/mo, never as a silent scale-up."""
+    cap = floor_capacity()["floor"]
+    cpu_cap = cap["nodes"] * cap["allocatable_per_node"]["cpu_millis"]
+    mem_cap = cap["nodes"] * cap["allocatable_per_node"]["memory_mib"]
+
+    items = ([(u["name"], u["cpu_millis"], u["memory_mib"]) for u in floor_capacity()["unmanaged"]]
+             + floor_requests() + airflow_floor_requests())
+    cpu, mem = sum(i[1] for i in items), sum(i[2] for i in items)
+    ledger = "\n".join(f"    {n:38s} {c:>6}m {m:>7}Mi" for n, c, m in items)
+    assert cpu <= cpu_cap and mem <= mem_cap, (
+        f"the floor does not hold what is pinned to it:\n{ledger}\n"
+        f"    {'TOTAL':38s} {cpu:>6}m {mem:>7}Mi  vs {cpu_cap}m / {mem_cap}Mi allocatable")
+
+    # Totals hide the thing that actually fails to schedule: a pod is placed whole, on one
+    # node, so no single container may exceed what one node can ever offer.
+    per_node_cpu = cap["allocatable_per_node"]["cpu_millis"]
+    per_node_mem = cap["allocatable_per_node"]["memory_mib"]
+    for name, c, m in items:
+        assert c <= per_node_cpu and m <= per_node_mem, (
+            f"{name} requests {c}m/{m}Mi, which no single floor node can offer")

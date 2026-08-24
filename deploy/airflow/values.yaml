@@ -1,0 +1,271 @@
+# Cloud ticket 06 - the official Airflow chart's values. PLATFORM ONLY.
+#
+#   helm upgrade --install airflow apache-airflow/airflow --version 1.22.0 \
+#     --namespace raincheck -f deploy/airflow/values.yaml
+#
+# (scripts/airflow-install.sh does that, plus the metadata-DB Secret it depends on.)
+#
+# This file is NOT a kustomize resource - Helm values are not Kubernetes objects, so it
+# sits beside deploy/k8s rather than in it, the same way deploy/cloud/inbound-allowlist.yaml
+# does. tests/test_cluster_manifests.py reads it directly and pins what is expensive or
+# irreversible here; the metadata Postgres it points at IS a kustomize resource
+# (deploy/k8s/airflow/postgres.yaml) precisely so its gp3/floor/1f pins are testable.
+#
+# WHAT THE TICKET ASKED FOR, AND WHERE IT IS:
+#   KubernetesExecutor            -> executor, below
+#   in-cluster Postgres           -> postgresql.enabled false + data.metadataSecretName
+#   no triggerer                  -> triggerer.enabled false
+#   one webserver replica         -> apiServer.replicas 1. In Airflow 3 the webserver was
+#                                    split into an API server; `webserver` is the 2.x
+#                                    component and renders nothing at airflowVersion 3.
+#   task logs to R2               -> config.logging, plus extraEnvFrom -> Secret r2-build
+#
+# AIRFLOW 3, NOT 2, AND WHAT IT COSTS. Chart 1.16.0/Airflow 2.10.5 would have matched the
+# ticket's wording exactly and saved one pod. It is also end-of-life, and the orchestration
+# effort is about to write thirteen tickets' worth of DAGs against whatever is here. The
+# price of 3.x is that the DAG processor is a REQUIRED standalone component rather than a
+# thread inside the scheduler: one more floor pod than T1's requests table has a row for
+# (+200m/512Mi). That is counted in deploy/cloud/floor-capacity.yaml, not absorbed quietly.
+#
+# COST RULES THIS FILE IS UNDER (wave-1 gate sweep). Every image is pinned to a version
+# tag, never `latest`; every pullPolicy is IfNotPresent; and NOTHING pip-installs at
+# container start. `_PIP_ADDITIONAL_REQUIREMENTS` is the chart's own dev-only escape hatch
+# and it would re-run on every scheduler, api-server and TASK pod start - a nightly DAG
+# would pay it thousands of times a month. The base image already carries what remote
+# logging needs (verified in apache/airflow:3.2.2 on arm64: providers-amazon 9.29.0,
+# providers-cncf-kubernetes 10.17.1, boto3 1.43.0). A provider that is genuinely missing
+# goes into the shared sha-tagged image cloud 03 builds - into a layer, once per git sha.
+
+airflowVersion: "3.2.2"
+defaultAirflowRepository: apache/airflow
+defaultAirflowTag: "3.2.2"
+
+executor: "KubernetesExecutor"
+
+images:
+  airflow:
+    repository: apache/airflow
+    tag: "3.2.2"
+    pullPolicy: IfNotPresent
+  # The image task pods run. Same pin today; cloud 03's sha-tagged ECR image replaces
+  # this one line when the repo needs to be inside the task pod.
+  pod_template:
+    repository: apache/airflow
+    tag: "3.2.2"
+    pullPolicy: IfNotPresent
+
+# ---------------------------------------------------------------------------------------
+# Identity. ONE ServiceAccount for every Airflow component, and it is ticket 07's existing
+# `raincheck-build` - the one already bound to the `r2-build` token. Minting a second SA
+# for the same Secret would break the one-Secret-one-SA rule the manifest tests enforce,
+# and would buy nothing: these pods all want exactly the same R2 access.
+#
+# No eks.amazonaws.com/role-arn anywhere. R2 is Cloudflare, so there is no AWS API call to
+# authorise here; cloud 07 measured that nothing in-cluster holds an application IAM role,
+# and adding the first one is a Ross decision, not a values-file edit.
+# ---------------------------------------------------------------------------------------
+serviceAccount: &sa
+  create: false
+  name: raincheck-build
+
+rbac:
+  create: true          # the Role that lets the scheduler create and delete task pods
+  createSCCRoleBinding: false
+
+# ---------------------------------------------------------------------------------------
+# Three signing keys, pre-created by scripts/airflow-install.sh instead of by the chart.
+#
+# THIS IS NOT COSMETIC. Left unset, the chart generates jwt-secret and api-secret-key with
+# `randAlphaNum` on EVERY render - so a plain `helm upgrade` with no changes rotates them,
+# rolls every pod, and invalidates the JWT a RUNNING task pod is holding. Upgrading the
+# platform mid-DAG-run would fail live tasks. Naming pre-created Secrets makes upgrade
+# idempotent, which is what makes "re-run the installer to repair" safe here the way it is
+# for Kafka. (The chart does get fernet right - a pre-install hook - but a
+# `helm uninstall` + reinstall would still roll it and orphan any encrypted Connection, so
+# it is pinned the same way.)
+#
+# The names deliberately differ from the chart's own `airflow-*-key` defaults: these
+# objects are ours, and Helm must not adopt or delete them.
+# ---------------------------------------------------------------------------------------
+jwtSecretName: airflow-jwt
+apiSecretKeySecretName: airflow-api-secret
+fernetKeySecretName: airflow-fernet
+
+# The R2 credential, exactly as ticket 07 shipped it: whole-Secret envFrom, so
+# AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_ENDPOINT_URL / AWS_DEFAULT_REGION land in
+# the environment and boto3's default chain picks them up. `optional: true` is load-bearing
+# and deliberate: the token does not exist yet (it is a Cloudflare dashboard step, filed as
+# a [YOU] item), and without it every Airflow pod would sit in CreateContainerConfigError
+# rather than running. Until the Secret exists, remote log upload fails soft and the task
+# still succeeds - the provider's own `write()` "fails silently and returns False".
+# `kubectl rollout restart` picks the credential up the moment it is minted.
+extraEnvFrom: |
+  - secretRef:
+      name: r2-build
+      optional: true
+
+# ---------------------------------------------------------------------------------------
+# Metadata database: deploy/k8s/airflow/postgres.yaml, not the bundled subchart.
+# ---------------------------------------------------------------------------------------
+postgresql:
+  enabled: false
+data:
+  # Holds the `connection` key (the SQLAlchemy URI). Same Secret the StatefulSet reads its
+  # password from, so the credential exists in exactly one object.
+  metadataSecretName: airflow-metadata-db
+
+# ---------------------------------------------------------------------------------------
+# Task logs to R2. remote_log_conn_id is deliberately EMPTY: the amazon provider documents
+# "if this is None or empty then the default boto3 behaviour is used", so the credential
+# comes from the environment above rather than from an Airflow Connection - which would
+# have meant a connection URI with a secret in it, in a manifest or an env literal.
+# Retention becomes an R2 bucket lifecycle rule instead of pod disk filling up.
+# ---------------------------------------------------------------------------------------
+config:
+  core:
+    # FAB's create-user Job passes the password on the command line (`createUserJob`
+    # defaults to admin/admin in argv). SimpleAuthManager instead generates a password at
+    # api-server start and logs it, so the credential lives where cluster access already
+    # gets you - `kubectl logs` - and nowhere in this repo.
+    auth_manager: airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager
+    simple_auth_manager_users: "admin:admin"      # username:ROLE, not username:password
+  logging:
+    remote_logging: "True"
+    remote_base_log_folder: "s3://raincheck-bronze/airflow-logs"
+    remote_log_conn_id: ""
+    delete_local_logs: "True"
+  kubernetes_executor:
+    # Task pods are deleted when they finish; their logs are already in R2 by then. A pod
+    # that FAILED is kept so it can be described.
+    delete_worker_pods: "True"
+    delete_worker_pods_on_failure: "False"
+
+logs:
+  persistence:
+    enabled: false      # remote logging is the retention story; a 100Gi PVC is not
+
+# DAG delivery belongs to the orchestration effort (orch 04), not to the platform. Neither
+# gitSync nor a DAG PVC is drawn here: whatever it picks - baked into cloud 03's image or
+# synced - is one values edit away, and guessing now would be a wrong guess to unpick.
+dags:
+  persistence:
+    enabled: false
+  gitSync:
+    enabled: false
+
+# ---------------------------------------------------------------------------------------
+# Components. Everything long-running is on the floor and sized against
+# deploy/cloud/floor-capacity.yaml. Everything off is off because it costs floor.
+# ---------------------------------------------------------------------------------------
+scheduler:
+  replicas: 1
+  serviceAccount: *sa
+  nodeSelector:
+    raincheck.io/pool: floor
+  resources:
+    requests:
+      cpu: 500m          # the T1 requests table's "Airflow scheduler" row
+      memory: 1Gi
+    limits:
+      memory: 1Gi
+  # The sidecar that expires this pod's own process logs off the emptyDir. Remote logging
+  # covers TASK logs; these are the scheduler's. Chart default is `resources: {}`, i.e. a
+  # BestEffort container that the floor arithmetic cannot see - so it gets a request.
+  logGroomerSidecar:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
+
+apiServer:
+  replicas: 1            # the ticket's "one webserver replica", under its Airflow 3 name
+  serviceAccount: *sa
+  nodeSelector:
+    raincheck.io/pool: floor
+  service:
+    type: ClusterIP      # never LoadBalancer or NodePort: reach the UI with port-forward
+  resources:
+    requests:
+      cpu: 300m          # the T1 requests table's "Airflow webserver (1 replica)" row
+      memory: 1Gi
+    limits:
+      memory: 1Gi
+
+dagProcessor:
+  enabled: true          # required standalone in Airflow 3; see the note at the top
+  replicas: 1
+  serviceAccount: *sa
+  nodeSelector:
+    raincheck.io/pool: floor
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      memory: 512Mi
+  logGroomerSidecar:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
+
+# `workers` under KubernetesExecutor is not a Deployment - it is the template every task
+# pod is stamped from. BURST, not floor: task pods are build pods, and T1's handoff is
+# explicit that one without `raincheck.io/pool=burst` lands on the floor and competes with
+# Kafka and the streaming driver. These requests are the default for a task that declares
+# nothing; a heavy stage overrides them per-task with executor_config (orchestration's lever).
+# `workers.kubernetes.*`, not `workers.*`: the flat keys still work but the chart warns
+# they are being split per-executor, and the executor we run is the Kubernetes one.
+workers:
+  kubernetes:
+    serviceAccount: *sa
+    nodeSelector:
+      raincheck.io/pool: burst
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        memory: 1Gi
+
+migrateDatabaseJob:
+  enabled: true          # `airflow db migrate`; runs once per install/upgrade
+  serviceAccount: *sa
+  nodeSelector:
+    raincheck.io/pool: floor
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+# --- off, and why ----------------------------------------------------------------------
+triggerer:
+  enabled: false         # spec 1: nothing here uses deferrable operators
+createUserJob:
+  enabled: false         # SimpleAuthManager instead - see config.core above
+  serviceAccount: *sa    # its SA renders even when the Job does not; do not mint a stray one
+webserver:
+  enabled: false         # the Airflow 2 component; apiServer replaces it at 3.x
+statsd:
+  enabled: false         # a metrics sidecar with no metrics sink pointed at it
+redis:
+  enabled: false         # CeleryExecutor only
+flower:
+  enabled: false         # CeleryExecutor only
+pgbouncer:
+  enabled: false         # one scheduler against one Postgres does not need a pooler
+cleanup:
+  enabled: false         # the scheduler already deletes finished task pods, above
+databaseCleanup:
+  enabled: false         # revisit when run history is large enough to measure
+otelCollector:
+  # No `enabled` key on this one - the chart gates the collector on these two, and both
+  # already default false. Named here so "is OTel off?" is answered in this file.
+  tracesEnabled: false
+  metricsEnabled: false
