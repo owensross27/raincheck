@@ -33,3 +33,38 @@ already a catch-up over a bounded window; replaying missed intervals would run t
 - `make eras` (`raincheck.eras`) is a new check and is deliberately **NOT** in
   `daily.STAGES` — adding it there moves daily's printed stage list, which
   `tests/test_daily.py` pins. Its placement is ticket 09's call.
+
+## From orch 04's landing (2026-08-24, branch `orch04-dag-delivery`) — consume, do not rebuild
+
+The delivery seam and the task shape exist and are proved on the cluster. Build the
+nightly out of these; do not write a second way to make a pod.
+
+```python
+from raincheck_stage import make, module, stage_task
+
+stage_task("gapfill", "raincheck-stage", make("gapfill", DATE="2026-08-15"))
+stage_task("gapverify", "raincheck-stage", module("gapfill", "verify"))
+stage_task("events", "raincheck-spark", make("events", DATE=day))
+```
+
+- `stage_task(task_id, shape, command, **kwargs) -> KubernetesPodOperator`. `shape` is
+  `"raincheck-stage"` or `"raincheck-spark"` and there is no third; the whole pod spec —
+  requests, limits, the staging emptyDir, `raincheck.io/pool: burst`, the
+  `raincheck-build` ServiceAccount, the optional `r2-build` envFrom — is READ from
+  `deploy/k8s/raincheck/build.yaml`. **Do not pass `container_resources`,
+  `node_selector`, `resources` or `image`: `tests/test_dag_delivery.py` fails the build if
+  a DAG file names any of them, and so does any capacity literal.**
+- `make(target, **vars)` is `make -C /opt/raincheck <target> VAR=value ...`.
+  `module(name, *args)` is `python -m raincheck.<name> ...`. **Use `module()` for any task
+  that must tell the three check outcomes apart** — GNU make exits 2 for ANY recipe
+  failure, so a module rc of 1 arrives as 2 (orch 03 measured it both ways).
+- DAG files live in `dags/` at the repo root and are baked into `<sha>-airflow`, the
+  second tag `scripts/cloud-image.sh` builds. **A new DAG needs an image build and both
+  pins committed before it exists on the cluster** — there is no git-sync.
+- **A task is TWO burst pods**: the executor's worker (200m/512Mi) plus the operator's
+  stage pod. A task mapped over N days is 2N pods, all on burst, none on the floor.
+- **Node purchase, not task time, is what a short task costs.** Measured on the proof run:
+  95 s to buy the worker's node, 74 s more for the stage pod's, against 87 s of work.
+  `stage_task` already sets `startup_timeout_seconds=900` for this; do not lower it.
+- `raincheck_smoke` (`make warm`, `schedule=None`, unpaused) stays as the platform canary.
+  Trigger it before debugging a nightly failure: if it is green the platform is fine.
