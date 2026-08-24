@@ -56,13 +56,27 @@ THE coefficient JSON exists. It is a READ; there is no second model and nothing 
   (`b"score_version"`); compare against the table you read, not against a remembered value.
   It is sha1 over exactly what can MOVE A PUBLISHED SCORE: the four upstream identities, the
   per-role model constants (`model_id`, `features`, `coef_raw`, `intercept_raw`,
-  `stormwater_base_level`), the reference forcings, `kind_model`, the complex rule and the
-  fallback rule. **Deliberately NOT in it: the flag vocabulary, the assertion scope and the
-  scale band** — a reworded flag must never make the live model tier refuse itself. So: a
-  changed digest always means a changed score, which is what makes refusing on skew honest.
+  `stormwater_base_level`), the reference forcings, `kind_model`, the stormwater level ->
+  coefficient encoding, the kind indicator, the complex rule and the fallback rule.
+  **Deliberately NOT in it: the flag vocabulary, the assertion scope and the scale band** —
+  a reworded flag must never make the live model tier refuse itself. So: a changed digest
+  always means a changed score, which is what makes refusing on skew honest.
+  **Its real limit, stated so you do not over-trust it:** it hashes VALUES, so flood 10's own
+  code (its SQL aggregation, its argmax) rides only as labels — editing that code moves a
+  score without moving the digest. The stamp catches upstream and parameter drift; it is not
+  a checksum of the builder, and the same is true of any `detector_version` you compute the
+  same way.
 - **`stormwater_base_level` is `analyzed-none` and gets NO term.** Use `fe.dummies(kind, cat)`
   rather than rebuilding the dummy coding; it raises on an unknown category, because
-  stormwater is never imputed.
+  stormwater is never imputed. If you would rather read it out of the artifact than import
+  the module, `preprocessing.stormwater_dummy` publishes the level -> coefficient-name map
+  and `preprocessing.kind_indicator` publishes {feature, one_when_kind_is} — neither is
+  derivable from spelling, and a test replays a POINT score and the complex rollup out of
+  the artifact alone to prove they are enough. If you would rather read it out of the artifact than import
+  the module, `preprocessing.stormwater_dummy` publishes the level -> coefficient-name map
+  and `preprocessing.kind_indicator` publishes {feature, one_when_kind_is} — neither is
+  derivable from spelling, and a test replays a POINT score out of the artifact alone to
+  prove they are enough.
 - **The precip terms are log1p.** `reference_forcings` publishes both scales;
   `preprocessing.precip_note` says it in the file. `expm1` before quoting mm, never log1p
   twice — a build-time check refuses a JSON where the two scales disagree.
@@ -77,7 +91,8 @@ THE coefficient JSON exists. It is a READ; there is no second model and nothing 
   the ceiling in a storm, which is exactly why your display value is the current-vector rank.
 - **NO COMPLEX-GRAIN SKILL CLAIM.** `complex_rule` says what it is — max over child entrance
   scores, an aggregate of doorway scores — and the artifact publishes no metric of any grain
-  at all (asserted: no `csi`/`pod`/`far`/`pr_auc`/`tp`/`fp` key anywhere in it). Entrances
+  at all (asserted: no metric FIELD anywhere in it; the one metric it QUOTES, in
+  `complex_rule.evidence`, is that null result stated as the disclaimer). Entrances
   publish no row of their own in `gold/flood_exposure`; only the three Unit kinds do.
 - **`gate.panel_strings` is already selected** by the re-evaluated branch (MODEL). Read it;
   do not re-derive the branch and never re-type the verdict — `flood_fits.gate(summary)` is

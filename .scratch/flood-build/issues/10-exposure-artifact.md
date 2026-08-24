@@ -17,7 +17,7 @@ the score has exactly one artifact chain. Spec: Exposure score (published object
 - [x] DuckDB contract tests: one row per Unit, no NULL scores, percentile bounds, version stamps chain structurally
 
 
-## Close-out (2026-08-24, `make flood-exposure`, +42 tests)
+## Close-out (2026-08-24, `make flood-exposure`, +50 tests)
 
 **Both artifacts exist and rebuild byte-identical.** `gold/flood_exposure/part-00000.parquet`
 (**15,166 rows** = 445 complexes + 13,370 bus stops + 1,351 Cells, sorted by (kind, asset_id),
@@ -62,6 +62,68 @@ detector loads, via `flood_exposure.coefficients()`.
   taking MIN instead of MAX over child entrances · dropping the `no_dem_footprint` reason.
 
 
+## Adversarial review round (same session, before landing) — what it changed
+
+An independent reviewer applied 19 mutants to the module and re-ran all tests each time.
+The scoring maths, the complex rollup and `cume_dist` survived every attack; **seven real
+defects came back and all seven are fixed.** What they were, because each is a shape worth
+recognising rather than a typo:
+
+- **`score_severe >= score_ref` was a COINCIDENCE, not the asserted invariant.** The
+  in-Window assertion says nothing about the net. Measured: the p50 -> p90 shift is a
+  per-Unit CONSTANT summing the in-Window gain and the antecedent, **point +1.1940 and
+  -0.2657 (net +0.9283)**, cell +1.1831 and +0.0262. Strengthen the point antecedent past
+  about **-0.42** with both in-Window coefficients still positive, and every point row ships
+  with a "severe" storm scoring BELOW a median one. Now a separate gate in `_gates`, and the
+  test no longer carries a causal name the code cannot support.
+- **A gate that could not fire.** The Cell drift check summed three `count(DISTINCT ...)`
+  and compared to 3 — but `count(DISTINCT ...)` SKIPS NULLs, so **2 + 1 + 0 also reaches 3**
+  and a drifting column passed while `min()` silently picked the smaller value. Now a TUPLE
+  comparison, matching what the point query always did. Same fix added `kind`/`complex_id` to
+  the point tuple, which were aggregated with `any_value` outside any gate.
+- **The published CDF's interior was unasserted.** Replacing `np.percentile` with
+  `np.linspace(min, max, 101)` — a curve with no relation to the distribution — left the
+  suite green, and under it a Cell at the true median reads as the **24.9th percentile**.
+  Endpoints-and-sorted is not a CDF test. Now every one of the 101 knots is asserted against
+  DuckDB's `quantile_cont`, which also kills the subtler `method="lower"` mutant (the two
+  estimators diverge most in the TAILS — up to 5.0e-2 at p99 — exactly where a sampled check
+  does not look).
+- **`score_version` claimed more than it covered.** `SW_DUMMY` maps a stormwater level to a
+  coefficient name; **permuting it moves every point score**, and `models_of`'s guard is set
+  containment, which a permutation satisfies. The digest did not move. `SW_DUMMY` and the
+  kind indicator are now IN it (score_version is therefore `dda793c2c8c7`, not the
+  `dd8636f9bb70` of the first build), and the docstring now states the real limit: this is a
+  hash of VALUES, so the module's own code rides only as labels — the tests, not the stamp,
+  are what hold the rules.
+- **The loader contract had a gap the replay test could not see.** The artifact made a
+  consumer re-derive `"not-analyzed" -> "sw_not_analyzed"` from spelling, and the one test
+  that replays a published score from the artifact alone used the CELL role — the only one
+  with no dummies, no kind indicator and no rollup. `preprocessing.stormwater_dummy` and a
+  structured `kind_indicator` are now published, and a second test replays the POINT model
+  and the complex rollup out of the artifact alone.
+- **`arg_max` and `max(event_id)` decouple under NULL.** `arg_max(v, e)` skips rows whose
+  VALUE is null; `max(e)` does not. A NULL density on the newest event would score a Cell off
+  an older one while `density_311_3y_as_of` still published the newest date. Zero such Cells
+  today; now gated, and the published as-of date is asserted (swapping it for `min` used to
+  ship silently).
+- **Three defensive gates were decoration** — the NO-NULL/finite check, the matrix-staleness
+  check and the margins-vs-registry universe check could all be deleted with the suite still
+  green. All three now have firing tests.
+
+Two honesty defects in my own prose were also corrected: a test docstring claimed the
+artifact "carries no metric at all" when `complex_rule.evidence` quotes the null result
+(CSI 0.0025) as its disclaimer — the assertion now pins metric FIELDS and pins that the only
+quoted metric lives in that one evidence string; and the `cdf` note claimed to be "the same
+distribution `score_index` reports" when it is the same DATA under a different estimator,
+agreeing to within ~0.6 percentage points rather than exactly.
+
+**MEASURED CORRECTION, repo-wide: "86 St" names SIX complexes, not five** — ids 38, 79,
+158, 311, 397, 476. The 18-total is right and the trap is unchanged in force; only the
+number was wrong, inherited from `flood_matrix.py:82` and repeated in TRAPS and this
+ticket. Corrected here and in TRAPS; the copy in `flood_matrix.py` is flood 08's file and is
+named there for a later session rather than edited mid-wave.
+
+
 ## Inherited from flood 08's build (2026-08-24, `gold/flood_matrix`, commit 9c8b501)
 
 `gold/flood_matrix` EXISTS — `make flood-matrix`, 1,006,123 rows, `matrix_version
@@ -97,7 +159,9 @@ detector loads, via `flood_exposure.coefficients()`.
   excluded). They need a published flag class downstream, never an imputed elevation.
 - **Freeze complexes by `complex_id`, never by station name.** The seven zero-grade_ok
   complexes are `{59: 9 Av, 74: 18 Av, 75: 20 Av, 78: Avenue U, 79: 86 St, 134: Sutter Av,
-  299: Dyckman St}`; a name match returns 18 because "86 St" alone names five complexes.
+  299: Dyckman St}`; a name match returns 18 because "86 St" alone names SIX complexes
+  (MEASURED by flood 10 2026-08-24 — ids 38, 79, 158, 311, 397, 476; the repo-wide "five"
+  was wrong, the 18 total was right).
 - Recorded limit: `precip_identity()` names the built AORC Cell-month partition SET, not
   the pixel bytes — a month rewritten under the same name does not move the stamp.
 

@@ -629,7 +629,8 @@
         ]
       }
     },
-    "note": "the static view: percentile knots of the PUBLISHED score_ref (fallback rows included, exactly as they ship) \u2014 the same distribution score_index reports",
+    "method": "numpy percentile, linear interpolation",
+    "note": "the static view: percentile knots of the PUBLISHED score_ref (fallback rows included, exactly as they ship). It is the same DATA as gold/flood_exposure.score_index but not the same estimator \u2014 score_index is the empirical CDF (# <= x)/n, these knots invert a linearly interpolated quantile, so reading a percentile off them agrees with score_index to within ~0.6 percentage points, not exactly",
     "score": "score_ref"
   },
   "complex_rule": {
@@ -825,7 +826,11 @@
       "log1p_precip_max_mm_1h",
       "log1p_precip_total_mm"
     ],
-    "kind_indicator": "is_bus_stop",
+    "kind_indicator": {
+      "feature": "is_bus_stop",
+      "note": "a complex's child entrances score as entrances, so is_bus_stop is 0 for every doorway behind a complex score",
+      "one_when_kind_is": "bus_stop"
+    },
     "precip_note": "the matrix stores the precip terms ALREADY log1p'd; expm1 before quoting mm and never log1p twice",
     "precip_terms": [
       "log1p_precip_max_mm_1h",
@@ -834,13 +839,18 @@
     ],
     "precip_transform": "log1p",
     "stormwater_base_level": "analyzed-none",
+    "stormwater_dummy": {
+      "deep": "sw_deep",
+      "not-analyzed": "sw_not_analyzed",
+      "nuisance": "sw_nuisance"
+    },
     "stormwater_levels": [
       "analyzed-none",
       "deep",
       "not-analyzed",
       "nuisance"
     ],
-    "stormwater_note": "dummy-coded against the base level, which gets NO term"
+    "stormwater_note": "dummy-coded against the base level, which gets NO term; stormwater_dummy is the level -> coefficient-name map, published so no consumer has to re-derive it from spelling"
   },
   "reference_forcings": {
     "cell": {
@@ -909,6 +919,6 @@
     "kind": "linear predictor (eta) on the raw feature scale",
     "note": "probabilities live in the validation tables only; the live display value is a within-kind rank, and the score_ref CDF below is the STATIC view for dormant weather only"
   },
-  "score_version": "dd8636f9bb7090379fb5891cb5a3a9e37292aed8",
+  "score_version": "dda793c2c8c7fb7bb27438e4dce16a120354a3aa",
   "table": "gold/flood_exposure"
 }

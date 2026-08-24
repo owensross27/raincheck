@@ -72,6 +72,15 @@ def one(rel, sql):
     return rel.query("t", sql).fetchall()
 
 
+def _row(**over) -> dict:
+    """One well-formed exposure row, for driving `_gates` directly. The build's raise sites
+    are the contract; a gate nothing exercises is decoration."""
+    return {"asset_id": "bus:1", "kind": "bus_stop", "model_id": "point:l2_logistic",
+            "score_ref": -5.0, "score_severe": -4.0, "score_index": 0.5,
+            "surge_margin_ft": None, "flags": [], "score_version": "v",
+            "matrix_version": "m", "fits_version": "f", **over}
+
+
 # ---- seam 2: the pure rules ----------------------------------------------------------
 
 MODEL = {"model_id": "toy", "intercept_raw": -1.0, "coef_raw": {"a": 2.0, "b": -0.5}}
@@ -142,6 +151,20 @@ def test_the_cdf_knots_span_the_whole_kind():
     assert k["percentile"][0] == 0.0 and k["percentile"][-1] == 100.0
     assert k["score_ref"][0] == 0.0 and k["score_ref"][-1] == 100.0
     assert k["score_ref"] == sorted(k["score_ref"])
+
+
+def test_the_cdf_knots_track_the_DISTRIBUTION_not_just_its_endpoints():
+    """A ramp is the one input on which every quantile rule agrees, so endpoints-and-sorted
+    would pass over a curve with no relation to the data. Pinned on a SKEWED sample, where a
+    linear interpolation between min and max is nowhere near the true quantiles."""
+    vals = [0.0] * 90 + [100.0] * 10               # p50 = 0, p95 = 100, mean nothing like it
+    k = fe.cdf_knots(vals)
+    at = dict(zip(k["percentile"], k["score_ref"]))
+    assert at[50.0] == pytest.approx(0.0)
+    assert at[95.0] == pytest.approx(100.0)
+    assert at[89.0] == pytest.approx(0.0)
+    naive = np.linspace(min(vals), max(vals), 101)  # the shape that used to pass
+    assert abs(at[50.0] - naive[50]) > 40
 
 
 # ---- seam 2: the gate is re-evaluated, never re-typed ---------------------------------
@@ -318,9 +341,31 @@ def test_score_index_is_the_within_kind_cdf_of_score_ref(built, exposure):
                          "FROM t GROUP BY kind) WHERE mx <> 1.0") == [(0,)]
 
 
-def test_severe_is_never_below_ref_because_both_in_window_terms_are_non_negative(
-        built, exposure):
+def test_severe_is_never_below_ref(built, exposure):
     assert one(exposure, "SELECT count(*) FROM t WHERE score_severe < score_ref") == [(0,)]
+
+
+def test_the_severe_ordering_is_a_NET_and_the_build_gates_it_separately(fits):
+    """It is NOT implied by the in-Window assertion, which is why `_gates` checks it on its
+    own. The p50 -> p90 shift is a per-Unit CONSTANT summing the in-Window gain and the
+    antecedent term: measured on the published fits, point +1.1940 and -0.2657 (net
+    +0.9283), cell +1.1831 and +0.0262. Strengthen the point antecedent past about -0.42
+    with both in-Window coefficients still positive and every point row ships backwards."""
+    shift = {}
+    for role in ("point", "cell"):
+        c = fits["final"][role]["coef_raw"]
+        p = fits["final"][role]["precip_percentiles_log1p"]
+        shift[role] = sum(c[t] * (p[t]["p90"] - p[t]["p50"]) for t in ff.PRECIP)
+    assert shift["point"] == pytest.approx(0.9283, abs=5e-4)
+    assert shift["cell"] == pytest.approx(1.2092, abs=5e-4)
+
+    c = fits["final"]["point"]["coef_raw"]
+    p = fits["final"]["point"]["precip_percentiles_log1p"]
+    ant = "log1p_antecedent_mm_24h"
+    assert c[ant] * (p[ant]["p90"] - p[ant]["p50"]) < 0     # it SUBTRACTS at point grain
+
+    with pytest.raises(RuntimeError, match="score LOWER at the severe"):
+        fe._gates([_row(score_ref=1.0, score_severe=0.5)], {}, None)
 
 
 def test_a_complex_score_is_the_max_over_its_child_entrance_scores(built, con, exposure):
@@ -491,6 +536,43 @@ def test_the_artifact_alone_reproduces_a_published_score(built, con, exposure):
         assert published[aid] == pytest.approx(replayed, abs=1e-12), aid
 
 
+def test_the_artifact_alone_reproduces_a_POINT_score_including_the_dummies(
+        built, con, exposure):
+    """The role the previous test cannot exercise. A Cell has no dummies, no kind indicator
+    and no rollup; the POINT model needs all three, and every one of them has to be readable
+    OUT OF THE ARTIFACT — `stormwater_dummy` maps the level to its coefficient name, and
+    `kind_indicator` says which kind reads 1. Replayed for bus stops AND for the complex
+    rollup, whose doorways score as entrances (is_bus_stop = 0)."""
+    root, out, _, _, _ = built
+    art = fe.coefficients(out)
+    model, pre = art["models"]["point"], art["preprocessing"]
+    ref = art["reference_forcings"]["point"]["score_ref"]["log1p"]
+    ind = pre["kind_indicator"]
+
+    def replay(kind, elev, relief, cat):
+        feats = {"elev_ft": elev, "relief_ft": relief, **ref,
+                 ind["feature"]: float(kind == ind["one_when_kind_is"]),
+                 **{col: float(cat == level) for level, col in pre["stormwater_dummy"].items()}}
+        return model["intercept_raw"] + sum(model["coef_raw"][k] * feats[k] for k in model["coef_raw"])
+
+    rows = duck.table(con, root / "gold" / "flood_matrix").query("t", """
+        SELECT asset_id, any_value(kind) k, any_value(complex_id) cx, min(elev_ft) e,
+               min(relief_ft) r, min(stormwater_cat) c
+          FROM t WHERE role = 'fit_point' GROUP BY asset_id""").fetchall()
+    published = dict(one(exposure, "SELECT asset_id, score_ref FROM t"))
+    by_complex, stops = {}, 0
+    for aid, kind, cx, e, r, c in rows:
+        s = replay(kind, e, r, c)
+        if kind == "bus_stop":
+            assert published[aid] == pytest.approx(s, abs=1e-12), aid
+            stops += 1
+        else:
+            by_complex[cx] = max(by_complex.get(cx, s), s)
+    assert stops > 0 and by_complex
+    for cx, s in by_complex.items():
+        assert published[f"stn:{cx}"] == pytest.approx(s, abs=1e-12), cx
+
+
 def test_the_artifact_publishes_per_kind_cdfs_that_match_the_table(built, exposure):
     _, out, _, _, _ = built
     art = fe.coefficients(out)
@@ -501,19 +583,58 @@ def test_the_artifact_publishes_per_kind_cdfs_that_match_the_table(built, exposu
         assert knots["score_ref"][0] == pytest.approx(lo)
         assert knots["score_ref"][-1] == pytest.approx(hi)
         assert knots["score_ref"] == sorted(knots["score_ref"])
+        # EVERY knot, against DuckDB's own continuous quantile. Endpoints alone would accept
+        # a straight line from min to max (a curve about nothing), and a handful of interior
+        # points would still accept a different quantile convention — the two estimators
+        # diverge most in the TAILS, where a sampled check is least likely to look.
+        qs = ", ".join(str(p / 100) for p in knots["percentile"])
+        (want,) = one(exposure, f"SELECT quantile_cont(score_ref, [{qs}]) "
+                                f"FROM t WHERE kind = '{kind}'")[0]
+        assert len(want) == len(knots["score_ref"])
+        for pct, got, exp in zip(knots["percentile"], knots["score_ref"], want):
+            assert got == pytest.approx(exp, abs=1e-9), (kind, pct)
 
 
 def test_the_artifact_makes_no_skill_claim_of_any_grain(built):
-    """The complex score is an AGGREGATE OF DOORWAY SCORES. The independent complex-grain
-    set caught 1 of 118 positives, so no artifact may carry a complex-grain performance
-    number — and the cleanest guarantee is that this one carries no metric at all."""
+    """The complex score is an AGGREGATE OF DOORWAY SCORES. The independent complex-grain set
+    caught 1 of 118 positives, so no artifact may carry a complex-grain PERFORMANCE claim.
+
+    What is asserted: the artifact exposes no metric FIELD, so nothing downstream can read a
+    number out of it and present it as skill. It does quote CSI 0.0025 / PR-AUC 0.0057 once,
+    in `complex_rule.evidence` — as prose, and as the null result that refutes the claim.
+    That is the disclaimer, not a leak, so the assertion is about keys and about where the
+    only numbers are allowed to live."""
     _, out, _, _, _ = built
     art = fe.coefficients(out)
     assert art["complex_rule"]["rule"] == "max over child entrance scores"
     assert "never measured complex-grain skill" in art["complex_rule"]["claim"]
-    blob = json.dumps(art).lower()
-    for metric in ('"csi"', '"pod"', '"far"', '"pr_auc"', '"tp"', '"fp"'):
-        assert metric not in blob, f"the coefficient artifact must publish no {metric}"
+
+    def fields(o, path=""):
+        if isinstance(o, dict):
+            for k, v in o.items():
+                yield f"{path}.{k}"
+                yield from fields(v, f"{path}.{k}")
+        elif isinstance(o, list):
+            for v in o:
+                yield from fields(v, path)
+
+    metric = ("csi", "pod", "far", "pr_auc", "auc", "tp", "fp", "fn", "precision", "recall",
+              "base_rate", "alert_rate")
+    leaked = [f for f in fields(art) if f.rsplit(".", 1)[-1].lower() in metric]
+    assert not leaked, f"the coefficient artifact must publish no metric field: {leaked}"
+    # and the one place a metric may be QUOTED is the null result, in prose
+    quoted = [f for f in fields(art)
+              if isinstance(_at(art, f), str) and "CSI" in _at(art, f)]
+    assert quoted == [".complex_rule.evidence"], quoted
+    assert "caught 1 of 118" in art["complex_rule"]["evidence"]
+
+
+def _at(o, path):
+    for part in path.lstrip(".").split("."):
+        o = o[part] if isinstance(o, dict) and part in o else None
+        if o is None:
+            return None
+    return o
 
 
 def test_the_artifact_says_the_score_is_not_a_probability(built):
@@ -542,7 +663,7 @@ def test_the_committed_artifact_still_matches_the_landed_matrix():
 
 
 def test_the_seven_zero_grade_ok_complexes_are_frozen_by_id_not_by_name():
-    """KNOWN TRAP: complex NAMES are not unique — "86 St" alone names five complexes, so a
+    """KNOWN TRAP: complex NAMES are not unique — "86 St" alone names SIX complexes, so a
     name-keyed gate reports 18 and asserts nothing. The frozen set is keyed on complex_id;
     the name rides beside it only as the drift canary. Asserted over the SHIPPED table."""
     root = data_root()
@@ -588,6 +709,63 @@ def test_the_frozen_gates_actually_fire(built, tmp_path):
     with pytest.raises(RuntimeError, match="out-of-DEM stops"):
         fe.build(root, expect={**ok, "out_of_footprint": 999}, fits=local,
                  out=tmp_path / "d.json")
+
+
+def test_the_defensive_gates_fire_too(built):
+    """The raise sites `test_the_frozen_gates_actually_fire` cannot reach through build(),
+    driven directly. Each one is the last thing standing between a plausible-looking number
+    and the published table."""
+    with pytest.raises(RuntimeError, match="NO NULL scores"):
+        fe._gates([_row(score_ref=None)], {}, None)
+    with pytest.raises(RuntimeError, match="NO NULL scores"):
+        fe._gates([_row(score_severe=float("nan"))], {}, None)
+    with pytest.raises(RuntimeError, match="one row per Unit"):
+        fe._gates([_row(), _row()], {}, None)
+    with pytest.raises(RuntimeError, match="outside the published vocabulary"):
+        fe._gates([_row(flags=["invented_reason"])], {}, None)
+
+
+def test_a_stale_matrix_is_refused_rather_than_scored(built, monkeypatch):
+    """`_identities` reconciles the matrix's own footer stamp against a recomputation from
+    label/features/precip. A matrix that no longer matches the inputs under it would poison
+    every score silently, so the mismatch has to stop the build, not warn."""
+    root, _, local, _, _ = built
+    monkeypatch.setattr(fe.fm, "matrix_version", lambda *a, **k: "0" * 40)
+    with pytest.raises(RuntimeError, match="rebuild it"):
+        fe._identities(root, local, root / "gold" / "flood_matrix")
+
+
+def test_a_disagreeing_unit_universe_stops_the_build(built, tmp_path, monkeypatch):
+    """`flood_coastal.unit_margins()` and the registry derive the Unit set independently.
+    They must not drift: a margin table missing a Unit would otherwise KeyError deep in the
+    row loop, or worse, quietly publish a different universe than ticket 07 measured."""
+    root, _, local, _, _ = built
+    real = fe.fc.unit_margins
+    monkeypatch.setattr(fe.fc, "unit_margins", lambda r: real(r)[:-1])
+    with pytest.raises(RuntimeError, match="disagree about"):
+        fe.build(root, expect=None, fits=local, out=tmp_path / "c.json")
+
+
+def test_the_published_density_as_of_is_the_newest_fit_era_event(built, con):
+    """`arg_max` picks the density and `max(event_id)` names the date; a mutant that swapped
+    the date for the OLDEST event would otherwise ship silently, because nothing else in the
+    artifact mentions it."""
+    root, out, _, _, _ = built
+    (want,) = duck.table(con, root / "gold" / "flood_matrix").query(
+        "t", "SELECT max(event_id) FROM t WHERE role = 'fit_cell'").fetchall()[0]
+    assert fe.coefficients(out)["preprocessing"]["density_311_3y_as_of"] == want
+
+
+def test_a_null_311_density_is_refused_rather_than_dated_wrongly(built, con):
+    """`arg_max(v, e)` SKIPS rows whose value is NULL while `max(e)` does not, so a NULL
+    density on the newest event would score the Cell off an older one while the artifact
+    still published the newest date. Measured 0 on this matrix; gated so it stays 0."""
+    root = built[0]
+    (nulls,) = duck.table(con, root / "gold" / "flood_matrix").query(
+        "t", "SELECT count(*) FROM t WHERE role='fit_cell' AND density_311_3y IS NULL"
+    ).fetchall()[0]
+    assert nulls == 0
+    assert "n_null_density" in fe.CELL_SQL
 
 
 def test_fits_measured_on_a_different_matrix_are_refused(  # noqa: F811
