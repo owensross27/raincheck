@@ -8,7 +8,7 @@ export TZ := UTC
 export RAINCHECK_ARCHIVE_ROOT RAINCHECK_BRONZE_GB TRANSITLAND_API_KEY
 PY := .venv/bin/python
 
-.PHONY: warm ref nbp features picks precip-hourly precip-cell schedule events gold baseline gates slice test topics flood-obs flood-spine flood-coastal precip-flood-era flood-labels flood-live
+.PHONY: warm ref nbp features picks precip-hourly precip-cell schedule events gold baseline gates slice test topics flood-obs flood-spine flood-coastal precip-flood-era flood-labels flood-matrix flood-live
 
 topics:  ## recreate the two bus topics to spec C - DESTRUCTIVE: drops retained Kafka messages (Bronze keeps the record)
 	$(PY) -m raincheck.topics
@@ -83,6 +83,13 @@ flood-labels:  ## flood_obs x ref/assets x the spine -> gold/flood_labels (make 
 # disk-checked before it starts and writes a receipt naming the path it took.
 precip-flood-era:  ## AORC precip for every fit-era union-event Window (make precip-flood-era [DRY_RUN=1])
 	$(PY) -m raincheck.precip_flood_era $(if $(DRY_RUN),--dry-run)
+
+# --- flood-build ticket 08: the training table -------------------------------------
+# The (Unit, event) design matrix both fits read. PLUVIAL fit-era events only; positives
+# come from gold/flood_labels and the negatives are the read-side anti-join, so the fit
+# step is a read and not a judgment call. Needs 03 (features), 05 (labels) and 06 (precip).
+flood-matrix:  ## asset_features x flood_labels x AORC precip -> gold/flood_matrix (make flood-matrix [CENSUS=1])
+	$(PY) -m raincheck.flood_matrix $(if $(CENSUS),--census)
 
 gates:  ## tier-2 slice acceptance gates: 10-T3, 10-T6 wired; T4/T5 report-only slots
 	$(PY) -m raincheck.gates
