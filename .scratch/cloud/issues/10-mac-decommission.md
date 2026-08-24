@@ -37,3 +37,30 @@ has kept a data-loss bug green in this repo before.
 
 The cutover gates themselves are **evidence, not tests**, and are not claimed as test
 coverage.
+
+## Forward context from cloud 12 (2026-08-24, `cloud12-data-root-r2`)
+
+**The paths precondition is HALF closed - read the halves before starting the checklist.**
+
+CLOSED: `paths.data_root()` can now hold an object-store root (`s3a://raincheck-bronze`),
+and no root-derived check lies about it. Read-only stages run against the real bucket from
+the Mac today - `eras.duck_columns` read a Bronze partition's schema through an R2 root,
+`duck.table` counted 5,597,465 rows in it, `daily.gaps()` answered from the STORE, and
+every POSIX operation refused with `NotImplementedError` instead of answering about local
+disk. Pinned, mutation-checked, in `tests/test_paths.py`.
+
+**STILL OPEN, and it is this ticket's actual precondition: WRITES.** A build pod pointed at
+an R2 root now fails loudly at its first `mkdir` rather than writing an emptyDir - honest,
+but not writing to R2 either. `raincheck-stage` / `raincheck-spark` therefore still write
+`/staging` (emptyDir), so **"a Mac retired while builds write ephemeral staging loses every
+build" is still true.** Closing it needs a ticket that changes the WRITERS
+(`events.one_file`'s `mkdir` + `shutil.move` + `rmtree`, and the Spark write path), which
+cloud 12 was explicitly barred from doing (no stage-module forks). Do not read cloud 12's
+RUN LOG entry as clearance for this ticket's checklist.
+
+**`ref/` archival:** cloud 12 decided and implemented the delivery mechanism (a `refpull`
+initContainer pulling from the private bucket - never baked into a git-sha-tagged image),
+so the remaining step is the [YOU] one-liner that puts `ref/` in the bucket:
+`aws s3 sync data/ref s3://raincheck-bronze/ref --endpoint-url "$RAINCHECK_COLD_ENDPOINT"`.
+Until that runs, `ref/` still exists only on the Mac and retiring it still deletes the
+project.

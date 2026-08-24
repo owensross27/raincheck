@@ -139,3 +139,25 @@ the floor. Against cloud 06's measurement (1110m free, largest single free block
 the Deployment fits the 690m block and leaves 590m; the CronJob fits alongside. Neither
 changes the nature of the RED that cloud 06 found - cloud 03's 1000m `raincheck-stream`
 never fit in 690m - but both make it tighter, and that decision is Ross's.
+
+## Forward context from cloud 12 (2026-08-24, `cloud12-data-root-r2`)
+
+**`ref/` now reaches these pods, and the mechanism is settled: a PULL, never a bake.**
+`precip-live` and `raincheck-stream` each gained a `refpull` **initContainer** running
+`python -m raincheck.refpull` into the SAME `<root>/ref` the Mac uses (see
+`.scratch/cloud/issues/12-data-root-r2.md`, "ref/ delivery"). It pulls only the ~4 MB a pod
+reads and skips `ref/src` (23 of the 27 MB of GTFS sources). It is DARK until [YOU] copies
+`ref/` into `raincheck-bronze` and mints `r2-build`, and it fails at the init step, loudly,
+rather than as a `FileNotFoundError` mid-tick.
+
+`raincheck-live` deliberately did NOT get one: it carries the SERVE token by design, and
+`live_loop` already treats a missing `ref/assets` as a thinner panel rather than a stop.
+`test_every_posix_rooted_pod_pulls_ref_before_it_starts` pins both halves of that.
+
+**But the emptyDir story does NOT change, and the 25x cold-start multiplier stands.**
+Cloud 12 shipped an R2 root that READS honestly; **writes to an object-store root refuse
+loudly** (`mkdir`/`replace`/`write_*` raise `NotImplementedError`), because forking stage
+modules was barred and every writer here is POSIX-shaped. So `live/`-on-R2 is still not
+available to this ticket, for `precip_live` (which was always doubly blocked) *and* for the
+others. That needs a follow-on that changes the WRITERS - it is not a `paths.py` question
+any more.
