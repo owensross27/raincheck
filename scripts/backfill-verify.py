@@ -13,11 +13,26 @@ Usage: backfill-verify.py <LO> <HI> [--feeds vp,tu,alerts]
 Exit 0 complete, 1 real gaps, 2 INCONCLUSIVE (the remote listing itself failed).
 2 is deliberately distinct from 1: a listing that did not run tells you nothing
 about the data, and reporting that as a gap sends someone hunting a phantom.
+
+The census now emits raincheck.checks rows (orchestration 03) - one per feed, ALWAYS,
+so a suite expects on the batch's shape and not on what happened to run - persisted
+under <data root>/checks/check=backfill/. The exit codes above are unchanged; they are
+now checks.rc's rendering of the batch, which means a feed with real gaps beside a feed
+whose listing failed exits 1, not 2 (a known hole outranks a not-run check, and the
+early return that used to abort the remaining feeds hid both). This tool stays the
+BACKFILL era's own: its DEAD list below is not gapfill.DEAD and never merges with it.
 """
 import os
 import subprocess
 import sys
 from datetime import date, timedelta
+
+from raincheck import checks
+from raincheck.paths import data_root
+
+CHECK = "backfill"
+CHECK_COLUMNS = checks.CORE + ("feed", "lo", "hi", "hours_seen", "hours_want", "dead",
+                               "missing", "no_part", "no_marker", "zero_byte", "stale_dead")
 
 FEEDS = ("vp", "tu", "alerts")
 # Hours gtfsrt.io itself never stored, confirmed by probing the source for zero snapshots.
@@ -57,7 +72,7 @@ def days(lo: str, hi: str):
 def census(bucket: str, endpoint: str, feed: str, lo: str, hi: str):
     """-> {(day, hour): {"part": n, "marker": n}} for the range, from one remote listing."""
     out = subprocess.run(
-        ["aws", "s3", "ls", f"s3://{bucket}/archive/{feed}/",
+        [os.environ.get("RAINCHECK_AWS", "aws"), "s3", "ls", f"s3://{bucket}/archive/{feed}/",
          "--endpoint-url", endpoint, "--recursive"],
         capture_output=True, text=True, check=True).stdout
     seen: dict[tuple[str, str], dict[str, int]] = {}
@@ -96,16 +111,22 @@ def main() -> int:
         feeds = tuple(sys.argv[sys.argv.index("--feeds") + 1].split(","))
     bucket, endpoint = os.environ["RAINCHECK_COLD_BUCKET"], os.environ["RAINCHECK_COLD_ENDPOINT"]
     want = [(d, f"{h:02d}") for d in days(lo, hi) for h in range(24)]
-    bad = 0
+    rows = []
     for feed in feeds:
+        base = {"feed": feed, "lo": lo, "hi": hi, "hours_seen": None, "hours_want": len(want),
+                "dead": None, "missing": None, "no_part": None, "no_marker": None,
+                "zero_byte": None, "stale_dead": None}
         try:
             seen = census(bucket, endpoint, feed, lo, hi)
         except subprocess.CalledProcessError as e:
             # The listing failed, so this run proves NOTHING about the range - it is
             # not evidence of a gap. Same rule as the prune: no listing, no verdict.
+            # Every other feed is still censused: aborting here hid whatever they hold.
             print(f"INCONCLUSIVE {feed}: remote listing failed (exit {e.returncode}). "
                   f"NOT a data gap - re-run before drawing any conclusion.")
-            return 2
+            rows.append(checks.Row(CHECK, feed, checks.INCONCLUSIVE,
+                                   f"remote listing failed (exit {e.returncode})", base))
+            continue
         dead = {(d, h) for (k, d), hs in DEAD.items()
                 if k == feed and lo <= d <= hi for h in hs}
         missing = [s for s in want if s not in seen and s not in dead]
@@ -113,24 +134,30 @@ def main() -> int:
         no_mark = [s for s, r in seen.items() if r["marker"] == 0]
         empty = [s for s, r in seen.items() if r["part"] > 0 and r["bytes"] == 0]
         stale = sorted(s for s in dead if s in seen)
-        ok = not (missing or no_part or no_mark or empty)
-        bad += not ok
+        ok = not (missing or no_part or no_mark or empty or stale)
         print(f"{'OK ' if ok else 'BAD'} {feed:7s} {len(seen)}/{len(want)} hours"
               f"{f' (+{len(dead)} dead at source)' if dead else ''}"
               f"  parts_missing={len(no_part)} markers_missing={len(no_mark)}"
               f" zero_byte_parts={len(empty)}")
-        for label, rows in (("missing", missing), ("no part", no_part),
-                            ("no marker", no_mark), ("zero-byte part", empty)):
-            if rows:
-                head = ", ".join(f"{d} h{h}" for d, h in sorted(rows)[:8])
-                print(f"     {label}: {head}{' ...' if len(rows) > 8 else ''}")
+        for label, bad_rows in (("missing", missing), ("no part", no_part),
+                                ("no marker", no_mark), ("zero-byte part", empty)):
+            if bad_rows:
+                head = ", ".join(f"{d} h{h}" for d, h in sorted(bad_rows)[:8])
+                print(f"     {label}: {head}{' ...' if len(bad_rows) > 8 else ''}")
         if stale:
             # Mirrors gapcheck's stale-DEAD note: a listed hour that turns up means the
             # allowlist is wrong, and a wrong allowlist hides real gaps.
             print(f"     STALE DEAD ENTRY - hour(s) present after all: {stale}")
-            bad += 1
-    print("backfill-verify:", "OK - range complete in R2" if not bad else "GAPS - see above")
-    return 1 if bad else 0
+        rows.append(checks.Row(
+            CHECK, feed, checks.OK if ok else checks.FAIL, "",
+            base | {"hours_seen": len(seen), "dead": len(dead), "missing": len(missing),
+                    "no_part": len(no_part), "no_marker": len(no_mark),
+                    "zero_byte": len(empty), "stale_dead": len(stale)}))
+    rc = checks.rc(rows)
+    print("backfill-verify:", {0: "OK - range complete in R2", 1: "GAPS - see above",
+                               2: "INCONCLUSIVE - the remote was never listed; NOT a gap"}[rc])
+    checks.write(data_root(), CHECK, rows, CHECK_COLUMNS)
+    return rc
 
 
 if __name__ == "__main__":

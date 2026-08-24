@@ -178,8 +178,12 @@ delay, headway-by-direction, and prediction-lag features.
 
 The 7-year nycbuspositions backfill is a separate fixed 12-col shape (nbp converter)
 and is not part of this drift. Verified safe readers: duck.table (union_by_name,
-143a00a, vp era tests), events.tu_rows/baselines (mergeSchema). Both read paths now
-carry TU era tests too (b05b8d8), so the drift is covered end to end.
+143a00a, vp era tests), events.bronze_vp and events.bronze_tu (mergeSchema — the
+latter is the one read behind tu_rows AND baselines). Both read paths now carry TU era
+tests too (b05b8d8), so the drift is covered end to end, and `make eras`
+(raincheck.eras, orchestration 03) re-asserts column PRESENCE through those same
+readers every run: it reads the newest date dir whose parts disagree, and says
+INCONCLUSIVE rather than ok when no such day exists.
 
 **A new reader that forgets this fails SILENTLY, not loudly** (measured 2026-08-23,
 both engines). Spark without `mergeSchema` never raises — it takes one file's schema
