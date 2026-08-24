@@ -202,3 +202,9 @@ nothing we run. The map is done when nothing is left to decide before
   cluster. The $100 envelope did not survive measurement — control plane $73, public
   IPv4 $3.65/node/mo, floor $34 — so Ross raised it to the $130 hard-look line spec §8
   already named. Details and the corrected arithmetic: `issues/01-eks-cluster.md`.
+- **Tickets published 2026-08-23** — `issues/01`-`issues/11`. Numbering follows the
+  spec's Implementation Decisions (ticket NN = spec §NN) except `11-raincheck-parity`,
+  cut separately because tickets 03, 04 and 10 all block on that one module and burying
+  it inside 03 would have hidden the dependency. Ticket 08's budget-alarm half was
+  executed inside 01; 08 keeps the monthly review and the downscale path.
+  Frontier after 01: **02, 07, 08, 11** are unblocked (11 first — it needs no cluster).
