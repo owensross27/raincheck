@@ -55,7 +55,7 @@ not copied.
 | Workload | Ticket | CPU req | Mem req | Notes |
 |---|---|---|---|---|
 | Kafka broker (Strimzi KRaft, combined) | T2 | 500m | 1.5Gi | 1Gi heap + off-heap; ~0.5 GB/day is one-broker traffic |
-| Spark streaming driver | T3 | 1000m | 2Gi | *measure* — replaces `local[6]`/3g |
+| Spark streaming driver | T3 | 1000m | 2Gi | **measured** 2026-08-24 (T3): pod RSS = driver heap + ~0.93 GiB, so this row holds only with `RAINCHECK_SPARK_DRIVER_MEM=1g`, not the Mac's 3 g |
 | Airflow scheduler | T6 | 500m | 1Gi | |
 | Airflow webserver (1 replica) | T6 | 300m | 1Gi | no triggerer (spec §1) |
 | Airflow metadata Postgres | T6 | 250m | 512Mi | |
@@ -63,6 +63,14 @@ not copied.
 | precip-live CronJob (300 s tick) | T5 | 500m | 1Gi | burst, not steady |
 | kube-system + Karpenter + EBS CSI | T1 | 600m | 1Gi | coredns x2, aws-node, kube-proxy |
 | **Floor total** | | **3.85 vCPU** | **~8.5Gi** | excludes per-day build pods (Karpenter burst) |
+
+The Spark driver row is no longer a placeholder — T3 measured it on the cluster
+(2026-08-24). Two facts that row does not fit: pod RSS tracks the **driver heap plus about
+0.93 GiB**, so `RAINCHECK_SPARK_DRIVER_MEM` is what sizes it; and an events-shaped batch ran
+in the same wall time on a 1 g heap as on 2 g, so the heap was never the throughput knob.
+Per-day build pods on burst take 1500m / 3Gi (2 g heap). Also measured, and relevant to
+anything that plans to burst onto one: **the `burst` NodePool cannot provision t4g** — its
+`instance-generation Gt 5` requirement excludes the whole family.
 
 2 x t4g.large (2 vCPU / 8 GiB each) gives 4 vCPU and ~14.2Gi allocatable — fits with
 headroom for one re-measured driver overshoot. 2 x t4g.medium (~5.8Gi allocatable)

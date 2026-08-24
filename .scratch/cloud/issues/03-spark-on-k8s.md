@@ -1,6 +1,6 @@
 # T3 — Spark on Kubernetes, the image, and the stage-placement table
 
-Status: open
+Status: done (2026-08-24, branch cloud03-spark-on-k8s)
 Type: task
 Blocked by: 01, 02, 11
 Owns: spec §3, including the T17 backfill arm.
@@ -50,9 +50,13 @@ single-writer state: the streaming checkpoint, Kafka log dirs, Airflow's Postgre
 The all-stages-always-run contract and the failure-naming exit are preserved as written;
 expressing them as DAG edges belongs to `.scratch/orchestration/map.md`.
 
-**Re-measure before sizing.** The requests table in `01-eks-cluster.md` carries the Spark
-driver row as a placeholder. The Mac's `local[6]` + 3 g is Mac-shaped [`spark.py`]. Measure
-on t4g.large and replace the row before anything else sizes against it.
+**Re-measure before sizing.** DONE, 2026-08-24 — see "Measured" below. The row in
+`01-eks-cluster.md` has been replaced. One correction to this instruction: the measurement
+could not run on t4g.large, because **Karpenter's `burst` NodePool cannot provision t4g at
+all** — `instance-generation Gt 5` excludes the whole family (t4g is generation 4 and there
+is no t5g/t6g). m6g.large is t4g.large's exact 2 vCPU / 8 GiB Graviton2 shape without the
+burstable CPU credits, which for a memory measurement is the same node and for a timing one
+errs conservative.
 
 **T17 arm.** The dead-SSD precondition is replaced by measured R2 headroom. The backfill is
 a separately sized one-off (2,278 files, not the nightly shape), run cluster-mode.
@@ -101,3 +105,84 @@ workloads.
   install every time). (3) Close cloud 08's recorded deviation: downscale.sh's
   `bootstrap()` venv-installs the repo on AL2023 per exercise; once the ECR tag
   exists it becomes `docker run <ecr>:<sha> make <target>`.
+
+
+## Built (2026-08-24)
+
+- `docker/Dockerfile` — THE image. `eclipse-temurin:17-jre-noble` (noble, not the upstream
+  jammy: jammy's python3 is 3.10 and pyproject needs >= 3.11), venv at /opt/venv, the repo
+  installed EDITABLE at /opt/raincheck. Editable is load-bearing, not style:
+  `raincheck.paths.REPO` is `parents[2]` of the package, which a site-packages install
+  resolves to /opt/venv/lib — breaking `daily.py`'s `make -C REPO`, `export.py`'s
+  `web/export.sql` and `live_export.py`'s `web/files`. A `.venv -> /opt/venv` symlink is
+  why the Makefile needs no cluster fork: its `PY := .venv/bin/python` resolves.
+  3.26 GB (apache/sedona:1.9.1 is 11.3 GB). arm64.
+- `scripts/cloud-image.sh` — build + push to ECR `384555717200.dkr.ecr.us-east-1.amazonaws.com/raincheck`,
+  tagged by 12-char git sha, IMMUTABLE tags, refuses a dirty tree, and rewrites the tag
+  into `deploy/k8s/kustomization.yaml`'s `images:` transformer.
+- `deploy/k8s/raincheck/build.yaml` — PodTemplates `raincheck-stage` (the six no-Spark
+  stages, 4Gi staging emptyDir) and `raincheck-spark` (events per Service date, gold,
+  precip), plus the Role/RoleBinding that lets a cluster-mode driver create its executors.
+  `kind: PodTemplate` because a Job here would RUN on every `kubectl apply -k`.
+- `deploy/k8s/raincheck/streaming.yaml` — Deployment (replicas 1, strategy Recreate) +
+  a gp3-1f PVC mounted at `<root>/checkpoints`, on the floor.
+- `scripts/cloud-spark-submit.sh` — cluster-mode `--master k8s://` for gold and the T17
+  backfill; image read from the one pin; R2 by `secretKeyRef`, never argv.
+- `scripts/cloud-parity-gate.sh` — the events parity gate, and T17's trigger as a MECHANISM:
+  `--backfill-allowed` reads the recorded PASS below, and `cloud-spark-submit.sh --backfill`
+  refuses until it exits 0. rc 2 INCONCLUSIVE is never recorded.
+- `raincheck.parity` gained REMOTE roots (not a fork): `parity.remote(root)` normalises
+  `s3a://`/`s3://`, `parity.connect(root)` opens httpfs with `CREATE SECRET ... PROVIDER
+  credential_chain, CHAIN 'env'` so the token never enters a SQL string, and
+  `partitions(root, con=None)` now returns `{partition: [parquet files]}` for both sides.
+- `raincheck.spark.session()` is steered by environment only — `RAINCHECK_SPARK_MASTER`,
+  `RAINCHECK_SPARK_DRIVER_MEM`, `AWS_ENDPOINT_URL` (=> s3a configured for R2), and
+  `jars_baked()`, which drops `spark.jars.packages` when the jars are on the classpath.
+  The 127.0.0.1 driver pin is now local-mode-only: in cluster mode it would tell executors
+  to dial themselves.
+- `deploy/k8s/kafka/topics-job.yaml` runs this image instead of pip-installing
+  confluent-kafka; `scripts/downscale.sh` runs `docker run <ecr>:<sha> make <target>`
+  instead of dnf + venv + `pip install -e .` per exercise (cloud 08's recorded deviation).
+
+## Measured (2026-08-24)
+
+An events-shaped run — 5,597,465 Bronze VP rows (the real 2026-08-20 count) through a
+dedupe groupBy, a partitionBy/orderBy window, a self-join, a persist and events.py's
+`coalesce(1).sortWithinPartitions` write of 1,354,911 rows — on a 2 vCPU / 8 GiB Graviton2
+burst node, `local[2]`:
+
+| driver heap | pod peak RSS | wall |
+|---|---|---|
+| 2 g | 2913 MiB | 136 s |
+| 1 g | 1927 MiB | 137 s |
+
+Pod RSS is **driver heap + ~0.93 GiB** of python and JVM off-heap, and this shape does not
+need the heap it is given — the wall time is identical. So the streaming driver row is
+1 g heap / 2Gi request (the placeholder's 2Gi survives, but only once the heap drops from
+the Mac's 3 g), and the per-day build pod takes 2 g / 3Gi as one deliberate doubling of
+headroom for the real job's larger join graph.
+
+Cost side: `make warm` runs Spark 3.5.3 + Sedona in **5 s with `--network none`** — zero
+Maven resolution at pod start. The same resolution cost 21.2 s inside the image build,
+once per git sha instead of once per pod.
+
+Parity over R2 is verified end to end, not just wired: `parity.compare(
+'s3a://raincheck-bronze/archive/vp/date=2026-08-20', <local>)` read 24 hour partitions from
+R2 and reported EQUAL in 22 s.
+
+## Not done here, and why
+
+- **`paths.data_root()` still returns a `Path`, so an `s3a://` DATA ROOT does not work
+  yet.** `Path("s3a://b/x")` collapses to `s3a:/b/x`, and a `Path` subclass that re-expands
+  it would leave `.exists()`/`.glob()` silently answering about the local filesystem —
+  `daily.gaps()` would then see every day as unbuilt. Both engines are wired for R2 (Spark
+  s3a in `spark.py`, DuckDB httpfs in `parity.py`), and those take explicit strings, so the
+  gap is exactly the root. Closing it is a `paths.py` change plus the join sites, and it
+  must not fork a stage module. **Until it lands, pods write their staging volume.**
+- The first pod that touches R2 needs the `r2-build` Secret, which does not exist yet
+  ([YOU], cloud 07). The manifests land fine without it.
+
+## Parity gate record
+
+(Written by `scripts/cloud-parity-gate.sh --record`. A `PASS` line here is what opens the
+T17 backfill; there is none yet, and `--backfill-allowed` exits 1 until there is.)

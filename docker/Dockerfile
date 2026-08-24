@@ -1,0 +1,94 @@
+# The ONE raincheck image (cloud spec sec.3 / ticket 03). Every raincheck pod runs this:
+# the per-day build pods, the precip pod, the streaming Deployment, the cluster-mode
+# gold/backfill driver and executors, and the topics Job. Five specialised images would
+# be five drifting runtimes.
+#
+# Built from ~/quakestream/stack/docker/sedona.Dockerfile (slim Sedona: JRE + pyspark +
+# sedona, a tenth of apache/sedona:1.9.1's 11.3 GB), extended with eccodes (precip),
+# DuckDB (exports, parity) and the repo package itself. arm64 only - the whole cluster is
+# Graviton. Tagged by git sha, never :latest (scripts/cloud-image.sh).
+#
+# NOTHING INSTALLS AT POD START. Every recurring pod second is billed and a 5-min CronJob
+# fires ~8,640x/mo, so setup happens here once per git sha: the jars are copied into
+# SPARK_HOME/jars (see below), the repo is pip-installed, and no entrypoint downloads
+# anything. spark.py detects the baked jars and drops `spark.jars.packages` entirely.
+#
+# The base is noble, not the upstream jammy: jammy's python3 is 3.10 and pyproject
+# requires >=3.11. Noble is PEP 668 externally-managed, hence the venv.
+FROM eclipse-temurin:17-jre-noble
+
+ENV PYTHONUNBUFFERED=1 \
+    VIRTUAL_ENV=/opt/venv \
+    PATH=/opt/venv/bin:$PATH \
+    PYSPARK_PYTHON=/opt/venv/bin/python \
+    PYSPARK_DRIVER_PYTHON=/opt/venv/bin/python \
+    TZ=UTC
+
+# `make` because the stage boundary IS the make target: every pod runs the same
+# `make <target>` / `python -m raincheck.<module>` a single box runs, which is what keeps
+# every existing module test covering behaviour after the move to the cluster.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends python3 python3-venv build-essential make \
+ && python3 -m venv /opt/venv \
+ && rm -rf /var/lib/apt/lists/*
+
+ENV SPARK_HOME=/opt/venv/lib/python3.12/site-packages/pyspark
+
+# The repo package pulls pyspark 3.5.3 + sedona 1.9.1 + eccodes + duckdb + confluent-kafka
+# from pyproject, so the image's python runtime and the Mac's are one dependency set.
+#
+# The whole repo lands at /opt/raincheck, installed EDITABLE, for two reasons that are not
+# style: `raincheck.paths.REPO` is `parents[2]` of the package, which a site-packages
+# install resolves to /opt/venv/lib - breaking daily.py's `make -C REPO`, export.py's
+# web/export.sql and live_export.py's web/files; and the Makefile is the stage boundary
+# itself. The .venv symlink is why the Makefile needs no cluster fork: its `PY :=
+# .venv/bin/python` resolves to this image's interpreter unchanged.
+COPY pyproject.toml README.md Makefile /opt/raincheck/
+COPY src /opt/raincheck/src
+COPY web /opt/raincheck/web
+COPY scripts /opt/raincheck/scripts
+RUN pip install --no-cache-dir -e /opt/raincheck \
+ && ln -s /opt/venv /opt/raincheck/.venv \
+ && python -c "import raincheck.spark, eccodes, duckdb, confluent_kafka" \
+ && python -c "from raincheck.paths import REPO; assert str(REPO) == '/opt/raincheck', REPO" \
+ && make -C /opt/raincheck --dry-run events DATE=1970-01-01 >/dev/null
+
+# Bake the jars. Version pairing is NOT guessable: geotools-wrapper's suffix is the
+# GeoTools version, so Sedona 1.9.1 pairs with 1.9.1-33.5 (not -33.1, which is 1.8.x).
+# hadoop-aws must match the Hadoop that pyspark 3.5.3 ships (3.3.4), and aws-java-sdk-bundle
+# must match that hadoop-aws - a mismatched pair fails at s3a:// open time, in a pod, at
+# 03:00, not here. s3a is how every table is read and written against R2 (spec sec.3).
+#
+# Resolved with spark-submit (resolution happens in prepareSubmitEnvironment, so any real
+# script triggers it) and then COPIED INTO $SPARK_HOME/jars: a jar on the default classpath
+# needs no `spark.jars.packages` and no `spark.jars`, so a pod never resolves against Maven
+# Central. That is the cost rule, and it is also the availability one - one Maven outage
+# would otherwise stop the nightly.
+#
+# No `|| true`: if the jars cannot be resolved the BUILD must fail rather than shipping an
+# image that discovers it at pod-start time. And no pipe into `wc` on the check, because a
+# pipeline's exit status is the last command's.
+ENV RAINCHECK_JARS="org.apache.sedona:sedona-spark-shaded-3.5_2.12:1.9.1,org.datasyslab:geotools-wrapper:1.9.1-33.5,org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.3,org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262"
+RUN echo 'print("warmup")' > /opt/warmup.py \
+ && $SPARK_HOME/bin/spark-submit --packages "$RAINCHECK_JARS" \
+      --conf spark.jars.ivy=/opt/ivy --master "local[1]" /opt/warmup.py \
+ && test -d /opt/ivy/jars \
+ && cp /opt/ivy/jars/*.jar "$SPARK_HOME/jars/" \
+ && rm -rf /opt/ivy /opt/warmup.py \
+ && ls "$SPARK_HOME/jars" | grep -q sedona-spark-shaded \
+ && ls "$SPARK_HOME/jars" | grep -q hadoop-aws
+
+# DuckDB's httpfs extension is a per-connection DOWNLOAD on first use (parity reads R2
+# through it, and the live-export path reads DuckDB every 30 s). HOME is pinned so the
+# baked extension is the one a pod finds, whatever uid it runs as.
+ENV HOME=/opt/raincheck
+RUN mkdir -p /opt/raincheck \
+ && python -c "import duckdb; c = duckdb.connect(); c.execute('INSTALL httpfs'); c.execute('LOAD httpfs')" \
+ && test -d /opt/raincheck/.duckdb/extensions \
+ && chmod -R a+rX /opt/raincheck/.duckdb
+
+# Neither a credential nor a data root is baked in: R2 comes from the r2-build Secret via
+# envFrom (cloud 07) and the root from RAINCHECK_ARCHIVE_ROOT on the pod.
+ENV PATH="${SPARK_HOME}/bin:${PATH}"
+WORKDIR /opt/raincheck
+CMD ["python", "-c", "import raincheck; print('raincheck image ok')"]

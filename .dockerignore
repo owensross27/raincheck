@@ -1,0 +1,10 @@
+data/
+.venv/
+.git/
+.scratch/
+docs/
+research/
+tests/
+.env
+*.pyc
+__pycache__/

@@ -4,7 +4,10 @@ expensive, or silently dangerous to get wrong.
 
 Ticket 02 owns the Kafka rows: six partitions and 48 h retention, exactly one owner of the
 topic spec, the broker on the floor in one AZ, and nothing reachable from outside the VPC.
-Ticket 07 owns the credential and network rows: every ServiceAccount binds exactly one R2
+Ticket 03 owns the image and workload-shape rows: one ECR repository pinned by git sha with
+no `:latest`, nothing installed at pod start, the burst nodeSelector on every build pod,
+and block-volume claims only where a single writer is guaranteed. Ticket 07 owns the
+credential and network rows: every ServiceAccount binds exactly one R2
 token Secret and no two share one; no secret material sits in a manifest, an image or a
 plain env literal; no Service of type LoadBalancer or NodePort exists; and no inbound rule
 is sourced from a CIDR beyond the named exceptions - of which there are exactly two, both
@@ -23,6 +26,7 @@ tested against the shape AWS really emits.
 """
 import ast
 import functools
+import re
 import json
 import os
 import shutil
@@ -79,12 +83,19 @@ def kind(name: str) -> list[dict]:
 
 
 def pod_specs(doc: dict) -> list[dict]:
-    """Pod specs wherever a workload kind hides them (bare Pod, controller, CronJob)."""
+    """Pod specs wherever a workload kind hides them (bare Pod, controller, CronJob, and
+    PodTemplate - which keeps its template at the TOP level, not under spec, and would
+    otherwise slip past every assertion in this file while looking covered)."""
     spec = doc.get("spec") or {}
     found = [spec] if doc.get("kind") == "Pod" else []
-    tmpl = spec.get("template") or (spec.get("jobTemplate") or {}).get("spec", {}).get("template")
-    if tmpl:
-        found.append(tmpl.get("spec") or {})
+    tmpl = (doc.get("template") if doc.get("kind") == "PodTemplate" else None) or \
+        spec.get("template") or (spec.get("jobTemplate") or {}).get("spec", {}).get("template")
+    # `spec.template` is not always a POD template: Karpenter's NodePool templates nodes,
+    # and Strimzi's KafkaNodePool templates operator-managed pods with no container list of
+    # its own (which is also why the broker pins to the floor with nodeAffinity, not
+    # nodeSelector - ticket 02's row asserts that one). Containers are the discriminator.
+    if tmpl and (tmpl.get("spec") or {}).get("containers"):
+        found.append(tmpl["spec"])
     return found
 
 
@@ -119,7 +130,10 @@ def test_the_job_runs_that_module_and_not_a_copy():
     assert cm["data"]["topics.py"] == TOPICS_PY.read_text()
     job = one("Job")
     container = job["spec"]["template"]["spec"]["containers"][0]
-    assert "python -m raincheck.topics" in " ".join(container["args"])
+    # command + args, not args alone: ticket 03 swapped the pip-install shell wrapper for
+    # the shared image, so the entry point moved out of the args list
+    ran = " ".join((container.get("command") or []) + (container.get("args") or []))
+    assert "python -m raincheck.topics" in ran
     assert job["spec"]["template"]["spec"]["nodeSelector"] == {"raincheck.io/pool": "floor"}
 
 
@@ -373,3 +387,154 @@ def test_audit_reads_the_allowlist_it_is_given(tmp_path):
     r = audit(stub_aws(tmp_path, f'cat {SG_CAPTURE}\n'), thin)
     assert r.returncode == 1
     assert "sg-03b1743dee87eb474" in r.stdout
+
+
+# --- ticket 03: the one image, and the shapes that run it -------------------------------
+
+# A git sha, which is what scripts/cloud-image.sh writes. Any other tag shape - a version,
+# a branch name, PLACEHOLDER - means the pin stopped naming a commit.
+SHA_TAG = re.compile(r"^[0-9a-f]{7,40}$")  # not `-dirty`: a scratch push names no commit
+# What a container must never do at start: every recurring pod second is billed, and a
+# 5-min CronJob fires ~8,640x/mo. Setup belongs in the image layer, once per git sha.
+INSTALLERS = ("pip install", "pip3 install", "apt-get", "apt install", "curl ", "wget ",
+              "spark.jars.packages")
+
+
+def workloads() -> list[dict]:
+    """Every doc that really carries containers - the unit these rows assert about."""
+    return [d for d in docs() if pod_specs(d)]
+
+
+def test_every_image_is_the_one_ecr_repository_pinned_by_sha():
+    """One image for every raincheck pod: five specialised images would be five drifting
+    runtimes. `:latest` is barred twice over - it makes "which code produced this
+    partition?" unanswerable, and with imagePullPolicy IfNotPresent a node that already
+    pulled it serves the stale one forever."""
+    images = {c["image"] for c in containers()}
+    assert images, "no containers in the rendered manifests"
+    repos = set()
+    for image in images:
+        repo, _, tag = image.rpartition(":")
+        assert repo and tag, f"{image} carries no tag at all - that IS :latest"
+        assert tag != "latest", f"{image} is a moving tag"
+        assert SHA_TAG.match(tag), f"{image} is not pinned to a git sha"
+        repos.add(repo)
+    assert len(repos) == 1, f"more than one image repository: {sorted(repos)}"
+    assert repos.pop().endswith("/raincheck")
+
+
+def test_the_image_pin_lives_in_exactly_one_place():
+    """The kustomize `images:` transformer, so every manifest moves to a new sha together.
+    A half-updated rollout - some pods new, some old - must not be expressible."""
+    kust = yaml.safe_load((ROOT / "deploy" / "k8s" / "kustomization.yaml").read_text())
+    assert len(kust["images"]) == 1 and kust["images"][0]["name"] == "raincheck"
+    for path in sorted((ROOT / "deploy" / "k8s").rglob("*.yaml")):
+        for n, line in enumerate(path.read_text().splitlines(), 1):
+            if line.strip().startswith("image:") and path.name != "kustomization.yaml":
+                assert line.split(":", 1)[1].strip() == "raincheck", (
+                    f"{path.name}:{n} names an image directly instead of through the pin")
+
+
+def test_nothing_installs_at_pod_start():
+    """The cost rule, as a test. A pip install in an entrypoint is paid on EVERY run of
+    that pod for something the image already carries; `spark.jars.packages` re-resolves
+    against Maven Central per pod and only looks free on a Mac with a warm ~/.ivy2."""
+    for c in containers():
+        line = " ".join(c.get("command") or []) + " " + " ".join(c.get("args") or [])
+        for bad in INSTALLERS:
+            assert bad not in line, f"container {c.get('name')} runs `{bad}` at start: {line}"
+
+
+def test_every_build_pod_asks_for_burst():
+    """Omit raincheck.io/pool: burst and a build pod lands on the FLOOR, where it competes
+    with the Kafka broker and the streaming driver for 2 vCPU - the nightly build starves
+    the thing capturing the feed. Every workload declares a pool, one way or the other."""
+    for doc in workloads():
+        for spec in pod_specs(doc):
+            pool = (spec.get("nodeSelector") or {}).get("raincheck.io/pool")
+            assert pool in ("floor", "burst"), (
+                f"{doc['kind']}/{doc['metadata']['name']} declares no raincheck.io/pool")
+    shapes = {d["metadata"]["name"]: pod_specs(d)[0]["nodeSelector"]["raincheck.io/pool"]
+              for d in workloads() if d["kind"] == "PodTemplate"}
+    assert shapes == {"raincheck-stage": "burst", "raincheck-spark": "burst"}
+
+
+def test_the_batch_shapes_are_templates_and_never_run_themselves():
+    """PodTemplate is the API's own "a pod spec that is not a running workload". A Job here
+    would fire on every `kubectl apply -k`, and a comment saying not to would not stop it."""
+    assert {d["metadata"]["name"] for d in kind("PodTemplate")} == {"raincheck-stage",
+                                                                    "raincheck-spark"}
+    # exactly one Job in the whole render, and it is ticket 02's topics Job
+    assert [j["metadata"]["name"] for j in kind("Job")] == ["topics"]
+
+
+def test_block_volumes_attach_only_to_single_writer_workloads():
+    """A PVC is ReadWriteOnce and single-attach. The one piece of raincheck state with a
+    guaranteed single writer is the streaming checkpoint; `live/` has several writers
+    across pods, which is why it moves to R2 and why `prune` becomes unpinned."""
+    claims = {c["metadata"]["name"]: c for c in kind("PersistentVolumeClaim")}
+    for name, claim in claims.items():
+        assert claim["spec"]["accessModes"] == ["ReadWriteOnce"], f"{name} is not single-attach"
+    for doc in workloads():
+        for spec in pod_specs(doc):
+            using = [v for v in (spec.get("volumes") or []) if "persistentVolumeClaim" in v]
+            if not using:
+                continue
+            assert doc["kind"] == "Deployment", (
+                f"{doc['kind']}/{doc['metadata']['name']} claims a block volume - only the "
+                "single-writer streaming Deployment may")
+            assert doc["spec"]["replicas"] == 1, "two replicas is two writers on one volume"
+            assert doc["spec"]["strategy"]["type"] == "Recreate", (
+                "RollingUpdate starts the new pod before the old one goes, so for a moment "
+                "two drivers hold one RWO checkpoint")
+
+
+def test_the_streaming_driver_is_on_the_floor_and_never_discards_its_checkpoint():
+    """Burst is spot-only and consolidates after 1 m; the one Spark workload that must not
+    be interrupted belongs on the floor. FRESH=1 in a Deployment would discard the
+    checkpoints on every restart, silently skipping the hours between - past retention."""
+    dep = next(d for d in kind("Deployment") if d["metadata"]["name"] == "raincheck-stream")
+    spec = dep["spec"]["template"]["spec"]
+    assert spec["nodeSelector"] == {"raincheck.io/pool": "floor"}
+    c = spec["containers"][0]
+    assert " ".join(c["command"]) == "python -m raincheck.stream"
+    env = {e["name"]: e.get("value") for e in c["env"]}
+    assert "FRESH" not in env
+    assert env["RAINCHECK_KAFKA"] == "raincheck-kafka-bootstrap.kafka.svc:9092", (
+        "the 9094 `box` listener is the capture box's alone - it advertises a name only "
+        "the box's /etc/hosts resolves")
+    # the checkpoint volume is mounted UNDER the data root, so stream.py's
+    # <root>/checkpoints/live_<kind> needs no cluster fork to land on block storage
+    mounts = {m["name"]: m["mountPath"] for m in c["volumeMounts"]}
+    assert mounts["checkpoint"] == env["RAINCHECK_ARCHIVE_ROOT"] + "/checkpoints"
+
+
+def test_every_r2_pod_takes_its_credentials_from_the_bound_secret():
+    """Cloud 07's shape, asserted from the consuming side: the ServiceAccount and the
+    Secret its annotation binds, and nothing hand-rolled beside them."""
+    bound = {sa["metadata"]["name"]: sa["metadata"]["annotations"]["raincheck.io/r2-secret"]
+             for sa in kind("ServiceAccount")}
+    for doc in workloads():
+        for spec in pod_specs(doc):
+            sa = spec.get("serviceAccountName")
+            refs = [f["secretRef"]["name"] for c in (spec.get("containers") or [])
+                    for f in (c.get("envFrom") or []) if "secretRef" in f]
+            if not refs:
+                continue
+            assert sa in bound, f"{doc['metadata']['name']} pulls a Secret with no bound SA"
+            assert refs == [bound[sa]], (
+                f"{doc['metadata']['name']} runs as {sa} but reads {refs}, not {bound[sa]}")
+
+
+def test_the_cluster_mode_driver_can_make_executors_and_nothing_else():
+    """`--master k8s://` needs the driver to create its own executor pods - that is what
+    replaces the spark-operator. It must not be able to read Secrets: the driver gets R2
+    through envFrom on its own pod, and a Role that could read them would hand every
+    executor the token as well."""
+    role = next(r for r in kind("Role") if r["metadata"]["name"] == "raincheck-spark-driver")
+    granted = {r for rule in role["rules"] for r in rule["resources"]}
+    assert "pods" in granted
+    assert not granted & {"secrets", "serviceaccounts", "roles", "rolebindings"}
+    binding = next(b for b in kind("RoleBinding")
+                   if b["metadata"]["name"] == "raincheck-spark-driver")
+    assert [s["name"] for s in binding["subjects"]] == ["raincheck-build"]

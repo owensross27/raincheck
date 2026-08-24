@@ -113,18 +113,35 @@ up() {
   echo "downscale: both launched. \`downscale.sh run\` when they are reachable, then ALWAYS \`down\`."
 }
 
-# AL2023 arm64 has no brew keg, so JAVA_HOME comes from .env -- the knob the Makefile
-# already documents. That is the whole port: no code change, no Mac-only assumption.
+# The box runs THE image (cloud 03), not a venv it builds itself. This closes the
+# deviation this script shipped with: the old bootstrap dnf-installed a toolchain and
+# `pip install -e .`d the repo on EVERY exercise -- the same per-run setup cost the
+# cluster rule bans -- and then re-resolved the Sedona jars from Maven on top. One
+# `docker pull` of a sha-tagged image replaces both, and it is the SAME artefact the
+# cluster runs, so the escape hatch stops being a second runtime that can drift.
+#
+# Still no repo credential on a throwaway box: the only secret that crosses is a 12 h ECR
+# registry token, minted on the Mac and piped to `docker login --password-stdin` so it
+# never reaches argv or the box's shell history.
 bootstrap() {
   cat <<'BOOT'
 set -eux
-sudo dnf -y install git make gcc python3.11 python3.11-devel java-17-amazon-corretto-headless
-mkdir -p ~/raincheck && cd ~/raincheck
-[ -d .venv ] || python3.11 -m venv .venv
-.venv/bin/pip -q install -U pip
-.venv/bin/pip -q install -e .
-printf 'JAVA_HOME=/usr/lib/jvm/java-17-amazon-corretto\nRAINCHECK_ARCHIVE_ROOT=%s/data\n' "$HOME/raincheck" > .env
+sudo dnf -y install docker
+sudo systemctl enable --now docker
+mkdir -p ~/raincheck/data
 BOOT
+}
+
+# The image the cluster runs, read from the one pin. Empty when nobody has pushed yet.
+pinned_image() {
+  python3 - "$ROOT/deploy/k8s/kustomization.yaml" <<'PIN'
+import re, sys
+text = open(sys.argv[1]).read()
+name = re.search(r"(?m)^\s+newName:\s*(\S+)", text)
+tag = re.search(r"(?m)^\s+newTag:\s*(\S+)", text)
+ok = name and tag and "PLACEHOLDER" not in tag.group(1)
+print(f"{name.group(1)}:{tag.group(1)}" if ok else "")
+PIN
 }
 
 run() {
@@ -135,16 +152,30 @@ run() {
   [ -n "$ip" ] || { echo "downscale: no running $which instance -- \`up\` first" >&2; exit 2; }
   ssh_() { ssh -i "$KEY" -o StrictHostKeyChecking=accept-new "ec2-user@$ip" "$@"; }
   echo "downscale: $which at $ip"
-  ssh_ 'mkdir -p ~/raincheck'
-  git -C "$ROOT" archive HEAD | ssh_ 'tar x -C ~/raincheck'
+  image="$(pinned_image)"
+  [ -n "$image" ] || { echo "downscale: no image pinned in deploy/k8s/kustomization.yaml --" >&2
+                       echo "  run scripts/cloud-image.sh first; the box runs that image." >&2; exit 2; }
+  echo "downscale: image $image"
   bootstrap | ssh_ 'bash -s'
-  # one `make <target>` per stage, timed: the freshness claim is measured, not asserted
-  printf '%s\n' "$stages" | ssh_ 'cd ~/raincheck && while read -r stage; do
-      [ -n "$stage" ] || continue
-      s=$(date +%s)
-      if make $stage; then echo "downscale-stage ${stage%% *} OK $(( $(date +%s) - s ))s"
-      else echo "downscale-stage ${stage%% *} FAILED"; fi
-    done' 
+  registry="${image%%/*}"
+  "$AWS" ecr get-login-password --region "$REGION" \
+    | ssh_ "sudo docker login --username AWS --password-stdin $registry"
+  ssh_ "sudo docker pull $image"
+  # one `make <target>` per stage, timed: the freshness claim is measured, not asserted.
+  # `make` inside the image is the same make the cluster and the Mac run -- that IS the
+  # constraint this path depends on, and running it any other way would stop proving it.
+  # stages travel as an env var, not on stdin: stdin is the script itself here, and a
+  # heredoc would silently replace the piped list with nothing to read.
+  ssh_ "IMAGE=$image STAGES='$stages' bash -s" <<'STAGES'
+printf '%s\n' "$STAGES" | while read -r stage; do
+  [ -n "$stage" ] || continue
+  s=$(date +%s)
+  if sudo docker run --rm -v "$HOME/raincheck/data:/data" -e RAINCHECK_ARCHIVE_ROOT=/data \
+       "$IMAGE" make -C /opt/raincheck $stage
+  then echo "downscale-stage ${stage%% *} OK $(( $(date +%s) - s ))s"
+  else echo "downscale-stage ${stage%% *} FAILED"; fi
+done
+STAGES
 }
 
 down() {

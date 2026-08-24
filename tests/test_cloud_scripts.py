@@ -1,4 +1,4 @@
-"""Ticket 19 box scripts against a stub aws: box-coldpush.sh prune keeps exactly the
+"""Ticket 19 box scripts against a stub aws, plus cloud 03's parity gate: box-coldpush.sh prune keeps exactly the
 unverified/fresh/state files, coldgaps.sh is loud on a missing hour, louder on the budget
 marker, and never reports an aws error as a capture gap. The stub mimics real awscli:
 dryrun sources print CWD-RELATIVE (the review-confirmed footgun), so every run uses
@@ -6,8 +6,12 @@ cwd=/ to prove the scripts are cwd-independent."""
 import os
 import stat
 import subprocess
+import sys
 import time
 from pathlib import Path
+
+import pyarrow as pa
+import pyarrow.parquet as pq
 
 SCRIPTS = Path(__file__).parents[1] / "scripts"
 OLD = time.time() - 7 * 3600  # past the 360-min prune horizon
@@ -277,3 +281,51 @@ def test_cutover_status_never_touches_the_agent(tmp_path):
     assert r.returncode == 0
     assert not booted_out(tmp_path), "--status retired the Mac agent"
     assert "gate MET" in r.stdout
+
+
+# --- cloud 03: the events parity gate, and the T17 backfill's trigger -------------------
+
+def gate(tmp_path: Path, *args: str) -> subprocess.CompletedProcess:
+    """cwd=/ like every other script here. RAINCHECK_PYTHON keeps the gate off the repo
+    venv path, which does not exist in a worktree."""
+    env = {**os.environ, "RAINCHECK_PARITY_TICKET": str(tmp_path / "ticket.md"),
+           "RAINCHECK_PYTHON": sys.executable,
+           "PYTHONPATH": str(Path(__file__).parents[1] / "src")}
+    return subprocess.run(["bash", str(SCRIPTS / "cloud-parity-gate.sh"), *args],
+                          cwd="/", env=env, capture_output=True, text=True)
+
+
+def table(root: Path, values: list[int]) -> Path:
+    part = root / "service_date=2026-08-01"
+    part.mkdir(parents=True)
+    pq.write_table(pa.table({"delay_s": values}), part / "p.parquet")
+    return root
+
+
+def test_the_backfill_is_shut_until_a_parity_pass_is_recorded(tmp_path):
+    """The T17 trigger as a mechanism rather than a sentence. "The backfill is the first
+    thing the cluster is trusted with, and not before" does not stop a 2,278-file submit;
+    a recorded PASS that --backfill-allowed re-reads does."""
+    assert gate(tmp_path, "--backfill-allowed").returncode == 1
+    a, b = table(tmp_path / "a", [1, 2, 3]), table(tmp_path / "b", [1, 2, 3])
+    assert gate(tmp_path, str(a), str(b), "--record").returncode == 0
+    allowed = gate(tmp_path, "--backfill-allowed")
+    assert allowed.returncode == 0 and "PASS" in allowed.stdout
+
+
+def test_a_difference_is_recorded_and_still_does_not_open_the_backfill(tmp_path):
+    a, b = table(tmp_path / "a", [1, 2, 3]), table(tmp_path / "b", [1, 2, 4])
+    r = gate(tmp_path, str(a), str(b), "--record")
+    assert r.returncode == 1 and "DIFFERS" in r.stdout
+    assert gate(tmp_path, "--backfill-allowed").returncode == 1
+
+
+def test_an_inconclusive_comparison_records_nothing(tmp_path):
+    """rc 2 is "could not check", and recording it would let an unreadable side - an
+    expired token, a wrong bucket - open the backfill on a comparison that never ran."""
+    a = table(tmp_path / "a", [1, 2, 3])
+    r = gate(tmp_path, str(a), str(tmp_path / "nope"), "--record")
+    assert r.returncode == 2
+    assert "INCONCLUSIVE" in r.stderr
+    assert not (tmp_path / "ticket.md").exists(), "an inconclusive run wrote a record"
+    assert gate(tmp_path, "--backfill-allowed").returncode == 1

@@ -1,0 +1,102 @@
+# Cloud ticket 03 / spec section 3 + [T12]: the streaming job as a Deployment running a
+# client-mode driver, with its checkpoint on a dedicated block volume so a restart
+# resumes from the committed offsets instead of replaying or skipping.
+#
+# SINGLE WRITER, and every line below is that constraint:
+#   - replicas: 1 and strategy Recreate. A RollingUpdate would start the new pod before
+#     the old one terminates, and for a moment two drivers would hold one RWO checkpoint -
+#     which is exactly the two-writer volume the spec says never to debug. Recreate makes
+#     the handover a gap, not an overlap.
+#   - the PVC is gp3-1f (cloud 02's class): EBS is AZ-bound and the floor is pinned to
+#     us-east-1f, so a rescheduled driver can only land back where its volume is.
+#   - the FLOOR, not burst: this is the one Spark workload that must not be interrupted,
+#     and burst is spot-only with a 1 m consolidation window.
+#
+# `live/` is NOT on this volume. It has multiple writers and readers across pods
+# (streaming writes live/vp + live/tu, precip-live writes live/precip_cell, live-export
+# and the detector read all three), which a single-attach block volume cannot serve - it
+# belongs in R2, and that is what unpins `prune` [spec section 3]. The volume here holds
+# checkpoints only, which is why it is mounted at <root>/checkpoints rather than at the
+# root: stream.py writes `<root>/checkpoints/live_<kind>` unchanged, no cluster fork.
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: raincheck-stream-checkpoint
+  namespace: raincheck
+spec:
+  accessModes: ["ReadWriteOnce"]     # single-writer state, by declaration and by fact
+  storageClassName: gp3-1f
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: raincheck-stream
+  namespace: raincheck
+  labels:
+    app.kubernetes.io/name: raincheck
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: raincheck
+      raincheck.io/shape: stream
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: raincheck
+        raincheck.io/shape: stream
+    spec:
+      nodeSelector:
+        raincheck.io/pool: floor
+      serviceAccountName: raincheck-build
+      containers:
+        - name: stream
+          image: raincheck
+          workingDir: /opt/raincheck
+          command: ["python", "-m", "raincheck.stream"]
+          envFrom:
+            - secretRef:
+                name: r2-build
+          env:
+            # cloud 02, FROZEN: the in-cluster bootstrap. Never the 9094 `box` listener -
+            # that one advertises a fixed name only the capture box's /etc/hosts resolves.
+            - name: RAINCHECK_KAFKA
+              value: raincheck-kafka-bootstrap.kafka.svc:9092
+            - name: RAINCHECK_ARCHIVE_ROOT
+              value: /data
+            - name: RAINCHECK_SPARK_MASTER
+              value: local[2]
+            # MEASURED (cloud 03, 2026-08-24): pod RSS is driver heap + ~0.93 GiB, and a
+            # 1 g heap ran an events-shaped batch in the same wall time as 2 g. Streaming
+            # is micro-batch work, lighter than that batch, so 1 g heap -> ~2 GiB pod is
+            # the sized number. The Mac's 3 g would have blown the 2Gi request below by
+            # about two gigabytes while looking like the same config.
+            - name: RAINCHECK_SPARK_DRIVER_MEM
+              value: 1g
+            # FRESH is deliberately absent: stream.py treats exactly "1" as "discard the
+            # checkpoints", and a Deployment that set it would discard them on every
+            # restart - silently skipping the hours between, past the 48 h retention.
+          resources:
+            requests:
+              cpu: 1000m
+              memory: 2Gi     # measured: 1 g heap + ~0.93 GiB overhead = 1927 MiB peak
+            limits:
+              memory: 3Gi
+          volumeMounts:
+            - name: checkpoint
+              mountPath: /data/checkpoints
+            - name: work
+              mountPath: /data
+      volumes:
+        - name: checkpoint
+          persistentVolumeClaim:
+            claimName: raincheck-stream-checkpoint
+        - name: work
+          emptyDir:
+            sizeLimit: 2Gi
