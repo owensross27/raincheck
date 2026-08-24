@@ -1,4 +1,12 @@
-# Wayfinder map: raincheck frontend
+# Wayfinder map: raincheck frontend — **CLEARED 2026-08-24**
+
+**CLEARED at the wave-3 gate: all four decision tickets are resolved (01 one
+page · 02 variation A · 03 static-only · 04 research facts), verified at the
+gate — no dangling claims, every gist on Decisions-so-far below. The wayfinder
+flow now hands to `/to-spec` over this file, then `/to-tickets`, in Ross's
+session; build tickets are expected to slot ~wave 8, after flood 15/17 and
+notify 05 land their layers. Remaining fog below is fog for /to-spec to carry,
+not open decisions.**
 
 Charted 2026-08-24 at Ross's directive, in the wave-2 gate follow-up session —
 this was the runbook's last uncharted phase ("chart the frontend map", STATUS
