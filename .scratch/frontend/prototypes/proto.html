@@ -50,6 +50,11 @@
   </div>
 </div>
 
+<!-- ===== the right column. A and B's panel plus the click card SHARE it, the way web/'s
+     #left already shares between #insight and #legend: a card that floats over the layer
+     panel covers the freshness rows it was opened from. Same mechanism, not a new one. -->
+<div id="right">
+
 <!-- ================================================ A: one row per layer, stacked -->
 <section id="layers" class="panel" aria-labelledby="layers-h" hidden>
   <h2 id="layers-h">Layers</h2>
@@ -74,6 +79,11 @@
   <tbody id="grid-body"></tbody></table>
 </section>
 
+<div id="card" class="panel"><button class="x" id="card-x" aria-label="close">&times;</button>
+  <div id="card-body"></div></div>
+
+</div><!-- /#right -->
+
 <!-- ==================================================== always mounted (spec section 9) -->
 <div id="provenance" class="panel note">
   Kafka 3.9 &rarr; Spark 3.5.3 + Sedona 1.9.1 &rarr; GeoParquet &rarr; DuckDB 1.5.5 &rarr;
@@ -88,8 +98,6 @@
   anything shown here.</p>
 </div>
 
-<div id="card" class="panel"><button class="x" id="card-x" aria-label="close">&times;</button>
-  <div id="card-body"></div></div>
 <div id="tip" role="tooltip"></div>
 
 <nav id="switch" aria-label="prototype variant switcher">

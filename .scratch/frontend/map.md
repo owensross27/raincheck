@@ -71,6 +71,23 @@ layers).
   decision, the layer/staleness table and the MUSTs:
   `.scratch/frontend/issues/01-one-surface-or-two.md`. Ticket 02 unblocked.
 
+- 2026-08-24 · ticket 02 (prototype) RESOLVED — **Ross picked variation A, "Stack
+  (one fill)"**, from three built against real payloads (`4ac3ebe`; asset
+  `.scratch/frontend/prototypes/variant-A-chosen.png`, all three still runnable on
+  branch `frontend02-four-layers`). **The colour collision dissolves rather than
+  resolves: the delay layer and flood 17's impact overlay are the SAME quantity over
+  the same ~1,200 H3 Cells at different time-scales**, so the Cell FILL channel is a
+  radio — one fill, one frozen ramp, never two. Flood tiers are point layers and
+  never contest it: aqua = FloodNet water now, amber = MTA station with water on the
+  tracks, violet = flood record. An "affected station" marks the COMPLEX, not the
+  chip. The record opens in a card that SHARES the right column with the layer panel
+  (a floating card covered the freshness rows it came from). Freshness needs a FIFTH
+  state, **AGE** — only 3 of the map's 9 sources have a budget frozen anywhere.
+  Mobile: the panel set does NOT collapse at 375px; the 60vh MAP is what does not
+  scale, so small screens open with the fill on and every point layer off. Ten
+  measurements went forward as MUSTs on flood 15/17 and notify 05 (`e61a98d`).
+  Full decision: `.scratch/frontend/issues/02-four-layers-prototype.md`.
+
 ## Not yet specified (fog)
 
 - Embeds/sharing: whether any view is embeddable elsewhere once visibility
