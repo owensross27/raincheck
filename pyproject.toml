@@ -13,6 +13,7 @@ dependencies = [
     "zarr>=2.18",
     "s3fs>=2024.6",
     "pytest>=8",
+    "pyyaml",  # tests/test_cluster_manifests.py parses the rendered cluster manifests
     # spec A: Spark 3.5.3 + Sedona 1.9.1 in-process on the brew JDK 17; no Python h3
     # (the only H3 oracle is DuckDB's community h3 extension, installed by the tests that need it)
     "pyspark==3.5.3",

@@ -1,0 +1,90 @@
+# raincheck cloud T2 - Kafka on the cluster: Strimzi, KRaft, ONE combined-role broker.
+#
+# RF=1 and min.insync.replicas=1 are deliberate (spec 2): ~0.5 GB/day is one-broker
+# traffic and Bronze is the record, so losing this broker is a latency event, not data
+# loss. Growing to 3 brokers is a `replicas` change plus a partition reassignment once
+# the floor is three nodes - not a redesign.
+#
+# The Topic Operator is DELIBERATELY ABSENT (no `entityOperator:` block at all).
+# `python -m raincheck.topics` is the single owner of the topic spec - six partitions is
+# irreversible at creation, and two declarative owners is how that knob gets flipped by
+# accident. Do not add a KafkaTopic resource here; tests/test_cluster_manifests.py fails
+# the render if one appears.
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaNodePool
+metadata:
+  name: broker
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: raincheck
+spec:
+  replicas: 1
+  roles:
+    - controller
+    - broker
+  storage:
+    type: jbod
+    volumes:
+      - id: 0
+        type: persistent-claim
+        size: 10Gi          # 48 h at ~0.5 GB/day is ~1 GB; the rest is KRaft metadata + slack
+        class: gp3-1f
+        deleteClaim: false
+  resources:
+    requests:
+      cpu: 500m             # the T1 requests table's Kafka row
+      memory: 1536Mi
+    limits:
+      memory: 1536Mi
+  jvmOptions:
+    -Xms: 1024m
+    -Xmx: 1024m
+  template:
+    pod:
+      # Strimzi's pod template has NO nodeSelector field - node affinity is how the
+      # floor pin is expressed for operator-managed pods. Same effect, different key.
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: raincheck.io/pool
+                    operator: In
+                    values: ["floor"]
+---
+apiVersion: kafka.strimzi.io/v1
+kind: Kafka
+metadata:
+  name: raincheck
+  namespace: kafka
+spec:
+  kafka:
+    version: 4.3.1
+    listeners:
+      # In-cluster clients (the topics Job, T3's Spark streaming). Advertised as the
+      # broker's cluster DNS name, which only resolves inside the cluster.
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+      # The capture box. Same internal listener kind - pod IPs ARE VPC IPs under the
+      # VPC CNI, so an in-VPC client reaches the broker directly with no external
+      # listener, no NodePort and no load balancer. What the box cannot do is resolve
+      # cluster DNS, so this listener advertises a name the box owns in its own
+      # /etc/hosts (scripts/cloud-kafka-endpoint.sh points it at the current pod IP).
+      - name: box
+        port: 9094
+        type: internal
+        tls: false
+        configuration:
+          brokers:
+            - broker: 0     # node id 0: the single pool member. Renumber the pool and this override stops applying.
+              advertisedHost: kafka0.raincheck.internal
+    config:
+      offsets.topic.replication.factor: 1
+      transaction.state.log.replication.factor: 1
+      transaction.state.log.min.isr: 1
+      default.replication.factor: 1
+      min.insync.replicas: 1
+      auto.create.topics.enable: "false"   # the six-partition shape only ever comes from `make topics`

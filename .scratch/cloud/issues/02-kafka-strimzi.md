@@ -1,6 +1,6 @@
 # T2 — Kafka on the cluster (Strimzi, KRaft)
 
-Status: open
+Status: resolved
 Type: task
 Blocked by: 01
 Owns: spec §2.
@@ -42,3 +42,49 @@ tickets extend the same file. Assertions this ticket owns: `retention.ms` equals
 partitions equal 6, Topic Operator disabled, no `LoadBalancer`/`NodePort` Service, no
 SG rule granting inbound from `0.0.0.0/0`. Skip cleanly when the renderer binary is
 absent, the way the shell tests guard on their tools.
+
+## Delivered (2026-08-24)
+
+Strimzi **1.2.0** (KRaft-only since 1.0 - there is no ZooKeeper mode left to choose),
+operator in ns `kafka`, Kafka **4.3.1**, one combined-role node from `KafkaNodePool/broker`
+on a 10Gi gp3 volume in us-east-1f. `deploy/k8s/` is now a kustomize seam; deploy with
+`scripts/cloud-kafka-install.sh` (idempotent apart from step 4, which recreates the topics
+and therefore drops retained messages, exactly as `make topics` always has).
+
+Verified on the broker, not inferred:
+
+    Topic: raincheck.bus.vp  PartitionCount: 6  ReplicationFactor: 1
+    Configs: compression.type=zstd,min.insync.replicas=1,cleanup.policy=delete,retention.ms=172800000
+
+and the box is producing across all six partitions of both topics over the private path.
+
+### The private path, and the one thing that was not obvious
+
+Pod IPs under the VPC CNI **are** VPC addresses, so an in-VPC client reaches the broker pod
+directly - no external listener, no NodePort, no load balancer, no public bootstrap. The
+part that does not follow: the box cannot resolve cluster DNS, and Strimzi advertises an
+internal listener as `raincheck-broker-0.raincheck-kafka-brokers.kafka.svc`. Bootstrap would
+succeed and every produce would then fail on an unresolvable advertised host.
+
+So there are two internal listeners: `plain` on 9092 (advertised as cluster DNS, in-cluster
+clients only) and `box` on 9094, whose `advertisedHost` is the fixed name
+`kafka0.raincheck.internal`. The box resolves that name from its own `/etc/hosts`, pointed at
+the current pod IP by `scripts/cloud-kafka-endpoint.sh`. Setting `advertisedHost` to the pod
+IP instead does not work and cannot be made to work: patching it rolls the broker, which
+gives it a new IP.
+
+`RAINCHECK_KAFKA=kafka0.raincheck.internal:9094` on the box is therefore permanent. When the
+broker moves (spot reclaim, node roll) only the `/etc/hosts` line changes, and the archiver
+is **not** restarted for it - librdkafka re-resolves on reconnect, and a restart is a capture
+gap.
+
+- Security group: exactly one rule added, `sgr-0de39175084e9c5fb` - tcp/9094 from
+  `sg-0cb33dca0ac107599` (box) to `sg-04b76aed2bb2fb61f` (the EKS cluster SG, which is what
+  pod ENIs carry). Tagged `Project=raincheck-cloud`. 9092 never leaves the cluster.
+- Strimzi's pod template has **no `nodeSelector` field**: the floor pin is `nodeAffinity`
+  on `KafkaNodePool.spec.template.pod`. Plain pods (the topics Job) still use `nodeSelector`.
+- The gp3 StorageClass carries `tagSpecification_1: Project=raincheck-cloud` - the CSI driver
+  creates the volume, so eksctl's cluster tags never reach it and it would otherwise fall
+  outside the $130 budget filter.
+- Cost delta: 10Gi gp3 = $0.80/mo. No load balancer, no extra public IP, and box-to-broker is
+  same-VPC same-AZ, so it is free. MSK stays rejected on budget (~$65/mo two-broker floor).

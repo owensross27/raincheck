@@ -1,0 +1,51 @@
+# `make topics` as a Kubernetes Job. This is the ONLY thing that creates the two bus
+# topics - the Strimzi Topic Operator is disabled precisely so this stays true.
+#
+# The script is not baked into an image: the ConfigMap is generated from the real
+# src/raincheck/topics.py at render time (see deploy/k8s/kustomization.yaml), so there is
+# no second copy of the six-partition spec to drift. PYTHONPATH=/src plus the
+# raincheck/ subdirectory makes `python -m raincheck.topics` work as a namespace package,
+# i.e. the same entry point as `make topics`.
+#
+# T3 replaces the pip install with the shared sha-tagged ECR image; until that image
+# exists this is the cheapest way to run the real module against the cluster broker.
+# The Job name is fixed, so re-running means deleting it first (the install script does).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: topics
+  namespace: kafka
+spec:
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app: raincheck-topics
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        raincheck.io/pool: floor
+      containers:
+        - name: topics
+          image: python:3.12-slim
+          command: ["/bin/sh", "-c"]
+          args:
+            - pip install --quiet --no-cache-dir "confluent-kafka>=2.5" && exec python -m raincheck.topics
+          env:
+            - name: PYTHONPATH
+              value: /src
+            - name: RAINCHECK_KAFKA
+              value: raincheck-kafka-bootstrap.kafka.svc:9092
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          volumeMounts:
+            - name: src
+              mountPath: /src/raincheck
+      volumes:
+        - name: src
+          configMap:
+            name: raincheck-topics
