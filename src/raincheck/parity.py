@@ -26,7 +26,6 @@ Run: python -m raincheck.parity A_ROOT B_ROOT   (rc 0 equal, 1 differ, 2 inconcl
 """
 import hashlib
 import itertools
-import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -34,6 +33,10 @@ from pathlib import Path
 import duckdb
 
 from raincheck import duck
+# One definition of "is this root an object store", shared with paths.py so a stage module
+# and this gate can never disagree about a root's kind [cloud 12]. Re-exported: callers
+# and tests still say parity.remote(...).
+from raincheck.paths import remote  # noqa: F401
 
 EMPTY = hashlib.sha256().hexdigest()  # a partition that exists and holds no rows
 SEP = "chr(31)"   # row-text field separator (SQL, not a literal: control chars do not
@@ -41,33 +44,15 @@ NULL = "chr(30)"  # survive a quoted string), and a NULL marker so ('a',NULL) !=
 BATCH = 10_000
 
 
-def remote(root: Path | str) -> str | None:
-    """The s3:// form of an object-store root, or None for a local path. `s3a://` is the
-    same store under Spark's scheme name, so the gate accepts whichever spelling the side
-    that wrote the table uses."""
-    text = str(root)
-    for scheme in ("s3://", "s3a://"):
-        if text.startswith(scheme):
-            return "s3://" + text[len(scheme):].rstrip("/")
-    return None
-
-
 def connect(root: Path | str):
     """A DuckDB connection that can read `root`. Remote roots get httpfs pointed at R2 from
     the environment; missing or wrong credentials surface as duckdb.Error, which main()
-    reports as INCONCLUSIVE - "could not check" is never "equal"."""
+    reports as INCONCLUSIVE - "could not check" is never "equal". duck.connect() already
+    does this when AWS_ENDPOINT_URL is set; the explicit call covers the gate's other case,
+    a remote root named on the command line with the endpoint left to the default."""
     con = duck.connect()
     if remote(root):
-        con.execute("INSTALL httpfs")  # a no-op once installed (the image bakes it)
-        con.execute("LOAD httpfs")
-        # PROVIDER credential_chain / CHAIN 'env' - DuckDB reads AWS_ACCESS_KEY_ID and
-        # AWS_SECRET_ACCESS_KEY itself, so the token never appears in a SQL string, in
-        # argv or in a traceback. URL_STYLE path because R2 does not do virtual-host
-        # buckets, and REGION because R2 has none but the v4 signature still needs one.
-        host = (os.environ.get("AWS_ENDPOINT_URL") or "").split("://")[-1].rstrip("/")
-        region = os.environ.get("AWS_DEFAULT_REGION") or "auto"
-        con.execute("CREATE OR REPLACE SECRET raincheck_r2 (TYPE s3, PROVIDER credential_chain,"
-                    f" CHAIN 'env', ENDPOINT '{host}', URL_STYLE 'path', REGION '{region}')")
+        duck.r2(con)
     return con
 
 

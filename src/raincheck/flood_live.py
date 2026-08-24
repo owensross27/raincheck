@@ -366,7 +366,7 @@ def main() -> None:
     check_shared_family()
     # the recolor criterion is data, so the CLI supplies the data rather than demonstrating
     # an empty hook: ticket 15 passes its own table, this prints against the real one.
-    margins = None if a.no_margins else flood_coastal.unit_margins(Path(data_root()))
+    margins = None if a.no_margins else flood_coastal.unit_margins(data_root())
     out = live(margins=margins)
     if a.json:
         print(json.dumps(out, indent=1, default=str))

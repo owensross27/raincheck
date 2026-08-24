@@ -890,3 +890,57 @@ def test_the_highest_frequency_pods_never_re_pull_a_pinned_image():
         for spec in pod_specs(doc):
             for c in spec["containers"]:
                 assert c.get("imagePullPolicy") == "IfNotPresent", f"{name} re-pulls per tick"
+
+
+# --- cloud 12: `ref/` delivery ------------------------------------------------------------
+
+REF_PULLERS = {"raincheck-stream": "/data", "precip-live": "/data",
+               "raincheck-stage": "/staging", "raincheck-spark": "/staging"}
+
+
+def test_every_posix_rooted_pod_pulls_ref_before_it_starts():
+    """`<root>/ref` is the root of the whole stage graph and cannot be rebuilt, so a pod
+    with a LOCAL root has to be given it. It is pulled from the private bucket rather than
+    baked, because the image tag is a git sha and ref lives in no commit - two builds of
+    one sha would otherwise differ. The row pins the destination too: the init must write
+    the SAME root the app container reads, or ref lands where nothing looks."""
+    seen = {}
+    for doc in workloads():
+        for spec in pod_specs(doc):
+            init = [c for c in (spec.get("initContainers") or []) if c["name"] == "refpull"]
+            if not init:
+                continue
+            (c,) = init
+            env = {e["name"]: e.get("value") for e in c["env"]}
+            app = {e["name"]: e.get("value")
+                   for e in (spec["containers"][0].get("env") or [])}
+            assert c["command"] == ["python", "-m", "raincheck.refpull"]
+            assert env["RAINCHECK_ARCHIVE_ROOT"] == app["RAINCHECK_ARCHIVE_ROOT"]
+            assert env["RAINCHECK_COLD_BUCKET"] == "raincheck-bronze", (
+                "ref lives in the PRIVATE archive bucket; raincheck-public is the served "
+                "one and must never be read here")
+            assert env["RAINCHECK_ARCHIVE_ROOT"] in {m["mountPath"] for m in c["volumeMounts"]}
+            seen[doc["metadata"]["name"]] = env["RAINCHECK_ARCHIVE_ROOT"]
+    assert seen == REF_PULLERS, (
+        "the pods with a POSIX root and a hard ref dependency, and only those. "
+        "raincheck-live is deliberately absent: it carries the SERVE token by design "
+        "(cloud 09 - one Secret, one ServiceAccount, never raincheck-bronze), and a "
+        "missing ref/assets there is a thinner panel, not a stop (live_loop catches it)")
+
+
+def test_an_init_container_never_outweighs_the_pod_it_precedes():
+    """A pod's effective request is max(largest init, sum of containers), so an init that
+    asked for more than its containers would move the pod's real footprint while
+    floor_requests() - which walks `containers` - went on reporting the smaller number."""
+    for doc in workloads():
+        for spec in pod_specs(doc):
+            cpu = sum(millicores((c.get("resources") or {}).get("requests", {}).get("cpu", "0"))
+                      for c in spec["containers"])
+            mem = sum(mib((c.get("resources") or {}).get("requests", {}).get("memory", "0Mi"))
+                      for c in spec["containers"])
+            for c in spec.get("initContainers") or []:
+                req = (c.get("resources") or {}).get("requests") or {}
+                assert req.get("cpu") and req.get("memory"), (
+                    f"{doc['metadata']['name']}/{c['name']} init has no request")
+                assert millicores(req["cpu"]) <= cpu and mib(req["memory"]) <= mem, (
+                    f"{doc['metadata']['name']}/{c['name']} init outweighs its pod")

@@ -7,6 +7,8 @@ from pathlib import Path
 
 from pyspark.sql import Column, DataFrame, Window, functions as F
 
+from raincheck.paths import as_root
+
 
 def ceil_hour(ts: Column) -> Column:
     """Hour-ending label of an instant: exactly on the hour stays in that Hour, one
@@ -117,7 +119,7 @@ def with_live_precip(df: DataFrame, root: Path, batch_ts: datetime) -> DataFrame
     the table's read rule and because it keeps the join 1:1. An absent, empty or unreadable
     table NULLs mm_1h / precip_valid_ts and never fails the batch (spec J).
     """
-    table = Path(root) / "live" / "precip_cell"
+    table = as_root(root) / "live" / "precip_cell"
     if not table.exists():
         return _no_precip(df)
     try:

@@ -50,7 +50,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from raincheck import duck
-from raincheck.paths import data_root
+from raincheck.paths import as_root, data_root
 from raincheck.ref import WINDOWS
 
 # subwaydata.nyc's own stated span (research/subway-rt-archives.md, re-probed 2026-08-23).
@@ -77,7 +77,7 @@ CAUGHT_CONSEC = 2       # sustained: two consecutive qualifying hours
 
 
 def root_dir(root: Path | None = None) -> Path:
-    return Path(root or data_root()) / "snapshots" / "subwaydata"
+    return as_root(root or data_root()) / "snapshots" / "subwaydata"
 
 
 # ---- snapshots ---------------------------------------------------------------------
@@ -97,7 +97,7 @@ def event_days(root: Path | None = None) -> list[date]:
     con = duck.connect()
     rows = con.sql(
         "SELECT DISTINCT unnest(generate_series(day_start, day_end, INTERVAL 1 DAY))::DATE d "
-        f"FROM read_parquet('{Path(root or data_root()) / 'silver' / 'flood_events'}/**/*.parquet') "
+        f"FROM read_parquet('{as_root(root or data_root()) / 'silver' / 'flood_events'}/**/*.parquet') "
         "ORDER BY 1").fetchall()
     return [r[0] for r in rows]
 
@@ -212,7 +212,7 @@ def aggregate(d: date, root: Path | None = None, force: bool = False) -> Path | 
         if not files:
             return None
         con = duck.connect()
-        con.execute(STOP_MAP.format(assets=Path(root or data_root()) / "ref" / "assets"))
+        con.execute(STOP_MAP.format(assets=as_root(root or data_root()) / "ref" / "assets"))
         sql = DAY_SQL.format(
             day=d,
             trips=", ".join(f"'{f[0]}'" for f in files),
@@ -297,7 +297,7 @@ def ratios(d: date, controls: list[date], root: Path | None = None):
     con = duck.connect()
     return con.sql(RATIO_SQL.format(
         day=d, day_files=day_f, ctl_files=ctl_f,
-        assets=Path(root or data_root()) / "ref" / "assets")).arrow().read_all()
+        assets=as_root(root or data_root()) / "ref" / "assets")).arrow().read_all()
 
 
 BUS_SQL = """
@@ -331,7 +331,7 @@ def bus(root: Path | None = None):
     2026-08-20): the ratio stays NULL rather than borrowing the other window's speeds.
     DuckDB's dayofweek is 0=Sunday; gold's hour_of_week is Monday-based (raincheck.enrich),
     hence the +6 %% 7 shift - copying the Spark expression across engines ships a day off."""
-    r = Path(root or data_root())
+    r = as_root(root or data_root())
     con = duck.connect()
     (w1lo, w1hi), (w2lo, w2hi) = WINDOWS
     return con.sql(BUS_SQL.format(gold=r / "gold", silver=r / "silver",
@@ -424,12 +424,12 @@ def build(root: Path | None = None) -> dict:
     both = set(sub_days) & set(bus_days)
     neither = n - len(set(sub_days) | set(bus_days))
     ev = con.sql("SELECT count(*) FROM read_parquet('"
-                 f"{Path(root or data_root()) / 'silver' / 'flood_events'}/**/*.parquet')"
+                 f"{as_root(root or data_root()) / 'silver' / 'flood_events'}/**/*.parquet')"
                  ).fetchone()[0]
     cov = {
         "spine_version": con.sql(
             "SELECT any_value(spine_version) FROM read_parquet('"
-            f"{Path(root or data_root()) / 'silver' / 'flood_events'}/**/*.parquet')").fetchone()[0],
+            f"{as_root(root or data_root()) / 'silver' / 'flood_events'}/**/*.parquet')").fetchone()[0],
         "events": ev, "event_days": n,
         "subway_era": [str(ERA_LO), str(ERA_HI)],
         "subway_days": len(sub_days), "subway_share": round(len(sub_days) / n, 4),
