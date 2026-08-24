@@ -68,8 +68,19 @@ trap 'rm -f "$tmp"' EXIT INT TERM
 } > "$tmp"
 
 kubectl create namespace "$NS" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+# --server-side, NOT a client-side apply. `kubectl apply` records the whole object it sent
+# in the `kubectl.kubernetes.io/last-applied-configuration` ANNOTATION - for a Secret that
+# is the token itself, in a field `kubectl describe` prints in full while it is busy
+# redacting `.data` to a byte count. Server-side apply tracks ownership in managedFields
+# and writes no such annotation. Measured 2026-08-24: the client-side form left both R2
+# keys readable in `describe` output.
 kubectl -n "$NS" create secret generic "r2-$ROLE" --from-env-file="$tmp" \
-  --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+  --dry-run=client -o yaml \
+  | kubectl apply --server-side --force-conflicts --field-manager=raincheck-r2-secrets \
+      -f - >/dev/null
+# belt and braces: strip the annotation if an older client-side apply left one behind
+kubectl -n "$NS" annotate secret "r2-$ROLE" \
+  kubectl.kubernetes.io/last-applied-configuration- >/dev/null 2>&1 || true
 kubectl -n "$NS" annotate secret "r2-$ROLE" --overwrite \
   "raincheck.io/r2-bucket=$BUCKET" "raincheck.io/serviceaccount=raincheck-$ROLE" >/dev/null
 
