@@ -66,11 +66,21 @@ identical to the committed file and exactly two of 3,112 rows differ: `lat`, `ge
 into new res-8 cells). The assertion `got == {"ent:fixture-inside-95m"}` is untouched, and
 `RADIUS_M = 100.0` is untouched.
 
-**BUG 2 — the >400 s hang.** `test_every_label_sits_inside_its_own_events_window` called
-`duck.table(...).arrow()` on the whole of `silver/flood_obs`, dragging Sandy's 2.3M-vertex
-footprint through Arrow to answer a question about timestamps. Now registers only the join
-columns (`source, source_id, ts_utc`; `window_start_utc, window_end_utc`). Assertion
-unchanged.
+**BUG 2 — the >400 s hang. SUPERSEDED DIAGNOSIS (wave-1 gate, 2026-08-24 landing): it was
+a DEADLOCK, not the polygon.** The first pass blamed `duck.table(...).arrow()` dragging
+Sandy's 2.3M-vertex footprint through Arrow and narrowed the columns — and the narrowed
+version still hung, at 0% CPU, because column width was never the mechanism. On this
+DuckDB, `rel.arrow()` returns a LAZY `RecordBatchReader` on the relation's own connection;
+the test registered two unconsumed readers back into that same connection and joined them,
+so the join's Arrow scan blocks pulling a batch whose production needs the connection
+context the join itself holds. Proven both ways at the gate: the register-readers shape
+deadlocks against the identical built root until killed; projected `create_view`s over the
+same relations return in 0.2 s. The test now builds `o`/`e` as views
+(`rel.select(...).create_view(...)` — `rel.query("t", ...)` is also unusable here, its
+lazy shared virtual name `"t"` rebinds to the last relation). Geometry still never enters
+the join; assertion unchanged. The repo's only other `.arrow()` call sites
+(`flood_impact.py:300,339`) consume their reader immediately via `.read_all()` and do not
+carry the bug.
 
 **Docstring/assertion mismatch, recorded not corrected.** The test's name and first line
 say "every label sits inside its own event's window"; the assertion says "no observation
@@ -80,8 +90,7 @@ name, and it never reads `gold/flood_labels` at all. Left as-is per instruction 
 annotated in the test docstring. If a later ticket wants the literal claim, it needs a
 label-grain check that carries the observation's ts through to the label row.
 
-**CAVEAT — this pass was NOT re-verified.** The 23-test file has not been run since the
-fixture was re-planted and the test edited (the one attempt was SIGKILLed under memory
-pressure from concurrent sessions). The evidence above is real and was measured before the
-re-plant; the re-plant's own arithmetic was checked with pyproj, but no green pytest run
-backs this commit. The landing suite is the first execution of it.
+**VERIFIED at the wave-1 gate, 2026-08-24.** The un-run caveat that stood here is closed:
+after the deadlock fix above, the full 23-test file ran green in 8.69 s at the landing
+(its first complete execution ever — the pre-fix file had never finished a run). The
+re-planted fixture passed the radius test exactly as the pyproj arithmetic predicted.

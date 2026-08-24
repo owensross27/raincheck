@@ -279,12 +279,13 @@ def test_every_label_sits_inside_its_own_events_window(label_root, con):
     """
     obs = duck.table(con, label_root / "silver" / "flood_obs")
     events = duck.table(con, label_root / "silver" / "flood_events")
-    # the join columns only, never the geometry: Sandy's footprint is one 2.3M-vertex
-    # polygon, and pulling it through Arrow to answer a question about timestamps ran
-    # this test for >400 s
-    con.register("o", obs.query("t", "SELECT source, source_id, ts_utc FROM t").arrow())
-    con.register("e", events.query(
-        "t", "SELECT window_start_utc, window_end_utc FROM t").arrow())
+    # projected views, never .arrow(): rel.arrow() is a LAZY RecordBatchReader on this
+    # same connection, and a join over two registered ones deadlocks at 0% CPU - the
+    # scan pulls a batch whose production needs the connection context the join holds.
+    # That, not Sandy's 2.3M-vertex polygon, was the ">400 s hang". The projection
+    # still keeps the geometry out of the join.
+    obs.select("source", "source_id", "ts_utc").create_view("o")
+    events.select("window_start_utc", "window_end_utc").create_view("e")
     assert con.sql("SELECT count(*) FROM o JOIN e ON o.ts_utc >= e.window_start_utc "
                    "AND o.ts_utc < e.window_end_utc GROUP BY o.source, o.source_id "
                    "HAVING count(*) > 1").fetchall() == []
