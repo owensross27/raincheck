@@ -1,7 +1,7 @@
 # T8 — Cost guardrails and kill criteria
 
-Status: open — the review process and the downscale path are built and tested; the
-EC2 half of the downscale exercise is [YOU]-gated on ~$0.40 of temporary spend.
+Status: resolved — review process built and tested, downscale path written and
+exercised on real EC2 (2026-08-24, ~$0.06 of spend, both instances terminated).
 Type: task
 Blocked by: 01
 Owns: spec §8. **The budget alarm half was executed inside ticket 01** — see
@@ -22,8 +22,9 @@ Owns: spec §8. **The budget alarm half was executed inside ticket 01** — see
 
 `scripts/cloud-bill-review.sh [YYYY-MM] [--append]` — default month is the last closed
 one, so the cadence is "run it on the 1st". It reads Cost Explorer twice (tagged spend
-grouped by service, and the whole-account total as the backstop's view) and writes one
-dated entry into the log at the bottom of this file.
+grouped by service, the whole-account total as the backstop's view, and the tag list
+that says whether the tagged number means anything at all) and writes one dated entry
+into the log at the bottom of this file.
 
 ```bash
 scripts/cloud-bill-review.sh --append
@@ -96,28 +97,59 @@ equally cheap to check:
   and nothing else, which is why the constraint costs nothing to keep. A third test
   asserts every stage `downscale.sh` would exercise resolves to a real make target, so
   the exercise list cannot rot into fiction.
-- *The stages fit on a 2 vCPU / 8 GiB arm64 box.* **Not proven without spending.** This
-  is the claim that would actually invalidate the path, and the Mac cannot answer it —
-  it has far more memory than a t4g.large. `up` refuses to launch without
-  `RAINCHECK_DOWNSCALE_OK=1`; the exercise burns **$0.134/hr**, about **$0.40** for a
-  three-hour run.
+- *The stages fit on a 2 vCPU / 8 GiB arm64 box.* **Exercised 2026-08-24 — see below.**
 
-**The exercise set** — chosen so no repo credential ever lands on a throwaway box; every
-one of these reads public sources only (NOAA AORC open data, NYC open data):
+### The exercise, 2026-08-24
 
-| box | stage | what it proves |
+Both instances launched, driven and terminated: `t4g.large` on-demand (floor,
+`i-05e1b1765caa2eb46`) and `c7g.xlarge` **spot** (build, `i-02dc400c55c93f783`), both in
+us-east-1f, both tagged `Project=raincheck-cloud`, ~25 minutes, **~$0.06** against the
+$0.40 estimate. The checkout went over with `git archive HEAD`; no `.env`, no
+credential, no repo secret ever landed on either box.
+
+| box | stage | result |
 |---|---|---|
-| floor | `make warm` | a Sedona session starts inside 8 GiB on 2 vCPU — the sizing question |
-| floor | `make ref` | a real Spark write on the always-on box |
-| floor | `make flood-obs` | a fetch-and-write stage end to end |
-| build | `make precip-hourly SRC=aorc MONTH=…` | the heaviest regular stage, on the scheduled box |
+| floor | `make warm` | **OK, 19 s** — Spark 3.5.3 + Sedona 1.9.1 session, 2 vCPU / 7.6 GiB arm64 |
+| floor | `make ref` | ran its Spark work, then failed in `build_assets` on `silver/stops/pick_id=…` |
+| floor | `make flood-obs` | fetched 311 flood records, then failed on `ref/assets` |
+| floor | `make flood-coastal` | failed on `ref/assets` |
+| build | `make precip-hourly` | failed on `ref/cell_pixel` |
+| build | `make flood-spine` | fetched CO-OPS hourly heights, then failed on `ref/assets` |
+| build | `make flood-live` | failed on `ref/assets` |
 
-`run` ships the checkout with `git archive` (never a working tree, never `.env`),
-installs the venv, and times each stage so "same freshness" is measured rather than
-asserted. The port itself is one line: AL2023 has no brew keg, so `JAVA_HOME` comes
-from `.env` — the knob the Makefile already documents. No code change, which is the
-same finding as the constraint test from the other direction: nothing here is
-Mac-shaped *or* cluster-shaped.
+Peak resident memory across the whole run: **794 MB** (floor) and **785 MB** (build)
+against 7.6 GiB available. Nothing came close to the floor's capacity.
+
+**Three findings, in descending order of how much they should worry someone.**
+
+1. **The stage graph has a single root, and it is not reproducible.** Every stage that
+   failed above failed on the *same* artefact — `ref/assets` — regardless of subsystem.
+   `ref` builds it, and `ref` cannot complete because `build_assets` needs
+   `silver/stops`, which comes from `make picks`, which is 401-blocked until the
+   Interline/Transitland grant lands (hard date 2026-09-30, already a [YOU] item).
+   So **no from-scratch rebuild is possible anywhere today** — not on EC2, not in
+   ticket 03's ECR image, not on a reinstalled Mac. Worse: `data/ref/` (27 MB, 9 tables)
+   is gitignored, and `box-coldpush.sh` only pushes `<root>/archive`, so `ref/` is **not
+   in the R2 cold archive either**. It exists in exactly one place on earth: the Mac's
+   local disk. That is a single point of failure for the entire project and it lands
+   squarely on ticket 10's Mac-decommission gate — the Mac cannot be retired while the
+   root of the stage graph lives only on it. **This is not a downscale defect**; the
+   cluster has precisely the same hole. The exercise is just what made it visible.
+2. **`pip install -e .` failed on a clean box.** `pyproject` pinned `eccodes>=2.48`,
+   but 2.48.0 is the **C library** version `eccodes.__version__` reports through the
+   `eccodeslib` wheel; the python package tops out at 2.47.0 on PyPI. The pin resolved
+   on no platform at all — the Mac venv works only because it predates the pin. Fixed
+   here (`eccodes>=2.47`), and it would have broken ticket 03's image build identically.
+3. **The runtime ports cleanly, and the invocation contract holds.** AL2023 arm64, JDK 17
+   from `.env` (the knob the Makefile already documents — no code change), venv install,
+   Sedona session in 19 s. Every stage *started* as a plain `make <target>` and got as
+   far as its data allowed; not one failed for a reason belonging to the box, the
+   architecture, or the absence of a cluster.
+
+**So the honest verdict:** the downscale path's *runtime* is proven on real hardware and
+the sizing has headroom to spare. What is **not** proven is end-to-end per-day
+throughput, because no box on earth can currently build the stage graph from scratch.
+That is finding 1's problem, not this path's, and it blocks the cluster equally.
 
 ## 3. The standing constraint
 

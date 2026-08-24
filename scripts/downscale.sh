@@ -36,6 +36,13 @@ FLOOR_OD=0.0672; FLOOR_SPOT=0.0234; BUILD_SPOT=0.0525; EIP=0.005
 FLOOR_STAGES='warm
 ref
 flood-obs'
+# The build box is disposable, so it starts with an EMPTY data root -- and precip-hourly
+# reads ref/cell_pixel to build its AORC footprint. On the real path the box attaches the
+# floor's volume (or syncs the ref/ tables from R2) before this runs; rebuilding ref here
+# is not the answer, since ref itself needs silver/stops from the grant-blocked `picks`.
+# Measured 2026-08-24: without that data root this stage fails on the prerequisite, not
+# on capacity. Attaching shared state to the build box is the one piece of the path this
+# exercise did not reproduce.
 BUILD_STAGES='precip-hourly SRC=aorc MONTH=2026-07'
 
 
