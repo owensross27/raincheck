@@ -160,6 +160,20 @@ adds it, with `Math.max(0, ...)` so clock skew errs stale and an unparseable sta
 
 `no-cache` on both live keys is the other half: a CDN must not outlive the exporter.
 
+### Cost, against the gate's COST RULE
+
+The rule on this ticket says "keep it to the ONE small object per tick". The live family
+ships **TWO** — `live.geojson` and `meta.json` — because the spec's own payload table
+mandates the pair and the page's honesty depends on both moving together. That is the
+mandated pair, not a multiplication, and it is the whole per-tick write:
+
+- 30 s cadence = **2,880 ticks/day**, x2 objects = **5,760 PUTs/day**, ~**175,000
+  class-A operations/month**, plus one overwrite-in-place each (no versioning, no
+  lifecycle, no multipart — s3fs single-parts anything under its chunk size).
+- The other four families publish on their own slower cadences and never on the tick.
+- The R2 per-operation rate is not recorded anywhere in this repo, so the dollar figure
+  is deliberately not asserted here: `make bill-review` is what prices it.
+
 ### What this ticket did NOT build, and who owns it
 
 - **The live-export Deployment is cloud 05's** (its ticket: "live-export + the detector
