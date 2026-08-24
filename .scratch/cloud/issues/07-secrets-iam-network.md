@@ -186,3 +186,23 @@ new SG to that instance touches another project, so ask Ross before doing it tha
 - **No NetworkPolicy.** Nothing to isolate yet — one namespace, no ingress, and the VPC
   CNI needs network-policy support switched on to enforce one. It arrives with the notify
   exception, if that ever fires.
+
+## Defect found and fixed 2026-08-24 (during cloud 12's session, at Ross's direction)
+
+**`kubectl apply` was writing the token into an ANNOTATION.** `r2-secrets.sh` was careful
+in every other respect - values through a 0600 temp file, never argv, nothing echoed - but
+the final `... -o yaml | kubectl apply -f -` is a CLIENT-SIDE apply, and a client-side
+apply records the entire object it sent in
+`kubectl.kubernetes.io/last-applied-configuration`. For a Secret, that object IS the
+token. The annotation then defeats the one redaction the tooling gives you for free:
+`kubectl describe secret` prints `.data` as a byte count and prints annotations IN FULL.
+Measured on the live `r2-build` Secret the moment it was created.
+
+FIXED: the apply is now `--server-side --force-conflicts
+--field-manager=raincheck-r2-secrets`, which tracks ownership in `managedFields` and writes
+no such annotation, plus a defensive `kubectl annotate ... last-applied-configuration-` to
+strip one an older client-side apply may have left. Verified: a re-run leaves only the two
+`raincheck.io/*` annotations, and `describe` shows byte counts only.
+
+**Applies to any Secret this repo ever applies**, not just these two - the same one-line
+mistake is available everywhere `create secret ... | kubectl apply` is written.
