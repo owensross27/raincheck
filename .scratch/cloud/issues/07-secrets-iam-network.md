@@ -37,7 +37,7 @@ wins — break-even is ~9 nodes — but it must stay counted as burst grows.
 
 ## Tests
 
-Extends `tests/test_cluster_manifests.py`: every ServiceAccount maps to exactly one R2
+CREATED `tests/test_cluster_manifests.py` here — cloud 02 was to have created it and had not, so this ticket did; later tickets EXTEND it (15 tests): every ServiceAccount maps to exactly one R2
 token Secret; no Secret value appears in a container image or a plain env literal; no
 `LoadBalancer`/`NodePort` Service; no SG rule granting inbound from `0.0.0.0/0` except the
 named exceptions.
