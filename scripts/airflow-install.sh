@@ -85,8 +85,12 @@ secret_once airflow-fernet     "fernet-key=$(openssl rand -base64 32 | tr '+/' '
 echo "== 2. metadata Postgres (gp3-1f, floor)"
 # Applied as the plain file, not through the kustomize render: the render also contains
 # the Kafka objects, and an Airflow installer has no business re-applying the topics Job.
-# deploy/k8s/kustomization.yaml has no transformers, so the rendered doc and this file are
-# byte-identical - tests/test_cluster_manifests.py asserts the file is in the render.
+# The file and its rendered form are identical - the kustomization's only transformer is
+# cloud 03's `images:`, which rewrites the image named `raincheck` and therefore never
+# touches this StatefulSet's `postgres:17.6-alpine`. If a transformer is ever added that
+# DOES rewrite this file (a namespace or a name prefix), this line has to become a
+# rendered-and-filtered apply. tests/test_cluster_manifests.py asserts the file is in the
+# render either way.
 kubectl apply -f "$ROOT/deploy/k8s/airflow/postgres.yaml"
 kubectl rollout status statefulset/airflow-metadata-db -n "$NAMESPACE" --timeout=5m
 
