@@ -699,8 +699,8 @@ budget. So a notification lands minutes after a new hourly stamp flips a tier,
 and its evidence is hour-grain. Every message says so. The ~1-2 min end-to-end
 figure belongs to the bus live chain and may never appear in a flood message.
 
-**HITL gates.** Two open, both Ross's, neither blocking the build:
-(a) arming the notifier out of dry-run for the first real send, and
-(b) the formal rule lift in section 7, which is a decision he records by
-amending the five documents. Nothing in this spec adds a standing process, so no
-daemon approval is required.
+**HITL gates.** ONE open, Ross's, not blocking the build: arming the notifier
+out of dry-run for the first real send. The second — the formal rule lift in
+section 7 — is CLOSED: recorded 2026-08-23 by notify 01, which amended all five
+documents. Nothing in this spec adds a standing process, so no daemon approval
+is required.
