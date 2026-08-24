@@ -60,11 +60,11 @@ executor: "KubernetesExecutor"
 images:
   airflow:
     repository: 384555717200.dkr.ecr.us-east-1.amazonaws.com/raincheck
-    tag: "3fa22a6b59ec-airflow"
+    tag: "e9323ebd540c-airflow"
     pullPolicy: IfNotPresent
   pod_template:
     repository: 384555717200.dkr.ecr.us-east-1.amazonaws.com/raincheck
-    tag: "3fa22a6b59ec-airflow"
+    tag: "e9323ebd540c-airflow"
     pullPolicy: IfNotPresent
 
 # ---------------------------------------------------------------------------------------
@@ -159,12 +159,16 @@ logs:
 
 # DAG delivery, decided by orch 04: BAKED INTO THE IMAGE above, at /opt/airflow/dags, which
 # is both this chart's default dags.mountPath and Airflow's default dags_folder. So both of
-# these stay false and there is nothing else to set - no sidecar, no PVC, and no
-# `dag_bundle_config_list`. The last one matters: a bundle is configured per COMPONENT, and
-# one configured on the scheduler alone is not configured on the task pod, which then dies
-# with "Requested bundle is not configured" after the pod has already started (cloud 06
-# lost a run to exactly that). The default `dags-folder` bundle needs no configuration at
-# all, so there is nothing to get half-configured.
+# these stay false and there is nothing else to set: no sidecar, no PVC, and no bundle
+# entry of our own. THAT LAST ONE IS THE POINT. A DAG bundle is configured per COMPONENT,
+# and one configured on the scheduler alone is not configured on the task pod - which then
+# dies with "Requested bundle is not configured" after the pod has already started (cloud
+# 06 lost a run to exactly that). Rendering the chart shows why nothing here can drift that
+# way: the chart writes the DEFAULT bundle
+#   {"name":"dags-folder","classpath":"...bundles.local.LocalDagBundle","kwargs":{}}
+# into the shared airflow.cfg ConfigMap, and every component mounts that same ConfigMap -
+# the executor's pod template included. One config object, every component, nothing to
+# half-configure. Adding an entry here is what would break that, so do not.
 dags:
   persistence:
     enabled: false
