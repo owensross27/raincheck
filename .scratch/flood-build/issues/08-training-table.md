@@ -89,7 +89,12 @@ The full census rides in the file's parquet metadata (`census`, `gates`).
 
 - The spec's **"155 alert-sourced complex-event pairs"** is superseded: `gold/flood_labels`
   holds **140** complex labels in total, **118** of them on pluvial fit-era events. That
-  118 is the size of the independent complex-grain validation set.
+  118 is the size of the independent complex-grain validation set. Corrected in BOTH
+  spec copies (`.scratch/flood-build/spec.md` and `.scratch/flood/spec.md`) and in flood
+  09's ticket file. Deliberately NOT rewritten: `.scratch/flood/map.md`,
+  `.scratch/flood/issues/08-exposure-score-design.md` and
+  `.scratch/flood/assets/09-adversarial-verdicts.json` are dated records of what the
+  wayfinder decided and measured at the time — a record, not an instruction.
 - **`stormwater not-analyzed = 745` splits, and the two exclusions overlap exactly.** All
   60 out-of-DEM-footprint stops are Nassau County, which is outside DEP's study area, so
   all 60 carry `not-analyzed`: 745 = **685 in the matrix + 60 excluded**. Both numbers are
