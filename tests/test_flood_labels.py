@@ -7,9 +7,14 @@ every complex and station, plus the entrances, bus stops and Cells the fixture
 observations can actually reach.
 
 Two rows in the assets fixture are deliberate, not cut: `ent:fixture-inside-95m` and
-`ent:fixture-outside-140m` sit due north of one 311 report at 95 m and 140 m, which is
-the only way to pin RADIUS_M from both sides. One Cell that fixture observations fall in
-carries scored = false, so the cells_scored filter has something to bite on.
+`ent:fixture-outside-140m` sit due SOUTH of 311 report 24283048 at 95 m and 140 m, which
+is the only way to pin RADIUS_M from both sides. South, not north: they were planted
+north until 2026-08-24, and a SECOND 311 report of the same event sits 59 m from where the
+140 m row stood — so the "outside" row attached under a correct 100 m cut and the failure
+read as a radius bug. An outside fixture only pins anything when it is outside the radius of EVERY
+observation, not of the one it was measured against; due south the nearest observation to
+it is 139.4 m, and to the inside row 95.0 m exactly. One Cell that fixture observations
+fall in carries scored = false, so the cells_scored filter has something to bite on.
 """
 import json
 import shutil
@@ -210,7 +215,8 @@ def test_the_support_vocabulary_is_frozen_and_sorted(labels):
 
 
 def test_radius_attachment_is_geodesic_and_cuts_at_one_hundred_metres(labels):
-    """The fixture's two planted entrances sit 95 m and 140 m from one 311 report."""
+    """The fixture's two planted entrances sit 95 m and 140 m from 311 report 24283048,
+    and no other observation is nearer to either than 95.0 m and 139.4 m."""
     got = {a for (a,) in one(labels, "SELECT DISTINCT asset_id FROM t "
                                      "WHERE asset_id LIKE 'ent:fixture-%'")}
     assert got == {"ent:fixture-inside-95m"}
@@ -264,11 +270,21 @@ def test_depth_rides_only_where_a_source_measures_it(labels):
 
 def test_every_label_sits_inside_its_own_events_window(label_root, con):
     """The event join is the window, never the observation: a label whose observation fell
-    outside the window would mean the spine had been bypassed."""
+    outside the window would mean the spine had been bypassed.
+
+    What this actually pins is the PRECONDITION for that — no observation lands in two
+    event windows, so `oe` assigns each observation to exactly one event and a label can
+    only carry the window it was joined on. The name is broader than the assertion;
+    recorded on the ticket rather than quietly widened.
+    """
     obs = duck.table(con, label_root / "silver" / "flood_obs")
     events = duck.table(con, label_root / "silver" / "flood_events")
-    con.register("o", obs.arrow())
-    con.register("e", events.arrow())
+    # the join columns only, never the geometry: Sandy's footprint is one 2.3M-vertex
+    # polygon, and pulling it through Arrow to answer a question about timestamps ran
+    # this test for >400 s
+    con.register("o", obs.query("t", "SELECT source, source_id, ts_utc FROM t").arrow())
+    con.register("e", events.query(
+        "t", "SELECT window_start_utc, window_end_utc FROM t").arrow())
     assert con.sql("SELECT count(*) FROM o JOIN e ON o.ts_utc >= e.window_start_utc "
                    "AND o.ts_utc < e.window_end_utc GROUP BY o.source, o.source_id "
                    "HAVING count(*) > 1").fetchall() == []
