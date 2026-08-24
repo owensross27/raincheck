@@ -56,13 +56,17 @@ not copied.
 |---|---|---|---|---|
 | Kafka broker (Strimzi KRaft, combined) | T2 | 500m | 1.5Gi | 1Gi heap + off-heap; ~0.5 GB/day is one-broker traffic |
 | Spark streaming driver | T3 | 1000m | 2Gi | **measured** 2026-08-24 (T3): pod RSS = driver heap + ~0.93 GiB, so this row holds only with `RAINCHECK_SPARK_DRIVER_MEM=1g`, not the Mac's 3 g |
-| Airflow scheduler | T6 | 500m | 1Gi | |
-| Airflow webserver (1 replica) | T6 | 300m | 1Gi | no triggerer (spec §1) |
-| Airflow metadata Postgres | T6 | 250m | 512Mi | |
-| live-export + detector Deployment | T5 | 200m | 512Mi | two halves, one pod |
-| precip-live CronJob (300 s tick) | T5 | 500m | 1Gi | burst, not steady |
-| kube-system + Karpenter + EBS CSI | T1 | 600m | 1Gi | coredns x2, aws-node, kube-proxy |
-| **Floor total** | | **3.85 vCPU** | **~8.5Gi** | excludes per-day build pods (Karpenter burst) |
+| Airflow scheduler | T6 | 250m (+10m groomer) | 1Gi (+64Mi) | right-sized at the wave-2 gate (Ross, 2026-08-24): idle actual 30m, no CPU limit so burst uncapped |
+| Airflow api-server (1 replica; Airflow 3's webserver) | T6 | 100m | 1Gi | no triggerer (spec §1); right-sized (idle actual 3m) |
+| Airflow dag-processor (+groomer) | T6 | 50m (+10m) | 512Mi (+64Mi) | REQUIRED standalone in Airflow 3 — row added by the wave-2 gate; right-sized (idle actual 9m) |
+| Airflow metadata Postgres | T6 | 50m | 512Mi | right-sized (idle actual 17m) |
+| Airflow migrate Job | T6 | 100m | 256Mi | once per install/upgrade |
+| live-export + detector Deployment (`raincheck-live`) | T5 | 100m | 384Mi | **measured** (T5): 0.159 CPU-s per 30 s cycle ~= 5.3m; RSS plateau 368Mi |
+| precip-live CronJob (300 s tick) | T5 | 100m | 256Mi | **measured** (T5): floor, not burst; ~1-11 s of each 300 s |
+| kube-system + Karpenter + EBS CSI | T1 | 880m | 1212Mi | **measured** (T6): see deploy/cloud/floor-capacity.yaml — the 600m guess was low |
+| topics Job | T2 | 100m | 256Mi | transient |
+| Strimzi cluster operator | T2 | 100m | 256Mi | Helm-installed, floor nodeSelector (floor-capacity.yaml `unmanaged`) |
+| **Floor total** | | **3350m** | **~9.2Gi** | vs 3860m / 14138Mi measured allocatable (floor-capacity.yaml); excludes per-day build pods (Karpenter burst) |
 
 The Spark driver row is no longer a placeholder — T3 measured it on the cluster
 (2026-08-24). Two facts that row does not fit: pod RSS tracks the **driver heap plus about

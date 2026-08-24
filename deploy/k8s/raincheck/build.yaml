@@ -51,6 +51,8 @@ template:
         envFrom:
           - secretRef:
               name: r2-build     # cloud 07 - AWS_ACCESS_KEY_ID/SECRET/ENDPOINT_URL/REGION
+              # optional, or the pod cannot start until the token exists (wave-2 gate)
+              optional: true
         env:
           - name: RAINCHECK_ARCHIVE_ROOT
             value: /staging
@@ -112,6 +114,8 @@ template:
         envFrom:
           - secretRef:
               name: r2-build
+              # optional, or the pod cannot start until the token exists (wave-2 gate)
+              optional: true
         env:
           # spark.py reads these; there is no forked session builder, because a second
           # SparkSession factory would be a second set of Spark semantics.

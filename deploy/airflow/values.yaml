@@ -164,7 +164,9 @@ scheduler:
     raincheck.io/pool: floor
   resources:
     requests:
-      cpu: 500m          # the T1 requests table's "Airflow scheduler" row
+      cpu: 250m          # right-sized at the wave-2 gate (Ross, 2026-08-24): idle actual
+                         # is 30m, no CPU limit is set, so burst is uncapped. T1's 500m row
+                         # is corrected in the cloud 01 ticket file.
       memory: 1Gi
     limits:
       memory: 1Gi
@@ -188,7 +190,7 @@ apiServer:
     type: ClusterIP      # never LoadBalancer or NodePort: reach the UI with port-forward
   resources:
     requests:
-      cpu: 300m          # the T1 requests table's "Airflow webserver (1 replica)" row
+      cpu: 100m          # right-sized at the wave-2 gate (idle actual 3m; no CPU limit)
       memory: 1Gi
     limits:
       memory: 1Gi
@@ -201,7 +203,7 @@ dagProcessor:
     raincheck.io/pool: floor
   resources:
     requests:
-      cpu: 200m
+      cpu: 50m           # right-sized at the wave-2 gate (idle actual 9m; no CPU limit)
       memory: 512Mi
     limits:
       memory: 512Mi

@@ -63,6 +63,9 @@ spec:
           envFrom:
             - secretRef:
                 name: r2-build
+                # optional, or this pod sits in CreateContainerConfigError until Ross
+                # mints the token (cloud 06 measured it; wave-2 gate applied it here)
+                optional: true
           env:
             # cloud 02, FROZEN: the in-cluster bootstrap. Never the 9094 `box` listener -
             # that one advertises a fixed name only the capture box's /etc/hosts resolves.

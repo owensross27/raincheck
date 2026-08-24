@@ -475,6 +475,9 @@ def test_audit_reads_the_allowlist_it_is_given(tmp_path):
 # A git sha, which is what scripts/cloud-image.sh writes. Any other tag shape - a version,
 # a branch name, PLACEHOLDER - means the pin stopped naming a commit.
 SHA_TAG = re.compile(r"^[0-9a-f]{7,40}$")  # not `-dirty`: a scratch push names no commit
+# What "pinned" means for a third-party image: at least major.minor spelled out
+# (`postgres:17.6-alpine` passes; `postgres:17` still tracks minors and does not).
+VERSION_TAG = re.compile(r"^v?\d+(\.\d+)+")
 # What a container must never do at start: every recurring pod second is billed, and a
 # 5-min CronJob fires ~8,640x/mo. Setup belongs in the image layer, once per git sha.
 INSTALLERS = ("pip install", "pip3 install", "apt-get", "apt install", "curl ", "wget ",
@@ -487,33 +490,59 @@ def workloads() -> list[dict]:
 
 
 def test_every_image_is_the_one_ecr_repository_pinned_by_sha():
-    """One image for every raincheck pod: five specialised images would be five drifting
+    """One image for every RAINCHECK pod: five specialised images would be five drifting
     runtimes. `:latest` is barred twice over - it makes "which code produced this
     partition?" unanswerable, and with imagePullPolicy IfNotPresent a node that already
-    pulled it serves the stale one forever."""
+    pulled it serves the stale one forever.
+
+    Narrowed at the wave-2 gate: the rule's intent is that raincheck CODE moves to a new
+    sha atomically, which is a claim about images the `images:` transformer governs. A
+    third-party image (cloud 06's postgres metadata db) is categorically not that - it is
+    allowed through when it is pinned to an immutable version tag, and still never
+    tagless or `:latest`."""
     images = {c["image"] for c in containers()}
     assert images, "no containers in the rendered manifests"
-    repos = set()
+    raincheck_repos = set()
     for image in images:
         repo, _, tag = image.rpartition(":")
         assert repo and tag, f"{image} carries no tag at all - that IS :latest"
         assert tag != "latest", f"{image} is a moving tag"
-        assert SHA_TAG.match(tag), f"{image} is not pinned to a git sha"
-        repos.add(repo)
-    assert len(repos) == 1, f"more than one image repository: {sorted(repos)}"
-    assert repos.pop().endswith("/raincheck")
+        if repo.endswith("/raincheck") or repo == "raincheck":
+            assert SHA_TAG.match(tag), f"{image} is not pinned to a git sha"
+            raincheck_repos.add(repo)
+        else:
+            assert VERSION_TAG.match(tag), (
+                f"{image} is third-party but not pinned to an immutable version tag")
+    assert len(raincheck_repos) == 1, (
+        f"raincheck images from more than one repository: {sorted(raincheck_repos)}")
+    assert raincheck_repos.pop().endswith("/raincheck")
 
 
 def test_the_image_pin_lives_in_exactly_one_place():
     """The kustomize `images:` transformer, so every manifest moves to a new sha together.
-    A half-updated rollout - some pods new, some old - must not be expressible."""
+    A half-updated rollout - some pods new, some old - must not be expressible.
+
+    Narrowed at the wave-2 gate: a manifest may name a THIRD-PARTY image directly when it
+    is pinned to an immutable version tag (the transformer does not govern those, so there
+    is no second pin site to guard against). What stays barred is any direct spelling of
+    the raincheck image - repo, sha, or ECR path - anywhere but the transformer."""
     kust = yaml.safe_load((ROOT / "deploy" / "k8s" / "kustomization.yaml").read_text())
     assert len(kust["images"]) == 1 and kust["images"][0]["name"] == "raincheck"
+    ecr_repo = kust["images"][0]["newName"]
     for path in sorted((ROOT / "deploy" / "k8s").rglob("*.yaml")):
         for n, line in enumerate(path.read_text().splitlines(), 1):
             if line.strip().startswith("image:") and path.name != "kustomization.yaml":
-                assert line.split(":", 1)[1].strip() == "raincheck", (
-                    f"{path.name}:{n} names an image directly instead of through the pin")
+                image = line.split(":", 1)[1].strip()
+                if image == "raincheck":
+                    continue  # the governed spelling; the transformer pins it
+                repo, _, tag = image.rpartition(":")
+                assert repo != "raincheck" and not repo.endswith("/raincheck") \
+                    and ecr_repo not in image, (
+                        f"{path.name}:{n} names the raincheck image directly instead of "
+                        "through the pin")
+                assert repo and tag and tag != "latest" and VERSION_TAG.match(tag), (
+                    f"{path.name}:{n} names a third-party image without an immutable "
+                    f"version tag: {image}")
 
 
 def test_nothing_installs_at_pod_start():

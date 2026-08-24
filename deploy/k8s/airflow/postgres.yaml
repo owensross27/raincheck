@@ -87,7 +87,8 @@ spec:
                   key: postgres-password
           resources:
             requests:
-              cpu: 250m         # the T1 requests table's "Airflow metadata Postgres" row
+              cpu: 50m          # right-sized at the wave-2 gate (idle actual 17m; no CPU
+                                # limit). T1's 250m row is corrected in the cloud 01 ticket.
               memory: 512Mi
             limits:
               memory: 512Mi
