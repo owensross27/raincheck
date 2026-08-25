@@ -235,3 +235,67 @@ the two `make` targets run. Data Docs go to their own directory per named run
 (`<root>/gx/docs-<suite>`), because `build_data_docs()` rebuilds the WHOLE site (orch 08,
 measured) and a non-nightly run into `<root>/gx/data_docs` would have deleted last night's
 four pages from the tree `publish FAMILY=docs` sends to the public host.
+
+## CLOSE-OUT (orch 10, 2026-08-25, branch `orch10-non-nightly-suites`, `6ac31dd`)
+
+**WHAT SHIPPED.** Two suites, one new producer, three `make` targets, no stage, no DAG edit,
+no `publish.FAMILIES` entry, no `contract` bump, no image pin.
+
+    gx.SUITES        the NIGHTLY declaration - unchanged, still orch 08's + orch 09's four
+    gx.NON_NIGHTLY   ("backfill-census", "ref-canaries")   <- this ticket
+    gx.DECLARED      SUITES + NON_NIGHTLY; no two names collide (a test)
+    gx.by_name(name) -> Suite, refusing an unknown name and LISTING the declared ones
+    gx.run(root, suites=SUITES, docs=None)    <- gained the third parameter
+    gx.BACKFILL      scripts/backfill-verify.py, loaded BY PATH for its own CHECK/
+                     CHECK_COLUMNS/FEEDS/DEAD (orch 03 kept it a script on purpose)
+
+    raincheck.ref_canary   CHECK "ref", CHECK_COLUMNS = checks.CORE + ("got", "want")
+      subjects() -> the declared canary names, derived from ref.ASSETS_EXPECT + KEY_TABLES
+      census(root) -> list[checks.Row]   (PURE - main() is what writes the batch)
+      built(root, *parts) -> bool        (a PART FILE, never a directory)
+
+    make refcanary   -> python -m raincheck.ref_canary
+    make gxbackfill  -> python -m raincheck.gx backfill-census
+    make gxref       -> python -m raincheck.gx ref-canaries
+
+**MEASURED, ALL OF IT.** `tests/test_gx.py` + `tests/test_ref_canary.py` **77 passed / 0
+skipped in 5.18 s** in a throwaway venv on **GX 1.21.0**, the image's version. On the Mac
+`.venv` the same two files are 39 passed / 38 skipped (GX-absent) - a skip there is an
+environment fact and every one of them was RUN above. `tests/test_check_producers.py` **20
+passed**, untouched. NEVER ran the full suite. Test delta, recounted on the branch and
+reconciled against `--collect-only`: `test_gx.py` **39 -> 62 (+23)**, `test_ref_canary.py`
+**+15 NEW**, total **+38 collected / +38 `def test_`**, no parametrize on either side.
+
+**THE END-TO-END RUN, not just the tests.** All three targets executed against a planted
+scratch root in the GX venv: `make refcanary` wrote `checks/check=ref/` and exited on the
+canary (a 3-row toy registry against the real frozen counts, so 7 BAD / 3 OK, rc 1);
+`make gxref` rendered `gx/docs-ref-canaries/` and named all seven moved counts; `make
+gxbackfill` reported `OK backfill-census [backfill] 3 ok / 0 failed / 0 could not check -
+range(s) censused: 2026-03-01..2026-08-14`. And on the REAL root, read-only (`census()` is
+pure, nothing was written): **all ten canaries OK, rc 0** - 445/496/2120/13370/4113,
+total 20544, **cells_scored 1351**, `assets_version d3c7b0f371a4fcef196588886a2058f755ee1da0`,
+zero orphans in both `gold/flood_labels` and `silver/asset_features`.
+
+**MUTATION PROBE: 21 MUTANTS, 21 KILLED**, pristine control 77 at both ends. It earned its
+keep twice, and both survivors were the SAME defect in my tests rather than in the code:
+the three census measure-expectations (`zero_byte`, `stale_dead`, `hours_seen` not-null)
+all survived deletion, because each test had set `outcome=FAIL` as well and the VERDICT
+expectation was failing the row - the assertion ran and proved nothing. Every such row now
+says `ok` and breaks exactly ONE measure, the verdict expectation got its own test on an
+all-clean row that says fail, and the null-convention test drives every NULL-able measure
+instead of only the first. Degenerate-fixture rule, applied to a suite.
+
+**THE CEILINGS, named rather than left to be rediscovered.**
+1. `make` CANNOT carry the three outcomes - GNU make exits 2 for ANY recipe failure, so
+   these targets' rc 1 arrives as 2 (measured again on all three). Nothing is gated on it
+   (neither is a stage), but read the persisted batch, or invoke the module, to tell a real
+   gap from a could-not-check.
+2. The `assets_version` row proves the identity RESOLVES and publishes its value; nothing in
+   this repo persists a counterpart, so a MOVED registry is caught by the count rows and the
+   orphan rows, not by that sha.
+3. `ref` cannot be rebuilt here at all, so the canaries can only ever be run read-side.
+
+**NOT MINE, AND WHY.** flood-build 19's `stormwater_extent` batch: **its RUN LOG entry did
+not exist when this was written** (the newest entry was flood-build 15), so there was no
+measured batch shape to expect on and I did not invent one. flood-build 21a's `route_flood`
+(wave 7) was never in scope. Both are written forward to orch 13.
