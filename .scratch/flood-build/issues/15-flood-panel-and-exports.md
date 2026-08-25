@@ -47,7 +47,6 @@ rather than invent a schema. Three things it measured land on this ticket:
 
 Nothing here changes the two-meta-file MUST inherited from frontend 01; it sits beside it.
 
-
 ## Inherited from flood 10's build (2026-08-24, branch `flood10-exposure-artifact`)
 
 `gold/flood_exposure` and `research/flood-10-coefficients.json` both exist. Two things on
@@ -86,3 +85,30 @@ this ticket's list are now settled by measurement rather than left to the panel:
   "modelled flood exposure", release "v1 ships the fitted L2 logistic exposure score", caveat
   "fitted on reported flooding, 2010-2025 rain events"). The B2-branch alternates in your
   bullet 16 are therefore NOT the live branch; read `gate.branch` rather than choosing.
+
+## MUST from frontend 05 (the chassis landed 2026-08-25, `frontend05-seven-layer-chassis`)
+
+The page now FETCHES your two gate-side files by name, because nothing here had frozen one
+and a chassis cannot read a URL that does not exist. **These are the two names the live page
+reads today; land them, or land different ones and correct this line, the page's `LAYERS`
+table and its summary line in the same commit:**
+
+- **`web/files/flood.json`** — the UNGATED side: the FloodNet tier and its own meta keys.
+  Nothing MTA-derived may appear in this file; it is published on the open side of the
+  lineage gate.
+- **`web/files/flood-mta.json`** — the `mta-alerts` gate side: the alert-derived tier only.
+
+This is the two-meta-file MUST inherited from frontend 01 made concrete, and it sits beside
+the existing one rather than replacing it.
+
+Two more the page's rendering depends on, both cheap if done at write time and a rewrite if not:
+
+- **Every FloodNet sensor feature must carry a boolean `display`.** The map paints a
+  water-now sensor as a filled aqua disc and a dry/stale one as a HOLLOW RING, and the
+  MapLibre expression that does it reads exactly `["get", "display"]` (three meanings on one
+  grey was the collision this fixes). A missing key paints every sensor as a ring.
+- **The budget constants you owe are what let the page render a VERDICT.** Until a source
+  carries a frozen budget the page renders a bare AGE and judges nothing — that is
+  deliberate, and it is why guessing a threshold downstream is refused by a test that counts
+  the budgeted sources. FloodNet's is already derived from `flood_truth.MAX_AGE_MIN`; the
+  precip / CO-OPS / NWS budgets are yours.

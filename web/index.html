@@ -45,9 +45,27 @@
 </div>
 </div>
 
-<!-- ------------------------------------------------------ panel 2: the live view (ticket 14) -->
+<!-- --------------------------------------------- panel 2: the layers (frontend 05) -->
+<div id="right">
+<section id="layers" class="panel" aria-labelledby="layers-h">
+  <h2 id="layers-h">Layers</h2>
+  <p class="note">Every layer carries its own freshness, per SOURCE: FRESH, STALE with a
+     reason, OFF, GATED, or a bare AGE where no staleness budget has been frozen yet.
+     Nothing is fetched until you tick it.</p>
+
+  <h3 class="lbl" id="fill-h">Cell fill &mdash; pick one</h3>
+  <div id="layers-fill" role="radiogroup" aria-labelledby="fill-h"></div>
+  <p class="note">One fill at a time: the delay layer and the impact overlay are the same
+     quantity (a Speed ratio) over the same Cells at different time-scales, so they share
+     one ramp and one channel and can never disagree on screen.</p>
+
+  <h3 class="lbl" id="pts-h">Ground and points</h3>
+  <div id="layers-pts" aria-labelledby="pts-h"></div>
+</section>
+
+<!-- ------------------------------------------------------ panel 3: the live view (ticket 14) -->
 <section id="live" class="panel" aria-labelledby="live-h">
-  <h2 id="live-h">Live: the fleet right now</h2>
+  <h2 id="live-h">Live: the fleet right now <span id="live-chip"></span></h2>
   <p id="livemeta" class="note" aria-live="polite">off - tick the box below to fetch
      <code>files/meta.json</code> every 30 s. Nothing is fetched until you do, so nothing
      here can look live when it is not.</p>
@@ -62,13 +80,20 @@
   <!-- enabled by app.js on MapLibre's `load`; the live layer cannot be painted before
        that and every branch of the handler touches it -->
   <p><label class="note"><input type="checkbox" id="livetoggle" disabled> show vehicles (30 s refresh)</label></p>
+  <div id="src-live" class="srcs"></div>
 </section>
+</div>
 
 <div id="provenance" class="panel note">
   Kafka 3.9 &rarr; Spark 3.5.3 + Sedona 1.9.1 &rarr; GeoParquet &rarr; DuckDB 1.5.5 (<code>make export</code>,
   pure-SQL JSON writer) &rarr; MapLibre GL JS 5.9.0, vendored. Rain: NOAA AORC hourly (analysis),
   MRMS RadarOnly QPE (live). Ground: TLC taxi zones, no basemap.
   <span id="prov-files"></span>
+  <p id="mta-gate">MTA gate: the MTA&rsquo;s redistribution terms are <strong>not
+  verified</strong>, so nothing MTA-derived is published here. The gate cuts by LINEAGE and
+  has two sides - vehicle positions (the live fleet, the bus impact overlay) and alert rows
+  (the MTA flood tier) - and both are dark. Those layers still appear, marked GATED: absence
+  should be explained, not mysterious.</p>
   <!-- cloud 09: MTA attribution is a CONDITION of publishing the live view, not a credit
        line. It stays in the always-visible panel rather than only inside MapLibre's
        compact attribution control, which ships collapsed behind a button. -->
