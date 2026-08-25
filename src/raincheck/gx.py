@@ -47,11 +47,12 @@ from __future__ import annotations
 import json
 import sys
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from importlib.util import find_spec
 from pathlib import Path
 from typing import Callable, NamedTuple
 
-from raincheck import checks, gapfill, publish
+from raincheck import checks, cold, eras, gapfill, publish
 from raincheck.paths import data_root
 
 # The live-capture era's first day. Read from gapfill rather than retyped: the backfill
@@ -64,6 +65,17 @@ DOCS = ("gx", "data_docs")  # <root>/gx/data_docs - cloud 09's `docs` family src
 # COMPLETE + the subject column is what lets a failing expectation NAME the check subjects
 # it rejected. `subject` is in checks.CORE, so every batch has one.
 RESULT_FORMAT = {"result_format": "COMPLETE", "unexpected_index_column_names": ["subject"]}
+STAMP = "%Y%m%dT%H%M%SZ"   # checks.write's own: fixed width UTC, so lexicographic IS chronological
+# The window ONE run's batches fall in. A stage that FANS OUT writes its batch once per
+# POD - `gapverify` is five pods, one per feed kind, since orch 06 - and a stage invoked
+# twice writes two (daily.coldcheck() checks, re-pushes, re-checks). Both are one run, so
+# "the batch" is a SET and reading only the newest stamp would judge one kind and silently
+# drop four. The set has to be BOUNDED, though: a batch from a run that is over would let a
+# pod which did not run tonight answer for tonight, which is the false OK this whole
+# vocabulary exists to kill. The nightly fires once a day, so any window well short of 24 h
+# separates two runs; six hours is that with room for a transport stage's exponential
+# backoff and the node purchase in front of every pod (measured 95 s + 74 s, orch 04).
+RUN_WINDOW = timedelta(hours=6)
 
 
 class Suite(NamedTuple):
@@ -80,12 +92,21 @@ class Suite(NamedTuple):
     refused before ERA_START. Leave it None for a batch with no day (the cold mirror's is
     per archive prefix), and never set it on the backfill census - that check IS the other
     era.
+
+    `whole` is the suite's claim about the batch AS A WHOLE, and it exists because an
+    EXPECTATION CANNOT MAKE ONE: inconclusive rows are held out of the frame, so anything
+    that counts rows sees a short batch and fails - rendering "could not check" as a
+    failure (orch 08 measured exactly that). It is handed every row, before the split, plus
+    the data root, and returns `(failed, inconclusive, detail)` for merged() to fold into
+    the verdict. "One row per archive prefix", "five kinds this run" and "four readers
+    every run" are all this, and none of them is an expectation.
     """
     name: str
     check: str
     columns: tuple[str, ...]
     expectations: Callable[[], list]
     era: str | None = None
+    whole: Callable[[list[dict], Path], tuple[tuple[str, ...], tuple[str, ...], str]] | None = None
 
 
 @dataclass(frozen=True)
@@ -162,9 +183,187 @@ def _completeness() -> list:
     ]
 
 
+def _fidelity() -> list:
+    """The fill-fidelity suite's expectations, over `gapverify`'s rows. Per-row, all five.
+
+    THE BAND IS THE MODULE'S, NEVER THE MEASURED ONE. Ticket 20 measured filled hours at
+    0.85-1.2x their archiver neighbours; `gapfill.ROW_BAND` / `KEY_BAND` are what verify()
+    actually enforces, an order of magnitude wider. Writing the observed figure here would
+    make this suite the real gate and silently change what passes - which is the one thing
+    ticket 09 exists to avoid. So the numbers are READ from the constants and a tightening
+    is a change to the module, with its own evidence, never a second threshold over here.
+
+    1. THE PRODUCER'S VERDICT. `verify()` is `FAIL if empty or schema drifted or either
+       ratio out of band else OK`; this expects the verdict it wrote, not a copy of that
+       expression.
+    2. ONLY THE DECLARED KINDS, from `gapfill.KINDS`.
+    3+4. THE RATIOS, in the module's own bands. Redundant with the verdict on purpose:
+       `outcome` says a kind is bad and THIS says which measure left which band, in the
+       Data Docs page a human reads at 06:00. Each is paired with a not-null, because a
+       between-expectation counts nulls as MISSING and succeeds without them (orch 08
+       measured that too) - and NULL is the could-not-check convention, so a judged row
+       that carries no measure is a producer bug rather than a third outcome.
+    5. A NON-EMPTY FILLED HOUR, and the archiver's columns present as a typed superset -
+       `schema` is the producer's own rendering of that comparison ("=" / "superset" /
+       "DIFFERS"), so reading it is not a second implementation of it.
+    """
+    from great_expectations import expectations as gxe
+
+    return [
+        gxe.ExpectColumnValuesToBeInSet(column="outcome", value_set=[checks.OK]),
+        gxe.ExpectColumnValuesToBeInSet(column="kind", value_set=list(gapfill.KINDS)),
+        gxe.ExpectColumnValuesToNotBeNull(column="row_ratio"),
+        gxe.ExpectColumnValuesToBeBetween(column="row_ratio", min_value=gapfill.ROW_BAND[0],
+                                          max_value=gapfill.ROW_BAND[1]),
+        gxe.ExpectColumnValuesToNotBeNull(column="key_ratio"),
+        gxe.ExpectColumnValuesToBeBetween(column="key_ratio", min_value=gapfill.KEY_BAND[0],
+                                          max_value=gapfill.KEY_BAND[1]),
+        gxe.ExpectColumnValuesToNotBeNull(column="filled_rows"),
+        gxe.ExpectColumnValuesToBeBetween(column="filled_rows", min_value=1),
+        gxe.ExpectColumnValuesToBeInSet(column="schema", value_set=["=", "superset"]),
+    ]
+
+
+def _fidelity_batch(batch_rows: list[dict], root: Path):
+    """Two claims about the gapverify batch SET. Neither is an expectation, and neither
+    could be: both are about rows that are not in the frame.
+
+    ONE ROW PER DECLARED KIND. `gapverify` is MAPPED over `kind` (orch 06): five pods, five
+    batches, five disjoint subjects. A kind whose pod never wrote is a check that did not
+    run - INCONCLUSIVE, never an ok - and it is invisible to every expectation, because the
+    row is not there to be unexpected.
+
+    AND AN INCONCLUSIVE ROW MUST CARRY NO DAY. `verify()` says INCONCLUSIVE for exactly one
+    reason - no filled hour with an archiver hour on the SAME DAY - and fills that row's
+    measures with NULLs (`dict.fromkeys`). So a row that names a day and still could not
+    judge it is a kind that went inconclusive on a day which HAS a comparable pair: the
+    pair-finding broke, which is a defect and not a third outcome. Read off the column the
+    producer already distinguishes rather than re-walking Bronze - `gxcheck` is the LAST
+    stage of the nightly, the disk has moved on since the fill, and a second implementation
+    of "is there a pair here" would be a second home for the one rule verify() owns.
+    """
+    seen = {r["kind"] for r in batch_rows}
+    missing = tuple(f"<no batch: {k}>" for k in gapfill.KINDS if k not in seen)
+    broke = tuple(sorted(r["subject"] for r in batch_rows
+                         if r["outcome"] == checks.INCONCLUSIVE and r["day"]))
+    notes = []
+    if missing:
+        notes.append(f"{len(missing)} declared kind(s) wrote no gapverify batch this run")
+    if broke:
+        notes.append(f"{len(broke)} kind(s) named a day and still could not check it - "
+                     "the pair-finding broke")
+    return broke, missing, "; ".join(notes)
+
+
+def _cold_mirror() -> list:
+    """The cold-mirror suite's expectations - and the two that are DELIBERATELY ABSENT.
+
+    THIS SUITE REPORTS AND NEVER GATES, which is ticket 18's placement and ticket 09 does
+    not get to change it on the side. `daily.coldcheck()` owns the behaviour: check,
+    re-push once, warn, exit 0 - because what survives a re-push is the EC2 box's own
+    capture of the same window (ticket 19), different bytes for an object that is PRESENT.
+    An expectation on `outcome` here would route that straight into `gx.rc()` and out
+    through the gxcheck gate, making GX the hard gate the module refuses to be. So the
+    mirror's state is REPORTED - in the Result's detail and the line it prints - and what
+    is expected on is the row CONVENTION instead:
+
+      `differing` is NULL, never 0, on every could-not-check path (aws non-zero, cold
+      storage unconfigured, nothing local to mirror). Those rows are held out of this
+      frame, so a judged row that carries no count is a producer that started writing a
+      measurement it never took - the exact conflation the null convention prevents, and
+      the not-null is the only thing standing in front of it.
+    """
+    from great_expectations import expectations as gxe
+
+    return [
+        gxe.ExpectColumnValuesToNotBeNull(column="differing"),
+        gxe.ExpectColumnValuesToBeBetween(column="differing", min_value=0),
+    ]
+
+
+def _cold_mirror_batch(batch_rows: list[dict], root: Path):
+    """ONE ROW PER TOP-LEVEL `archive/` PREFIX, read off disk through `cold.kinds()` - the
+    producer's own function and the one home for that list, so the row set grows with a new
+    kind the day it lands instead of being pinned to five names here.
+
+    A prefix with no row is a slice of Bronze the mirror was never asked about, which is a
+    false OK with a whole feed behind it - and it is a claim about a MISSING row, so no
+    expectation can make it. An EXTRA row is deliberately not failed: a tree with no
+    `archive/` at all makes the producer emit one synthetic row rather than an empty batch
+    (empty batches are the false OK checks.rc warns about), and that row is right.
+
+    The mirror's own state rides out in `detail`. That is the report half of "reports and
+    never gates": the counts reach the run's log and the Result, and nothing routes them
+    into the exit code.
+    """
+    missing = tuple(f"<no row: {k}>" for k in sorted(set(cold.kinds(root))
+                                                     - {r["kind"] for r in batch_rows}))
+    differ = sorted((r["kind"], r["differing"]) for r in batch_rows
+                    if r["outcome"] == checks.FAIL and r["differing"])
+    notes = []
+    if differ:
+        notes.append("mirror drift REPORTED, not gated (daily.coldcheck re-pushes then "
+                     "warns; `make coldgaps` tells drift from loss): "
+                     + ", ".join(f"{k} {n}" for k, n in differ))
+    if missing:
+        notes.append(f"{len(missing)} archive/ prefix(es) have no row in this batch")
+    return missing, (), "; ".join(notes)
+
+
+def _schema_eras() -> list:
+    """The schema-era suite's expectations, over `eras`' rows. COLUMN PRESENCE, never a
+    count: a reader that forgets to union drops columns with the ROW COUNT STILL CORRECT
+    (measured both ways in eras.py), so counting anything here would see nothing at all.
+
+    `missing` is the producer's own rendering of that presence test and `outcome` is its
+    verdict; both are expected on, because the verdict says a reader is broken and
+    `missing` is what a human reads in Data Docs to see WHICH era columns went. `reader`
+    and `kind` come from the module's own dicts, so a subject the check never declared
+    cannot slip into the frame unnoticed.
+    """
+    from great_expectations import expectations as gxe
+
+    return [
+        gxe.ExpectColumnValuesToBeInSet(column="outcome", value_set=[checks.OK]),
+        gxe.ExpectColumnValuesToBeInSet(column="missing", value_set=[""]),
+        gxe.ExpectColumnValuesToBeInSet(column="reader", value_set=list(eras.READERS)),
+        gxe.ExpectColumnValuesToBeInSet(column="kind", value_set=list(eras.ERA_COLS)),
+    ]
+
+
+def _schema_eras_batch(batch_rows: list[dict], root: Path):
+    """EVERY DECLARED (reader, kind) HAS A ROW EVERY RUN - four today (`duck vp`,
+    `spark vp`, `duck tu`, `spark tu`), and the product is read from `eras.READERS` and
+    `eras.ERA_COLS` so a fifth reader is covered the day it is declared.
+
+    `check()` emits a row for every pair on every path, INCONCLUSIVE included (no
+    mixed-era day, no JVM), which is precisely why a short batch cannot be explained away
+    as "that one could not check": those rows are here. A missing pair is a reader nobody
+    looked at, and no expectation can be asked about a row that does not exist.
+    """
+    want = {f"{reader} {kind}" for reader in eras.READERS for kind in eras.ERA_COLS}
+    missing = tuple(f"<no row: {s}>" for s in sorted(want - {r["subject"] for r in batch_rows}))
+    return missing, (), (f"{len(missing)} declared (reader, kind) pair(s) have no row in "
+                         f"this batch" if missing else "")
+
+
 SUITES: tuple[Suite, ...] = (
     Suite("live-capture-completeness", "gapcheck",
           gapfill.CHECK_COLUMNS["gapcheck"], _completeness, era="day"),
+    # Orchestration ticket 09's three. Names are URL segments (a Data Docs page each), so
+    # no spaces and no collision with orch 10's, which land in this same tuple this wave.
+    Suite("fill-fidelity", "gapverify", gapfill.CHECK_COLUMNS["gapverify"],
+          _fidelity, era="day", whole=_fidelity_batch),
+    # No `era`: the cold mirror's subject is an archive prefix and its batch has no day.
+    Suite("cold-mirror", "coldcheck", cold.CHECK_COLUMNS, _cold_mirror,
+          whole=_cold_mirror_batch),
+    # No `era` EITHER, and this one is a decision rather than an absence. `eras.day` is the
+    # newest Bronze date dir whose parts disagree about their columns - the producer's
+    # choice of where to stand, not a declaration of scope - and `archive/` holds the
+    # backfilled range too. Setting era="day" would turn "the only mixed-schema day left is
+    # an old one" into a refusal, i.e. a crash in this stage over a check that ran fine.
+    Suite("schema-eras", "eras", eras.CHECK_COLUMNS, _schema_eras,
+          whole=_schema_eras_batch),
 )
 
 
@@ -176,6 +375,30 @@ def docs_dir(root: Path) -> Path:
     return root.joinpath(*DOCS)
 
 
+def _stamp(path: Path) -> str:
+    return path.name[len("run="):-len(".jsonl")]
+
+
+def batches(root: Path, check: str) -> list[Path]:
+    """ONE run's batches for one check, NEWEST FIRST - the set, where batch() is its head.
+
+    A producer writes one file per INVOCATION, and since orch 06 a stage that fans out is
+    invoked once per pod: `gapverify` is mapped over `kind`, so five pods write five
+    batches carrying five disjoint subjects. Reading the newest stamp alone would judge
+    whichever kind finished last and report nothing at all about the other four - not as a
+    gap, not as a could-not-check, but as rows that were never in the frame.
+
+    RUN_WINDOW is what keeps this a RUN and not a history. Only the newest stamp is ever
+    parsed: the floor is formatted back into checks.write's own fixed-width alphabet and
+    compared as text, which is the same comparison the sort above already made.
+    """
+    runs = sorted((root / "checks" / f"check={check}").glob("run=*.jsonl"), reverse=True)
+    if not runs:
+        return []
+    floor = (datetime.strptime(_stamp(runs[0]), STAMP) - RUN_WINDOW).strftime(STAMP)
+    return [p for p in runs if _stamp(p) >= floor]
+
+
 def batch(root: Path, check: str) -> Path | None:
     """The authoritative batch for one check: the newest `run=` stamp.
 
@@ -184,8 +407,43 @@ def batch(root: Path, check: str) -> Path | None:
     `daily.coldcheck()` on a mismatch (check, re-push, re-check): both files are true
     records of a run that happened, and the later one is the verdict.
     """
-    runs = sorted((root / "checks" / f"check={check}").glob("run=*.jsonl"))
-    return runs[-1] if runs else None
+    runs = batches(root, check)
+    return runs[0] if runs else None
+
+
+def fold(paths: list[Path], columns: tuple[str, ...], era: str | None = None) -> list[dict]:
+    """One run's batches (newest first) as ONE list of rows: the newest verdict per subject.
+
+    The two producers that need this need it for opposite reasons, and one rule covers
+    both. `gapverify`'s five pods write disjoint subjects, so the run's rows are their
+    UNION. `coldcheck` re-checks the same subjects after a re-push, so there the later
+    stamp WINS - which is exactly the rule batch() has documented since orch 08, now
+    implemented rather than implied.
+    """
+    out: dict[str, dict] = {}
+    for path in paths:
+        for row in rows(path, columns, era):
+            out.setdefault(row["subject"], row)
+    return list(out.values())
+
+
+def merged(result: Result, failed: tuple[str, ...] = (),
+           inconclusive: tuple[str, ...] = (), detail: str = "") -> Result:
+    """A suite's own batch-level claim, folded into the verdict GX returned.
+
+    FAILED WINS OVER COULD-NOT-CHECK, and that direction is the point: a subject the
+    producer reported inconclusive and the batch claim proves was judgeable is a defect in
+    the producer, not a third outcome, so it LEAVES `inconclusive` when it joins `failed`.
+    checks.rc's precedence then applies to the merged Result unchanged.
+    """
+    if not (failed or inconclusive or detail):
+        return result
+    red = set(result.failed) | set(failed)
+    held = (set(result.inconclusive) | set(inconclusive)) - red
+    return Result(result.suite, result.check,
+                  ok=tuple(s for s in result.ok if s not in red and s not in held),
+                  failed=tuple(sorted(red)), inconclusive=tuple(sorted(held)),
+                  detail="; ".join(d for d in (result.detail, detail) if d))
 
 
 def rows(path: Path, columns: tuple[str, ...], era: str | None = None) -> list[dict]:
@@ -331,15 +589,20 @@ def run(root: Path, suites: tuple[Suite, ...] = SUITES) -> tuple[list[Result], P
     ctx = context(docs)
     results = []
     for suite in suites:
-        path = batch(root, suite.check)
-        if path is None:
+        paths = batches(root, suite.check)
+        if not paths:
             # A producer with nothing on disk is a check that did not run. Never an ok:
             # that is the false-OK the whole check vocabulary exists to kill.
             results.append(Result(suite.name, suite.check,
                                   inconclusive=("<no batch>",),
                                   detail=f"no batch under checks/check={suite.check}/"))
             continue
-        results.append(validate(ctx, suite, rows(path, suite.columns, suite.era)))
+        # The RUN's rows, not one file's: a mapped stage writes a batch per pod (orch 06).
+        batch_rows = fold(paths, suite.columns, suite.era)
+        result = validate(ctx, suite, batch_rows)
+        # ...and the claims no expectation can make, over every row, before the split.
+        results.append(merged(result, *suite.whole(batch_rows, root)) if suite.whole
+                       else result)
     ctx.build_data_docs(site_names=[SITE])
     return results, docs
 

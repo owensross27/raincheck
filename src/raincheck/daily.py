@@ -24,6 +24,10 @@ the same day is a no-op.
              the way (ticket 11); on the 1st, the month just ended as well - its tail
              publishes after that month's last run
   prune      live date=/hour= dirs past the 48 h horizon (stream.prune, spec J)
+  eras       every verified Bronze bus reader still surfaces the era columns (orch 03).
+             Exits 2 - INCONCLUSIVE - when no date dir mixes part schemas (a union reader
+             is indistinguishable from a narrow one there) or this box has no JVM; its
+             rows are what the schema-era suite below expects on (orchestration 09)
   gxcheck    the Great Expectations suites over the check-result rows THIS run wrote,
              and the Data Docs the public host serves (orchestration 08). Last on
              purpose: it reads the batches the stages above persisted, and the docs are
@@ -115,6 +119,13 @@ STAGES = (
           reduces="service_date"),
     Stage("precip", "py:raincheck.daily:precip", "transport", fanout="month", argv=("daily", "precip")),
     Stage("prune", "py:raincheck.daily:prune_live", "transport", argv=("daily", "prune")),
+    # ticket 01 left this out of the declaration because its PLACE was ticket 09's call.
+    # It is here, second to last: it reads Bronze, so it stands behind every stage that
+    # writes any (gapfill), and it PRODUCES a check batch, so it stands in front of the one
+    # stage that reads batches. A GATE with an argv, because both of its non-verdicts are
+    # INCONCLUSIVE rather than red - no date dir mixes part schemas, or this box has no JVM
+    # - and `make` would flatten that 2 into the same 2 a broken recipe exits with.
+    Stage("eras", "make:eras", "gate", argv=("eras",)),
     # LAST, and a GATE: it expects on the rows the stages above just wrote, so it has
     # nothing to say until they have run, and re-reading a batch cannot change a verdict.
     # The argv is not optional - `make` exits 2 for ANY recipe failure, which is the one

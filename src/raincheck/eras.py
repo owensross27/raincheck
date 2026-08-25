@@ -29,7 +29,7 @@ from pathlib import Path
 
 import pyarrow.parquet as pq
 
-from raincheck import checks, duck, events
+from raincheck import checks
 from raincheck.paths import data_root
 
 CHECK = "eras"
@@ -54,13 +54,22 @@ def mixed_day(root: Path, kind: str) -> str | None:
 
 
 def duck_columns(root: Path, kind: str, day: str, spark=None) -> list[str]:
-    """duck.table - the union_by_name read every analysis and test oracle goes through."""
+    """duck.table - the union_by_name read every analysis and test oracle goes through.
+
+    Imported HERE and not at module level, with events below: `raincheck.gx` reads
+    CHECK_COLUMNS off this module to declare its schema-era suite (orch 09), and a
+    module-level `from raincheck import events` would pull pyspark into the gxcheck pod -
+    a 250m/512Mi shape that renders HTML and never opens a JVM."""
+    from raincheck import duck
+
     return list(duck.table(duck.connect(), root / "archive" / kind / f"date={day}").columns)
 
 
 def spark_columns(root: Path, kind: str, day: str, spark) -> list[str]:
     """The mergeSchema readers events.py builds Silver from. Both take a SERVICE day and so
     read date=D and date=D+1 - a superset of the mixed day, which only strengthens this."""
+    from raincheck import events
+
     read = events.bronze_vp if kind == "vp" else events.bronze_tu
     df = read(root, spark, day)
     return list(df.columns) if df is not None else []
