@@ -306,10 +306,15 @@ def _suite_of(suite: Suite):
 def run(root: Path, suites: tuple[Suite, ...] = SUITES) -> tuple[list[Result], Path]:
     """Every declared suite, then Data Docs ONCE at the end of the run.
 
-    The site is rebuilt from empty each time. A timestamped validation page per run would
-    otherwise accumulate forever in a tree that is published wholesale every night, and
-    the report anyone opens is this run's - `docs/**` is the current report, never a
-    served history (cloud 09's spec sec.9 rule, read across to this family).
+    `docs/**` is THIS run's report and nothing accumulates in it, which matters because
+    the tree is published wholesale every night - the "no served history" rule cloud 09
+    wrote for the live family, read across. MEASURED on GX 1.21.0 rather than assumed, and
+    then a line was DELETED for it: `build_data_docs()` rebuilds the whole site, so the
+    previous run's validation page is replaced and a RETIRED suite's pages disappear
+    entirely. An `rmtree` of the site here was dead code - it survived every mutation
+    because nothing could observe it. The property is pinned by a test instead, which is
+    also where a future GX that stopped cleaning would be caught. Do not put it back
+    without a failing case.
     """
     from raincheck import paths
 
@@ -320,11 +325,9 @@ def run(root: Path, suites: tuple[Suite, ...] = SUITES) -> tuple[list[Result], P
         raise ValueError(f"gxcheck: Data Docs are POSIX-only and this root is an object "
                          f"store ({root}). Run the checkpoint on a local root.")
     docs = docs_dir(root)
-    # ponytail: rebuilt from empty, so the site is always THIS run. The REMOTE keeps
-    # whatever a previous run published under a stamp this one does not write - publish
-    # overwrites, it never deletes - and nothing links to them. A bucket lifecycle rule is
-    # the place to fix that, not this stage.
-    paths.rmtree(docs)
+    # ponytail: the REMOTE still keeps whatever a previous run published under a stamp this
+    # one does not write - publish overwrites, it never deletes - and nothing links to them.
+    # A bucket lifecycle rule is the place to fix that, not this stage.
     ctx = context(docs)
     results = []
     for suite in suites:
