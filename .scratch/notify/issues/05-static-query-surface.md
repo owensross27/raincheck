@@ -88,3 +88,33 @@ assets. It confirms frontend 01's coordinate MUST and adds two things:
   median is still right for sizing the ~10.9 MB tree; it is the wrong number for sizing one
   per-asset fetch, and a per-asset fetch on click is exactly what frontend 01's payload rule
   ("paint from one bulk file, detail from one per-asset fetch") makes the page do.
+
+
+## Forward context from frontend 06 — the published contract you write into (2026-08-25)
+
+Landed on branch `frontend06-discovery-contract` (`8bd82db`). Read
+`docs/read-api-contract.md` before shaping the manifest: it is the written contract your
+files are published under.
+
+**YOU DO NOT OWE `files/index.json`.** Frontend ticket 03's Answer put that MUST on this
+line; frontend 06 BUILT it. `raincheck.contract` renders it inside the same `make export`
+run that writes the insight trio, and `publish.FAMILIES["insight"]` publishes it LAST.
+**Do not write a second copy** — two writers on one key is the drift the single-renderer
+rule exists to prevent.
+
+**Your tree needs no contract bump.** `contract.PROMISE[1]` freezes the `history` family
+as its PREFIX, `files/history/**`, not as individual file names. Adding, renaming or
+resharding files INSIDE that tree is additive and demands nothing. **Renaming the prefix
+itself, or moving history out of its family, IS breaking:**
+`tests/test_publish.py::test_the_contract_integer_covers_the_surface_a_consumer_binds_to`
+goes red and demands `contract.CONTRACT` bumped with a NEW frozen `PROMISE` entry beside
+the old one (never edit an old entry) plus the Status line of `docs/read-api-contract.md`,
+all in one commit.
+
+**Same stamps, one seam.** `index.json` carries `query.versions(con, root)`'s
+assets/spine/label — the same three you resolve. Your cost MUST (resolve once, reuse one
+connection) is unchanged; nothing here re-derives them.
+
+**Still no wall clock**, in the manifest or the per-asset files. `index.json` carries none
+either, which is what keeps `test_re_export_is_byte_identical` covering the whole export
+run. Consumers date every payload from its own HTTP response (`Date` − `Last-Modified`).

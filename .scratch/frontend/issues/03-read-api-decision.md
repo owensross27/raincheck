@@ -256,13 +256,20 @@ Worker on `*.workers.dev` has a documented no-op Cache API and rescues nothing.
   the only abuse control a public bucket gets, and it costs nothing.
 - **[YOU]: run the `Accept-Encoding: gzip` curl BEFORE anyone writes gzip into
   `publish.py`.** Order is load-bearing (D2).
-- **notify 05 MUST also write `files/index.json`** — the discovery document with the
-  per-family key/cadence/schema table, the version stamps, and the `contract` integer.
-  It is the same renderer pattern (no joins of its own) and rides the same
-  byte-identity and no-nulls requirements as the rest of its output.
-- **`publish.py` MUST gain the family that publishes `index.json`** if it does not ride
-  the `insight` list — families are explicit file lists, and an unlisted file is an
-  unpublished file.
+- ~~**notify 05 MUST also write `files/index.json`**~~ — **RETIRED 2026-08-25 by
+  frontend 06 (`8bd82db`), which BUILT it. `raincheck.contract` renders the file inside
+  the same `make export` run that writes the insight trio; notify 05 must NOT write a
+  second copy, because two writers on one key is exactly the drift the single-renderer
+  rule exists to prevent.** What notify 05 inherits instead is on its runbook summary
+  line: its `history` TREE is frozen in the contract as a PREFIX (`files/history/**`), so
+  adding or resharding files inside it is additive and owes no bump, while renaming the
+  prefix or re-homing the family is breaking; and the stamps in `index.json` are the same
+  `query.versions(con, root)` three it already resolves.
+- ~~**`publish.py` MUST gain the family that publishes `index.json`**~~ — **DONE
+  2026-08-25: it rides the `insight` list, LAST**, for `meta.json`'s ordering reason (an
+  interrupted publish must leave an OLD contract over new payloads, never a new contract
+  over payloads that are not there). `insight` is four files now and refuses if any is
+  missing.
 - **Nobody routes notify 08/10/12 through HTTP** (D5).
 
 ### Graduation
@@ -272,6 +279,13 @@ conditional on the answer being a Worker, and it is not. The build consequences 
 MUSTs above: an `index.json` checkbox on notify 05, a publish family, a conditional
 one-kwarg change in `publish.py`, and four [YOU] dashboard steps. No new component and
 no new ticket.
+
+**AMENDED 2026-08-25.** `/to-spec` + `/to-tickets` did make one ticket of this after all
+— **frontend 06**, which shipped `files/index.json`, the `contract` integer and
+`docs/read-api-contract.md` (`8bd82db`). So the first two MUSTs above are struck through
+rather than owed. Still open and unchanged: the conditional one-kwarg gzip change (D2b,
+gated on the [YOU] `Accept-Encoding` curl running FIRST) and the four [YOU] dashboard
+steps, custom domain included.
 
 The map's fog keeps "**Auth/keys and abuse control for an API**" — this answer supplies
 abuse control (free WAF rule) but decides auth by BARRING it, which is not the same as
