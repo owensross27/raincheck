@@ -71,3 +71,41 @@ other 62 are walk-only (coastal / mixed / snowmelt — the matrix is pluvial-onl
 the verdict is Ross's and lands in that artifact. While `provisional` is `true` the tiers
 are unconfirmed, so report which branch you exercised by reading the flag, never by
 re-typing the outcome.
+
+## FROM notify 08 (2026-08-25, branch `notify08-decision`) — THE DECISION FUNCTION EXISTS
+
+**You replay the SAME function. Do not build a second one.** The exact call, chained the
+way the loop chains it:
+
+```python
+from raincheck import flood_detect as fd
+from raincheck import notify_decide as nd
+
+det, art = fd.constants(), fe.coefficients()
+p = nd.policy(det)                          # the branch comes from the ARTIFACT, per cycle
+state = decision = None
+for hour in fr.replay(...)-style cycles:    # your harness's own walk
+    state = fd.cycle(state, now, cell_hours, units, art, det,
+                     temp_c=..., table_score_version=art["score_version"],
+                     wet_by_hour=wet)       # F12's four rules still apply, unchanged
+    decision = nd.decide(state, decision, subs, p, now)   # SAME `now` both calls
+    counts.append(decision.summary())
+```
+
+- **The branch you exercise is READ, never typed**: `nd.branch(det)` off
+  `cutpoints.provisional`. Report which branch the run exercised beside every number —
+  today that is `watch`, and a rank-only run and a tier run are not comparable volumes.
+- **Per-event message counts by kind** — the build asset your line owes — come from
+  `decision.messages` grouped by `asset_kind`, and the per-cycle counts from
+  `Decision.summary()`. `drops` carries the fuse's and the cap's victims separately, so
+  "this would have sent 400 emails" and "this would have DROPPED 400" are different rows.
+- **Your subscription list is synthetic and it must be store-shaped**: ACTIVE rows with
+  exactly `ns.COLUMNS`, `asset_kind` in `ns.KINDS`. `decide()` REFUSES anything else — a
+  paused or Cell-grain row raises rather than being skipped quietly.
+- **The volumes are per (unit, window), which is your union by another name.** The tier
+  branch fires on the latched rise and the watch branch on first top-N entry, so both are
+  once per Unit per Window — reading the standing set at `window_end` measures the morning
+  after (Ida's last cycle: zero flags, 264 mm behind it), and neither branch does that.
+- `nd.window_id(cyc)` is `anchor|score_version|detector_version` — the same triple
+  `fd.rolled` compares. If your replay swaps artifacts mid-event the Window rolls and the
+  dedupe re-arms, by construction.
