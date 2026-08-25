@@ -418,6 +418,20 @@ def test_a_fallback_score_is_never_presented_as_a_modelled_rank(root):
                for a in SCORED if a != FALLBACK)
 
 
+def test_the_fallback_flag_names_the_one_f10_publishes_as_not_a_model_evaluation(root):
+    """`modelled` hinges on ONE flag name, and the DATA cannot pin which one: on the real
+    root `no_dem_footprint` and `score_fallback_kind_median` sit on exactly the same 60
+    rows (measured 2026-08-25, zero either way), so swapping the constant between them is
+    a mutation no fixture can catch. F10's published MEANINGS can and do -- only one of
+    the five says the score is not a model evaluation, which is the property `modelled`
+    reports. The rows are equal today by construction, not by definition: FLAGS' own text
+    says the fallback rides beside `no_dem_footprint` OR `no_matrix_row`, and the latter is
+    frozen at 0."""
+    meaning = fe.FLAGS[q.FALLBACK_FLAG]
+    assert "median" in meaning and "not a model evaluation" in meaning
+    assert [f for f, m in fe.FLAGS.items() if "not a model evaluation" in m] == [q.FALLBACK_FLAG]
+
+
 def test_the_flags_are_f10s_closed_vocabulary_and_their_meanings_are_published(root):
     """Passed through unworded: the payload names the flag, the coefficient artifact says
     what it means, so nobody words it twice and the two cannot drift."""
@@ -490,5 +504,11 @@ def test_the_registry_and_the_scored_table_agree_about_who_is_a_unit():
     scored = {r[0] for r in duck.table(con, root / "ref" / "assets").query(
         "t", "SELECT asset_id FROM t WHERE scored").fetchall()}
     published = {r[0] for r in duck.table(con, part).project("asset_id").fetchall()}
+    census = dict(duck.table(con, part).query(
+        "t", "SELECT f, count(*) FROM (SELECT unnest(flags) AS f FROM t) GROUP BY 1").fetchall())
     con.close()
     assert scored == published and len(published) == 15166
+    # and the flag census F10 published, so `modelled` is measured against real counts
+    assert census == {"elev_ring15_fallback": 36, "no_dem_footprint": 60,
+                      "score_fallback_kind_median": 60, "no_surge_margin": 404}
+    assert "no_matrix_row" not in census   # frozen at 0 by F10's own gate
