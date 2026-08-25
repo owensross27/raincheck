@@ -83,8 +83,15 @@ RARE_CACHE = "public, max-age=86400"
 
 # Rule 2, as an allowlist: what a static page is made of, and nothing else. A denylist
 # would have to predict every bulk format anyone might stage into web/ later.
+# `.otf` was added by orch 08, MEASURED rather than anticipated: a Great Expectations
+# Data Docs site ships ten HK Grotesk `.otf` faces beside its CSS, and the `docs` family
+# publishes that tree whole. A font is exactly what "what a static page is made of" means -
+# `.woff`/`.woff2` were already here and the list simply had no OTF - so this widens the
+# allowlist by one web payload format and not by a category. Rule 2 is unchanged: a `.pb`,
+# a `.parquet` or a tarball is still refused by construction.
 PUBLISHABLE = frozenset({".geojson", ".json", ".html", ".css", ".js", ".map", ".svg",
-                         ".png", ".jpg", ".gif", ".ico", ".txt", ".woff", ".woff2"})
+                         ".png", ".jpg", ".gif", ".ico", ".txt",
+                         ".woff", ".woff2", ".otf"})
 # mimetypes knows the rest; these two it either misses or answers inconsistently by OS.
 TYPES = {".geojson": "application/geo+json", ".js": "text/javascript"}
 

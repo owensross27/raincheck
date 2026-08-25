@@ -27,10 +27,12 @@ metadata:
   name: raincheck-stage
   namespace: raincheck
   annotations:
-    # The six no-Spark stages of the eight-stage placement table [T15]. gapfill and
+    # The no-Spark stages of the placement table [T15]. gapfill and
     # coldpush share the staging volume by design: coldpush is scoped to what gapfill
-    # just wrote, and gapverify reads those same filled hours back.
-    raincheck.io/stages: "gapfill, gapverify, gapcheck, coldpush, coldcheck, prune"
+    # just wrote, and gapverify reads those same filled hours back. gxcheck reads the
+    # check-result JSONL those stages wrote and renders HTML - the same tiny shape
+    # [orch 08].
+    raincheck.io/stages: "gapfill, gapverify, gapcheck, coldpush, coldcheck, prune, gxcheck"
 template:
   metadata:
     labels:

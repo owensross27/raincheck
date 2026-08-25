@@ -231,14 +231,19 @@ def test_the_declaration_pins_gapfill_before_gapcheck():
 
 
 def test_the_driver_names_its_steps_from_the_declaration(seeded):
-    """main()'s printed lines, in order: every declared stage once, precip expanded per
-    month - the only axis this runtime maps."""
+    """main()'s printed lines, in order: every declared stage once, in declared order,
+    expanded ONLY over the axes this runtime supplies items for - here just precip's
+    months. Asserted as that property rather than as a copy of the list: the declaration
+    grows (ticket 06 added the rollup, ticket 08 the checkpoint) and a literal here is a
+    second declaration to keep in step with the first."""
     root, _ = seeded
     months = daily.precip_months(NOW.date())
     names = [name for name, _fn, _soft in daily.steps({"root": root, "closed": CLOSED},
                                                       {"month": months})]
-    assert names == ["gapfill", "gapverify", "gapcheck", "coldpush", "coldcheck", "events",
-                     *[f"precip {m}" for m in months], "prune"]
+    want = []
+    for s in daily.STAGES:
+        want += [f"{s.name} {m}" for m in months] if s.fanout == "month" else [s.name]
+    assert names == want
 
 
 def test_a_soft_stage_that_fails_does_not_fail_the_job(seeded, monkeypatch):

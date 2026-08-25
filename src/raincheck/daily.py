@@ -23,6 +23,11 @@ the same day is a no-op.
              the way (ticket 11); on the 1st, the month just ended as well - its tail
              publishes after that month's last run
   prune      live date=/hour= dirs past the 48 h horizon (stream.prune, spec J)
+  gxcheck    the Great Expectations suites over the check-result rows THIS run wrote,
+             and the Data Docs the public host serves (orchestration 08). Last on
+             purpose: it reads the batches the stages above persisted, and the docs are
+             built once, at the end. Exits 2 - INCONCLUSIVE - when a suite could not run
+             at all (no batch, or the optional GX extra is not installed)
 
 Every stage runs even when an earlier one failed - a red gapcheck must not cost the day's
 build - and the job exits 1 naming the stages that failed. The standing pieces run as
@@ -84,6 +89,11 @@ STAGES = (
     Stage("events", "py:raincheck.daily:build", "transport", fanout="service_date", argv=("daily", "events")),
     Stage("precip", "py:raincheck.daily:precip", "transport", fanout="month", argv=("daily", "precip")),
     Stage("prune", "py:raincheck.daily:prune_live", "transport", argv=("daily", "prune")),
+    # LAST, and a GATE: it expects on the rows the stages above just wrote, so it has
+    # nothing to say until they have run, and re-reading a batch cannot change a verdict.
+    # The argv is not optional - `make` exits 2 for ANY recipe failure, which is the one
+    # number this stage needs to mean INCONCLUSIVE (orch 03/05).
+    Stage("gxcheck", "make:gxcheck", "gate", argv=("gx",)),
 )
 
 FAILED_STATES = ("failed", "upstream_failed")  # Airflow's, for report() below
