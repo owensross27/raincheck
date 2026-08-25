@@ -61,12 +61,13 @@ TIMEOUT = 3.0  # spec: every live fetch has a hard 3 s timeout
 APPROACH_FT = 1.0    # forecast next high within this far below minor => APPROACHING
 OBS_STALE_MIN = 30   # newest observation older than this => the gauge is out, not quiet
 OBS_AHEAD_MIN = 5    # ... and one stamped further AHEAD than this is a broken clock, also out
-# CONFLICT, recorded rather than silently resolved: the spec freezes an NWS staleness
-# budget of 15 min, but KNYC reports HOURLY at :51 (measured — 24 consecutive obs, all on
-# the hour), so a 15-min budget marks essentially every observation stale and the winter
-# gate never fires. This uses one missed report instead. Ticket 11 owns the constants
-# artifact where staleness budgets live and must reconcile the two; the 15 min almost
-# certainly belongs to the per-cycle NWS ALERTS call, not to an hourly observation.
+# SETTLED by flood-build ticket 11, which owns the constants artifact: the spec's 15-min
+# NWS budget belongs to the per-cycle ALERTS call, NOT to this hourly observation. KNYC
+# reports HOURLY at :51 (measured here — 24 consecutive obs, all on the hour), so at 15 min
+# every observation reads stale and the winter gate could never fire. The observation
+# budget is two report intervals. `research/flood-11-detector.json`'s
+# `staleness_budgets.nws_knyc_obs_min` publishes this number and a test asserts the two are
+# ONE constant, so neither side can drift.
 KNYC_STALE_MIN = 120  # = two report intervals: one hourly obs may be missed, not two
 ANOMALY_MIN = 30     # the anomaly needs at least this many minutes of aligned samples...
 ANOMALY_MIN_N = 5    # ... AND this many of them: span alone let 2 readings 49 min apart through

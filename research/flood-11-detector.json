@@ -1,0 +1,179 @@
+{
+ "canary": {
+  "checks": "the MRMS RadarOnly :00 filename pattern still resolves against the live source; run at build, never in a cycle",
+  "pattern": "https://noaa-mrms-pds.s3.amazonaws.com/CONUS/{product}/{d:%Y%m%d}/MRMS_{product}_{d:%Y%m%d}-{d:%H%M%S}.grib2.gz",
+  "product": "RadarOnly_QPE_01H_00.00"
+ },
+ "cutpoints": {
+  "ELEVATED": 0.1,
+  "HIGH": 0.02,
+  "basis": "within-kind rank of the CURRENT live eta vector",
+  "confirmed_by": "flood-build ticket 12",
+  "provisional": true,
+  "tiers": [
+   "NONE",
+   "ELEVATED",
+   "HIGH"
+  ]
+ },
+ "cutpoints_note": "top 10% / top 2% within kind, provisional until ticket 12's replay measures per-event false-positive volume; the alternative v1 is rank-only",
+ "detector_version": "91598b86edc06386b40f6f8175b3b69f06d473a6",
+ "detector_version_note": "sha1 over the keys above \u2014 what decides WHICH Units are flagged and WHEN \u2014 and deliberately not over `display` or the `_note` prose, so a reworded sentence never rolls a live Window. Like flood 10's score_version it hashes VALUES: this module's code rides only as labels, so editing `walk` moves a decision without moving the digest. The tests hold that, not the stamp.",
+ "detector_version_scope": [
+  "window",
+  "cutpoints",
+  "gates",
+  "winter",
+  "staleness_budgets",
+  "throttles",
+  "forcing",
+  "vocabularies",
+  "query_strings",
+  "nws_ugc_zones",
+  "canary"
+ ],
+ "display": {
+  "no_complex_skill_claim": "a complex score is an aggregate of doorway scores; the independent complex-grain set caught 1 of 118 positives, so no complex-grain skill is claimed anywhere",
+  "tier_labels": {
+   "ELEVATED": "elevated",
+   "HIGH": "high",
+   "NONE": "not flagged"
+  },
+  "within_cell": "live ordering inside a Cell is purely static \u2014 every Unit in a Cell shares one forcing"
+ },
+ "estimand": "flooded_reported",
+ "estimand_note": "within 100 m of a report \u2014 the radius is a labelling choice flood 18 measured as NOT optimal (lift per own base rate 11.13x at 50 m / 6.05x at 100 m / 4.42x at 200 m), so no tier here rests on a validated distance",
+ "forcing": {
+  "name": "MRMS_{product}_{stamp}.grib2.gz",
+  "product": "RadarOnly_QPE_01H_00.00",
+  "rejected_products": [
+   "MultiSensor_QPE_01H_Pass2_00.00"
+  ],
+  "retention_days": 7,
+  "scale_band_applied": false,
+  "stamp": "on the hour only (HHMMSS = HH0000)",
+  "url": "https://noaa-mrms-pds.s3.amazonaws.com/CONUS/{product}/{d:%Y%m%d}/MRMS_{product}_{d:%Y%m%d}-{d:%H%M%S}.grib2.gz"
+ },
+ "forcing_note": "2-min trailing stamps converge from ABOVE and would break the converges-from-below contract; Pass2 lags 60-90 min and is the batch product. scale_band.pass2_over_aorc was measured on PASS2, and the live forcing is RadarOnly, so no band is applied to anything: the display is rank-only and the one absolute gate (2.0 mm) reads the raw total, where a low bias makes it conservative. The RadarOnly-vs-AORC ratio is UNMEASURED and owed to ticket 12's replay.",
+ "gates": {
+  "citywide_active": true,
+  "complex_rule": "max over child entrance scores",
+  "dim_after_dry_hours": 3,
+  "downward_revision_clears_a_flag": false,
+  "entrances_publish_a_live_number": false,
+  "latched_within_window": true,
+  "own_cell_window_mm": 2.0
+ },
+ "live_table": "live/precip_cell",
+ "nws_ugc_zones": null,
+ "nws_ugc_zones_note": "OWED, deliberately null rather than guessed. No NWS-alert fetch exists in this repo yet (13 is FloodNet+MTA, 14 is coastal+winter), so the list has no consumer, and the five NYC zone codes are not written down anywhere here. The ticket that first fetches api.weather.gov alerts verifies them against the live API and fills this in; inventing five NYZ codes would be a canary that can never fail.",
+ "query_strings": {
+  "coops_begin_fmt": "%Y%m%d %H:%M",
+  "coops_hilo": {
+   "application": "raincheck",
+   "datum": "NAVD",
+   "format": "json",
+   "interval": "hilo",
+   "product": "predictions",
+   "range": 36,
+   "time_zone": "gmt",
+   "units": "english"
+  },
+  "coops_obs": {
+   "application": "raincheck",
+   "datum": "NAVD",
+   "format": "json",
+   "product": "water_level",
+   "range": 1,
+   "time_zone": "gmt",
+   "units": "english"
+  },
+  "coops_pred6": {
+   "application": "raincheck",
+   "datum": "NAVD",
+   "format": "json",
+   "interval": 6,
+   "product": "predictions",
+   "range": 1,
+   "time_zone": "gmt",
+   "units": "english"
+  },
+  "coops_url": "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter",
+  "floodnet_deployments": "https://api.floodnet.nyc/api/rest/deployments/flood",
+  "floodnet_graphql": "https://api.floodnet.nyc/v1/graphql",
+  "nws_knyc_obs": "https://api.weather.gov/stations/KNYC/observations/latest"
+ },
+ "staleness_budgets": {
+  "clock_ahead_min": 5,
+  "coops_min": 30,
+  "floodnet_min": 10,
+  "nws_alerts_min": 15,
+  "nws_knyc_obs_min": 120,
+  "precip_fresh_min": 90,
+  "precip_stale_min": 180
+ },
+ "staleness_budgets_note": "SETTLED HERE (ticket 11 owned this): the spec's 15-min NWS budget belongs to the per-cycle ALERTS call, not to the KNYC observation, which publishes HOURLY at :51 (flood 14 measured 24 consecutive obs). The observation budget is two report intervals \u2014 one missed hourly report degrades nothing, two do. At 15 min the winter gate could never fire.",
+ "table": "gold/flood_exposure",
+ "throttles": {
+  "coops_s": 360,
+  "fetch_timeout_s": 3.0,
+  "floodnet_s": 120,
+  "nws_s": 300
+ },
+ "vocabularies": {
+  "cleared": "REMOVED WATER FROM THE TRACKS|WHAT HAPPENED",
+  "floodnet_blocked_status": [
+   "dead",
+   "hardware_issue",
+   "needs_driverail",
+   "needs_sensor",
+   "noisy",
+   "removal_requested",
+   "retired"
+  ],
+  "incident_key": [
+   "event_id"
+  ],
+  "precip_states": [
+   "FRESH",
+   "STALE",
+   "DOWN"
+  ],
+  "remove_water_legacy": "FLOOD[A-Z]*|WATER CONDITIONS?|WATER MAIN BREAK",
+  "remove_water_live": "REMOV(?:E|ES|ING|ED) WATER FROM THE TRACKS",
+  "window_states": [
+   "OK",
+   "HOLES",
+   "INSUFFICIENT_DATA",
+   "WINDOW_CAPPED"
+  ]
+ },
+ "window": {
+  "anchor_local_hour": 21,
+  "antecedent_hours": 24,
+  "cap_days": 6,
+  "interval": "(anchor, now]",
+  "pad_hours": 3,
+  "states": [
+   "OK",
+   "HOLES",
+   "INSUFFICIENT_DATA",
+   "WINDOW_CAPPED"
+  ],
+  "tz": "America/New_York",
+  "wet_cells_k": 5,
+  "wet_mm": 1.0
+ },
+ "window_note": "the anchor is flood_spine's offline window_start (NY midnight - 3 h) reached by observation instead of by calendar. K = 5 Cells of 4,113, measured: only 1,540 of 90,888 AORC hours hold 1-41 wet Cells, so the anchor walk is nearly K-inert (88 of 166 events land on the offline window_start at K=5, 89 at K=41) while the citywide gate is not \u2014 41 Cells is ~12 km2 and would miss a convective core. The live walk agrees with the offline window_start on 89 of 166 AORC-era events; the usual disagreement is one day EARLIER because the evening before the storm-eve was also wet. That is the rule working, not a defect \u2014 see ticket 12.",
+ "winter": {
+  "freeze_c": 0.5,
+  "label": "fitted on rain \u2014 snow not modeled",
+  "unknown_fallback_months": [
+   12,
+   1,
+   2,
+   3
+  ],
+  "unknown_label": "no Central Park temperature \u2014 snow not excluded"
+ }
+}
