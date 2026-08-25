@@ -81,3 +81,52 @@ subscriptions, which are `bus_stop`/`complex` only, but it is what a shared payl
 ## Forward-context from DESTINATION-PLAN.md (copied verbatim by the WAVE 5 GATE PART 2, 2026-08-25, from this ticket's summary line in waves/wave-3-plus.md)
 
 **FROM DESTINATION-PLAN (2026-08-25), one line:** flood-build 20 (wave 8) adds a `design_storm` bracket to the flood export. It is DISPLAY, never a tier, and your decision function never reads it — the tier vocabulary stays `fd.TIERS`.
+
+## Inherited from flood-build 12's build (2026-08-25, branch `flood12-replay-harness`)
+
+**YOUR POLICY BRANCH IS STILL OPEN, AND THE MEASUREMENT SAYS PLAN FOR THE TIERS TO GO.**
+flood 12 replayed `fd.cycle` over 133 AORC-era events / 4,326 cycles and **RECOMMENDED
+that v1 ship RANK-ONLY**; the verdict is Ross's and is not recorded yet
+(`cutpoints.provisional` is still `true` on master). Read the flag at run time — never
+re-type an outcome — and make sure the "tiers removed entirely" branch is the one you
+build first, not the fallback.
+
+**The volumes your fuse and your per-handle cap have to survive, if the cutpoints ARE
+confirmed** (union over an event's cycles, which is exactly your `(unit, window_id)`
+dedupe by another name):
+
+| grain | rows | positives | base | tier | flagged | alert rate | TP | FP | precision |
+|---|---|---|---|---|---|---|---|---|---|
+| bus_stop | 502,756 | 2,831 | 0.563% | ELEVATED+ | 76,165 | 15.15% | 1,032 | **75,133** | 1.35% (2.41x base) |
+| bus_stop | | | | HIGH | 14,521 | 2.89% | 370 | **14,151** | 2.55% (4.53x base) |
+| complex | 43,089 | 118 | 0.274% | ELEVATED+ | 5,214 | 12.10% | 29 | **5,185** | 0.56% (2.03x base) |
+| complex | | | | HIGH | 956 | 2.22% | 5 | **951** | 0.52% (1.91x base) |
+
+Against flood 09's fitted operating point, **NOT superseded**: point 1.11% -> 381 TP /
+8,295 FP, precision 4.39% (8.57x base). **The base-rate rule applies to this table and is
+already applied in it: your `bus_stop` universe is 502,756 rows at a 0.563% base rate while
+flood 09's `point` is 783,351 rows at 0.512% — the detector publishes no entrance row — so
+never compare the two raw.**
+
+**What that means per subscription, which is the unit your cap is written in.** ELEVATED+
+alarms on 15.15% of (stop, event) pairs; over 133 events in 16 years that is **~1.3 alerts
+per subscribed stop per year, ~99% of them false**. HIGH alone is ~0.24/year. The volume is
+NOT an inbox-flooding problem — it is a PRECISION problem, and it is bursty: **96 of the
+133 events flag no bus stop at all**, and when it fires it flags ~2,000 stops at once. Size
+the global per-cycle fuse for the burst, not for the average.
+
+**Two structural facts from the replay your decision function should not fight.**
+1. **A tier LATCHES within its Window and the Window ROLLS when the city dries**, so
+   reading the standing set at the end of an event measures the morning after: Ida's last
+   replayed cycle stands at ZERO flags with 264 mm behind it. Your first-entry dedupe is
+   the right shape; a "still flagged?" poll is not.
+2. **The cut is a within-kind rank with no absolute anchor**, so it spends the same ~10% of
+   the city on a storm that floods nothing as on one that floods everywhere (Cell grain:
+   POD 0.379 at a 16.6% alert rate on the top quartile, where flood 09's fitted cut reaches
+   0.436 at 5.7%; 1,514 false alarms for 11 hits on the bottom quartile). If the verdict
+   confirms the cutpoints anyway, that is the shape of what you will be sending.
+
+**At COMPLEX grain a tier is a claim the artifact refuses to make** — 5,214 ELEVATED+
+badges for 29 hits, on the grain whose own `display.no_complex_skill_claim` records 1 of
+118 independent positives caught. Your store holds `bus_stop` and `complex` rows only, so
+this one lands directly on you.

@@ -241,3 +241,35 @@ fixes, pristine control green both times.**
 ## Forward-context from DESTINATION-PLAN.md (copied verbatim by the WAVE 5 GATE PART 2, 2026-08-25, from this ticket's summary line in waves/wave-3-plus.md)
 
 **FROM DESTINATION-PLAN (2026-08-25) — TWO THINGS LAND ON YOUR EXPORT LATER, BOTH ADDITIVE.** (1) flood-build 20 (wave 8) adds `design_storm: {rate_in_hr, bracket}` per Cell to the UNGATED file inside YOUR tick — leave the writer extensible (one dict per Cell, absent-never-null). (2) The `publish.FAMILIES` entry you add is one of THREE added in wave 6 (yours, flood-build 19's `geo`, frontend2 02's `tiles`) — distinct dict entries, the gate unions them; do NOT bump `contract.CONTRACT`.
+
+## Inherited from flood-build 12's build (2026-08-25, branch `flood12-replay-harness`)
+
+**THE VERDICT IS NOT RECORDED YET AND YOU MUST NOT ASSUME IT.** flood 12 measured and
+recommended; Ross records it. Read `cutpoints.provisional` out of
+`research/flood-11-detector.json` AT RENDER TIME and say "provisional" while it is `true`
+— which it still is on master. Both branches are live:
+
+* **If Ross confirms the cutpoints**, the tier labels render as they do today.
+* **If v1 ships RANK-ONLY — which is what flood 12 RECOMMENDED — there is no badge to
+  render.** `cutpoints` loses its meaning as a display object, the tier vocabulary
+  collapses to the within-kind rank, and `detector_version` bumps (rolling every open
+  Window). Your panel must degrade to an ORDERING with no flagged/not-flagged claim, and
+  the honesty string you already carry verbatim is the one that still applies.
+
+Either way **`detector_version` bumps**, so do not cache a rendered payload across it and
+do not re-type the current digest (`01197991471f`) anywhere a bump would strand it.
+
+**THE RADAR-ONLY-vs-AORC RATIO IS NOW MEASURED, and it is a CHAIN, not a band you apply.**
+`research/flood-12-replay.json` -> `forcing_ratio`. A DIRECT measurement is impossible on
+this root (`src=aorc` ends 2025-12-31, `src=mrms` begins 2026-07-31, **zero** shared hours,
+asserted). What is measured: **RadarOnly / Pass2 = 0.933** on 8,549 wet paired Cell-hours
+over 83 hours, times flood 06's published Pass2/AORC `[0.86, 0.92]`, giving **RadarOnly /
+AORC = [0.803, 0.859]**. **The live forcing runs 14-20% LOW against the forcing the model
+was fitted on, so the raw 2.0 mm own-Cell gate is CONSERVATIVE.** `forcing.scale_band_
+applied` is still `false` and **nothing here changes that**: do not divide a rendered mm by
+this ratio, do not render the ratio as a correction, and if you surface it at all surface it
+as provenance with its limit attached (one storm carries the wet pairs).
+
+**One number your panel can use as-is:** every OK replay cycle reported `coverage 1.0` and
+`unforced_cells 168` — a Cell with no forcing anywhere is UNFORCED, not a hole, and the
+panel should render those two as different states for exactly the reason the replay does.
