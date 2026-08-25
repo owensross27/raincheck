@@ -20,6 +20,7 @@ import pytest
 import yaml
 
 from raincheck import contract, publish
+import page                       # tests/page.py: the page, read as data
 
 REPO = Path(publish.__file__).parents[2]
 LIVE_META = {"as_of_utc": "2026-08-24T04:00:00Z", "source": "live", "error": None,
@@ -37,11 +38,11 @@ def web(tmp_path):
     (files / contract.NAME).write_text(json.dumps({"contract": contract.CONTRACT}))
     (files / "live.geojson").write_text('{"type":"FeatureCollection","features":[]}')
     (files / "meta.json").write_text(json.dumps(LIVE_META))
-    for name in ("index.html", "app.js", "app.css"):
+    # the `site` family names the page's six ES modules as well as its two vendored files
+    # (frontend2 01), so stage what the family says rather than a hand list that goes stale
+    for name in publish.FAMILIES["site"].files:
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / name).write_text("x")
-    (tmp_path / "vendor").mkdir()
-    for name in ("maplibre-gl.js", "maplibre-gl.css"):
-        (tmp_path / "vendor" / name).write_text("x")
     return tmp_path
 
 
@@ -247,7 +248,7 @@ def test_the_page_dates_meta_json_itself_so_a_dead_exporter_cannot_read_live():
     a dead exporter (or publisher, or a CDN serving a cached copy) reads as a live city
     forever - measured in a browser: a meta written 21 min ago with vp_age_s=20 painted
     LIVE before this, STALE after, with the healthy cases unchanged."""
-    js = (REPO / "web" / "app.js").read_text()
+    js = page.page_js()
     rule = js.split("function isStale")[1].split("\n}")[0]
     assert "metaAge(m)" in rule, "isStale no longer dates meta.json - a dead exporter reads live"
     age = js.split("function metaAge")[1].split("\n}")[0]

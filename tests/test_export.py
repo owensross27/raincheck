@@ -440,7 +440,11 @@ def test_the_stdlib_server_answers_200_for_the_page_and_its_files(exported, tmp_
     web = tmp_path / "web"
     (web / "files").mkdir(parents=True)
     (web / "vendor").mkdir()
-    for name in ("index.html", "app.js", "app.css"):
+    # the page is six ES modules now (frontend2 01): serve what the `site` family names,
+    # never a hand list - the vendored pair below is staged separately because it is
+    # gitignored and may not be present
+    page = [k for k in publish.FAMILIES["site"].files if not k.startswith("vendor/")]
+    for name in page:
         (web / name).write_bytes((export.REPO / "web" / name).read_bytes())
     for name in ("cells.geojson", "headline.json", "zones.geojson"):
         (web / "files" / name).write_bytes((out_dir / name).read_bytes())
@@ -457,9 +461,8 @@ def test_the_stdlib_server_answers_200_for_the_page_and_its_files(exported, tmp_
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     port = srv.server_address[1]
     try:
-        for path in ("index.html", "app.js", "app.css", "vendor/maplibre-gl.js",
-                     "vendor/maplibre-gl.css", "files/cells.geojson", "files/headline.json",
-                     "files/zones.geojson"):
+        for path in [*page, "vendor/maplibre-gl.js", "vendor/maplibre-gl.css",
+                     "files/cells.geojson", "files/headline.json", "files/zones.geojson"]:
             with urllib.request.urlopen(f"http://127.0.0.1:{port}/{path}", timeout=10) as r:
                 assert r.status == 200, path
                 body = r.read()
