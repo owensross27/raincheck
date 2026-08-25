@@ -85,7 +85,10 @@ def test_a_range_this_server_declines_falls_back_to_the_whole_body(host):
     """# ponytail: single-range only. RFC 9110 lets a server ignore a Range it chooses not
     to honour, and 200-with-everything is the safe way to do that - a client gets correct
     bytes and merely pays for them. MUTATION KILLED: emitting a 206 for a multi-range
-    request while sending ONE range's bytes, which is a silently truncated response."""
+    request while sending ONE range's bytes, which is a silently truncated response.
+    MUTATION SURVIVED, and it is equivalent rather than unpinned: deleting the explicit
+    `"," in spec` guard leaves every multi-range form still refused, because the comma
+    always lands inside the part `int()` parses. See the comment in webserve._span."""
     for bad in ("bytes=0-99,200-299", "items=0-99", "bytes=abc-def", "bytes=200-100"):
         status, headers, body = get(f"{host}/nyc.pmtiles", bad)
         assert status == 200, bad

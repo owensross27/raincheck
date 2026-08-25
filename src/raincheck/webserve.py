@@ -63,6 +63,13 @@ class RangeHandler(http.server.SimpleHTTPRequestHandler):
 def _span(header: str, size: int) -> tuple[int, int] | None:
     """`Range:` -> an inclusive (start, end), or None for anything not honoured here."""
     unit, _, spec = header.partition("=")
+    # MEASURED-EQUIVALENT MUTANT, recorded so the next session does not rediscover it and
+    # either delete it blindly or file it as a hole: removing `or "," in spec` changes NO
+    # behaviour, because in `a-b,c-d` the first `-` always leaves the comma inside the part
+    # `int()` parses, so every multi-range form already returns None (proved on seven forms
+    # at frontend2 02). It stays because that rejection is an ACCIDENT of the parse and this
+    # one is the intent - a later edit that made the numeric parse more permissive would
+    # otherwise start honouring half of a multi-range request silently.
     if unit.strip().lower() != "bytes" or "," in spec:
         return None
     first, sep, last = spec.strip().partition("-")
