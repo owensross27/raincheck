@@ -25,7 +25,7 @@ consumer can learn the whole surface without a human in the loop.
 
 ## The families
 
-Nine, each an EXPLICIT file list or an explicit prefix. Never a directory sync — the
+Ten, each an EXPLICIT file list or an explicit prefix. Never a directory sync — the
 insight files, the live pair and the two flood pairs are written into one directory by
 three writers on three cadences, so a sync would publish a gated payload and republish a
 stale one.
@@ -41,6 +41,7 @@ stale one.
 | `history` | `files/history/**` | per spine rebuild | `public, max-age=300` | one file per asset |
 | `docs` | `docs/**` | per Airflow run | `public, max-age=300` | Great Expectations Data Docs |
 | `showcase` | `showcase/**` | per landing or recorded run | `public, max-age=300` | the walkthrough, the task graph and one recorded run [orch 13] |
+| `geo` | `files/geo/**` | per ref rebuild | `public, max-age=300` | DEP design-storm flood extents — see below |
 
 **THE FLOOD PANEL IS TWO FAMILIES BECAUSE THE GATE CUTS THROUGH IT.** `flood` and
 `flood-mta` are written by ONE tick, in one process, carrying one `cycle_id` — and they
@@ -53,6 +54,28 @@ over a payload that is not there. The staleness budgets a consumer needs to turn
 into a verdict ride in `budgets_s` on both metas (precip 5400 fresh / 10800 down, FloodNet
 600, CO-OPS 1800, NWS alerts 900, KNYC observation 7200 — all seconds, all derived from
 `research/flood-11-detector.json`). Every human-readable string is under `strings`.
+
+**`files/geo/**` is DEP's design-storm flood extents, and it is a PLANNING map.** One
+`stormwater-<scenario>.geojson` per rainfall scenario, written by `make geo` out of
+`silver/stormwater_extent` (flood-build 19). Each file is a FeatureCollection with one
+Feature per category — `deep` (ponding ≥ 1 ft), `nuisance` (≥ 4 in, < 1 ft) and
+`not_analyzed` — whose geometry is a MultiPolygon of that category's parts, plus the
+scenario's `rain_in_hr` on every Feature's properties and a top-level `attribution` member
+the credit travels in. `not_analyzed` is DEP's own exclusion mask and is a CATEGORY, never
+an absence: a consumer must be able to draw it, because "DEP did not model here" and "DEP
+modelled here and found no flooding" are different sentences and only one of them is safe
+to paint as dry. Coordinates are reduced to 5 dp and every aggregate is ordered, so a
+re-export is byte-identical.
+
+Two limits are shipped facts rather than omissions. **Only the current-sea-level scenarios
+are served**: DEP also publishes a 2050 and a 2080 sea-level-rise horizon, both of which
+stay in `silver/stormwater_extent` and off this host, because a climate projection drawn
+beside a live rain rate reads as a forecast. And **the 1.77 in/hr `limited` scenario is
+absent**: its geodatabase stores its feature class in a compressed Esri format
+(`.gdbtable.cdf`) that the open `OpenFileGDB` driver cannot decompress, so it cannot be
+built from the pinned snapshot at all. The tree is DERIVED from the table, so a scenario
+appears here the day the table has it — this is a prefix family, not a promised file list,
+and no file name here is part of the `contract` integer.
 
 **`docs/**` is the CURRENT run's report, not an archive of runs.** The nightly's `gxcheck`
 stage rebuilds the whole Data Docs site every run (orchestration ticket 08), so a

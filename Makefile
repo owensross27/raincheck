@@ -355,6 +355,19 @@ web:  ## serve web/ with the stdlib server, Range included (make web [PORT=8000]
 showcase:  ## the portfolio surface -> web/showcase (make showcase [LOGS=<airflow log dir> LABEL=probe|shadow|nightly])
 	$(PY) -m raincheck.showcase $(if $(LOGS),--logs $(LOGS) --label $(LABEL))
 
+# --- flood-build 19: DEP's design-storm extents, kept as polygons -------------------
+# Reads the same sha-pinned snapshot `make features` does and writes a table nothing
+# hashed into features_version touches. `make geo` needs `make stormwater-extent` first.
+# NOTE both targets can exit 2 for a check that could not run - and GNU make exits 2 for
+# ANY recipe failure, so read the batch under <root>/checks/check=stormwater_extent/ or
+# invoke the module directly if you have to tell "could not read" from "broke".
+.PHONY: stormwater-extent geo
+stormwater-extent:  ## DEP's four scenario extents -> silver/stormwater_extent + check rows (flood-build 19)
+	$(PY) -m raincheck.stormwater_extent
+
+geo:  ## the current-sea-level extents -> web/files/geo/*.geojson (publish family `geo`)
+	$(PY) -m raincheck.stormwater_extent --geo
+
 # --- ticket 14: the live export loop (foreground, 30 s, Ctrl-C stops it) -----------
 .PHONY: live-export
 live-export:  ## live.geojson + meta.json every 30 s (make live-export [SOURCE=bronze] [ONCE=1])

@@ -94,6 +94,7 @@ SCHEMA = {
     "files/flood-mta.json": "src/raincheck/flood_panel.py",
     "files/flood-mta-meta.json": "src/raincheck/flood_panel.py",
     "files/history/**": "src/raincheck/query.py (events_for_asset, mode='public')",
+    "files/geo/**": "src/raincheck/stormwater_extent.py (flood-build 19)",
     "docs/**": "Great Expectations Data Docs (orchestration ticket 08)",
     "showcase/**": "src/raincheck/showcase.py (orchestration ticket 13)",
     # the basemap archive's shape is the PMTiles spec, and its CONTENT is OpenStreetMap
