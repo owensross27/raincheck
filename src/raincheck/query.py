@@ -359,9 +359,11 @@ def query(name: str, params: Mapping | None = None, data_root: Path | str | None
     root = as_root(data_root) if data_root is not None else default_root()
     con = duck.connect()
     # ponytail: one connection and one stamp resolution PER CALL. Measured on the real root
-    # 2026-08-24: 0.115 s/call, 0.097 s of it versions() -- the same three stamps every
-    # time. Fine for a tool call, ~16 min for ticket 05's 7,955-asset export; the upgrade
-    # is a caller-supplied connection + stamps resolved once, NOT a cache keyed on a date.
+    # 2026-08-24 at 0.115 s/call, 0.097 s of it versions(); re-measured 2026-08-25 with the
+    # fourth stamp (score_version) at 0.102 s for exposure_of and 0.167 s for a complex's
+    # history -- the same stamps every time either way. Fine for a tool call; ticket 05 now
+    # makes TWO calls per asset, ~27 min for its 7,955 assets. The upgrade is a
+    # caller-supplied connection + stamps resolved once, NOT a cache keyed on a date.
     stamps = versions(con, root)   # first: an unstamped answer must be impossible
     return {"query": name, "mode": mode,
             **QUERIES[name](con, root, params or {}, mode),
