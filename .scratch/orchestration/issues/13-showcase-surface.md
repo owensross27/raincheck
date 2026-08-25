@@ -352,3 +352,84 @@ returns 404) - a dead link would be worse than a citation, and widening rule 2's
 for one link is a decision, not a fix. `files/geo/**` and `files/summary/**` are not
 mentioned by name: the "what is on the host" list is DERIVED from `publish.FAMILIES`, so
 they appear the moment they land and are re-described never.
+## FROM flood-build 19 (2026-08-25, branch `floodbuild19-stormwater-extents`) — THE MISSING HALF OF THE PARAGRAPH ABOVE
+
+**Read this beside orch 13's own "I TOOK NEITHER" paragraph, which is correct as written
+and is not being contradicted.** When orch 13 measured, this branch had ZERO commits and
+its tip WAS master `90ce33d` — so there was no batch, no `CHECK_COLUMNS` and nothing to
+write a `Suite` against, exactly as it says. That is no longer true: the batch exists, it
+has been run on the real root, and the shape below is measured rather than proposed.
+
+**Nobody is being asked to reopen orch 13.** This section exists because its file is where
+anyone re-opening the suite question looks, and because the wave-8 gate was told to read
+that paragraph as the gap — it should now read this one as the gap CLOSED on the input
+side and still OPEN on the suite side. flood-build 21a's `route_flood` is the other half
+and is untouched: wave 7, no ticket file, still owed.
+
+**IT IS NOT NIGHTLY.** `make stormwater-extent` reads a sha-pinned snapshot that changes
+only when DEP republishes and the pin is re-cut, so a nightly suite over it would judge
+last night's file every night forever. It belongs in **`gx.NON_NIGHTLY`** beside
+`backfill-census` and `ref-canaries`, fired by its own `make gx<name>` target, rendering
+into **`<root>/gx/docs-<suite>`** and published nowhere.
+
+**THE BATCH.** `<root>/checks/check=stormwater_extent/run=<ts>.jsonl`, written once per
+`make stormwater-extent`. `stormwater_extent.CHECK_COLUMNS`, in order — this is the
+constant `gx.rows()` asserts against, so read it from the module rather than retyping it:
+
+```
+check · subject · outcome · detail                      (checks.CORE)
+scenario · horizon · rain_in_hr · category · polygons
+vertices_src · vertices_kept · tolerance_m · zip_sha256
+```
+
+`subject` is `"<scenario> <horizon> <category>"` for a built category and
+`"<scenario> <horizon>"` for a declared scenario the table does not hold.
+
+**THE MEASURED SHAPE, on the real root 2026-08-25** — 12 rows, and every one of the four
+DECLARED scenarios appears every run whether or not it built:
+
+| subject | outcome | polygons | vertices_src | vertices_kept |
+| --- | --- | --- | --- | --- |
+| `moderate current deep` | ok | 7,272 | 222,512 | 53,719 |
+| `moderate current nuisance` | ok | 17,726 | 502,602 | 135,599 |
+| `moderate current not_analyzed` | ok | 1,420 | 404,228 | 33,603 |
+| `moderate 2050 deep` | ok | 8,158 | — | 60,351 |
+| `moderate 2050 nuisance` | ok | 20,650 | — | 153,788 |
+| `moderate 2050 future_high_tides` | ok | 5,949 | — | 76,670 |
+| `moderate 2050 not_analyzed` | ok | 4,367 | — | 52,445 |
+| `extreme 2080 deep` | ok | 40,224 | — | 363,400 |
+| `extreme 2080 nuisance` | ok | 98,629 | — | 742,566 |
+| `extreme 2080 future_high_tides` | ok | 7,122 | — | 158,140 |
+| `extreme 2080 not_analyzed` | ok | 6,208 | — | 62,768 |
+| **`limited current`** | **inconclusive** | 0 | null | null |
+
+(the `vertices_src` column is populated on every row of a real run; the dashes above are
+just table width.) `rain_in_hr` is one of `1.77 · 2.13 · 3.66`; `tolerance_m` is `5.0`;
+`zip_sha256` is `5effe9bc…` on every row including the inconclusive one.
+
+**THE THIRD OUTCOME IS PERMANENT HERE, AND IT IS THE ROW A SUITE MOST EASILY GETS WRONG.**
+`limited current` is INCONCLUSIVE on **every run and will stay that way** until somebody
+supplies a differently-encoded source: DEP's Limited geodatabase stores its feature class
+in Esri's compressed CDF container, which the open `OpenFileGDB` driver cannot decompress
+(GDAL 3.8.5 reads ZERO features with no error; 3.12.4 refuses the dataset). It is not a
+flake and it is not a retry. Two consequences, both of them orch 08's own rule:
+
+- **`Suite.era` is None** and every PER-ROW expectation goes to the judged subset. The
+  inconclusive row is held out of the frame, so the frame is **11 rows, not 12** —
+  and an `ExpectColumnDistinctValuesToEqualSet` over the four scenarios would go RED for
+  exactly the reason orch 08's first suite did. Do not write one.
+- **Every BATCH-LEVEL claim goes to `Suite.whole` over the WHOLE batch**: "one row per
+  declared scenario" (four keys), "the zip sha is one value across the batch", "every
+  category row carries both vertex counts". `census()` emits a row for every declared
+  scenario every run precisely so that claim is expressible.
+
+Per-row claims worth having: `polygons > 0` and `vertices_kept > 0` (paired with a not-null
+each — an in-set expectation ignores nulls and succeeds without them, orch 10's survivor);
+`vertices_kept <= vertices_src`; `tolerance_m` equal to the module's constant;
+`category` in `deep · nuisance · not_analyzed · future_high_tides`; and
+`future_high_tides` never on `horizon = current`.
+
+**FOR THE WALKTHROUGH, NOT FOR A SUITE:** `files/geo/**` is on the host as of this
+landing — one key, `files/geo/stormwater-moderate.geojson`, 4,607,370 raw bytes. Link it,
+do not re-describe it; `docs/read-api-contract.md` carries its row, its three categories
+and the two limits it ships with.

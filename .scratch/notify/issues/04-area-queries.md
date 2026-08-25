@@ -132,3 +132,12 @@ not scored", read that membership rather than re-typing a kind list.
   plausible WRONG number (143.5 m for a pair 248.5 m apart). `obs_near` measures through
   `EPSG:32618` (UTM 18N, metres) instead, which also answers for the MULTIPOLYGON rows
   (Sandy) that the point-only spheroid cannot.
+**FROM flood-build 19 (2026-08-25) — one line, and it is a DO-NOT-YET rather than a
+gap.** `silver/stormwater_extent` now holds DEP's design-storm flood extents as polygons
+(CRS84, one row per polygon, `scenario`/`horizon`/`rain_in_hr`/`category`), so "which
+assets sit inside the Moderate 2.13 in/hr extent" is a question the area seam COULD answer
+by taking a scenario as an area instead of a Cell set or a bbox. **It is not built here and
+nothing in 19 assumes it**: it would be a fifth `QUERIES` entry, a new argument name, and a
+new refusal shape, and the cap that makes `assets_in_area` safe (`CELL_CAP = 64`) has no
+meaning for a polygon whose extent is most of the city. If it is ever wanted, size it
+first — the moderate/current extent alone is 26,418 polygons.
