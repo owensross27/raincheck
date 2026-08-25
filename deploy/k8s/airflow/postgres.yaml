@@ -125,7 +125,7 @@ spec:
       spec:
         accessModes: ["ReadWriteOnce"]
         # gp3-1f carries tagSpecification_1 Project=raincheck-cloud, which is what keeps
-        # this volume inside the $130 budget filter (the CSI driver creates it, so the
+        # this volume inside the $200 budget filter (the CSI driver creates it, so the
         # cluster's own tags never reach it).
         storageClassName: gp3-1f
         resources:

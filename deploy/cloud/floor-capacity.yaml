@@ -24,7 +24,7 @@
 # total does not fit. The third spot node (`maxSize: 3` on the floor nodegroup) is the
 # resolution when it stops fitting - a decision taken against the budget alarm, with the
 # ~$20.73/mo it adds ($17.08 t4g.large spot + $3.65 public IPv4) stated out loud, because
-# it does not fit inside the $130 envelope. Never a silent scale-up.
+# it does not fit inside the $200 envelope. Never a silent scale-up.
 
 # 2026-08-25, THE FLOOR OUTAGE. This file used to say `instance_type: t4g.large` and mean it
 # literally: one type, one AZ, one spot capacity pool. That pool went dry and took the cluster

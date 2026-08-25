@@ -10,13 +10,32 @@ Wired 2026-08-23, verified with `aws budgets describe-notifications-for-budget`:
 
 | Budget | Filter | Limit | Notifications (email owensross27@gmail.com) |
 |---|---|---|---|
-| `raincheck-cloud` | tag `user:Project$raincheck-cloud` | $130/mo | FORECASTED 100%, ACTUAL 80% / 100% / 130% |
-| `aws-account-total` | none (whole account) | $210/mo | FORECASTED 100%, ACTUAL 100% |
+| `raincheck-cloud` | tag `user:Project$raincheck-cloud` | $200/mo | FORECASTED 100%, ACTUAL 80% / 100% / 130% |
+| `aws-account-total` | none (whole account) | $350/mo | FORECASTED 100%, ACTUAL 100% |
 
-The 130% notification is spec §8's `$130 hard-look line`. The second budget exists
+The 130% notification is spec §8's hard-look line. The second budget exists
 because a tag filter only sees resources that carry the tag: anything created
-untagged escapes the $100 alarm silently, which is the exact failure the alarm is
-supposed to prevent. $210 = ~$75 measured non-raincheck baseline + the $130 envelope.
+untagged escapes the tagged alarm silently, which is the exact failure the alarm is
+supposed to prevent.
+
+**RAISED 2026-08-25 (Ross), $130 -> $200 and $210 -> $350**, after the floor outage.
+The raincheck line moved because the fix is structurally more expensive (a third node
+for the AZ-bound workloads, ~$30/mo) and because t4g.large spot -- the $0.0229/hr price
+the $130 line was arithmetic on -- is currently unpurchasable, so the fleet pays
+$0.0417-$0.0485/hr for capacity that exists (~$34/mo). Measured run rate at the raise:
+**$189.83/mo, i.e. 95% of the new line on day one.**
+
+The account backstop moved for a DIFFERENT reason, and the two numbers are not the same
+kind of thing. $350 is not "$200 plus slack": it is the raincheck envelope plus the
+~$121/mo of this account that has nothing to do with raincheck. Measured 2026-08-25 over
+Aug 1-26 -- account $113.02, of which only $4.34 carried `Project=raincheck-cloud`. That
+$4.34 is YOUNG, not evidence of untagged raincheck spend: the tag was activated
+2026-08-23 and cost-allocation tags only count FORWARD, and all three cluster nodes were
+verified carrying it (`describe-instances`). The non-raincheck standing load is CloudFront
+flat-rate $15.00, CloudWatch $15.53, Lightsail $6.22, Secrets Manager $5.32, the two
+`vinylpig` t3.small instances, Route 53, WAF and DynamoDB. **A backstop below the sum of
+the parts fires every month while catching nothing**, which is worse than no backstop,
+because a guard that always cries wolf gets muted.
 
 A region filter (the house pattern used by the two `rf-coverage` budgets) was
 rejected: us-east-1 already carries ~$54/mo of unrelated spend (Lightsail,

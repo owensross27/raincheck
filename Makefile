@@ -226,7 +226,7 @@ live-export:  ## live.geojson + meta.json every 30 s (make live-export [SOURCE=b
 # Neither is a pipeline stage, so neither belongs in `daily`: bill-review is monthly and
 # writes into the ticket file, downscale is the escape hatch you exercise on purpose.
 .PHONY: bill-review downscale
-bill-review:  ## one month of Project=raincheck-cloud spend vs the $130 envelope (make bill-review [MONTH=YYYY-MM] [APPEND=1]); rc 1 = hard look, rc 2 = could not check
+bill-review:  ## one month of Project=raincheck-cloud spend vs the $200 envelope (make bill-review [MONTH=YYYY-MM] [APPEND=1]); rc 1 = hard look, rc 2 = could not check
 	scripts/cloud-bill-review.sh $(MONTH) $(if $(APPEND),--append)
 
 downscale:  ## the two-EC2 escape hatch (make downscale [DO=plan|up|run|down] [BOX=floor|build]); plan touches no AWS

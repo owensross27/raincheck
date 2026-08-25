@@ -21,7 +21,7 @@ SUBNET=subnet-002ac7537c7b84cdb          # us-east-1f, the capture box's subnet 
 SG=sg-0cb33dca0ac107599                  # ssh from three /32s, 443 open; no new SG needed
 KEYNAME=lewis-signs-dev
 AMI_PARAM=/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64
-TAG=raincheck-downscale                  # Project= stays raincheck-cloud so the $130 budget sees it
+TAG=raincheck-downscale                  # Project= stays raincheck-cloud so the $200 budget sees it
 FLOOR_TYPE=t4g.large                     # 2 vCPU / 8 GiB, on-demand: always-on cannot be interruptible
 BUILD_TYPE=c7g.xlarge                    # 4 vCPU / 8 GiB spot; stateless, so a reclaim is a retry
 

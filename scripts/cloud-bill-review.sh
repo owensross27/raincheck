@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Cloud ticket 08 / spec section 8: the monthly bill review. Reads Cost Explorer for one
 # month of `Project=raincheck-cloud` spend, prints one dated markdown entry (per-service
-# lines, run rate, delta against the $130 envelope), and with --append writes it into
+# lines, run rate, delta against the $200 envelope), and with --append writes it into
 # 08-cost-guardrails.md so drift is caught in a month rather than a quarter.
 #
-# $130 is a HARD-LOOK line, never an auto-stop: a crossing exits 1 and stamps the entry
+# $200 is a HARD-LOOK line, never an auto-stop: a crossing exits 1 and stamps the entry
 # `Decision: REQUIRED - not yet recorded`. `--check` re-reads the recorded entries and
 # fails while any crossing still carries that stamp, so a crossing cannot continue
 # silently either -- the module test runs --check against the real ticket file.
@@ -21,10 +21,35 @@
 set -euo pipefail
 
 # Frozen, not configurable: moving the line by env var is exactly the silent drift this
-# guards against. $130 = spec section 8's hard-look line (raised from $100 by Ross
-# 2026-08-23 on ticket 01's measured ~$121.5/mo); $210 = the aws-account-total backstop.
-ENVELOPE=130
-BACKSTOP=210
+# guards against. Raising it is a COMMIT, reviewed, with the reason in the log below --
+# that is the whole design, and it is why there is no RAINCHECK_ENVELOPE override.
+#
+#   $100 -> $130   Ross 2026-08-23, on ticket 01's measured ~$121.5/mo.
+#   $130 -> $200   Ross 2026-08-25, after the floor outage. Verbatim: "i want it to be
+#                  legit and if that means we have to spend more money im ok with it. as
+#                  long as we have cost gards in place i dnt want to spend more that 200
+#                  a month." The fix that prompted it split the AZ-bound workloads onto
+#                  their own node (+~$30/mo, structural) and revealed that t4g.large spot
+#                  -- the $0.0229/hr price the $130 line was built on -- is currently
+#                  unpurchasable, so the fleet pays $0.0417-$0.0485 for capacity that
+#                  exists (+~$34/mo). Measured run rate at the time of the raise: $189.83.
+#
+# THE ENVELOPE IS 95% CONSUMED AT THE MOMENT IT IS SET. $189.83 of $200 leaves ~$10, so
+# this line will fire on ordinary drift, which is the point -- do not treat a crossing as
+# noise. The two levers that buy real headroom back, in order of cost to take:
+#   1. Re-check `get-spot-placement-scores` for t4g.large; if 1a/1c/1f have recovered, a
+#      nodegroup refresh reclaims ~$34/mo at zero risk. Nothing migrates back on its own.
+#   2. Right-size the floor to one node (~$41/mo); needs Karpenter at 1 replica, because
+#      its two replicas have hard hostname anti-affinity. Deferred by Ross 2026-08-25.
+#
+# BACKSTOP is the aws-account-total budget, NOT raincheck's: the account also carries
+# ~$121/mo that is nothing to do with this project (CloudFront flat-rate, CloudWatch,
+# Lightsail, the vinylpig EC2 pair, Route 53, WAF). Measured 2026-08-25 over Aug 1-26:
+# account $113.02 total against $4.34 attributed to `Project=raincheck-cloud`. So a
+# $200 raincheck envelope implies an account bill near $320, and a backstop has to sit
+# ABOVE the sum of the parts or it fires every month while catching nothing.
+ENVELOPE=200
+BACKSTOP=350
 TAG_KEY=Project
 TAG_VALUE=raincheck-cloud
 UNRECORDED="REQUIRED - not yet recorded"

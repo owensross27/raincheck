@@ -10,7 +10,7 @@ metadata:
   region: us-east-1
   version: "1.34"
   tags:
-    Project: raincheck-cloud   # the $130 budget filter keys on this — see issues/01
+    Project: raincheck-cloud   # the $200 budget filter keys on this — see issues/01
 
 vpc:
   id: vpc-049a68bf6017d6ead
