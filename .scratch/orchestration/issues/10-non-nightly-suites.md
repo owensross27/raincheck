@@ -9,7 +9,7 @@ work.
 
 **Blocked by:** 03 (remaining check producers), 08 (GX foundation).
 
-**Status:** ready-for-agent
+**Status:** DONE (orch 10, 2026-08-25) — see the decision and close-out sections below.
 
 - [ ] A backfill census suite expects on the census rows for the backfill era, with its own dead-hour list and the zero-byte-part rule (empty fill markers exempt)
 - [ ] It is not in the nightly DAG; its trigger is a backfill chunk landing
@@ -185,3 +185,53 @@ yet" is a state the surface can already carry honestly.
 ## Forward-context from DESTINATION-PLAN.md (copied verbatim by the WAVE 5 GATE PART 2, 2026-08-25, from this ticket's summary line in waves/wave-3-plus.md)
 
 **FROM DESTINATION-PLAN (2026-08-25) — TWO NEW CHECK-ROW PRODUCERS ARE COMING, and the second lands after you.** flood-build 19 (wave 6, same wave as you) emits batch `stormwater_extent` (polygon counts per scenario x category, the zip sha) — expect on it if its entry exists when you write; flood-build 21a (wave 7) emits `route_flood` — NOT yours; write it forward to orch 13 or a later suite ticket rather than reopening this one. Both are Mac-runnable `make` targets, not nightly stages, until the wave-8 gate registers 21b.
+
+## THE DECISION THIS TICKET OWED, MADE BEFORE A SUITE WAS WRITTEN (orch 10, 2026-08-25)
+
+**THE `ref`-CANARY PRODUCER: (b) BUILT HERE, as `src/raincheck/ref_canary.py` — a READ-ONLY
+CENSUS of the built registry, never a rebuild.** Open since orch 03; closed here with the
+reason, not deferred again.
+
+Why not (a) "expect through `ref`'s in-code canaries with no batch": a `Suite` reads a batch
+off disk by construction — `gx.run()` is `batches() -> fold() -> validate()` — so there is no
+shape in which an expectation reaches a `RuntimeError` raised inside `build_assets()`. (a) is
+not a thing the foundation can express, and pretending otherwise would have meant a second
+mechanism beside `gx.SUITES`, which the ticket forbids.
+
+Why not (c) "declare the suite and let `<no batch>` carry it": it IS honest, and it is what
+this suite does on a root with no batch — but as a DESTINATION it delivers none of this
+ticket's four ref bullets. Content identity and the key-stability diff would be covered by a
+page that says "could not check" forever, and no test could ever exercise it. (c) is the
+degenerate case my suite already handles for free, not the answer.
+
+Why (b) is cheap enough to be the lazy option too: **`ref` cannot be rebuilt on this Mac**
+(`make picks` is 401-blocked; TRAPS), so a producer that rebuilds is impossible anyway. A
+producer that CENSUSES the built table is ~110 lines, needs no new frozen number, and runs
+today. It re-uses the three canaries that already exist rather than restating them:
+
+  - `ref.ASSETS_EXPECT` — one row per key (7), `got` vs the constant. **1,351 and 496 never
+    appear in this ticket's code**; the numbers keep their one home in `ref.py` and the
+    suite expects on the row's OUTCOME.
+  - `ref.assets_version(root)` — the content identity, recorded as the row's measure.
+  - `ref.assets_key_diff(referenced, current)` — the key-stability contract, run read-side
+    against the two tables `build_assets()` itself guards (`gold/flood_labels`,
+    `silver/asset_features`): an `asset_id` a derived table references that the registry no
+    longer holds is an ORPHAN, which is exactly the rebuild check, available with no rebuild.
+
+**NAMED CEILING on the identity row, so nobody reads it as stronger than it is.** Nothing in
+this repo PERSISTS an `assets_version` counterpart — it is an ingredient of `label_version`
+and `features_version` and a live field of `query.versions()`, never a stored column
+(measured on the real root: `gold/flood_labels` carries `label_version` only). So the
+`assets_version` row proves the identity RESOLVES and publishes its value on the Data Docs
+page a human reads; a moved registry is CAUGHT by the count rows and the orphan rows, not by
+that sha. Freezing the sha in code would create the second home this ticket exists to avoid.
+
+**AND THE TRIGGER DECISION THE SAME QUESTION FORCED: `gx.SUITES` IS THE NIGHTLY DECLARATION
+AND MY TWO SUITES ARE NOT IN IT.** `gxcheck` runs `python -m raincheck.gx` with the default
+tuple, so appending there would have made both suites nightly — the exact thing this ticket
+forbids ("nightly runs should not grow checks over data that cannot change"). They live in
+`gx.NON_NIGHTLY` and are selected BY NAME (`python -m raincheck.gx <suite>`), which is what
+the two `make` targets run. Data Docs go to their own directory per named run
+(`<root>/gx/docs-<suite>`), because `build_data_docs()` rebuilds the WHOLE site (orch 08,
+measured) and a non-nightly run into `<root>/gx/data_docs` would have deleted last night's
+four pages from the tree `publish FAMILY=docs` sends to the public host.

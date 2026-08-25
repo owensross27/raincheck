@@ -39,7 +39,16 @@ GX IS AN OPTIONAL EXTRA (`pip install -e '.[gx]'`, pinned to MAJOR VERSION 1 - t
 only). No pipeline module imports it, this one imports it lazily, and a missing library is
 INCONCLUSIVE - the suite could not run, which is exactly the third outcome.
 
-Run: make gxcheck   (python -m raincheck.gx)
+NOT EVERY SUITE IS A NIGHTLY SUITE (orchestration 10). `SUITES` is the nightly declaration
+and `gxcheck` runs exactly that; `NON_NIGHTLY` holds the two families whose data CANNOT
+CHANGE - the closed backfill era and the reference registry - and those are named on the
+command line by their own `make` targets, after the event that could have moved them. A
+named run renders into its OWN Data Docs directory, because `build_data_docs()` rebuilds the
+whole site and the nightly's tree is what gets published.
+
+Run: make gxcheck     (python -m raincheck.gx)                 the nightly's four
+     make gxbackfill  (python -m raincheck.gx backfill-census) after a backfill chunk lands
+     make gxref       (python -m raincheck.gx ref-canaries)    after make refcanary
 Exit: 1 any suite failed, 2 any suite could not check, else 0 - checks.rc's own rule.
 """
 from __future__ import annotations
@@ -52,7 +61,7 @@ from importlib.util import find_spec
 from pathlib import Path
 from typing import Callable, NamedTuple
 
-from raincheck import checks, cold, eras, gapfill, publish
+from raincheck import checks, cold, eras, gapfill, publish, ref_canary
 from raincheck.paths import data_root
 
 # The live-capture era's first day. Read from gapfill rather than retyped: the backfill
@@ -355,6 +364,154 @@ def _schema_eras_batch(batch_rows: list[dict], root: Path):
                          f"this batch" if missing else "")
 
 
+# --- orchestration 10: the two families that must NOT grow a nightly check -----------------
+#
+# Both of these expect on data that CANNOT CHANGE. The backfill range ends the day before
+# live capture begins, and `ref/` cannot be rebuilt at all (`make picks` is 401-blocked). So
+# neither belongs in SUITES: `gxcheck` would re-answer a settled question every morning, and
+# it would answer it off whatever batch last landed - `batches()` takes the newest `run=`
+# stamp and asks NO question about its age, which is exactly right for a nightly producer
+# and exactly wrong for one that last ran in July. They are named on the command line
+# instead, by the two `make` targets that fire after the event which could have moved them.
+
+def _script(stem: str):
+    """A `scripts/` producer loaded BY PATH, so its declared constants keep one home.
+
+    `scripts/backfill-verify.py` is a script and not a package module ON PURPOSE: orch 03
+    kept the two eras' tools apart, and `tests/test_check_producers.py` asserts its DEAD
+    list is disjoint from `gapfill.DEAD`. Re-homing its CHECK_COLUMNS into the package so an
+    `import` would work here would undo that separation for a suite's convenience. Loading
+    it is side-effect free - the module body is constants and defs, and its `main()` is
+    behind `__main__` - and `scripts/` is COPYed into the image beside `src/`.
+    """
+    from importlib.util import module_from_spec, spec_from_file_location
+
+    from raincheck import paths
+
+    path = paths.REPO / "scripts" / f"{stem}.py"
+    spec = spec_from_file_location(f"_producer_{stem.replace('-', '_')}", path)
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+BACKFILL = _script("backfill-verify")
+
+
+def _backfill() -> list:
+    """The backfill census's expectations, over `backfill`'s rows. Per-row, all seven.
+
+    1. THE PRODUCER'S OWN VERDICT. The census is `ok = not (missing or no_part or no_marker
+       or zero_byte or stale_dead)`, and this expects the verdict it wrote. Restating that
+       expression here would be a second home for it, and the two would drift apart the
+       first time a chunk taught the census something new.
+    2. ONLY THE DECLARED FEEDS, read from the script's own `FEEDS`. The backfill era has
+       three (`vp`, `tu`, `alerts`) and they are NOT `gapfill.KINDS` - the two eras' tools
+       stay apart, which is this ticket's standing rule and the reason for `_script` above.
+    3-7. THE NULL CONVENTION AND THE TWO RULES THE TICKET NAMES, each a not-null PAIRED
+       with its claim. `hours_seen`, `zero_byte` and `stale_dead` are NULL on the
+       could-not-check path (`backfill-verify.py`'s `base` dict) and those rows are held out
+       of this frame, so a JUDGED row carrying no count is a producer that started
+       publishing a measurement it never took. The pairing is not decoration: an in-set
+       expectation IGNORES nulls and succeeds without them (orch 08 measured the same for
+       `between`), so the not-null is the only thing standing in front of a vanished measure.
+
+       `zero_byte == 0` is the ticket's zero-byte-part rule. Its other half - that an empty
+       `_gapfill` MARKER is exempt - is a property of the producer (a marker is counted as a
+       marker and never as a part) and is pinned in `tests/test_check_producers.py`; a
+       second implementation of it here could only disagree with the first.
+       `stale_dead == 0` is the ticket's dead-hour-list rule: a listed dead hour that turned
+       up means the allowlist is WRONG, and a wrong allowlist hides real gaps. Both are
+       redundant with the verdict on purpose - `outcome` says a feed is bad, these say WHICH
+       WAY, on the Data Docs page a human reads after a chunk lands.
+    """
+    from great_expectations import expectations as gxe
+
+    return [
+        gxe.ExpectColumnValuesToBeInSet(column="outcome", value_set=[checks.OK]),
+        gxe.ExpectColumnValuesToBeInSet(column="feed", value_set=list(BACKFILL.FEEDS)),
+        gxe.ExpectColumnValuesToNotBeNull(column="hours_seen"),
+        gxe.ExpectColumnValuesToNotBeNull(column="zero_byte"),
+        gxe.ExpectColumnValuesToBeInSet(column="zero_byte", value_set=[0]),
+        gxe.ExpectColumnValuesToNotBeNull(column="stale_dead"),
+        gxe.ExpectColumnValuesToBeInSet(column="stale_dead", value_set=[0]),
+    ]
+
+
+def _backfill_batch(batch_rows: list[dict], root: Path):
+    """ONE ROW PER FEED - the census's own contract, and a claim no expectation can make.
+
+    `backfill-verify.py` emits a row for every feed on EVERY path, INCONCLUSIVE included
+    (orch 03 deleted the early return that used to abort the remaining feeds precisely so
+    that stayed true). So a feed with no row is a feed whose range was never censused: a
+    could-not-check and never a pass - and it is invisible inside the frame, because the row
+    is not there to be unexpected.
+
+    INCONCLUSIVE rather than FAIL, deliberately, and the `--feeds vp,tu` form is what
+    decides it: censusing a subset on purpose is a legitimate run, and the honest report of
+    the feeds it never asked about is "could not check", not "broken".
+
+    THE RANGE RIDES OUT IN `detail` AND IS NOT GATED. `fold()` unions every batch within
+    RUN_WINDOW and keeps the newest row per SUBJECT, so two census runs inside one window
+    over DIFFERENT ranges fold into one batch whose rows are each true about a different
+    chunk. Printing the ranges is what makes that readable; failing it would gate a workflow
+    nobody runs today - the era is closed, the backfill ends where `gapfill.START` begins.
+    """
+    seen = {r["feed"] for r in batch_rows}
+    missing = tuple(f"<no row: {f}>" for f in BACKFILL.FEEDS if f not in seen)
+    ranges = sorted({"{}..{}".format(r["lo"], r["hi"]) for r in batch_rows})
+    notes = [f"range(s) censused: {', '.join(ranges)}"] if ranges else []
+    if missing:
+        notes.append(f"{len(missing)} declared feed(s) have no row in this batch - a "
+                     f"--feeds subset, or a feed that never ran")
+    return (), missing, "; ".join(notes)
+
+
+def _ref_canaries() -> list:
+    """The reference canaries' expectations. TWO, and the shortness is the point.
+
+    EXPECT THROUGH THE CANARY, NEVER RESTATE ITS NUMBER - not in an expectation and not in
+    this docstring either, which is why no count is spelled out below. `ref.ASSETS_EXPECT`
+    is the one home for every frozen count (complexes, stations, scored Cells, the total)
+    and `ref_canary` compares the built table against it; this suite expects on the
+    VERDICT that comparison wrote. Re-typing a count here would make the SUITE the real
+    canary, and the two copies would disagree the first time the registry legitimately
+    moved - the exact failure `ref.py` keeps its constants in one place to avoid.
+
+    The not-null is on `got` ALONE: `want` is legitimately NULL on the identity row, which
+    has nothing frozen to compare against (see `ref_canary`'s ceiling note). A canary that
+    could not run at all - no `ref/assets` on this root, which is every worktree and every
+    task pod - is INCONCLUSIVE with both measures NULL and is held out of this frame.
+    """
+    from great_expectations import expectations as gxe
+
+    return [
+        gxe.ExpectColumnValuesToBeInSet(column="outcome", value_set=[checks.OK]),
+        gxe.ExpectColumnValuesToNotBeNull(column="got"),
+    ]
+
+
+def _ref_canaries_batch(batch_rows: list[dict], root: Path):
+    """EVERY DECLARED CANARY HAS A ROW, and the identity's VALUE rides out in `detail`.
+
+    The declaration is `ref_canary.subjects()` - derived from `ref.ASSETS_EXPECT` and the
+    two key tables, so a count frozen in `ref.py` tomorrow is covered the day it lands
+    rather than the day someone remembers this list. A canary with no row was not run, which
+    no expectation can be asked about and which must not read as a pass.
+
+    Reporting `assets_version` here is the whole job of the identity row: nothing in this
+    repo persists a counterpart to compare it against, so its value exists to be READ - on
+    the page, beside the counts that would have moved with it.
+    """
+    have = {r["subject"] for r in batch_rows}
+    missing = tuple(f"<no canary: {s}>" for s in ref_canary.subjects() if s not in have)
+    identity = [r["got"] for r in batch_rows if r["subject"] == ref_canary.IDENTITY]
+    notes = [f"{ref_canary.IDENTITY} {identity[0]}"] if identity and identity[0] else []
+    if missing:
+        notes.append(f"{len(missing)} declared canary(ies) have no row in this batch")
+    return (), missing, "; ".join(notes)
+
+
 SUITES: tuple[Suite, ...] = (
     Suite("live-capture-completeness", "gapcheck",
           gapfill.CHECK_COLUMNS["gapcheck"], _completeness, era="day"),
@@ -373,6 +530,37 @@ SUITES: tuple[Suite, ...] = (
     Suite("schema-eras", "eras", eras.CHECK_COLUMNS, _schema_eras,
           whole=_schema_eras_batch),
 )
+
+NON_NIGHTLY: tuple[Suite, ...] = (
+    # `Suite.era` STAYS None here, and that is a hard requirement rather than an omission:
+    # `ERA_START` is `gapfill.START` and the backfill range ENDS THE DAY BEFORE, so
+    # `era="lo"` (or "hi") would refuse this batch ENTIRELY - every row, every run, with the
+    # message telling you to go and look at this very check. This check IS the other era.
+    # orch 08's live-capture suite must never be pointed at this range, and this suite must
+    # never inherit that suite's boundary; the two eras' tools stay apart.
+    Suite("backfill-census", BACKFILL.CHECK, BACKFILL.CHECK_COLUMNS, _backfill,
+          whole=_backfill_batch),
+    # No `era` either, and nothing here carries a day at all: a canary's subject is a frozen
+    # count, an identity or a derived table's key set.
+    Suite("ref-canaries", ref_canary.CHECK, ref_canary.CHECK_COLUMNS, _ref_canaries,
+          whole=_ref_canaries_batch),
+)
+
+DECLARED: tuple[Suite, ...] = SUITES + NON_NIGHTLY
+
+
+def by_name(name: str) -> Suite:
+    """One declared suite, by name - what the two non-nightly `make` targets select with.
+
+    BY NAME and never by position, for the same reason `tests/test_gx.py` looks its suites
+    up that way: three tickets have appended to these tuples in two waves, and an index
+    silently repoints one ticket's trigger at another ticket's suite.
+    """
+    for suite in DECLARED:
+        if suite.name == name:
+            return suite
+    raise SystemExit(f"gxcheck: no suite named {name!r}. Declared: "
+                     + ", ".join(s.name for s in DECLARED))
 
 
 def available() -> bool:
@@ -569,8 +757,15 @@ def _suite_of(suite: Suite):
     return out
 
 
-def run(root: Path, suites: tuple[Suite, ...] = SUITES) -> tuple[list[Result], Path]:
+def run(root: Path, suites: tuple[Suite, ...] = SUITES,
+        docs: Path | None = None) -> tuple[list[Result], Path]:
     """Every declared suite, then Data Docs ONCE at the end of the run.
+
+    `docs` defaults to `docs_dir(root)`, which is the NIGHTLY's site and the `docs` family's
+    source. A run of a NON-NIGHTLY suite passes its own directory, and that is not tidiness:
+    `build_data_docs()` rebuilds the WHOLE site (below), so a `make gxref` at noon writing
+    into the nightly's tree would DELETE last night's four pages from the exact directory
+    `make publish FAMILY=docs` sends to the public host.
 
     `docs/**` is THIS run's report and nothing accumulates in it, which matters because
     the tree is published wholesale every night - the "no served history" rule cloud 09
@@ -590,7 +785,7 @@ def run(root: Path, suites: tuple[Suite, ...] = SUITES) -> tuple[list[Result], P
         # object store, this writer cannot follow it there yet.
         raise ValueError(f"gxcheck: Data Docs are POSIX-only and this root is an object "
                          f"store ({root}). Run the checkpoint on a local root.")
-    docs = docs_dir(root)
+    docs = docs or docs_dir(root)
     # ponytail: the REMOTE still keeps whatever a previous run published under a stamp this
     # one does not write - publish overwrites, it never deletes - and nothing links to them.
     # A bucket lifecycle rule is the place to fix that, not this stage.
@@ -620,23 +815,42 @@ def rc(results: list[Result]) -> int:
 
 
 def main(argv: list[str] | None = None) -> None:
+    """No argument runs the NIGHTLY declaration; one argument names ONE declared suite.
+
+    `daily.STAGES`' `gxcheck` carries `argv=("gx",)` and so reaches the no-argument form -
+    the nightly's four suites, into the nightly's own Data Docs tree. The named form is what
+    orch 10's two non-nightly `make` targets run, and it renders into its own directory
+    (see `run`). Selecting a SET rather than a suite was considered and dropped: two targets
+    means two names, and a set would be a second declaration to keep in step with this one.
+    """
+    argv = list(argv or [])
     root = data_root()
+    if len(argv) > 1:
+        raise SystemExit(f"gxcheck: one suite name at most, got {argv}. Each named run "
+                         f"renders its own Data Docs site, so they cannot share one.")
     if not available():
         # The extra is not installed, so nothing was checked. INCONCLUSIVE, and on a
         # declared gate that is a `skipped` task rather than a red one (orch 07).
         print("gxcheck: great_expectations is not installed - nothing was checked. "
               "Install the optional extra: pip install -e '.[gx]'", flush=True)
         sys.exit(checks.rc([checks.Row("gxcheck", "library", checks.INCONCLUSIVE, "")]))
-    results, docs = run(root)
+    nightly = not argv
+    suites = SUITES if nightly else (by_name(argv[0]),)
+    results, docs = run(root, suites, None if nightly else root / "gx" / f"docs-{argv[0]}")
     for result in results:
         print(result.line(), flush=True)
     # The report is only useful if it can be published, and the publisher's allowlist is
     # what decides. Checked HERE, on the tree that was just built, so a GX version that
     # starts emitting something that is not a web payload fails in this stage with the
-    # offending file named - not later, in another session, at publish time.
+    # offending file named - not later, in another session, at publish time. A named run
+    # checks the same thing and publishes nothing: only the nightly's tree is a family.
     published = publish.plan("docs", docs)
+    where = ("`make publish FAMILY=docs` sends them to docs/** on the public host"
+             if nightly else
+             f"NOT published - the `docs` family's source is {docs_dir(root)}, and this "
+             f"run deliberately did not touch it")
     print(f"gxcheck: Data Docs -> {docs} ({len(published)} publishable object(s); "
-          f"`make publish FAMILY=docs` sends them to docs/** on the public host)", flush=True)
+          f"{where})", flush=True)
     sys.exit(rc(results))
 
 

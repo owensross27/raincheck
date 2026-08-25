@@ -202,6 +202,27 @@ eras:  ## every verified Bronze bus reader still surfaces the era columns -> row
 gxcheck:  ## GX suites over the check-result rows -> Data Docs at <root>/gx/data_docs (exit 1 a suite failed, 2 a suite could not run)
 	$(PY) -m raincheck.gx
 
+# --- orchestration ticket 10: the two NON-nightly suites and their triggers ----------
+# Neither is in the nightly declaration and neither is a DAG stage: they expect on data that
+# CANNOT CHANGE (the closed backfill era; the reference registry), so they fire on the EVENT
+# that could have moved it rather than every morning. Each renders its own Data Docs tree at
+# <root>/gx/docs-<suite>; the nightly's <root>/gx/data_docs is the only one published.
+#   a backfill chunk lands -> scripts/backfill-verify.py <LO> <HI> [--feeds ...] -> make gxbackfill
+#   make ref               -> make refcanary                                     -> make gxref
+# make CANNOT carry the three outcomes: GNU make exits 2 for ANY recipe failure, so a module
+# rc of 1 arrives here as 2 as well (measured again on these three). Nothing is gated on it -
+# none of them is a DAG stage - but to tell a real gap from a could-not-check, invoke the
+# module directly or read the persisted batch under <root>/checks/check=<backfill|ref>/.
+.PHONY: refcanary gxbackfill gxref
+refcanary:  ## the reference canaries (frozen counts, assets_version, key stability) -> rows under <root>/checks/ (exit 1 a canary moved, 2 no ref/assets on this root)
+	$(PY) -m raincheck.ref_canary
+
+gxbackfill:  ## GX over the backfill census rows scripts/backfill-verify.py wrote (exit 1 the suite failed, 2 it could not run)
+	$(PY) -m raincheck.gx backfill-census
+
+gxref:  ## GX over the reference-canary rows make refcanary wrote (exit 1 the suite failed, 2 it could not run)
+	$(PY) -m raincheck.gx ref-canaries
+
 # --- ticket 11: MRMS live precip ---------------------------------------------------
 .PHONY: precip-live
 precip-live:  ## one live RadarOnly tick -> live/precip_cell (the 300 s LaunchAgent runs this)
