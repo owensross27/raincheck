@@ -25,7 +25,7 @@ consumer can learn the whole surface without a human in the loop.
 
 ## The families
 
-Five, each an EXPLICIT file list or an explicit prefix. Never a directory sync — the
+Six, each an EXPLICIT file list or an explicit prefix. Never a directory sync — the
 insight files and the live pair are written into one directory by two writers on two
 cadences, so a sync would publish a gated payload and republish a stale one.
 
@@ -36,6 +36,7 @@ cadences, so a sync would publish a gated payload and republish a stale one.
 | `live` | `files/live.geojson`, `files/meta.json` | 30 s | `no-cache` | **GATED, dark** — see below |
 | `history` | `files/history/**` | per spine rebuild | `public, max-age=300` | one file per asset |
 | `docs` | `docs/**` | per Airflow run | `public, max-age=300` | Great Expectations Data Docs |
+| `showcase` | `showcase/**` | per landing or recorded run | `public, max-age=300` | the walkthrough, the task graph and one recorded run [orch 13] |
 
 **`docs/**` is the CURRENT run's report, not an archive of runs.** The nightly's `gxcheck`
 stage rebuilds the whole Data Docs site every run (orchestration ticket 08), so a
@@ -44,6 +45,15 @@ validation page's URL contains that run's timestamp and will not exist tomorrow.
 static site in the ordinary sense - HTML, CSS, images and `.otf` font faces - and it
 carries check-RESULT rows only: counts, dates, kinds, hour labels and ratios. No feed row
 reaches it, which is what makes it publishable at all.
+
+**`showcase/**` is the portfolio surface, and it is static because it has to be.** The
+cluster has no inbound path from the internet, so the Airflow UI is reachable by
+`kubectl port-forward` and by nothing else and cannot be the thing anyone is shown.
+`showcase/index.html` is a walkthrough that LINKS this contract rather than restating it,
+`showcase/graph.svg` is the nightly task graph rendered from `raincheck.daily.STAGES`, and
+`showcase/run.json` is one recorded run's per-instance states and durations. It is a tree
+family for the same reason `docs/**` is: the file names inside it belong to its writer,
+so a fourth artifact is additive and owes no bump.
 
 **Publish order inside a family is load-bearing.** `files/live.geojson` lands before
 `files/meta.json`, because meta carries the freshness the page reads: a publisher that

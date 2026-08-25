@@ -226,7 +226,10 @@ def test_a_family_whose_writer_has_not_shipped_refuses_by_naming_its_writer(tmp_
 
 
 def test_an_unknown_family_lists_the_real_ones(tmp_path):
-    with pytest.raises(publish.Refused, match="docs, history, insight, live, site"):
+    """The expected string is DERIVED from publish.FAMILIES: a hard-coded list here goes
+    red on the next ticket that adds a family, which is an ADDITIVE change and not a
+    breaking one, and teaches the next person to edit the test rather than read it."""
+    with pytest.raises(publish.Refused, match=", ".join(sorted(publish.FAMILIES))):
         publish.plan("everything", tmp_path)
 
 
