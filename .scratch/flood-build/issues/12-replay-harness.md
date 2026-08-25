@@ -160,3 +160,49 @@ and note the direction that matters: if RadarOnly runs low, the 2.0 mm gate is C
 `WINDOW_CAPPED` (6 days, no dry anchor) and `INSUFFICIENT_DATA` (a pad stamp missing — it
 stops rather than falling through to a day it can see). Your checklist says exclude AND
 count them; both states carry `walked_days` and `missing_pad` so the count is free.
+
+
+### CORRECTED BY AN ADVERSARIAL REVIEW (same day, `d5e11f3`) — read this over the section above
+
+Only items 1-3 touch what you call; item 4 is a test-shape lesson.
+
+Six lenses raised nine findings and a skeptic pass refuted all nine. **Four were fixed
+anyway, on their own merits, and two of them change the interface written above.**
+
+1. **`detector_version` is `01197991471f`, not the `91598b86edc0` the first build printed.**
+   The scoping rule is about LEAVES, not top-level keys: `display` and `*_note` were excluded
+   BY NAME while `cutpoints.basis`, `cutpoints.confirmed_by`, `forcing.stamp` and
+   `canary.checks` sat as pure prose INSIDE digested dicts — so fixing a typo in one of them
+   moved the digest, which `rolled()` turns into a Window roll and which clears every latched
+   flag mid-storm. **All human-facing strings now live under `display`** (which is not
+   digested): `display.tiers`, `display.cutpoint_basis`, `display.cutpoints_confirmed_by`,
+   `display.window_interval`, `display.window_states`, `display.precip_states`,
+   `display.forcing_stamp`, `display.winter_label`, `display.winter_unknown_label`, beside
+   the existing `display.tier_labels` / `no_complex_skill_claim` / `within_cell`. So
+   `cutpoints` is now `{ELEVATED, HIGH, provisional}`, `window` drops `interval`/`states`,
+   `winter` is `{freeze_c, unknown_fallback_months}`, `forcing` drops `stamp`, `vocabularies`
+   drops the two state lists and `canary` is `{pattern, product}`.
+   `test_the_digested_leaves_are_frozen` pins all **72** digested leaf paths, so adding a
+   field inside a digested dict is a deliberate act.
+2. **`cycle()` emits H3 Cell ids as HEX, and that is the whole point of `cycle` being the
+   boundary.** `fd.hexcell(cell) == format(cell, "x")`, the same spelling `ref.py` writes into
+   `cell:<h3>`. Every `units[].cell`, every `revisions[].cell` and every `cell_totals` KEY is
+   a hex string; `state["cell_totals"]` is read back as hex. **The lower seams
+   (`window_features`, `evaluate`, `tiers`, `latch`, `revisions`) keep the int64** because
+   they join on it. An H3 id is past 2^53 and JSON cannot carry one.
+3. **A Window with no elapsed hours reported `HOLES` / coverage 0.0.** Nothing is missing when
+   nothing is expected, and a Window opens at 21:00 NY, so this painted the degrade state over
+   every cycle in the first hour of every Window, nightly. Now `OK` / 1.0. (The skeptic argued
+   HOLES is the safer label for an unobserved interval; recorded as a disagreement, not a
+   consensus — "not yet due" is what `staleness` reports, and `coverage` should mean what it
+   says.)
+4. **The budget pins were mirror-pins.** `assert artifact_budget == fl.KNYC_STALE_MIN`
+   compares the artifact to the module it was built FROM, so it passes whether the value is
+   derived or hard-coded at the same number. A monkeypatch test now MOVES `flood_live`'s and
+   `flood_truth`'s constants and asserts the artifact follows.
+
+The five findings left unfixed were prose-substring test assertions and one docstring
+wording; each was refuted with reasoning I checked and agree with.
+
+**Test count 84. Mutation rounds: 18/18 RED on the first pass, plus 4/4 RED on the review
+fixes, pristine control green both times.**
