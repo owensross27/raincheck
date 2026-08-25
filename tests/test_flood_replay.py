@@ -376,6 +376,50 @@ def test_summarise_reports_the_tails_and_the_sign_split():
     assert fr.summarise([]) == {"n": 0}
 
 
+def test_the_concentration_block_splits_on_quartiles_and_carries_its_alert_rate():
+    """A pooled row cannot show that a within-kind rank spends the same share of the city
+    on a storm that floods nothing as on one that floods everywhere. A top-and-bottom-TEN
+    split leaves the small bucket degenerate (0 flags, 0 positives) and shows nothing, so
+    the split is quartiles — and every bucket carries its own alert rate, because a POD
+    quoted without one is partly a statement about how often the thing alarms."""
+    ev = [{"event_id": f"e{i}", "skill": {"cell": {
+        "rows": 100, "positives": i,
+        fd.ELEVATED: {"flagged": 10, "tp": min(i, 3), "fp": 10 - min(i, 3)},
+        fd.HIGH: {"flagged": 2, "tp": 0, "fp": 2}}}} for i in range(8)]
+    f9 = {"cell": [{"event_id": f"e{i}", "positives": i, "tp": i, "fp": 0} for i in range(8)]}
+    c = fr.concentration(ev, f9, "cell", "cell")
+    assert c["quartile_events"] == 2
+    top, bot = c["top_quartile_by_positives"], c["bottom_quartile_by_positives"]
+    assert top["positives"] == 7 + 6 and bot["positives"] == 0 + 1
+    assert top["alert_rate"] == 0.1 and bot["alert_rate"] == 0.1
+    assert bot["fp"] == 19 and bot["tp"] == 1, "the quiet quartile still alarms"
+    assert bot["flood_09_fp"] == 0, "the global cut spends nothing there"
+    assert top["flood_09_pod"] == 1.0 and top["pod"] < 1.0
+
+
+def test_derived_recomputes_only_what_the_per_event_rows_already_contain():
+    """`--render-only` must be able to rebuild every summary block from the committed
+    per-event rows, so a changed summary never needs a 13-minute replay to reappear — and
+    it must not invent anything the rows do not already carry."""
+    if not fr.OUT.exists():
+        pytest.skip("no built research/flood-12-replay.json")
+    d = json.loads(fr.OUT.read_text())
+    again = fr.derived(d)
+    assert again["flag_volume"] == d["flag_volume"]
+    assert again["deltas"] == d["deltas"]
+    assert again["concentration"] == d["concentration"]
+    assert again["per_event"] is d["per_event"], "derived reads the rows, never rewrites them"
+
+
+def test_precision_is_published_with_its_own_lift():
+    """A raw precision at a 0.5% base rate reads as a disaster whatever the model does."""
+    p = fr.pooled([{"skill": {"cell": {"rows": 1000, "positives": 20, "base_rate": 0.02,
+                                       fd.ELEVATED: {"flagged": 100, "tp": 10, "fp": 90},
+                                       fd.HIGH: {"flagged": 0, "tp": 0, "fp": 0}}}}], "cell")
+    e = p[fd.ELEVATED]
+    assert e["precision"] == 0.1 and e["precision_lift"] == pytest.approx(0.1 / 0.02)
+
+
 # ---- the two point universes ---------------------------------------------------------------
 
 def test_both_point_universes_are_named_because_their_base_rates_differ():
@@ -415,8 +459,9 @@ def test_this_module_never_writes_the_detector_artifact():
         assert bad not in src, bad
     writers = [ln.strip() for ln in src.split("\n") if ".write_text(" in ln]
     assert writers, "the harness does write its own two artifacts"
-    assert all(ln.startswith(("out.write_text(", "doc.write_text(", "DOC.write_text("))
-               for ln in writers), writers
+    assert all(ln.startswith(("out.write_text(", "doc.write_text(",
+                              "OUT.write_text(", "DOC.write_text(")) for ln in writers), \
+        writers
 
 
 def test_the_committed_detector_artifact_still_says_provisional(det):
