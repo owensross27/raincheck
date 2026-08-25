@@ -8,7 +8,7 @@ export TZ := UTC
 export RAINCHECK_ARCHIVE_ROOT RAINCHECK_BRONZE_GB TRANSITLAND_API_KEY
 PY := .venv/bin/python
 
-.PHONY: warm ref nbp features picks precip-hourly precip-cell schedule events gold baseline gates slice test topics flood-obs flood-spine flood-coastal precip-flood-era flood-labels flood-matrix flood-fits flood-exposure flood-detector flood-replication flood-live
+.PHONY: warm ref nbp features picks precip-hourly precip-cell schedule events gold baseline gates slice test topics flood-obs flood-spine flood-coastal precip-flood-era flood-labels flood-matrix flood-fits flood-exposure flood-detector flood-replay flood-replication flood-live
 
 topics:  ## recreate the two bus topics to spec C - DESTRUCTIVE: drops retained Kafka messages (Bronze keeps the record)
 	$(PY) -m raincheck.topics
@@ -114,6 +114,18 @@ flood-exposure:  ## flood_matrix x flood-09-fits x flood_coastal -> gold/flood_e
 # The canary is a live HEAD against NODD: SKIP_CANARY=1 for an offline build.
 flood-detector:  ## the frozen detector rules -> research/flood-11-detector.json (+ live MRMS pattern canary)
 	$(PY) -m raincheck.flood_detect $(if $(SKIP_CANARY),--skip-canary)
+
+# --- flood-build ticket 12: the replay gate -----------------------------------------
+# THE SHIPPING GATE. Replays ticket 11's LIVE walk and evaluation, hour by hour, over every
+# AORC-era union event on flood 06's precip, and reports what the PROVISIONAL cutpoints
+# would have cost: per-event POD / raw FP beside flood 09's own per_event table, the pooled
+# FP volume, the signed live-minus-offline feature deltas, and the RadarOnly-vs-Pass2-vs-
+# AORC forcing chain. It MEASURES: the verdict ("cutpoints confirmed, or v1 ships
+# rank-only") is Ross's and is recorded in research/flood-11-detector.json, which this
+# target never writes. ~13 min over 195 events; ONLY=<event_id> or LIMIT=<n> to smoke it,
+# RENDER=1 to rebuild only the .md from the committed .json.
+flood-replay:  ## replay the live detector over history -> research/flood-12-replay.{md,json}
+	$(PY) -m raincheck.flood_replay $(if $(ONLY),--only $(ONLY)) $(if $(LIMIT),--limit $(LIMIT)) $(if $(RENDER),--render-only)
 
 # --- flood-build ticket 18: the outer replication -----------------------------------
 # The 311-threshold and label-radius sweeps, which redefine the event universe and so cannot
