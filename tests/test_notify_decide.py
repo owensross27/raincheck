@@ -49,6 +49,10 @@ CODE = _code(SRC)
 # thing under test rather than an assumption.
 NOON = datetime(2021, 9, 1, 16, tzinfo=UTC)
 NIGHT = datetime(2021, 9, 2, 6, tzinfo=UTC)
+# DUSK is where the two clocks DISAGREE: 21:00 New York is outside the quiet window and
+# 01:00 UTC is inside it. NOON and NIGHT agree in both zones, so pinned on those two alone
+# the timezone rule is untestable — a mutation reading the UTC hour survived them both.
+DUSK = datetime(2021, 9, 2, 1, tzinfo=UTC)
 
 
 def _dt(s: str) -> datetime:
@@ -286,6 +290,17 @@ def test_elevated_without_the_opt_in_is_silent(cycles, tier_p):
     assert nd.decide(elevated, None, [_sub(elevated=1)], tier_p, NOON).messages
 
 
+def test_which_tiers_notify_is_a_policy_and_not_a_synonym_for_any_tier(cycles, det):
+    """flood 12's counter-case is HIGH ALONE at Cell grain, so "which tiers notify" has to
+    be a policy the verdict can narrow — a rule that reads "any tier that is not NONE"
+    cannot be narrowed and survived the first mutation round because of it."""
+    high_only = nd.policy(dict(det, cutpoints=dict(det["cutpoints"], provisional=False)),
+                          notifying_tiers=(fd.HIGH,))
+    elevated = _retier(cycles["one"], {"bus:400070": fd.ELEVATED})
+    assert nd.decide(elevated, None, [_sub(elevated=1)], high_only, NOON).messages == ()
+    assert nd.decide(cycles["one"], None, [_sub(elevated=1)], high_only, NOON).messages
+
+
 def test_high_notifies_without_any_opt_in(cycles, tier_p):
     assert nd.decide(cycles["one"], None, [_sub(elevated=0)], tier_p, NOON).messages
 
@@ -479,13 +494,19 @@ def test_a_paused_or_wrong_grain_subscription_is_refused(cycles, p):
         assert "a@example.com" not in str(e.value) and bad["asset_id"] in str(e.value)
 
 
-def test_quiet_hours_are_read_in_the_detectors_own_timezone(p):
-    assert nd.in_quiet_hours(NIGHT, p.quiet_hours) and not nd.in_quiet_hours(NOON, p.quiet_hours)
+def test_quiet_hours_are_read_in_the_policy_zone_and_never_in_utc(p):
+    """The two clocks disagree at DUSK on purpose: an assertion made only where they agree
+    pins nothing, which is how a read-the-UTC-hour mutation survived the first round."""
+    assert DUSK.astimezone(fd.NY).hour == 21 and DUSK.hour == 1
+    assert not nd.in_quiet_hours(DUSK, p.quiet_hours, p.quiet_hours_tz)
+    assert nd.in_quiet_hours(NIGHT, p.quiet_hours, p.quiet_hours_tz)
     assert NIGHT.astimezone(fd.NY).hour == 2 and NOON.astimezone(fd.NY).hour == 12
-    assert not nd.in_quiet_hours(NIGHT, (2, 3)) or True   # the window itself is policy
-    assert nd.in_quiet_hours(datetime(2021, 9, 2, 2, tzinfo=fd.NY), p.quiet_hours)
-    assert not nd.in_quiet_hours(datetime(2021, 9, 2, 6, tzinfo=UTC).astimezone(UTC),
-                                 (7, 22)), "the same instant is outside the inverted window"
+    assert not nd.in_quiet_hours(NOON, p.quiet_hours, p.quiet_hours_tz)
+
+
+def test_a_message_at_dusk_sends_where_a_utc_clock_would_have_dropped_it(cycles, tier_p):
+    elevated = _retier(cycles["one"], {"bus:400070": fd.ELEVATED})
+    assert nd.decide(elevated, None, [_sub(elevated=1)], tier_p, DUSK).messages
 
 
 def test_the_quiet_window_wraps_midnight_and_is_half_open(p):
