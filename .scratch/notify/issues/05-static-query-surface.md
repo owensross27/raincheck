@@ -88,3 +88,18 @@ assets. It confirms frontend 01's coordinate MUST and adds two things:
   median is still right for sizing the ~10.9 MB tree; it is the wrong number for sizing one
   per-asset fetch, and a per-asset fetch on click is exactly what frontend 01's payload rule
   ("paint from one bulk file, detail from one per-asset fetch") makes the page do.
+
+## MUST from frontend 05 (the chassis landed 2026-08-25, `frontend05-seven-layer-chassis`)
+
+- **The page reads your manifest at `web/files/history/manifest.geojson`, as a GeoJSON
+  FeatureCollection.** That URL is already in the live page's `LAYERS` table and its `draw`
+  hook `setData`s the body unchanged, so a FeatureCollection paints the history layer with
+  no page code at all. Land that name and shape, or land another and correct this line, the
+  table and your summary line in the same commit.
+- Each feature's `properties` must carry **`asset_id`, `kind`, `name`, `n_events`** — the
+  coordinate MUST already on this ticket plus the two the marker layer reads:
+  `n_events` drives `circle-radius` (1 -> 1.6 px, 12 -> 4.6 px) and `name`/`kind` drive the
+  id fallback that keeps the most-flooded assets from rendering the literal "null".
+- **A budget constant here graduates the layer's freshness row from a bare AGE to a
+  verdict.** Without one the page reports an age and judges nothing, deliberately; a
+  downstream guess is refused by a test that counts the budgeted sources.

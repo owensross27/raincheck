@@ -1,5 +1,5 @@
 "use strict";
-/* raincheck serving page (ticket 13 / spec L).
+/* raincheck serving page (ticket 13 / spec L; frontend 05 grew it into the seven-layer map).
  *
  * Reads three files written by `make export` and nothing else. The paint rule that makes
  * the page honest is ["!", ["has", p]] -> grey: the pure-SQL writer guarantees an
@@ -9,6 +9,27 @@
  * which would make two storms' colours mean different things.
  *
  * Ticket 14 owns the #live panel and the `live` source/layer stubbed at the bottom.
+ *
+ * frontend 05 (spec .scratch/frontend/spec.md, decisions on frontend 01/02) turned the page
+ * into ONE surface with seven independently toggled layers. Four rules from those tickets
+ * are structural here rather than remembered:
+ *
+ *  1. DECLARE AT BOOT. All twelve map layers below are declared up front with an empty
+ *     FeatureCollection and visibility:"none" - never a lazy addSource/addLayer. A lazily
+ *     added layer lands on TOP of the order, so with everything lazy the stacking would
+ *     depend on click order, and a `beforeId` naming a not-yet-added layer THROWS (the
+ *     vendored 5.9.0 bundle carries the literal `Cannot add layer ... before non-existing`).
+ *  2. promoteId is OFF EVERYWHERE. Asset ids are hex strings (`cell:882a100001fffff`) and
+ *     vehicle_id is "MTA NYCT_1234"; MapLibre 5.9.0 SILENTLY drops a GeoJSON source whose
+ *     promoted id is not integer-like (measured: zero features, no error event).
+ *  3. AGE COMES FROM THE HTTP HEADERS, per SOURCE: <origin Date> - <Last-Modified>, both
+ *     off the response the page already made, both on the ORIGIN's clock, so a browser
+ *     clock cannot fake freshness. No payload gains an `as_of_utc` stamp (that would break
+ *     export's byte-identity test), and no source shows a verdict it has no budget for.
+ *  4. THE CELL FILL IS ONE EXCLUSIVE CHANNEL. The delay layer and flood 17's impact overlay
+ *     are the same quantity (a Speed ratio) over the same ~1,200 Cells at two time-scales,
+ *     so they share one frozen ramp and one channel, offered as a radio. Two ramps on one
+ *     geography is structurally impossible, not merely discouraged.
  */
 
 // Fixed ramps. Ratio: diverging around 1.0 (red slower, blue faster), 0.5 .. 1.2 always.
@@ -20,6 +41,92 @@ const GREY = "#3a4049";
 // live dots: bright while the pipeline is writing, dimmed the moment it is not (ticket 14)
 const LIVE_FRESH = "#b0bec5", LIVE_STALE = "#5d666f";
 
+// frontend 02 D2: four new hues, none on either arm of the diverging ramp above, which is
+// left byte-untouched. A dry/stale FloodNet sensor is a HOLLOW RING rather than a fifth
+// grey - at 2.6 px a dry sensor, a dimmed vehicle and the "no publishable value" Cell fill
+// were three meanings on one #3a4049, which is one too many.
+const WATER = "#35d6c2";    // a FloodNet sensor reporting water NOW
+const ALERT = "#ffc447";    // an MTA station with water on the tracks (the page's .warn family)
+const HIST = "#8f7bd6";     // a stop or Cell with a flood record: history, not an alarm
+const GATED_HUE = "#d2a24c";    // a gated layer's chip: dark, never absent
+
+// Ticket 14's staleness cuts, kept a TABLE and never a formula (a "2x cadence" rule would
+// silently retune the deliberately chosen bronze value from 900 s to 1200). Hoisted above
+// LAYERS because the live sources' budget IS this number - one source of truth.
+const STALE_AFTER_S = { live: 120, bronze: 900 };   // Bronze flushes in 10-min parts
+const DELAY_CUT_S = 300;   // 06's Delay cutoff, borrowed for an agency-computed quantity
+
+/* THE MTA GATE CUTS BY LINEAGE, and it has TWO SIDES (frontend 01 D3). Withholding the
+ * vehicles must never withhold the FloodNet tier, and opening the vehicles must never
+ * open MTA-derived ALERT rows - so the page keys each layer on its own gate side rather
+ * than on one global switch. Both sides are shut by the same deploy-time constant today,
+ * `raincheck.publish.LIVE_TERMS_VERIFIED` (None = not verified, so nothing MTA-derived is
+ * published); a test cross-checks these two booleans against it. Ticket 08 lights a side
+ * by flipping ONE of these, with no re-plumbing.
+ */
+const GATE = {
+  "mta-vehicles": false,   // GTFS-RT vehicle positions -> the live fleet, flood 17's bus overlay
+  "mta-alerts": false,     // archive/subway_alerts -> the MTA flood tier's alert rows
+};
+
+/* The seven layers, their SOURCES and their budgets. A layer takes the worst of its
+ * sources; the panel shows the sources, because a layer's several feeds publish on
+ * different cadences and only some have a budget frozen anywhere in the repo. Of the nine
+ * sources here exactly THREE do: STALE_AFTER_S.live (120 s) for the live pair and
+ * flood_truth.MAX_AGE_MIN (10 min) for FloodNet. The other six carry `budget: null`, which
+ * renders an AGE with no verdict rather than a guessed FRESH. That gap is a finding, not
+ * an oversight, and flood 15 / flood 17 / notify 05 owe the constants that close it.
+ *
+ * `draw: null` means the payload's writer has not shipped: the layer, its toggle, its hues
+ * and its freshness rows are all declared here, and the owing ticket lands the
+ * payload -> feature mapping. Rendering truthfully with layers dark is the design
+ * requirement, not a degraded mode.
+ */
+const LAYERS = [
+  { id: "zones", name: "Ground: taxi zones", gate: null, fill: false, open: true,
+    map: ["zones-fill", "zones-line"], owed: null,
+    srcs: [{ k: "files/zones.geojson", url: "files/zones.geojson", budget: null }],
+    draw: ([z]) => { if (z) map.getSource("zones").setData(z); } },
+
+  { id: "cells", name: "Delay cells", gate: null, fill: true, open: true,
+    map: ["cells", "cells-line"], owed: null,
+    srcs: [{ k: "files/cells.geojson", url: "files/cells.geojson", budget: null },
+           { k: "files/headline.json", url: "files/headline.json", budget: null }],
+    draw: ([c, h]) => drawCells(c, h) },
+
+  // its toggle is #livetoggle in the Live panel, which owns the 30 s interval and the
+  // vp_age_s composite; `draw` is null because liveTick has to read meta BEFORE the fleet.
+  { id: "live", point: true, name: "Live fleet", gate: "mta-vehicles", fill: false, open: false,
+    map: ["live"], owed: null, toggle: "livetoggle",
+    srcs: [{ k: "files/live.geojson", url: "files/live.geojson",
+             budget: STALE_AFTER_S.live, inner: "vp_age_s" },
+           { k: "files/meta.json", url: "files/meta.json", budget: STALE_AFTER_S.live }],
+    draw: null },
+
+  { id: "fn", point: true, name: "Flood tier: FloodNet", gate: null, fill: false, open: false,
+    map: ["fn"], owed: "flood 15",
+    srcs: [{ k: "files/flood.json", url: "files/flood.json", budget: 600 }],
+    draw: null },
+
+  { id: "mta", point: true, name: "Flood tier: MTA alerts", gate: "mta-alerts", fill: false, open: false,
+    map: ["mta"], owed: "flood 15",
+    srcs: [{ k: "files/flood-mta.json", url: "files/flood-mta.json", budget: null }],
+    draw: null },
+
+  { id: "impact", name: "Impact overlay: bus", gate: "mta-vehicles", fill: true, open: false,
+    map: ["impact-fill", "impact-line"], owed: "flood 17",
+    srcs: [{ k: "files/impact.json", url: "files/impact.json", budget: null }],
+    draw: null },
+
+  { id: "hist", point: true, name: "Flood history markers", gate: null, fill: false, open: false,
+    map: ["hist"], owed: "notify 05",
+    srcs: [{ k: "files/history/manifest.geojson", url: "files/history/manifest.geojson",
+             budget: null }],
+    draw: ([m]) => { if (m) map.getSource("hist").setData(m); } },
+];
+const L = (id) => LAYERS.find(x => x.id === id);
+const shut = (lyr) => Boolean(lyr.gate) && !GATE[lyr.gate];
+
 const $ = (id) => document.getElementById(id);
 const fmt = (v, d = 2) => (v === undefined || v === null ? "—" : v.toFixed(d));
 
@@ -28,39 +135,240 @@ let cellKeys = new Set();  // property keys present in cells.geojson
 let views = [];
 let view = null;         // the active view object
 let hourKey = null;      // active storm-hour key (MMDDHH) or null
+let styled = false;      // MapLibre has parsed the style: before that every layer call throws
 
+// frontend 02 D7: the 60vh map strip carries about two layers legibly at 375 px, so a small
+// screen OPENS with the Cell fill on and every point layer off and the reader adds them one
+// at a time. The panel set itself does not collapse - it was measured at 375 px and nothing
+// overlaps. The rule lives here so a later slice that defaults a point layer on cannot
+// quietly break the phone.
+const SMALL = window.matchMedia("(max-width: 900px)").matches;
+const on = {};
+LAYERS.forEach(l => { on[l.id] = l.open && !(SMALL && l.point); });
+
+/* ------------------------------------------------------------------ declare at boot
+ * Twelve layers, the order frozen by frontend 02 D3: ambient at the bottom, urgent on top.
+ * Every source is an EMPTY FeatureCollection here and gets its data from a fetch the page
+ * makes itself - which is also what makes the per-source age readable, since the age comes
+ * off that response's own headers. No promoteId anywhere (rule 2 at the top of this file).
+ */
+const empty = () => ({ type: "geojson", data: { type: "FeatureCollection", features: [] } });
 const map = new maplibregl.Map({
   container: "map", center: [-73.93, 40.72], zoom: 10.1, attributionControl: false,
   style: {
     version: 8,
-    sources: {
-      zones: { type: "geojson", data: "files/zones.geojson" },
-      // no promoteId: the Cell id is a hex string and MapLibre 5.9.0 SILENTLY drops a
-      // GeoJSON source whose promoted id is not integer-like (measured: zero features,
-      // no error event). Nothing here needs feature-state; the tooltip reads properties.
-      cells: { type: "geojson", data: "files/cells.geojson" },
-      // ticket 14 fills this from files/live.geojson, but only once the toggle is ticked.
-      // Still no promoteId: vehicle_id is "MTA NYCT_1234", not integer-like, and MapLibre
-      // 5.9.0 SILENTLY drops a source whose promoted id is not (measured: zero features).
-      live: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
-    },
+    sources: { zones: empty(), cells: empty(), impact: empty(), locate: empty(),
+               live: empty(), hist: empty(), fn: empty(), mta: empty() },
     layers: [
       { id: "bg", type: "background", paint: { "background-color": "#0b0d10" } },
-      { id: "zones-fill", type: "fill", source: "zones", paint: { "fill-color": "#141920" } },
-      { id: "cells", type: "fill", source: "cells",
+      { id: "zones-fill", type: "fill", source: "zones", layout: { visibility: "none" },
+        paint: { "fill-color": "#141920" } },
+      { id: "cells", type: "fill", source: "cells", layout: { visibility: "none" },
         paint: { "fill-color": GREY, "fill-opacity": 0.86 } },
-      { id: "cells-line", type: "line", source: "cells",
+      // the impact overlay shares the Cell fill channel and the frozen ramp above; it gets
+      // no ramp of its own and can never be lit at the same time as `cells` (frontend 02 D1)
+      { id: "impact-fill", type: "fill", source: "impact", layout: { visibility: "none" },
+        paint: { "fill-color": GREY, "fill-opacity": 0.86 } },
+      { id: "cells-line", type: "line", source: "cells", layout: { visibility: "none" },
         paint: { "line-color": "#0b0d10", "line-width": 0.4 } },
-      { id: "zones-line", type: "line", source: "zones",
+      { id: "impact-line", type: "line", source: "impact", layout: { visibility: "none" },
+        paint: { "line-color": "#0b0d10", "line-width": 0.4 } },
+      { id: "zones-line", type: "line", source: "zones", layout: { visibility: "none" },
         paint: { "line-color": "#39424f", "line-width": 0.8 } },
+      // ticket 07's hover-locate ring: declared here so it exists in the right place in the
+      // order, empty until something locates an asset in it
+      { id: "locate", type: "circle", source: "locate", layout: { visibility: "none" },
+        paint: { "circle-radius": 13, "circle-color": "rgba(0,0,0,0)",
+                 "circle-stroke-color": "#8ecbff", "circle-stroke-width": 2 } },
       { id: "live", type: "circle", source: "live", layout: { visibility: "none" },
         paint: { "circle-radius": 2.6, "circle-color": LIVE_FRESH, "circle-opacity": 0.9 } },
+      { id: "hist", type: "circle", source: "hist", layout: { visibility: "none" },
+        paint: { "circle-color": HIST, "circle-opacity": 0.5,
+          "circle-radius": ["interpolate", ["linear"], ["get", "n_events"], 1, 1.6, 12, 4.6] } },
+      // the hollow ring: a sensor reporting water is a filled aqua disc, a dry or stale one
+      // is a STROKE with no fill, so "sensor present, no water" reads as a different MARK
+      { id: "fn", type: "circle", source: "fn", layout: { visibility: "none" },
+        paint: { "circle-color": ["case", ["get", "display"], WATER, "rgba(0,0,0,0)"],
+                 "circle-radius": ["case", ["get", "display"], 6, 3.4],
+                 "circle-stroke-color": ["case", ["get", "display"], "#0b0d10", WATER],
+                 "circle-stroke-width": 1.2 } },
+      // an "affected station" is a dot on the COMPLEX (frontend 02 D4): the flood_truth chip
+      // is per-incident and spans one or more complexes, so the chip is what the card shows
+      { id: "mta", type: "circle", source: "mta", layout: { visibility: "none" },
+        paint: { "circle-color": ALERT, "circle-radius": 7, "circle-opacity": 0.92,
+                 "circle-stroke-color": "#0b0d10", "circle-stroke-width": 1.5 } },
     ],
   },
 });
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
 map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution:
   "MTA Bus Time GTFS-RT; nycbuspositions archive; NOAA AORC; NYC TLC taxi zones" }));
+
+/* --------------------------------------------------------- age, straight off the headers
+ * frontend 01 D2. `age = <origin Date> - <Last-Modified>`, both taken from the response the
+ * page already made. Rejected alternative: an `as_of_utc` in every payload - it breaks
+ * test_export.py's byte-identity invariant and notify 05's re-export requirement, and it
+ * dates the WRITE, not the newest input, so a nightly rebuild over week-old Gold would
+ * paint FRESH. Both headers come from the ORIGIN, so a browser clock running an hour behind
+ * cannot clamp an age to 0, and a CDN serving a cached copy returns the ORIGINAL
+ * Last-Modified, which errs stale - the safe direction.
+ *
+ * A missing file is NOT an empty one: a 404 records a reason and never an age, because an
+ * absent payload and an empty FeatureCollection must not both paint an empty map under a
+ * fresh clock.
+ */
+const ages = {};    // "<layer id>/<source key>" -> age in seconds, or null
+const whys = {};    // "<layer id>/<source key>" -> why there is no age
+
+async function grab(lyrId, s) {
+  const key = lyrId + "/" + s.k;
+  delete whys[key];
+  ages[key] = null;
+  try {
+    const res = await fetch(s.url, { cache: "no-store" });
+    if (!res.ok) {
+      whys[key] = res.status === 404 ? "not published on this host" : `HTTP ${res.status}`;
+      return null;
+    }
+    const d = Date.parse(res.headers.get("Date")), m = Date.parse(res.headers.get("Last-Modified"));
+    if (Number.isNaN(d) || Number.isNaN(m)) whys[key] = "no age from the response headers";
+    else ages[key] = Math.max(0, (d - m) / 1000);
+    return await res.json();
+  } catch (err) {
+    whys[key] = "fetch failed";
+    return null;
+  }
+}
+
+async function load(lyrId) {
+  const lyr = L(lyrId);
+  const bodies = [];
+  for (const s of lyr.srcs) bodies.push(await grab(lyrId, s));
+  if (lyr.draw) lyr.draw(bodies);
+  return bodies;
+}
+
+function forget(lyrId) {
+  L(lyrId).srcs.forEach(s => { delete ages[lyrId + "/" + s.k]; delete whys[lyrId + "/" + s.k]; });
+}
+
+const fmtAge = (s) => s === null || s === undefined ? "age unknown"
+  : s < 90 ? `${Math.round(s)} s` : s < 5400 ? `${Math.round(s / 60)} min`
+  : s < 172800 ? `${Math.round(s / 3600)} h` : `${Math.round(s / 86400)} d`;
+
+/* FRESH / STALE(+reason) / OFF / GATED / AGE - the whole vocabulary, one row per SOURCE.
+ * Freshness is NOT verdict: flood 15's tier states (INSUFFICIENT_DATA, HOLES, the winter
+ * gate, a version-skew refusal) are the flood layer's own rendered vocabulary and stay
+ * flood 15's. `ERROR` is not a state either - it is a reason string on a STALE row.
+ * The order of these five branches is the contract:
+ *   GATED  the layer's gate side is shut: dark, explained, never absent
+ *   OFF    nothing is being fetched, so there is nothing to be fresh about
+ *   STALE  we have no age at all (missing file, missing headers) - stale, never fresh
+ *   AGE    age known, no budget frozen anywhere in the repo -> report it, judge nothing
+ *   FRESH / STALE  compared against the frozen budget
+ */
+function srcState(lyr, s) {
+  const key = lyr.id + "/" + s.k;
+  let age = ages[key];
+  if (typeof age === "number" && s.inner && liveMeta && typeof liveMeta[s.inner] === "number")
+    age += liveMeta[s.inner];       // the live pair's composite: file age + DATA age
+  if (shut(lyr)) return { s: "GATED", why: "the MTA redistribution terms are not verified" };
+  if (!on[lyr.id]) return { s: "OFF", why: "nothing is being fetched" };
+  if (age === null || age === undefined)
+    return { s: "STALE", why: whys[key] || "no age from the response headers" };
+  if (s.budget === null) return { s: "AGE", why: "no budget frozen for this source", age };
+  return age <= s.budget ? { s: "FRESH", age }
+                         : { s: "STALE", why: `over the ${s.budget} s budget`, age };
+}
+
+// a layer is only as fresh as its worst source
+const worst = (lyr) => {
+  const seen = lyr.srcs.map(s => srcState(lyr, s).s);
+  return ["GATED", "STALE", "OFF", "AGE", "FRESH"].find(k => seen.includes(k));
+};
+
+/* ------------------------------------------------------------------------ the layer panel
+ * One row per layer, its own freshness rows underneath it. The Cell FILL rows are RADIOS in
+ * one group so two ramps on one geography cannot even be asked for; everything else is a
+ * checkbox. A gated row is DARK, not missing: the box is disabled and the reason is printed,
+ * so absence is explained rather than mysterious.
+ */
+const chipHTML = (state) => `<span class="st st-${state}">${state}</span>`;
+
+function srcRows(lyr) {
+  return lyr.srcs.map(s => {
+    const st = srcState(lyr, s);
+    const age = st.age === undefined ? "" : fmtAge(st.age) + " ";
+    return `<div class="src"><b>${s.k}</b><span>${age}${chipHTML(st.s)}</span></div>` +
+      (st.why ? `<div class="src why"><span>${st.why}</span></div>` : "");
+  }).join("");
+}
+
+function rowHTML(lyr) {
+  const dark = shut(lyr);
+  const kind = lyr.fill ? "radio" : "checkbox";
+  const owed = lyr.owed && !dark
+    ? `<p class="note">Declared and dark: ${lyr.owed} lands this payload.</p>` : "";
+  const gate = dark
+    ? `<p class="note">Dark: publishing anything on this gate side needs the MTA
+       redistribution terms verified. The row stays, so the page never pretends the layer
+       does not exist.</p>` : "";
+  return `<div class="lyr${dark ? " gated" : ""}">
+    <label><input type="${kind}" ${lyr.fill ? 'name="cellfill"' : ""} data-l="${lyr.id}"
+      ${on[lyr.id] ? "checked" : ""} ${dark || !styled ? "disabled" : ""}>
+      <span class="nm">${lyr.name}</span>${chipHTML(worst(lyr))}</label>
+    ${srcRows(lyr)}${gate}${owed}</div>`;
+}
+
+/* Rebuilding the rows destroys the control the reader just activated and focus falls to
+ * <body> - a keyboard user would tab through the map and every other row again on each
+ * toggle. This is the same restore the hour buttons use in setHour() below, and it is the
+ * whole reason that mechanism exists. */
+function renderLayers() {
+  const a = document.activeElement;
+  const keep = a && a.dataset ? a.dataset.l : undefined;
+  $("layers-fill").innerHTML = LAYERS.filter(l => l.fill).map(rowHTML).join("");
+  $("layers-pts").innerHTML =
+    LAYERS.filter(l => !l.fill && !l.toggle).map(rowHTML).join("");
+  // the live fleet's row is the Live panel: it owns the 30 s interval and its own readout,
+  // and #livetoggle is its checkbox. Only its freshness rows are rendered here.
+  const live = L("live");
+  $("src-live").innerHTML = srcRows(live) + (shut(live)
+    ? `<p class="note">Dark: the vehicle side of the MTA gate is shut, so the fleet is not
+       published on this host. The toggle stays: locally, <code>make live-export</code>
+       writes the two files and the panel reads them.</p>` : "");
+  $("live-chip").innerHTML = chipHTML(worst(live));
+  if (keep !== undefined) {
+    const b = document.querySelector(`#layers [data-l="${keep}"]`);
+    if (b) b.focus();
+  }
+}
+
+function applyVisibility() {
+  if (!styled) return;
+  for (const lyr of LAYERS) {
+    const lit = on[lyr.id] && !shut(lyr) ? "visible" : "none";
+    lyr.map.forEach(id => map.setLayoutProperty(id, "visibility", lit));
+  }
+}
+
+async function toggle(id, want) {
+  const lyr = L(id);
+  if (shut(lyr)) return;                 // a gated layer never fetches anything
+  on[id] = want;
+  // the exclusive fill channel, enforced in the state and not only in the radio group's
+  // markup: a second fill can never be HELD on, however the toggle was reached
+  if (want && lyr.fill) for (const o of LAYERS) if (o.fill && o.id !== id) on[o.id] = false;
+  if (want) await load(id); else forget(id);
+  applyVisibility();
+  renderLayers();
+}
+
+// delegated, because the rows are rebuilt: #layers itself is the stable element
+$("layers").addEventListener("change", e => {
+  const id = e.target.dataset && e.target.dataset.l;
+  if (id) toggle(id, e.target.checked);
+});
 
 // ---------------------------------------------------------------- paint and legend
 function colorExpr(prop, stops) {
@@ -292,11 +600,15 @@ map.on("click", "cells", showTip);          // touch
 map.on("mouseleave", "cells", () => { tip.style.display = "none"; });
 
 // ------------------------------------------------------------------------- boot
-Promise.all([
-  fetch("files/headline.json").then(r => r.json()),
-  fetch("files/cells.geojson").then(r => r.json()),
-]).then(([h, cells]) => {
+function drawCells(cells, h) {
+  if (!cells || !h) {
+    $("preview-note").textContent = whys["cells/files/cells.geojson"] === "not published on this host"
+      ? "the insight files are not published on this host."
+      : "export files missing - run `make export` and reload.";
+    return;
+  }
   head = h;
+  map.getSource("cells").setData(cells);
   cells.features.forEach(f => Object.keys(f.properties).forEach(k => cellKeys.add(k)));
   $("preview-note").textContent = head.preview_note;
   $("note-chord").textContent = head.chord_note;
@@ -305,14 +617,27 @@ Promise.all([
   $("prov-files").textContent =
     ` ${cells.features.length} footprint Cells; publish gate: 95% interval width < ${head.gate_width}.`;
   buildViews();
-  const start = () => setView(views[0].id);
-  if (map.isStyleLoaded()) start(); else map.once("styledata", start);
-}).catch(err => {
-  $("preview-note").textContent =
-    "export files missing - run `make export` and reload. (" + err + ")";
+  setView(views[0].id);
+}
+
+// `load`, not `styledata`: styledata fires while isStyleLoaded() is still false and every
+// setPaintProperty / setLayoutProperty below still throws "Style is not done loading".
+map.on("load", async () => {
+  styled = true;
+  for (const lyr of LAYERS) if (on[lyr.id] && lyr.draw) await load(lyr.id);
+  applyVisibility();
+  renderLayers();
 });
 
 new ResizeObserver(() => map.resize()).observe($("map"));
+
+// #provenance is a CONDITION of publishing (spec sec.9), so it is always mounted - and its
+// height is not a constant: it wraps differently with the attribution text and at every
+// width. Measure it and drive the two side columns off the measurement. A guessed clearance
+// (the old `bottom: 84px`) put the last toggle UNDERNEATH the strip in the prototype, where
+// a real click never reached it - caught by a hit test, not by eye.
+new ResizeObserver(() => document.documentElement.style.setProperty(
+  "--prov", ($("provenance").offsetHeight + 20) + "px")).observe($("provenance"));
 
 /* --------------------------------------------------------------------------------
  * Live panel (ticket 14 / spec L). Reads the two files `make live-export` swaps into
@@ -324,11 +649,15 @@ new ResizeObserver(() => map.resize()).observe($("map"));
  * source's threshold clears it. `setData` runs only when `error` is null - a failed tick
  * leaves live.geojson untouched on purpose, and re-reading it would repaint an old fleet
  * as a new one.
+ *
+ * frontend 01 D3: a 404 is NOT "the pipeline is not writing". On the public host the
+ * vehicle side of the MTA gate is shut and these two files are simply not served, so
+ * saying an operator should run `make live-export` would be false in both halves.
+ *
+ * STALE_AFTER_S and DELAY_CUT_S are hoisted to the top of this file: the live pair's
+ * freshness budget in LAYERS is the same number, and a second copy would be a second truth.
  * -------------------------------------------------------------------------------- */
-const STALE_AFTER_S = { live: 120, bronze: 900 };   // Bronze flushes in 10-min parts
-const DELAY_CUT_S = 300;   // 06's Delay cutoff, borrowed for an agency-computed quantity
-
-let liveTimer = null, liveFeatures = null;
+let liveTimer = null, liveFeatures = null, liveMeta = null;
 
 const ago = (s) => (s === null || s === undefined || !Number.isFinite(s)) ? "age unknown"
   : s < 90 ? `${Math.round(s)} s ago` : `${Math.round(s / 60)} min ago`;
@@ -366,7 +695,11 @@ function renderLive(m) {
   $("live").title = stale ? "STALE: the pipeline is not writing" : "";
 
   if (!m) {
-    $("livemeta").innerHTML = `<b class="warn">STALE: the pipeline is not writing.</b>
+    $("livemeta").innerHTML = whys["live/files/meta.json"] === "not published on this host"
+      ? `<b class="warn">Not published on this host.</b> The vehicle side of the MTA gate is
+         shut, so <code>files/meta.json</code> is not served here - this is a designed state,
+         not a broken pipeline.`
+      : `<b class="warn">STALE: the pipeline is not writing.</b>
       No <code>files/meta.json</code> - run <code>make live-export</code>.`;
     return;
   }
@@ -400,18 +733,18 @@ function renderLive(m) {
 }
 
 async function liveTick() {
-  let meta = null;
-  try {
-    meta = await fetch("files/meta.json", { cache: "no-store" }).then(r => r.json());
-    if (meta.error === null || meta.error === undefined) {
-      const fc = await fetch("files/live.geojson", { cache: "no-store" }).then(r => r.json());
+  const live = L("live");
+  const meta = await grab("live", live.srcs[1]);          // meta.json FIRST: the fleet is
+  liveMeta = meta;                                        // only re-read on a clean tick
+  if (meta && (meta.error === null || meta.error === undefined)) {
+    const fc = await grab("live", live.srcs[0]);
+    if (fc) {
       map.getSource("live").setData(fc);
       liveFeatures = fc.features;
     }
-  } catch (err) {
-    meta = null;               // missing or unparseable meta is stale, not an empty panel
   }
   renderLive(meta);
+  renderLayers();
 }
 
 // The toggle stays disabled until the map is loaded, because every branch below touches
@@ -425,16 +758,24 @@ if (map.loaded()) $("livetoggle").disabled = false;
 else map.once("load", () => { $("livetoggle").disabled = false; });
 
 $("livetoggle").addEventListener("change", () => {
-  const on = $("livetoggle").checked;
-  map.setLayoutProperty("live", "visibility", on ? "visible" : "none");
+  const lit = $("livetoggle").checked;
+  on.live = lit;
+  map.setLayoutProperty("live", "visibility", lit ? "visible" : "none");
   clearInterval(liveTimer);
   liveTimer = null;
-  if (on) {
+  if (lit) {
     liveTick();
     liveTimer = setInterval(liveTick, 30000);
   } else {
+    forget("live");
+    liveMeta = null;
     $("live").classList.remove("stale");
     $("live").title = "";
     $("livemeta").textContent = "off - nothing is being fetched.";
+    renderLayers();
   }
 });
+
+// first paint of the panel itself: the rows exist before the map is loaded, with
+// every control disabled, so the reader sees the layer set rather than a blank column.
+renderLayers();

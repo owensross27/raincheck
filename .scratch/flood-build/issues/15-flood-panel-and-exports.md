@@ -46,3 +46,30 @@ rather than invent a schema. Three things it measured land on this ticket:
   you are the one who freezes it, because the map's layer table is written against them.
 
 Nothing here changes the two-meta-file MUST inherited from frontend 01; it sits beside it.
+
+## MUST from frontend 05 (the chassis landed 2026-08-25, `frontend05-seven-layer-chassis`)
+
+The page now FETCHES your two gate-side files by name, because nothing here had frozen one
+and a chassis cannot read a URL that does not exist. **These are the two names the live page
+reads today; land them, or land different ones and correct this line, the page's `LAYERS`
+table and its summary line in the same commit:**
+
+- **`web/files/flood.json`** — the UNGATED side: the FloodNet tier and its own meta keys.
+  Nothing MTA-derived may appear in this file; it is published on the open side of the
+  lineage gate.
+- **`web/files/flood-mta.json`** — the `mta-alerts` gate side: the alert-derived tier only.
+
+This is the two-meta-file MUST inherited from frontend 01 made concrete, and it sits beside
+the existing one rather than replacing it.
+
+Two more the page's rendering depends on, both cheap if done at write time and a rewrite if not:
+
+- **Every FloodNet sensor feature must carry a boolean `display`.** The map paints a
+  water-now sensor as a filled aqua disc and a dry/stale one as a HOLLOW RING, and the
+  MapLibre expression that does it reads exactly `["get", "display"]` (three meanings on one
+  grey was the collision this fixes). A missing key paints every sensor as a ring.
+- **The budget constants you owe are what let the page render a VERDICT.** Until a source
+  carries a frozen budget the page renders a bare AGE and judges nothing — that is
+  deliberate, and it is why guessing a threshold downstream is refused by a test that counts
+  the budgeted sources. FloodNet's is already derived from `flood_truth.MAX_AGE_MIN`; the
+  precip / CO-OPS / NWS budgets are yours.

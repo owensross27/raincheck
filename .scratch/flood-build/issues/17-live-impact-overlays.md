@@ -31,3 +31,19 @@ two export files do not exist yet, and measured two things you inherit:
   frontend 02 and it decides your paint channel.
 - [ ] **Name your two export files and their keys in the close-out** — nothing in the tree
   freezes either today (prose only, no code). Same as flood 15's third bullet.
+
+## MUST from frontend 05 (the chassis landed 2026-08-25, `frontend05-seven-layer-chassis`)
+
+- **The page reads your overlay at `web/files/impact.json`.** That URL is already in the
+  live page's `LAYERS` table; land it, or land another name and correct this line, the
+  table and your summary line in the same commit.
+- **The overlay is on the GATED (`mta-vehicles`) side of the lineage gate** — same side as
+  the live fleet, because its lineage is `gold/cell_hour_speed` <- VP. It renders as a
+  disabled, explained GATED row today and lights when the terms receipt lands.
+- **It gets NO ramp of its own and can never be lit at the same time as the delay fill.**
+  This is now structural rather than advisory: `impact` is one of exactly two `fill: true`
+  layers, the two are RADIOS in one group, and `toggle()` clears the other in the state as
+  well. A test kills the mutation that removes it. Do not ship a second ramp; do not ask
+  for a second fill channel.
+- **A budget constant is what graduates its freshness row from AGE to FRESH/STALE.** Ship
+  one and the page reads a verdict; ship none and it honestly reports an age.
