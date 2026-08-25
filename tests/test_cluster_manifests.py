@@ -55,6 +55,7 @@ RENDER = ["kubectl", "kustomize", "--load-restrictor", "LoadRestrictionsNone",
           str(ROOT / "deploy" / "k8s")]
 ALLOWLIST = ROOT / "deploy" / "cloud" / "inbound-allowlist.yaml"
 FLOOR_CAPACITY = ROOT / "deploy" / "cloud" / "floor-capacity.yaml"
+CLUSTER_CONFIG = ROOT / ".scratch" / "cloud" / "cluster.yaml"
 AIRFLOW_VALUES = ROOT / "deploy" / "airflow" / "values.yaml"
 AUDIT = ROOT / "scripts" / "inbound-audit.py"
 SG_CAPTURE = Path(__file__).parent / "fixtures" / "ec2_describe_cluster_sgs.json"
@@ -129,6 +130,29 @@ def airflow_values() -> dict:
 
 def floor_capacity() -> dict:
     return yaml.safe_load(FLOOR_CAPACITY.read_text())
+
+
+def cluster_config() -> dict:
+    """The eksctl ClusterConfig. It is the only place the floor's SHAPE is declared - the
+    rendered manifests can say where a pod wants to go, but not how many spot capacity
+    pools exist to catch it. The 2026-08-25 outage lived entirely in this file."""
+    return yaml.safe_load(CLUSTER_CONFIG.read_text())
+
+
+def nodegroup(name: str) -> dict:
+    return next(n for n in cluster_config()["managedNodeGroups"] if n["name"] == name)
+
+
+def nodepool(name: str) -> dict:
+    return next(d for d in kind("NodePool") if d["metadata"]["name"] == name)
+
+
+def az_bound_class() -> str:
+    """The StorageClass whose allowedTopologies confine it to one AZ. Read, never hardcoded:
+    if someone widens the class, these tests must relax with it, not keep asserting a name."""
+    sc = one("StorageClass")
+    assert sc.get("allowedTopologies"), "the AZ-pinned StorageClass stopped being AZ-pinned"
+    return sc["metadata"]["name"]
 
 
 def millicores(q: str | int) -> int:
@@ -251,14 +275,20 @@ def test_the_broker_rule_is_not_sourced_from_the_shared_dev_security_group():
     assert "BOX_SG=sg-" not in code, "the source group is looked up by name, never pinned by id"
 
 
-def test_broker_is_one_combined_role_node_on_the_floor_in_one_az():
+def test_broker_is_one_combined_role_node_on_the_stateful_pool_in_one_az():
+    """Was `..._on_the_floor_in_one_az` until 2026-08-25. The broker still lives in exactly
+    one AZ - that has not changed and cannot, because its volume is there - but it no longer
+    expresses that by pinning to the FLOOR. The floor now spans three AZs, so a floor pin
+    here would schedule the broker into 1a and leave it unable to mount."""
     pool = one("KafkaNodePool")
     assert pool["spec"]["replicas"] == 1 and set(pool["spec"]["roles"]) == {"controller", "broker"}
     affinity = pool["spec"]["template"]["pod"]["affinity"]["nodeAffinity"]
     term = affinity["requiredDuringSchedulingIgnoredDuringExecution"]["nodeSelectorTerms"][0]
     assert term["matchExpressions"][0] == {"key": "raincheck.io/pool", "operator": "In",
-                                           "values": ["floor"]}
-    # gp3, and pinned to the floor's AZ: EBS cannot follow a broker into another zone
+                                           "values": ["stateful"]}
+    assert pool["spec"]["template"]["pod"]["metadata"]["annotations"][
+        "karpenter.sh/do-not-disrupt"] == "true", "consolidation may not roll the broker"
+    # gp3, and confined to one zone by the CLASS: EBS cannot follow a broker across AZs
     sc = one("StorageClass")
     assert pool["spec"]["storage"]["volumes"][0]["class"] == sc["metadata"]["name"]
     assert sc["parameters"]["type"] == "gp3"
@@ -562,7 +592,7 @@ def test_every_build_pod_asks_for_burst():
     for doc in workloads():
         for spec in pod_specs(doc):
             pool = (spec.get("nodeSelector") or {}).get("raincheck.io/pool")
-            assert pool in ("floor", "burst"), (
+            assert pool in ("floor", "burst", "stateful"), (
                 f"{doc['kind']}/{doc['metadata']['name']} declares no raincheck.io/pool")
     shapes = {d["metadata"]["name"]: pod_specs(d)[0]["nodeSelector"]["raincheck.io/pool"]
               for d in workloads() if d["kind"] == "PodTemplate"}
@@ -599,13 +629,19 @@ def test_block_volumes_attach_only_to_single_writer_workloads():
                 "two drivers hold one RWO checkpoint")
 
 
-def test_the_streaming_driver_is_on_the_floor_and_never_discards_its_checkpoint():
-    """Burst is spot-only and consolidates after 1 m; the one Spark workload that must not
-    be interrupted belongs on the floor. FRESH=1 in a Deployment would discard the
-    checkpoints on every restart, silently skipping the hours between - past retention."""
+def test_the_streaming_driver_is_on_the_stateful_pool_and_never_discards_its_checkpoint():
+    """Burst is spot-only and consolidates after 1 m; the one Spark workload that must not be
+    interrupted needs a pool that will not roll it. That USED to mean the floor. Since
+    2026-08-25 it means `stateful`: the driver holds a gp3-1f checkpoint, and the floor now
+    spans three AZs, so a floor pin would land it in 1a with an unmountable volume. stateful
+    is WhenEmpty + do-not-disrupt + an on-demand fallback, which is strictly stronger than
+    what the floor pin bought. FRESH=1 in a Deployment would discard the checkpoints on every
+    restart, silently skipping the hours between - past retention."""
     dep = next(d for d in kind("Deployment") if d["metadata"]["name"] == "raincheck-stream")
     spec = dep["spec"]["template"]["spec"]
-    assert spec["nodeSelector"] == {"raincheck.io/pool": "floor"}
+    assert spec["nodeSelector"] == {"raincheck.io/pool": "stateful"}
+    assert dep["spec"]["template"]["metadata"]["annotations"][
+        "karpenter.sh/do-not-disrupt"] == "true"
     c = spec["containers"][0]
     assert " ".join(c["command"]) == "python -m raincheck.stream"
     env = {e["name"]: e.get("value") for e in c["env"]}
@@ -661,8 +697,9 @@ def test_run_history_lives_on_a_volume_and_not_in_a_pod():
     sc = one("StorageClass")
     assert claim["storageClassName"] == sc["metadata"]["name"], "not the AZ-pinned gp3 class"
     assert sc["parameters"]["type"] == "gp3"
-    # EBS cannot follow a pod into another AZ, so the pod must be pinned where the volume is
-    assert sts["spec"]["template"]["spec"]["nodeSelector"] == {"raincheck.io/pool": "floor"}
+    # EBS cannot follow a pod into another AZ, so the pod goes to the pool that DERIVES its
+    # AZ from the volume (stateful), not to the floor, which since 2026-08-25 spans three
+    assert sts["spec"]["template"]["spec"]["nodeSelector"] == {"raincheck.io/pool": "stateful"}
     assert sc["allowedTopologies"][0]["matchLabelExpressions"][0]["values"] == ["us-east-1f"]
     assert airflow_values()["postgresql"]["enabled"] is False
     assert airflow_values()["data"]["metadataSecretName"], "the URI must come from a Secret"
@@ -784,6 +821,117 @@ def test_the_floor_workloads_fit_the_declared_floor_capacity():
     for name, c, m in items:
         assert c <= per_node_cpu and m <= per_node_mem, (
             f"{name} requests {c}m/{m}Mi, which no single floor node can offer")
+
+
+# --- the 2026-08-25 floor outage: three guards so it cannot be rebuilt ------------------
+#
+# What happened: the floor nodegroup was instanceTypes ["t4g.large"] x availabilityZones
+# ["us-east-1f"] - ONE spot capacity pool - with CapacityRebalance on. At 09:42:04Z the ASG
+# terminated the last instance on a rebalance recommendation and could not relaunch into
+# that pool (30+ UnfulfillableCapacity over four hours). Karpenter, the Strimzi operator and
+# all three Airflow deployments were pinned to that one nodegroup, so the whole cluster went
+# down - and could not self-heal, because Karpenter refuses to run on nodes it provisioned.
+# The floor was single-AZ only because three pods with us-east-1f EBS volumes were pinned to
+# it. Each test below pins one link of that chain.
+
+
+def test_the_floor_is_never_one_spot_capacity_pool():
+    """Link 1: the shape that made a single AWS capacity shortage fatal. A spot pool is one
+    (instance type x AZ) pair, so a nodegroup's resilience is the PRODUCT, not either factor.
+    Measured 2026-08-25 with `aws ec2 get-spot-placement-scores --target-capacity 2`: the
+    five-type mix scores 2/10 in us-east-1f and 9/10 in us-east-1a and us-east-1c, so
+    diversifying types WITHOUT spreading AZs would not have prevented the outage."""
+    ng = nodegroup("floor")
+    types, azs = ng["instanceTypes"], ng["availabilityZones"]
+    assert ng.get("spot") is True, "if the floor stops being spot, re-derive this whole file"
+    assert len(types) >= 3, f"the floor has {len(types)} instance type(s); one is how it died"
+    assert len(azs) >= 2, f"the floor is in {len(azs)} AZ(s); one AZ of spot going dry is the outage"
+    assert len(types) * len(azs) >= 6, (
+        f"only {len(types) * len(azs)} spot capacity pools behind the floor")
+
+
+def test_every_floor_instance_type_is_at_least_as_big_as_the_measured_node():
+    """floor-capacity.yaml's allocatable numbers were measured on a t4g.large. The moment the
+    nodegroup can launch something SMALLER, that file is quietly overstating the floor and
+    the capacity sum above it is worthless. Graviton throughout: the image is arm64."""
+    cap = floor_capacity()["floor"]
+    assert cap["nodes"] == nodegroup("floor")["desiredCapacity"]
+    for t in nodegroup("floor")["instanceTypes"]:
+        family, _, size = t.partition(".")
+        assert size == "large", f"{t}: the measured allocatable assumes a .large"
+        assert "g" in family, f"{t} is not Graviton; the image is arm64 only"
+
+
+def test_nothing_az_bound_is_pinned_to_a_pool_that_spans_azs():
+    """Link 2, and the one that actually matters day to day. The floor and burst may put a
+    node in any AZ; a pod holding an AZ-confined EBS volume that lands on the wrong one never
+    mounts. `stateful` is the only pool that derives its AZ from the volume, so it is the only
+    legal home for these. Finding a THIRD offender (the streaming driver) is why this test
+    exists rather than a comment: two were obvious and one was not."""
+    sc_name = az_bound_class()
+    spread = {"floor", "burst"}
+    offenders = []
+
+    az_claims = {d["metadata"]["name"] for d in kind("PersistentVolumeClaim")
+                 if (d["spec"] or {}).get("storageClassName") == sc_name}
+    for doc in docs():
+        label = f"{doc['kind']}/{doc['metadata']['name']}"
+        for spec in pod_specs(doc):
+            mounted = {(v.get("persistentVolumeClaim") or {}).get("claimName")
+                       for v in (spec.get("volumes") or [])}
+            if not (mounted & az_claims):
+                continue
+            pool = (spec.get("nodeSelector") or {}).get("raincheck.io/pool")
+            if pool in spread:
+                offenders.append(f"{label} mounts an {sc_name} PVC but pins to {pool!r}")
+
+    for doc in kind("StatefulSet"):
+        claims = [t for t in (doc["spec"].get("volumeClaimTemplates") or [])
+                  if (t["spec"] or {}).get("storageClassName") == sc_name]
+        pool = (doc["spec"]["template"]["spec"].get("nodeSelector") or {}).get("raincheck.io/pool")
+        if claims and pool in spread:
+            offenders.append(f"StatefulSet/{doc['metadata']['name']} claims {sc_name} "
+                             f"but pins to {pool!r}")
+
+    for doc in kind("KafkaNodePool"):
+        if not any(v.get("class") == sc_name for v in doc["spec"]["storage"].get("volumes") or []):
+            continue
+        affinity = doc["spec"]["template"]["pod"]["affinity"]["nodeAffinity"]
+        term = affinity["requiredDuringSchedulingIgnoredDuringExecution"]["nodeSelectorTerms"][0]
+        for expr in term["matchExpressions"]:
+            if expr["key"] == "raincheck.io/pool" and set(expr["values"]) & spread:
+                offenders.append(f"KafkaNodePool/{doc['metadata']['name']} stores on "
+                                 f"{sc_name} but pins to {expr['values']}")
+
+    assert not offenders, (
+        "AZ-bound storage pinned to a pool that spans AZs - this is the 2026-08-25 outage:\n  "
+        + "\n  ".join(offenders))
+
+
+def test_the_stateful_pool_falls_back_to_on_demand_and_never_consolidates_a_live_node():
+    """Link 3: what makes the stateful pool safe for a broker and a database. Karpenter's
+    documented precedence for a NodePool compatible with several capacity types is
+    reserved -> spot -> on-demand, so listing both buys spot pricing normally and an
+    automatic fallback while a pool is dry. Dropping "on-demand" to save money would save
+    nothing (spot still wins when it exists) and would restore the outage."""
+    pool = nodepool("stateful")
+    spec = pool["spec"]["template"]["spec"]
+    reqs = {r["key"]: r for r in spec["requirements"]}
+
+    assert set(reqs["karpenter.sh/capacity-type"]["values"]) == {"spot", "on-demand"}
+    assert "topology.kubernetes.io/zone" not in reqs, (
+        "the AZ must come from the PVC's allowedTopologies, never be declared twice - two "
+        "sources of truth for one zone is how they drift apart")
+    assert spec["expireAfter"] == "Never", "a database does not get recycled on a timer"
+
+    disruption = pool["spec"]["disruption"]
+    assert disruption["consolidationPolicy"] == "WhenEmpty", (
+        "WhenEmptyOrUnderutilized would evict a running Postgres to save cents - the exact "
+        "failure the old floor pin was avoiding")
+
+    # And the size bound, so an on-demand fallback cannot quietly buy something huge.
+    assert set(reqs["karpenter.k8s.aws/instance-cpu"]["values"]) <= {"2", "4"}
+    assert reqs["kubernetes.io/arch"]["values"] == ["arm64"]
 
 
 # --- ticket 05: the live path as pods ---------------------------------------------------

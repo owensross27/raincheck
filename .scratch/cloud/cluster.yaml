@@ -26,13 +26,42 @@ vpc:
 iam:
   withOIDC: true
 
-# Floor. Pinned to us-east-1f because EBS is AZ-bound (spec §1) and because that is
-# where the archiver's broker path terminates — same-AZ in-VPC traffic is free.
-# Spot with no on-demand node: every floor workload is restartable by design.
+# Floor. STATELESS ONLY, and deliberately spread — see the 2026-08-25 outage below.
+#
+# WHAT THIS SHAPE IS DEFENDING AGAINST. Until 2026-08-25 this nodegroup was
+# `instanceTypes: ["t4g.large"]` x `availabilityZones: ["us-east-1f"]` — ONE spot
+# capacity pool — with CapacityRebalance on. At 09:42:04Z the ASG terminated the last
+# instance on a rebalance recommendation and then could not relaunch into that pool:
+# 30+ UnfulfillableCapacity failures over four hours. Because Karpenter, the Strimzi
+# operator and all three Airflow deployments were pinned to this one nodegroup, the
+# WHOLE CLUSTER went down and could not self-heal — Karpenter refuses to run on nodes
+# it provisioned (`karpenter.sh/nodepool DoesNotExist`), so the one component that could
+# have made replacement capacity was the one component that could not schedule.
+#
+# Measured that day with `aws ec2 get-spot-placement-scores --target-capacity 2`:
+#   t4g.large alone      -> us-east-1f 1/10  (1a 1, 1c 3, 1b 3, 1d 3)
+#   the 5-type mix below -> us-east-1f 2/10, us-east-1a 9/10, us-east-1c 9/10
+# So diversifying INSTANCE TYPES alone would not have saved it. The AZ was the binding
+# constraint, which is why this group now spans three.
+#
+# Every type below is Graviton and >= t4g.large on BOTH axes (2 vCPU / 8 GiB), so
+# deploy/cloud/floor-capacity.yaml's allocatable numbers stay a conservative floor
+# whichever pool wins. price-capacity-optimized picks the cheapest with capacity.
+#
+# NOTHING AZ-BOUND MAY BE PINNED HERE. The three workloads with EBS volumes (the Kafka
+# broker, the Airflow metadata DB, the streaming driver) moved to the `stateful` Karpenter
+# NodePool in deploy/k8s/karpenter-nodepool.yaml, which picks their AZ from the PVC's
+# allowedTopologies and falls back to on-demand when 1f spot is dry. If you pin a pod
+# with a PVC to `raincheck.io/pool: floor`, you have rebuilt the outage.
 managedNodeGroups:
   - name: floor
-    availabilityZones: ["us-east-1f"]
-    instanceTypes: ["t4g.large"]     # 2 vCPU / 8 GiB arm64; requests table needs ~3.85 vCPU / 8.5Gi
+    availabilityZones: ["us-east-1a", "us-east-1c", "us-east-1f"]
+    instanceTypes:                   # 15 spot pools (5 types x 3 AZs), was 1
+      - t4g.large                    # 2 vCPU /  8 GiB — the original, still cheapest
+      - m6g.large                    # 2 vCPU /  8 GiB
+      - m7g.large                    # 2 vCPU /  8 GiB
+      - r6g.large                    # 2 vCPU / 16 GiB
+      - m6gd.large                   # 2 vCPU /  8 GiB
     amiFamily: AmazonLinux2023
     spot: true
     desiredCapacity: 2

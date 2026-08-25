@@ -26,13 +26,32 @@
 # ~$20.73/mo it adds ($17.08 t4g.large spot + $3.65 public IPv4) stated out loud, because
 # it does not fit inside the $130 envelope. Never a silent scale-up.
 
-measured_at: 2026-08-24
+# 2026-08-25, THE FLOOR OUTAGE. This file used to say `instance_type: t4g.large` and mean it
+# literally: one type, one AZ, one spot capacity pool. That pool went dry and took the cluster
+# with it for four hours (post-mortem in .scratch/cloud/cluster.yaml). The floor now spans five
+# Graviton types x three AZs, so "the floor node" is no longer a single shape.
+#
+# The numbers below are UNCHANGED and still measured on a t4g.large, which is deliberate: every
+# type the nodegroup may launch is >= t4g.large on both axes, so these stay a conservative
+# LOWER BOUND whichever pool wins. `test_every_floor_instance_type_is_at_least_as_big_as_the_
+# measured_node` is what keeps that true - add a smaller type and it goes red rather than this
+# file quietly overstating the floor. Re-measure only if a launched node is ever smaller.
+#
+# THREE WORKLOADS LEFT THE FLOOR the same day and are no longer in the sum below: the Kafka
+# broker (500m/1536Mi), the Airflow metadata DB (50m/512Mi) and the streaming driver
+# (1000m/2048Mi). All three hold us-east-1f EBS volumes, which is precisely why the floor was
+# single-AZ; they moved to the `stateful` Karpenter NodePool, which takes its AZ from the
+# volume. The floor is stateless-only now, and must stay that way.
+
+measured_at: 2026-08-24        # the allocatable numbers; the SHAPE changed 2026-08-25
 cluster: raincheck
 
 floor:
   nodes: 2
-  instance_type: t4g.large      # Graviton spot, us-east-1f, managed nodegroup `floor`
-  allocatable_per_node:
+  # Was `instance_type: t4g.large`. Five types x us-east-1a/1c/1f = 15 spot pools, was 1.
+  instance_types: [t4g.large, m6g.large, m7g.large, r6g.large, m6gd.large]
+  availability_zones: [us-east-1a, us-east-1c, us-east-1f]
+  allocatable_per_node:         # measured on t4g.large; a conservative floor for all five
     cpu_millis: 1930
     memory_mib: 7069            # 7239588Ki, rounded down
 

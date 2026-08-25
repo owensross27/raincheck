@@ -42,8 +42,21 @@ spec:
     -Xmx: 1024m
   template:
     pod:
+      metadata:
+        annotations:
+          # Belt-and-braces on top of the stateful NodePool's WhenEmpty policy: this also
+          # excludes the node from DRIFT disruption, so an AMI bump cannot roll the broker
+          # at an arbitrary hour. Karpenter honours it for consolidation and drift alike.
+          karpenter.sh/do-not-disrupt: "true"
       # Strimzi's pod template has NO nodeSelector field - node affinity is how the
-      # floor pin is expressed for operator-managed pods. Same effect, different key.
+      # pool pin is expressed for operator-managed pods. Same effect, different key.
+      #
+      # MOVED OFF THE FLOOR 2026-08-25. This used to say ["floor"], and because THIS pod
+      # carries a us-east-1f volume, that one word is what forced the entire floor nodegroup
+      # into a single AZ - the single spot pool whose exhaustion took the cluster down for
+      # four hours. The `stateful` NodePool derives us-east-1f from gp3-1f's allowedTopologies
+      # instead, so the AZ requirement now travels with the VOLUME rather than infecting a
+      # nodegroup that eleven other pods share. Do not pin this back to the floor.
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -51,7 +64,7 @@ spec:
               - matchExpressions:
                   - key: raincheck.io/pool
                     operator: In
-                    values: ["floor"]
+                    values: ["stateful"]
 ---
 apiVersion: kafka.strimzi.io/v1
 kind: Kafka
