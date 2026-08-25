@@ -130,3 +130,12 @@ the global per-cycle fuse for the burst, not for the average.
 badges for 29 hits, on the grain whose own `display.no_complex_skill_claim` records 1 of
 118 independent positives caught. Your store holds `bus_stop` and `complex` rows only, so
 this one lands directly on you.
+
+## From notify 04 (landed 2026-08-25) — one line, and it is a "do not"
+
+`query.QUERIES` now holds four names (`assets_in_area` / `obs_near` joined the two you
+already knew), and **none of them belongs inside your pure function**: the decision reads
+no table, no file and no clock, so "how many other assets in this Cell are flagged" is a
+RENDERER's question (notify 09) answered by calling `assets_in_area` outside the decision —
+never a read smuggled into it. If a policy constant ever wants an area (a per-Cell blast
+fuse, say), it arrives as a NUMBER in the frozen policy artifact, computed by the caller.

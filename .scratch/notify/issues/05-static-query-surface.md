@@ -189,3 +189,35 @@ id (asserted by a test), so one file holding both is a merge, not a reconciliati
 ## Forward-context from DESTINATION-PLAN.md (copied verbatim by the WAVE 5 GATE PART 2, 2026-08-25, from this ticket's summary line in waves/wave-3-plus.md)
 
 **FROM DESTINATION-PLAN (2026-08-25):** frontend2 04 (wave 8) adds a SIBLING family `summary` (`files/summary/{recent,complexes,routes}.json` — aggregates over `flood_events`/`flood_labels`/`gold/route_flood`). It shares your public-lineage rule and your byte-identical rule and touches nothing under `files/history/**`. Nothing new is owed by you.
+
+## Inherited from notify 04 (landed 2026-08-25, branch `notify04-area-queries`) — an area file, if you want one
+
+`QUERIES` now has FOUR entries; the two new ones are `assets_in_area` and `obs_near`.
+Neither is on your critical path — the manifest plus per-asset files is still the ticket —
+but one of them is a precompute you could ship and the other you must never call:
+
+    query("assets_in_area", {"cells": ["<h3 hex>", ...]}, root)          # or {"bbox": [...]}
+    -> {"area": {"cells": [...], "n_cells": N, "bbox"?: [w, s, e, n]},
+        "n_assets": N,
+        "assets": [{asset_id, kind, name?, cell, complex_id?, n_events, last_event_id?}, ...],
+        "reason"?: "no assets in this area", "versions": {...}}
+
+- **It is a `public`-mode answer already** — built from `ref/assets` and F05's attachment
+  COUNTS, and a count is not a row — so it carries nothing the licence withholds and needs
+  no filtering to be publishable. `mode` does not change it at all.
+- **A per-Cell area file is a renderer decision, not a query change.** One call per Cell
+  over the real root's 4,113 Cells at ~0.15 s a call is ~10 minutes, the same shape as the
+  ~27 min your two-calls-per-asset manifest already costs, and with the same upgrade in
+  front of it: a caller-supplied connection and stamps resolved ONCE (`query()` re-resolves
+  four stamps per call, ~0.1 s of every call, measured by notify 02 and unchanged here).
+  Do that upgrade at the SEAM if you do it at all — never a cache keyed on a date.
+- **Sizes, measured on the real root 2026-08-25:** a 2.2 km bbox (7 Cells) is 242 assets /
+  35,296 bytes; the worst case the cap allows (the 64 densest Cells) is 3,573 assets /
+  519,140 bytes. A per-Cell file would be small (5 assets is the median Cell) but there
+  would be 4,113 of them — the same file-count question your own checklist asks about the
+  per-asset files, so answer both with one number.
+- **`obs_near` is `local` ONLY and raises `restricted_source` in `public`.** The static
+  surface runs `public`, so it can never call it — that is by construction, not by
+  discipline, and `docs/read-api-contract.md` now says so on the host's own contract page.
+- **Cell ids cross as H3 HEX STRINGS** (`asset.cell` is already that string), the int64 is
+  refused by name, and `area_too_large` names the cap (`query.CELL_CAP` = 64 Cells).
