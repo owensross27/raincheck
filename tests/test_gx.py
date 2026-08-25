@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from raincheck import checks, cold, daily, eras, gapfill, gx, publish
+from raincheck import checks, cold, daily, eras, gapfill, gx, publish, ref_canary
 
 ROOT = Path(__file__).parents[1]
 needs_gx = pytest.mark.skipif(not gx.available(), reason="great_expectations not installed "
@@ -33,9 +33,12 @@ LIVE = "live-capture-completeness"
 
 
 def declared_suite(name: str) -> gx.Suite:
-    """One declared suite BY NAME, never by position: orch 09 and orch 10 both append to
-    gx.SUITES in this wave, and an index here would quietly start testing someone else's."""
-    return next(s for s in gx.SUITES if s.name == name)
+    """One declared suite BY NAME, never by position: three tickets append to these tuples
+    across two waves, and an index here would quietly start testing someone else's.
+
+    Over `gx.DECLARED` rather than `gx.SUITES` since orch 10: `SUITES` is the NIGHTLY
+    declaration alone now, and the two non-nightly suites live in `gx.NON_NIGHTLY`."""
+    return next(s for s in gx.DECLARED if s.name == name)
 
 
 def gapcheck_row(kind: str, outcome: str, day: str = DAY, held: int = 24, **over) -> checks.Row:
@@ -707,3 +710,355 @@ def test_the_era_check_is_declared_where_its_batch_can_be_read_this_run():
     assert stage.retry == "gate" and stage.argv == ("eras",) and not stage.soft
     assert stage.fanout is None and stage.reduces is None
     assert order.index("gapfill") < order.index("eras") < order.index("gxcheck")
+
+
+# --- orchestration 10: the two NON-nightly suites -------------------------------------------
+#
+# Both expect on data that CANNOT CHANGE - the closed backfill era, and a reference registry
+# that cannot even be rebuilt here - so neither is in the nightly declaration and neither is
+# a DAG stage. Their rc therefore never reaches a task state at all (orch 07), which makes
+# the persisted ROW the only record and these suites the only thing that reads it.
+
+BACKFILL_COLUMNS = gx.BACKFILL.CHECK_COLUMNS
+LO, HI = "2026-03-01", "2026-08-14"        # the backfill era: it ENDS the day before START
+REF_COLUMNS = ref_canary.CHECK_COLUMNS
+CENSUS, CANARIES = "backfill-census", "ref-canaries"
+
+
+def backfill_row(feed: str, outcome: str, **over) -> checks.Row:
+    """One census-shaped row, mirroring `backfill-verify.py`'s own two shapes: its `base`
+    dict NULLs every measure and the judged path fills them. `hours_want` is filled on both
+    paths there, so it is filled on both here."""
+    base = {"feed": feed, "lo": LO, "hi": HI, "hours_seen": None, "hours_want": 4008,
+            "dead": None, "missing": None, "no_part": None, "no_marker": None,
+            "zero_byte": None, "stale_dead": None}
+    if outcome != checks.INCONCLUSIVE:
+        base |= {"hours_seen": 4008, "dead": 0, "missing": 0, "no_part": 0,
+                 "no_marker": 0, "zero_byte": 0, "stale_dead": 0}
+    return checks.Row(gx.BACKFILL.CHECK, feed, outcome, "", base | over)
+
+
+def backfill_batch(root: Path, rows: list[checks.Row] | None = None) -> Path:
+    rows = rows if rows is not None else [backfill_row(f, checks.OK)
+                                          for f in gx.BACKFILL.FEEDS]
+    return checks.write(root, gx.BACKFILL.CHECK, rows, BACKFILL_COLUMNS, at=AT)
+
+
+def canary_row(subject: str, outcome: str, got: str | None = "1",
+               want: str | None = "1") -> checks.Row:
+    if outcome == checks.INCONCLUSIVE:
+        got = want = None
+    return checks.Row(ref_canary.CHECK, subject, outcome, "", {"got": got, "want": want})
+
+
+def canary_batch(root: Path, rows: list[checks.Row] | None = None) -> Path:
+    rows = rows if rows is not None else [canary_row(s, checks.OK)
+                                          for s in ref_canary.subjects()]
+    return checks.write(root, ref_canary.CHECK, rows, REF_COLUMNS, at=AT)
+
+
+# --- the census: era=None, and it is a requirement rather than an omission ------------------
+
+def test_the_backfill_census_carries_no_era_because_it_is_the_other_era(tmp_path):
+    """THE MUST ON THIS TICKET, and it is asserted the only way that can fail loudly: not by
+    reading `era is None` alone - which a mutation could satisfy by moving ERA_START - but by
+    PROVING that an era column would refuse this batch outright.
+
+    `ERA_START` is `gapfill.START` and the backfill range ends the DAY BEFORE, so `era="lo"`
+    would refuse every row of every run, with a message telling the reader to go and look at
+    the census that produced them. This check IS the other era. orch 08's live-capture suite
+    must never be pointed at this range, and this suite must never inherit that boundary."""
+    assert declared_suite(CENSUS).era is None
+    path = backfill_batch(tmp_path)
+    assert gx.rows(path, BACKFILL_COLUMNS)                      # no era: read fine
+    for column in ("lo", "hi"):
+        assert HI < gx.ERA_START and LO < gx.ERA_START
+        with pytest.raises(ValueError, match="before the live-capture era"):
+            gx.rows(path, BACKFILL_COLUMNS, era=column)
+
+
+def test_the_census_reads_the_scripts_own_columns_and_feeds(tmp_path):
+    """`scripts/backfill-verify.py` is a SCRIPT, not a package module - orch 03 kept the two
+    eras' tools apart and a test asserts its DEAD list is disjoint from `gapfill.DEAD`. So
+    the suite loads it by path rather than re-homing its constants, and what it declares is
+    the script's own: the feeds are NOT `gapfill.KINDS`, which is the separation itself."""
+    suite = declared_suite(CENSUS)
+    assert (suite.check, suite.columns) == ("backfill", gx.BACKFILL.CHECK_COLUMNS)
+    assert set(gx.BACKFILL.FEEDS) != set(gapfill.KINDS)
+    assert gx.BACKFILL.DEAD and not set(gx.BACKFILL.DEAD) & set(gapfill.DEAD)
+
+
+@needs_gx
+def test_a_complete_census_is_ok_and_the_range_rides_out_in_the_detail(tmp_path):
+    """A clean chunk: every declared feed judged, nothing missing, rc 0. The RANGE is
+    reported rather than gated - `fold()` unions every batch inside RUN_WINDOW, so a reader
+    has to be told which chunk these rows are about."""
+    backfill_batch(tmp_path)
+    results, _ = gx.run(tmp_path, (declared_suite(CENSUS),))
+    assert results[0].outcome == checks.OK and gx.rc(results) == 0
+    assert set(results[0].ok) == set(gx.BACKFILL.FEEDS)
+    assert f"{LO}..{HI}" in results[0].detail
+
+
+@needs_gx
+def test_a_zero_byte_part_fails_and_names_the_feed(tmp_path):
+    """THE TICKET'S ZERO-BYTE RULE. An object can exist and still be useless, and a
+    zero-byte part would otherwise count as present and verify the range OK - the same
+    false-OK that makes `gapverify` useless over this era. The suite names WHICH feed, which
+    is what the count expectation buys over the verdict alone on the Docs page."""
+    rows = [backfill_row(f, checks.OK) for f in gx.BACKFILL.FEEDS]
+    rows[1] = backfill_row(gx.BACKFILL.FEEDS[1], checks.FAIL, zero_byte=2)
+    backfill_batch(tmp_path, rows)
+    results, _ = gx.run(tmp_path, (declared_suite(CENSUS),))
+    assert results[0].outcome == checks.FAIL
+    assert results[0].failed == (gx.BACKFILL.FEEDS[1],)
+
+
+@needs_gx
+def test_an_empty_gapfill_marker_is_not_a_zero_byte_part(tmp_path):
+    """The other half of the same rule, and the half a suite must not re-implement: an empty
+    `_gapfill` MARKER is legitimately zero bytes and is counted as a marker, never as a
+    part. That exemption is a property of the producer (pinned in
+    `tests/test_check_producers.py`); here it shows up as a feed whose markers are present
+    and whose `zero_byte` is 0, and the suite is green."""
+    backfill_batch(tmp_path, [backfill_row(f, checks.OK, no_marker=0, zero_byte=0)
+                              for f in gx.BACKFILL.FEEDS])
+    results, _ = gx.run(tmp_path, (declared_suite(CENSUS),))
+    assert results[0].outcome == checks.OK
+
+
+@needs_gx
+def test_a_stale_dead_entry_fails_the_feed_that_owns_the_allowlist(tmp_path):
+    """THE TICKET'S DEAD-HOUR-LIST RULE. A listed dead hour that turned up after all means
+    the allowlist is WRONG, and a wrong allowlist HIDES REAL GAPS - which is why this is
+    failed rather than reported. The list itself stays inside the census script, one home,
+    disjoint from `gapfill.DEAD` by a test of its own."""
+    rows = [backfill_row(f, checks.OK) for f in gx.BACKFILL.FEEDS]
+    rows[0] = backfill_row(gx.BACKFILL.FEEDS[0], checks.FAIL, stale_dead=1)
+    backfill_batch(tmp_path, rows)
+    results, _ = gx.run(tmp_path, (declared_suite(CENSUS),))
+    assert results[0].outcome == checks.FAIL
+    assert results[0].failed == (gx.BACKFILL.FEEDS[0],)
+
+
+@needs_gx
+def test_a_feed_whose_listing_failed_is_held_out_and_the_short_batch_stays_green(tmp_path):
+    """The census's real INCONCLUSIVE: the remote listing itself failed, so that run proves
+    NOTHING about that feed's range and every measure is NULL. Held out of the frame, kept
+    in its own bucket - and the seven expectations, now looking at two rows instead of
+    three, all still pass. That is only true because every one of them is PER-ROW: an
+    aggregate here would see the short batch and go red, rendering could-not-check as a
+    failure (orch 08 measured exactly that)."""
+    rows = [backfill_row(f, checks.OK) for f in gx.BACKFILL.FEEDS]
+    rows[2] = backfill_row(gx.BACKFILL.FEEDS[2], checks.INCONCLUSIVE)
+    backfill_batch(tmp_path, rows)
+    results, _ = gx.run(tmp_path, (declared_suite(CENSUS),))
+    assert results[0].failed == () and results[0].detail.count("expect") == 0
+    assert results[0].inconclusive == (gx.BACKFILL.FEEDS[2],)
+    assert results[0].outcome == checks.INCONCLUSIVE and gx.rc(results) == 2
+
+
+@needs_gx
+def test_a_judged_feed_that_counted_no_hours_fails_rather_than_passing_quietly(tmp_path):
+    """NULL is the could-not-check convention and those rows are not in this frame, so a row
+    claiming to have been judged while carrying no `hours_seen` is a producer that started
+    publishing a measurement it never took. The not-null is the only thing in front of it:
+    an in-set expectation IGNORES nulls and succeeds without them, which is why every count
+    claim in this suite is PAIRED with one."""
+    rows = [backfill_row(f, checks.OK) for f in gx.BACKFILL.FEEDS]
+    rows[0] = backfill_row(gx.BACKFILL.FEEDS[0], checks.OK, hours_seen=None, zero_byte=None)
+    backfill_batch(tmp_path, rows)
+    results, _ = gx.run(tmp_path, (declared_suite(CENSUS),))
+    assert results[0].outcome == checks.FAIL
+    assert results[0].failed == (gx.BACKFILL.FEEDS[0],)
+    assert not results[0].inconclusive     # a vanished measure is not a check that did not run
+
+
+@needs_gx
+def test_a_feed_with_no_row_at_all_is_could_not_check_and_never_ok(tmp_path):
+    """ONE ROW PER FEED - the census's own contract, and a claim no expectation can make,
+    because the row is not there to be unexpected. INCONCLUSIVE rather than FAIL, and the
+    `--feeds vp,tu` form is what decides that: censusing a subset on purpose is a legitimate
+    run, and the honest report of the feed it never asked about is "could not check"."""
+    backfill_batch(tmp_path, [backfill_row(f, checks.OK) for f in gx.BACKFILL.FEEDS[:-1]])
+    results, _ = gx.run(tmp_path, (declared_suite(CENSUS),))
+    assert results[0].inconclusive == (f"<no row: {gx.BACKFILL.FEEDS[-1]}>",)
+    assert results[0].outcome == checks.INCONCLUSIVE and not results[0].failed
+
+
+@needs_gx
+def test_an_undeclared_feed_in_the_census_batch_is_failed(tmp_path):
+    """The value_set is the script's own `FEEDS`. A batch that grew a subject the census
+    never declared is a range nobody agreed to check, and it must not ride in green."""
+    rows = [backfill_row(f, checks.OK) for f in gx.BACKFILL.FEEDS]
+    rows.append(backfill_row("subway_vp", checks.OK))
+    backfill_batch(tmp_path, rows)
+    results, _ = gx.run(tmp_path, (declared_suite(CENSUS),))
+    assert results[0].outcome == checks.FAIL and results[0].failed == ("subway_vp",)
+
+
+# --- the reference canaries: expect THROUGH the code canary --------------------------------
+
+@needs_gx
+def test_a_clean_canary_batch_is_ok_and_publishes_the_identity(tmp_path):
+    """Every declared canary green. The identity's VALUE rides out in the detail, which is
+    the whole job of that row: nothing in this repo persists a counterpart to compare it
+    against, so it exists to be READ - beside the counts that would have moved with it."""
+    canary_batch(tmp_path, [canary_row(s, checks.OK) for s in ref_canary.subjects()
+                            if s != ref_canary.IDENTITY]
+                 + [canary_row(ref_canary.IDENTITY, checks.OK, got="d3c7b0f3", want=None)])
+    results, _ = gx.run(tmp_path, (declared_suite(CANARIES),))
+    assert results[0].outcome == checks.OK and gx.rc(results) == 0
+    assert f"{ref_canary.IDENTITY} d3c7b0f3" in results[0].detail
+
+
+@needs_gx
+def test_a_moved_frozen_count_fails_through_the_canarys_own_verdict(tmp_path):
+    """THE TICKET'S RULE. The count lives in `ref.ASSETS_EXPECT`, `ref_canary` compares the
+    built table against it, and this suite expects on the VERDICT that comparison wrote -
+    which is why a row whose `got` and `want` are both perfectly well-formed still fails
+    when its outcome says so. Re-typing the number here would have made the SUITE the
+    canary, and the two copies would disagree the first time the registry legitimately
+    moved."""
+    subject = next(s for s in ref_canary.subjects() if s.startswith("count "))
+    rows = [canary_row(s, checks.FAIL if s == subject else checks.OK)
+            for s in ref_canary.subjects()]
+    assert [r.subject for r in rows].count(subject) == 1     # the row really is in the batch
+    canary_batch(tmp_path, rows)
+    results, _ = gx.run(tmp_path, (declared_suite(CANARIES),))
+    assert results[0].outcome == checks.FAIL and results[0].failed == (subject,)
+
+
+@needs_gx
+def test_a_root_with_no_registry_is_could_not_check_and_never_clean(tmp_path):
+    """The COMMON case, not an edge: a worktree, a fresh checkout and every task pod have no
+    `ref/assets`, so every canary is INCONCLUSIVE with NULL measures. They are all held out,
+    nothing is judged, and a suite with nothing judged is not a pass."""
+    canary_batch(tmp_path, [canary_row(s, checks.INCONCLUSIVE)
+                            for s in ref_canary.subjects()])
+    results, _ = gx.run(tmp_path, (declared_suite(CANARIES),))
+    assert results[0].outcome == checks.INCONCLUSIVE and not results[0].ok
+    assert len(results[0].inconclusive) == len(ref_canary.subjects())
+    assert gx.rc(results) == 2
+
+
+@needs_gx
+def test_a_judged_canary_that_measured_nothing_fails(tmp_path):
+    """A canary that ran and recorded no measurement is a producer bug, not a third outcome.
+    The not-null is on `got` ALONE, because `want` is legitimately NULL on the identity row -
+    which is asserted in the same batch here, so a not-null wrongly added to `want` would
+    turn this test red rather than passing unnoticed."""
+    rows = [canary_row(s, checks.OK) for s in ref_canary.subjects()
+            if s != ref_canary.IDENTITY]
+    rows.append(canary_row(ref_canary.IDENTITY, checks.OK, got="d3c7b0f3", want=None))
+    rows[0] = canary_row(rows[0].subject, checks.OK, got=None)
+    canary_batch(tmp_path, rows)
+    results, _ = gx.run(tmp_path, (declared_suite(CANARIES),))
+    assert results[0].outcome == checks.FAIL and results[0].failed == (rows[0].subject,)
+
+
+@needs_gx
+def test_a_canary_that_never_ran_is_a_missing_row_and_not_a_pass(tmp_path):
+    """The batch-level claim: `ref_canary.subjects()` is the declaration, derived from
+    `ref.ASSETS_EXPECT` and the two key tables, so a canary frozen tomorrow is covered the
+    day it lands. A canary with no row was not run, and no expectation can be asked about a
+    row that does not exist."""
+    missing = ref_canary.subjects()[0]
+    canary_batch(tmp_path, [canary_row(s, checks.OK) for s in ref_canary.subjects()[1:]])
+    results, _ = gx.run(tmp_path, (declared_suite(CANARIES),))
+    assert results[0].inconclusive == (f"<no canary: {missing}>",)
+    assert results[0].outcome == checks.INCONCLUSIVE and not results[0].failed
+
+
+# --- the declaration and the two triggers --------------------------------------------------
+
+def test_neither_suite_is_in_the_nightly_declaration_or_the_stage_graph():
+    """THE TICKET. `gxcheck` runs `SUITES` and nothing else, so appending these there would
+    have made both of them nightly - and a nightly check over data that cannot change
+    re-answers a settled question every morning, off whatever batch last landed (`batches()`
+    takes the newest `run=` stamp and asks no question about its age). Neither producer is a
+    stage either, which is orch 07's point: their rc never reaches a task state at all, so
+    the persisted ROW is the only record there is."""
+    nightly = {s.name for s in gx.SUITES}
+    assert {CENSUS, CANARIES} & nightly == set()
+    assert {s.name for s in gx.NON_NIGHTLY} == {CENSUS, CANARIES}
+    assert gx.DECLARED == gx.SUITES + gx.NON_NIGHTLY
+    stages = {s.name for s in daily.STAGES}
+    assert {s.check for s in gx.NON_NIGHTLY} & stages == set()
+
+
+def test_no_two_declared_suites_share_a_name():
+    """Every name is a Data Docs page and a URL segment. Three tickets have appended to these
+    tuples across two waves, so the check is over DECLARED rather than over either half."""
+    names = [s.name for s in gx.DECLARED]
+    assert len(names) == len(set(names)), f"two suites share a name: {names}"
+    assert all(" " not in n for n in names)
+
+
+def test_each_non_nightly_suite_has_a_make_target_that_names_it():
+    """THE TRIGGER HALF OF THIS TICKET, and it is derived rather than mirrored: the expected
+    command line is computed from the declaration, so renaming a suite without moving its
+    target goes red here instead of leaving a `make` recipe pointed at a name that no longer
+    resolves. `make` targets and not stages, and Mac-runnable: these fire on the event that
+    could have moved the data, never on a schedule."""
+    makefile = (ROOT / "Makefile").read_text()
+    for suite in gx.NON_NIGHTLY:
+        assert f"-m raincheck.gx {suite.name}" in makefile, suite.name
+    assert "-m raincheck.ref_canary" in makefile        # the ref canary's own producer
+    for target in ("gxbackfill:", "gxref:", "refcanary:"):
+        assert f"\n{target}" in makefile
+
+
+def test_an_unknown_suite_name_is_refused_and_the_declared_ones_are_listed():
+    """A typo in a `make` recipe must not silently run nothing, and it must not run the
+    NIGHTLY set either - which is what a fall-through default would do."""
+    assert gx.by_name(CENSUS) is declared_suite(CENSUS)
+    with pytest.raises(SystemExit, match="no suite named"):
+        gx.by_name("backfill")                          # the CHECK name, not the suite's
+
+
+@needs_gx
+def test_a_named_run_renders_its_own_site_and_leaves_the_published_tree_alone(
+        tmp_path, monkeypatch):
+    """THE CLOBBER GUARD. `build_data_docs()` rebuilds the WHOLE site (orch 08 measured it,
+    and deleted an `rmtree` for it), so a named run writing into `<root>/gx/data_docs` would
+    DELETE last night's pages from the exact tree `make publish FAMILY=docs` sends to the
+    public host - replacing the nightly's report with one page, on the strength of someone
+    running `make gxbackfill` at noon. Each named run therefore renders into its own
+    directory, and the nightly's is left untouched here to prove it."""
+    monkeypatch.setenv("RAINCHECK_ARCHIVE_ROOT", str(tmp_path))
+    full_batch(tmp_path)
+    gx.run(tmp_path, (declared_suite(LIVE),))           # last night, in the published tree
+    assert (gx.docs_dir(tmp_path) / "expectations" / f"{LIVE}.html").is_file()
+
+    backfill_batch(tmp_path)
+    with pytest.raises(SystemExit) as exc:
+        gx.main([CENSUS])
+    assert exc.value.code == 0
+    assert (tmp_path / "gx" / f"docs-{CENSUS}" / "index.html").is_file()
+    assert (gx.docs_dir(tmp_path) / "expectations" / f"{LIVE}.html").is_file()
+    assert not (gx.docs_dir(tmp_path) / "expectations" / f"{CENSUS}.html").exists()
+
+
+@needs_gx
+def test_the_no_argument_form_is_the_nightly_and_publishes_into_the_docs_family(
+        tmp_path, monkeypatch, capsys):
+    """The other direction: `daily.STAGES`' gxcheck carries `argv=("gx",)` and so reaches
+    this form. It runs the nightly declaration into the `docs` family's own source, and the
+    printed line says so - a named run prints that it published nothing, because only this
+    tree is a family."""
+    monkeypatch.setenv("RAINCHECK_ARCHIVE_ROOT", str(tmp_path))
+    every_producer(tmp_path)
+    with pytest.raises(SystemExit) as exc:
+        gx.main([])
+    assert exc.value.code == 0
+    out = capsys.readouterr().out
+    assert str(gx.docs_dir(tmp_path)) in out and "FAMILY=docs" in out
+    assert len([ln for ln in out.splitlines() if ln.startswith("OK")]) == len(gx.SUITES)
+
+
+def test_more_than_one_suite_name_is_refused_rather_than_sharing_a_site():
+    """Two named suites in one run would have to share one Data Docs directory, and the
+    second would rebuild the site over the first. Refused at the argument instead."""
+    with pytest.raises(SystemExit, match="one suite name at most"):
+        gx.main([CENSUS, CANARIES])
