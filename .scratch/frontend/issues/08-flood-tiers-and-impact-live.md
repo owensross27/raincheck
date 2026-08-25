@@ -43,9 +43,15 @@ re-plumbing this ticket was built to be spared.
 - **The twelve layers are already declared at boot** in `web/app.js`'s style, in the frozen
   order `bg · zones-fill · cells · impact-fill · cells-line · impact-line · zones-line ·
   locate · live · hist · fn · mta`, each with an empty `FeatureCollection` and
-  `visibility: "none"`. **MUST: never `addLayer`/`addSource`** — a test refuses both, because
-  a lazily added layer lands on top of the order and a `beforeId` naming a missing layer
-  throws. `promoteId` stays off everywhere (hex ids are silently dropped).
+  `visibility: "none"`. **MUST: you declare at boot — never `addLayer`/`addSource` in YOUR
+  module.** A lazily added layer lands on top of the order and a `beforeId` naming a missing
+  layer throws. **CORRECTED 2026-08-25 by frontend2 02** (the old wording said the test
+  refuses both outright, which is no longer what it asserts): `web/basemap.js` is the ONE
+  sanctioned caller, it passes `beforeId = "zones-fill"` on every insert, and
+  `test_the_basemap_goes_above_bg_and_below_every_one_of_the_twelve` asserts every OTHER
+  module still contains neither call. So the rule for you is unchanged in effect — declare
+  your layer in the frozen style block — but do not read a bare `addLayer` on the page as a
+  defect. `promoteId` stays off everywhere (hex ids are silently dropped).
 - **The two gate keys exist**: `const GATE = { "mta-vehicles": false, "mta-alerts": false }`,
   and every layer carries its own `gate:` side; `shut(lyr)` is the only test of it. **MUST:
   light a side by flipping ONE boolean — never add a second switch.** A test derives the
@@ -226,3 +232,43 @@ Cadence: both files are `no-cache` and rewritten only when the forcing advances 
 FloodNet throttle (120 s) expires — measured 6 rewrites in 21 loop cycles. `flood.json`
 is **317,837 B raw** on the real root (cells 169 KB + floodnet 159 KB); size decisions
 here stay in RAW bytes until the gzip curl is recorded ([YOU], TRAPS).
+
+## Forward-context from frontend2 02 (the basemap, landed 2026-08-25, branch `frontend2-02-basemap`)
+
+**LAYER ORDER, and it now has a layer BELOW the twelve.** The stack is
+`bg · <66 basemap layers> · zones-fill · cells · impact-fill · cells-line · impact-line ·
+zones-line · locate · live · hist · fn · mta`. **MUST: you add nothing below `zones-fill`.**
+The basemap's layers come from a VENDORED style (`web/vendor/basemap-dark.json`), so their
+ids are not this repo's to write down; `web/basemap.js` inserts every one with
+`beforeId = "zones-fill"` (derived in the test from `SPEC_ORDER[1]`, never a second copy of
+the name). The frozen-order test is now an INVARIANT — "the twelve keep their relative order
+and every basemap layer precedes all of them" — measured in a real engine at 78 layers.
+
+**A NEW PUBLISH FAMILY: `tiles`.** `publish.FAMILIES["tiles"]` = prefix `tiles/`,
+`RARE_CACHE`, cadence "deploy-time", writer "the operator, after `make basemap`", files
+`("nyc.pmtiles",)`. It is deliberately NOT a `site` key: `web/tiles/` is gitignored and the
+archive is never committed. `publish.PUBLISHABLE` gained `.pmtiles` and `.pbf`; rule 2 is
+unchanged, because a family is an explicit file list. **If you add a payload file, it is
+still a `site` or a new family — never `tiles`.**
+
+**`web/basemap.js` is the seventh module** (a `site` key, additive, no `contract.CONTRACT`
+bump — the count is 7 now, not 6). It owns the basemap and nothing else, so it does not
+collide with `insight.js` (07) or `live.js` (08). It DOES touch `layers.js` (one `LAYERS`
+entry, first) and `freshness.js` (two lines) — both landed already.
+
+**`make web` is `raincheck.webserve`, not `python -m http.server`.** The stdlib server
+answers a `Range:` request with 200 and the whole body, which makes a PMTiles archive
+unusable locally. Same invocation (`make web [PORT=8000]`), single-range support added.
+
+**A `srcs` entry may now carry `head: true`** — `grab()` then sends a HEAD and returns
+`true` instead of a parsed body, so a large binary payload's age costs no bytes. And an OFF
+row now prints a RECORDED reason when there is one (`why: whys[key] || "nothing is being
+fetched"`), which is what lets a layer that turned ITSELF off explain why. If your layer can
+fail its own fetch, set `on[<id>] = false` and leave the `why` in place rather than
+inventing a state.
+
+**A vendored library that is a bare-import ESM must be a classic tag.** `index.html` now
+carries TWO classic library tags (`maplibre-gl.js`, `pmtiles.js`) and still exactly ONE
+`type="module"` entry. `test_the_page_is_one_module_entry_with_no_build_step` asserts the
+one-entry rule and that every classic tag is a published `site` key — it no longer counts
+`<script` tags, so a third vendored library is not automatically a failure.
