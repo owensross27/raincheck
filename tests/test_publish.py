@@ -226,8 +226,12 @@ def test_a_family_whose_writer_has_not_shipped_refuses_by_naming_its_writer(tmp_
 
 
 def test_an_unknown_family_lists_the_real_ones(tmp_path):
-    with pytest.raises(publish.Refused, match="docs, history, insight, live, site"):
+    """The expected list is DERIVED, not typed: three tickets add families in wave 6
+    (flood 15's two, flood-build 19's `geo`, frontend2 02's `tiles`) and a literal here
+    would go red on each of them for no reason and conflict on the way in."""
+    with pytest.raises(publish.Refused) as exc:
         publish.plan("everything", tmp_path)
+    assert ", ".join(sorted(publish.FAMILIES)) in str(exc.value)
 
 
 # --- rule 3, and the page's half of STALE (text assertions; the browser check is in the log)
@@ -336,3 +340,62 @@ def test_the_written_contract_document_exists_and_tracks_the_integer():
     assert "refused" in doc and "frozen-age trap" in doc         # the build-time merge
     assert "<response `Date`> − <response `Last-Modified`>" in doc   # the reader dates the file
     assert "NOT a consumer" in doc and "never be wired as one" in doc
+
+
+# --- flood 15: the flood panel's two families, one per side of the lineage gate ---------
+
+@pytest.fixture
+def flood_files(tmp_path):
+    from raincheck import flood_panel
+    for name in flood_panel.FILES[flood_panel.UNGATED] + flood_panel.FILES[flood_panel.GATED]:
+        (tmp_path / name).write_text("{}")
+    return tmp_path
+
+
+def test_the_flood_panel_publishes_as_two_families_because_the_gate_cuts_through_it(
+        flood_files):
+    """frontend 01 D3, Ross's decision. The FloodNet tier carries no MTA-derived content
+    at all, so withholding the MTA feed must not withhold it - and `gated` is a property
+    of a FAMILY, so one family could not have been on both sides of the gate. This is that
+    decision expressed where the publisher can enforce it."""
+    from raincheck import flood_panel
+    open_side = publish.plan(flood_panel.UNGATED, flood_files)
+    assert [i.key for i in open_side] == ["files/flood.json", "files/flood-meta.json"]
+    assert publish.LIVE_TERMS_VERIFIED is None, "the gate is shut and the open side ships"
+    with pytest.raises(publish.GateClosed):
+        publish.plan(flood_panel.GATED, flood_files)
+
+
+def test_each_flood_family_puts_its_meta_last(flood_files, gate_open):
+    """The live pair's ordering rule, for the same reason: a publisher that dies mid-family
+    must leave an OLD meta over a new payload (a consumer re-reads and finds it), never a
+    fresh meta over a payload that is not there."""
+    from raincheck import flood_panel
+    for fam in (flood_panel.UNGATED, flood_panel.GATED):
+        keys = [i.key for i in publish.plan(fam, flood_files)]
+        assert keys[-1].endswith("-meta.json") and not keys[0].endswith("-meta.json")
+
+
+def test_half_a_flood_pair_is_refused(flood_files, gate_open):
+    from raincheck import flood_panel
+    (flood_files / "flood-meta.json").unlink()
+    with pytest.raises(publish.Refused, match="incomplete"):
+        publish.plan(flood_panel.UNGATED, flood_files)
+
+
+def test_the_flood_payloads_are_no_cache_like_the_live_pair(flood_files, gate_open):
+    """A cached flood payload is a frozen panel served under a fresh page - the T14 failure
+    with a CDN in front of it."""
+    from raincheck import flood_panel
+    for fam in (flood_panel.UNGATED, flood_panel.GATED):
+        assert {i.cache for i in publish.plan(fam, flood_files)} == {publish.NO_CACHE}
+
+
+def test_the_insight_family_never_sweeps_up_the_flood_payloads(web, flood_files):
+    """Five writers now share web/files/ on four cadences. A family names its files."""
+    from raincheck import flood_panel
+    for name in flood_panel.FILES[flood_panel.UNGATED] + flood_panel.FILES[flood_panel.GATED]:
+        (web / "files" / name).write_text("{}")
+    keys = {i.key for i in publish.plan("insight", web / "files")}
+    assert not any("flood" in k for k in keys)
+

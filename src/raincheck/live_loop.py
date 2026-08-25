@@ -39,7 +39,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from raincheck import duck, flood_coastal, flood_live, live_export, publish
+from raincheck import duck, flood_coastal, flood_live, flood_panel, live_export, publish
 from raincheck.live_export import INTERVAL_S
 from raincheck.paths import data_root
 
@@ -102,8 +102,16 @@ def cycle(con, root: Path, out_dir: Path, source: str, state: dict,
     meta = live_export.once(con, root, out_dir, source, state.get("meta"), now)
     due = state.get("detected_at") is None or (now - state["detected_at"]).total_seconds() >= DETECT_S
     detected = detect(root) if due else state.get("detector")
+    # flood 15's tick JOINS this loop rather than standing a second daemon up beside it:
+    # one process, one clock, one warm connection, so the panel's halves cannot age apart.
+    # It skips itself unless the forcing advanced or its own truth throttle expired, and it
+    # never raises - an outage comes back as a field on its state, exactly like the two
+    # above. It is handed the detector read this cycle already has, so the winter gate's
+    # KNYC temperature and the coastal chips cost no second fetch of the same endpoints.
+    flood = flood_panel.tick(con, root, out_dir, state.get("flood"), now, detected)
     return {"meta": meta, "detector": detected,
             "detected_at": now if due else state.get("detected_at"),
+            "flood": flood,
             "publish": ship(out_dir, state), "at": now}
 
 
@@ -114,7 +122,7 @@ def line(state: dict) -> str:
             f"vp_age_s={meta.get('vp_age_s')} error={meta.get('error')} "
             f"coastal={coastal.get('stage') or det.get('error')} "
             f"winter={(det.get('winter') or {}).get('status')} "
-            f"publish={state['publish']}")
+            f"publish={state['publish']} {flood_panel.line(state.get('flood') or {})}")
 
 
 def loop(root: Path, out_dir: Path, source: str, interval: float = INTERVAL_S,

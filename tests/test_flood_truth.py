@@ -270,3 +270,56 @@ def test_chip_state_follows_the_newest_revision(water_rows, aliases):
 def test_the_mta_tier_greys_on_a_missing_root(tmp_path):
     tier = ft.mta(tmp_path, NOW)
     assert tier["status"] == "error" and tier["chips"] == []
+
+
+# ---- flood 15: a chip carries its own coordinates -------------------------------------
+
+def test_a_chip_can_be_placed_on_a_map_without_a_second_lookup(mta_chips):
+    """`chips()` named a complex and stopped there, so a serving page had to join
+    ref/assets to draw one dot - the same defect as notify 05's manifest (TRAPS: whenever
+    a payload names an asset, ask whether the CONSUMER can locate it). `mta()` attaches
+    the point; measured price, all 445 complexes with lon/lat = 30,087 B raw."""
+    ids = sorted({s["complex_id"] for c in mta_chips for s in c["stations"]})
+    one = ids[0]                       # taken from the fixture, never typed
+    points = {one: {"lon": -73.98, "lat": 40.75, "cell": 613229551394226175}}
+    placed = ft.place([dict(c, stations=[dict(s) for s in c["stations"]])
+                       for c in mta_chips], points)
+    got = [s for c in placed for s in c["stations"] if s["complex_id"] == one]
+    assert got and all(s["lon"] == -73.98 and s["lat"] == 40.75
+                       and s["cell"] == 613229551394226175 for s in got)
+    # ...and the complexes the map has no point for keep their rows untouched
+    assert [s for c in placed for s in c["stations"]
+            if s["complex_id"] != one and "lon" in s] == []
+
+
+def test_a_complex_with_no_point_keeps_its_row_and_gains_no_null_island(mta_chips):
+    """Absent, never null: (0, 0) is in the Gulf of Guinea and a page that draws it puts a
+    flooded subway station in the Atlantic."""
+    placed = ft.place([dict(c, stations=[dict(s) for s in c["stations"]])
+                       for c in mta_chips], {})
+    for c in placed:
+        for s in c["stations"]:
+            assert "lon" not in s and "lat" not in s
+            assert s["complex_id"] and s["name"]
+
+
+def test_the_alert_read_pushes_its_predicate_into_its_own_statement():
+    """MEASURED 2026-08-25 when flood 15 put this read inside the 30 s loop, whose pod is
+    limited to 768 MiB: `duck.table(...).filter(...).project(...)` cost 5,000 MiB and 9.4 s
+    to return six rows from a 21 MB table, because `duck.table` binds the path as a
+    PARAMETER and a filter applied outside that statement cannot be pushed into the scan.
+    The same query in one statement is 173 MiB and 0.25 s. This pins the shape."""
+    src = Path(ft.__file__).read_text()
+    body = src[src.index("def alert_rows"):src.index("def chips")]
+    assert ".filter(" not in body and ".project(" not in body
+    assert "regexp_matches" in body and "read_parquet" in ft.READ
+
+
+def test_the_complex_points_read_is_the_only_source_of_a_complex_point(tmp_path):
+    """It reads ref/assets, and on a root without one it must raise into mta()'s handler
+    rather than returning an empty map that would silently unplace every chip."""
+    with pytest.raises(Exception):
+        ft.complex_points(tmp_path)
+    tier = ft.mta(tmp_path, NOW)
+    assert tier["status"] == "error" and tier["chips"] == []
+

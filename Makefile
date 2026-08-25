@@ -8,7 +8,7 @@ export TZ := UTC
 export RAINCHECK_ARCHIVE_ROOT RAINCHECK_BRONZE_GB TRANSITLAND_API_KEY
 PY := .venv/bin/python
 
-.PHONY: warm ref nbp features picks precip-hourly precip-cell schedule events gold baseline gates slice test topics flood-obs flood-spine flood-coastal precip-flood-era flood-labels flood-matrix flood-fits flood-exposure flood-detector flood-replication flood-live
+.PHONY: warm ref nbp features picks precip-hourly precip-cell schedule events gold baseline gates slice test topics flood-obs flood-spine flood-coastal precip-flood-era flood-labels flood-matrix flood-fits flood-exposure flood-detector flood-replication flood-live flood-panel release-check
 
 topics:  ## recreate the two bus topics to spec C - DESTRUCTIVE: drops retained Kafka messages (Bronze keeps the record)
 	$(PY) -m raincheck.topics
@@ -114,6 +114,20 @@ flood-exposure:  ## flood_matrix x flood-09-fits x flood_coastal -> gold/flood_e
 # The canary is a live HEAD against NODD: SKIP_CANARY=1 for an offline build.
 flood-detector:  ## the frozen detector rules -> research/flood-11-detector.json (+ live MRMS pattern canary)
 	$(PY) -m raincheck.flood_detect $(if $(SKIP_CANARY),--skip-canary)
+
+# --- flood-build ticket 15: the flood panel tick and the release checklist -----------
+# The tick normally runs INSIDE the 30 s live loop (`python -m raincheck.live_loop`); this
+# target is the same one cycle, standalone, for a smoke check. `NOPUB=1` writes the four
+# files and uploads nothing - which is what you want anywhere the serve token is absent.
+flood-panel:  ## one flood cycle -> web/files/flood*.json (make flood-panel [NOPUB=1] [OUT=dir])
+	$(PY) -m raincheck.flood_panel $(if $(NOPUB),--no-publish) $(if $(OUT),--out $(OUT))
+
+# The release checklist flood 09 owed and tickets 10 and 11 both deferred. It re-evaluates
+# the headline gate from the published tables with `flood_fits.gate()` rather than reading
+# the verdict anyone wrote down, and refuses (rc 1) if the panel and the artifacts disagree.
+# Reads only committed files: no data root, no network.
+release-check:  ## re-evaluate the flood release gate and the panel's claims (rc 1 = do not release)
+	$(PY) -m raincheck.release_check
 
 # --- flood-build ticket 18: the outer replication -----------------------------------
 # The 311-threshold and label-radius sweeps, which redefine the event universe and so cannot

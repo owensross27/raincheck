@@ -3,7 +3,14 @@ detections and MTA remove-water chips.
 
 Both tiers are DISPLAY ONLY. Neither ever feeds the model — the flood-01 bar on the
 FloodNet sensor bar as an input stands, and alert-derived features stay barred from the
-exposure fit. This module fetches, parses and rules; ticket 15 joins geometry and renders.
+exposure fit. This module fetches, parses and rules; ticket 15 renders.
+
+**A CHIP CARRIES ITS OWN COORDINATES** (ticket 15, after frontend 02 built the layer and
+could not place one). `chips()` named a complex and stopped there, so a serving page had
+to join `ref/assets` to draw one dot — the same defect as notify 05's manifest, and TRAPS
+carries the general shape: whenever a payload names an asset, ask whether the CONSUMER can
+locate it. `mta()` reads the 445 complexes' points once and attaches them; measured price,
+all 445 with lon/lat = 30,087 B raw against the 161,455 B `truth()` already returns.
 
 FloodNet, measured against the live API (2026-08-23, and re-measured at build time):
   * An unbounded `order_by time desc` read is poisoned: deployment `only_wise_mule`
@@ -232,6 +239,25 @@ def floodnet(root: Path, now: datetime, wet_cells: set | None = None,
 CHIP_HOURS = 6  # how far back a chip can have been first seen and still be shown
 
 
+# The projection and BOTH predicates live inside the read's own statement, and that is a
+# memory contract rather than style. MEASURED 2026-08-25 against the real capture (663
+# parquet files, 21 MB on disk, 6 matching rows) when ticket 15 put this read inside cloud
+# 05's 30 s loop, whose pod is limited to 768 MiB:
+#
+#   duck.table(...).filter(...).project(...)        5,000 MiB   9.4 s   <- what shipped
+#   duck.table(...).create_view() then SELECT       1,830 MiB   0.68 s
+#   read_parquet(?) with the filter in-statement      173 MiB   0.25 s  <- this
+#   read_parquet('<literal>') + a relation chain       110 MiB   0.08 s
+#
+# `duck.table` binds the path as a PARAMETER, so the file list is not known when the scan
+# is planned; a filter applied OUTSIDE that statement - as a relation op, or through a view
+# - cannot be pushed into it, and 663 files are read whole. Inside one statement it still
+# pushes. `union_by_name` is not the cost (108 MiB with it on). Keep this one statement.
+READ = ("read_parquet(?, hive_partitioning = true, hive_types_autocast = false, "
+        "union_by_name = true)")
+COLS = ('alert_id', 'header', 'description', 'route_id', 'fetched_at')
+
+
 def alert_rows(root: Path, now: datetime, hours: int = CHIP_HOURS) -> list[dict]:
     """The newest captured subway-alert rows: partition-bounded, then water-prefiltered."""
     capture = as_root(root) / "archive" / "subway_alerts"
@@ -239,12 +265,12 @@ def alert_rows(root: Path, now: datetime, hours: int = CHIP_HOURS) -> list[dict]
         return []
     cutoff = now - timedelta(hours=hours)
     con = duck.connect()
-    cols = ("alert_id", "header", "description", "route_id", "fetched_at")
-    rows = [dict(zip(cols, r)) for r in duck.table(con, capture).filter(
-        f"date >= '{cutoff.date()}' AND fetched_at >= {cutoff.timestamp()} "
+    rows = [dict(zip(COLS, r)) for r in con.execute(
+        f'SELECT alert_id, "header", description, route_id, fetched_at FROM {READ} '
+        f"WHERE date >= '{cutoff.date()}' AND fetched_at >= {cutoff.timestamp()} "
         "AND regexp_matches(upper(coalesce(\"header\", '') || ' ' "
-        "|| coalesce(description, '')), 'WATER FROM THE TRACKS')"
-    ).project('alert_id, "header", description, route_id, fetched_at').fetchall()]
+        "|| coalesce(description, '')), 'WATER FROM THE TRACKS')",
+        [f"{capture}/**/*.parquet"]).fetchall()]
     con.close()
     return rows
 
@@ -280,6 +306,29 @@ def chips(rows: list[dict], by_alias: dict, alias_pat, now: datetime) -> list[di
     return sorted(out.values(), key=lambda c: (c["first_seen"] or 0, c["event_id"]))
 
 
+def complex_points(root: Path) -> dict[str, dict]:
+    """complex_id -> {lon, lat, cell} out of ref/assets. The ONLY source of a complex's
+    point, and exactly the join a serving page should not have to do."""
+    con = duck.connect()
+    rows = duck.table(con, as_root(root) / "ref" / "assets").filter(
+        "kind = 'complex' AND complex_id IS NOT NULL"
+    ).project("complex_id, lon, lat, cell").fetchall()
+    con.close()
+    return {c: {"lon": lon, "lat": lat, "cell": cell} for c, lon, lat, cell in rows}
+
+
+def place(got: list[dict], points: dict[str, dict]) -> list[dict]:
+    """Attach each station's point to the chip. A complex with no point keeps its row and
+    gains no keys — absent, never a null island at (0, 0)."""
+    for chip in got:
+        for st in chip["stations"]:
+            p = points.get(st["complex_id"]) or {}
+            for k in ("lon", "lat", "cell"):
+                if p.get(k) is not None:
+                    st[k] = p[k]
+    return got
+
+
 def mta(root: Path, now: datetime, hours: int = CHIP_HOURS) -> dict:
     root = as_root(root)
     tier = {"source": "mta_alerts", "vocabulary": fa.LIVE_ANCHOR, "hours": hours,
@@ -287,7 +336,8 @@ def mta(root: Path, now: datetime, hours: int = CHIP_HOURS) -> dict:
     try:
         by_alias = fa.load_aliases(root)
         rows = alert_rows(root, now, hours)
-        got = chips(rows, by_alias, fa.build_pattern(by_alias), now)
+        got = place(chips(rows, by_alias, fa.build_pattern(by_alias), now),
+                    complex_points(root))
     except Exception as e:
         return tier | {"status": "error", "error": f"{type(e).__name__}: {e}", "chips": []}
     return tier | {"status": "ok", "chips": got, "rows": len(rows),

@@ -89,10 +89,25 @@ spec:
               # MEASURED: ~5.3 millicores average draw. 100m is ~19x that and still lets a
               # cycle finish in ~1.6 s of serialised CPU against a 30 s period. No CPU
               # limit: the cycle is a short burst and throttling it buys nothing.
+              # RE-MEASURED at flood 15, which joined the flood tick to this loop: the
+              # heavy cycle (the one that re-scores, every ~6th) is 1.2 s of work against
+              # the same 30 s period, so the CPU line stands.
               cpu: 100m
-              memory: 384Mi     # measured plateau 368 MiB
+              # RAISED FROM 384Mi BY FLOOD 15, and the number is a measurement, not a
+              # margin. The flood tick reads the live forcing, the training table's static
+              # features and the exposure table, so this loop's peak RSS moved from a 368
+              # MiB plateau to ~500 MiB (measured over five cycles on the real root,
+              # darwin/arm64, with and without a 384MB DuckDB memory_limit - identical).
+              # It got there from 6,576 MiB: three reads in this path applied their
+              # projection OUTSIDE the read's own statement, which blocks pushdown when the
+              # path is a bound parameter (TRAPS; the worst was `flood_truth.alert_rows` at
+              # 5 GiB for six rows). The limit below is unchanged and still ~1.5x the peak.
+              # NOT measured on this pod: the cluster is linux/arm64 and DuckDB sizes its
+              # own default against the cgroup, so the first real run of this Deployment
+              # should be watched.
+              memory: 512Mi     # measured peak ~500 MiB with the flood tick joined
             limits:
-              memory: 768Mi     # 2x the plateau; 383 MiB is the every-cycle-detector worst case
+              memory: 768Mi     # ~1.5x the measured peak; unchanged since cloud 05
           volumeMounts:
             - name: data
               mountPath: /data
