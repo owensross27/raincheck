@@ -53,6 +53,7 @@ WHAT THE PANEL MAY SAY, all of it structural here rather than remembered:
 Run: make flood-panel        (one tick against the real root, then exit)
 """
 import argparse
+import gzip
 import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -87,7 +88,16 @@ BUDGETS_S = {
 READ_DAYS = 8
 
 LOG_DIR = "live/flood_log"
-LOG_KEEP_DAYS = 30          # spec: ~3 MB/day, pruned on start, inside the byte budget
+LOG_KEEP_DAYS = 30
+# GZIPPED, and that is what makes the spec's byte budget true rather than aspirational.
+# MEASURED 2026-08-25 on the real universe: one full unit-state vector is 15,106 rows =
+# 1,651,324 B raw, so the ~24 recomputes a day the spec describes are 39.6 MB/day and
+# 1.2 GB across the 30-day prune - against a budget of "~3 MB/day, <= ~100 MB". The rows
+# are a tier vocabulary and a rank column, which is exactly what compresses: 12.4x on a
+# single row, and 39.6 MB -> 3.2 MB across a day. `gzip.open(..., "at")` appends a new
+# member per write and concatenated members are a valid gzip stream, so the file stays
+# appendable and `zcat`-able. The budget the spec named is met, not re-negotiated.
+LOG_SUFFIX = ".ndjson.gz"
 
 
 # ---- the reads ----------------------------------------------------------------------
@@ -393,6 +403,44 @@ def _r(v, nd: int = 6):
     return None if v is None else round(v, nd)
 
 
+def _prune(o):
+    """ABSENT, NEVER NULL - applied to the whole document rather than key by key.
+
+    MapLibre's ["has", p] is true on a null and `interpolate` then errors on it, which is
+    why the whole read surface writes an absent key instead. Doing it at the end makes the
+    rule structural: three of the members here are other modules' shapes (`flood_live`'s
+    coastal chips, `flood_truth`'s read report and its chips), and every one of them
+    carries explicit Nones by ITS own convention - a `reason` that is None because nothing
+    is wrong, an `observed_ft` that is None because the gauge is out.
+
+    EMPTY IS NOT ABSENT: [] and 0 and false still publish, because "no sensors detected
+    water" and "the tier is off" are answers.
+    """
+    if isinstance(o, dict):
+        return {k: _prune(v) for k, v in o.items() if v is not None}
+    if isinstance(o, list):
+        return [_prune(v) for v in o]
+    return o
+
+
+def _coastal(coastal: dict | None) -> dict | None:
+    """The CO-OPS tier, minus the per-Unit recolor set.
+
+    `recolor.units` is `flood_coastal.unit_margins()` filtered to the hot gauges - 1,072
+    rows / 212 KB measured during a real APPROACHING tide, which would be the largest
+    member of a `no-cache` payload republished every two minutes. It is also STATIC (the
+    margin moves with the DEM epoch, not with the water) and the same number already rides
+    per Cell in `cells[].surge_margin_ft` from `gold/flood_exposure`. So the counts ship
+    and the rows do not: no page layer reads them today, and the ticket that adds one
+    should take them from the exposure table it is already holding rather than from a
+    live tick. The gauge chips themselves ARE live and ship whole.
+    """
+    if not coastal:
+        return None
+    r = coastal.get("recolor") or {}
+    return dict(coastal) | {"recolor": {k: v for k, v in r.items() if k != "units"}}
+
+
 def _cells(read: dict, uni: dict, modelled: bool) -> dict:
     """One dict per SCORED Cell, keyed by the H3 HEX string - the same spelling
     cells.geojson keys on, because an H3 id is an int64 past 2^53 and JSON cannot carry
@@ -526,7 +574,7 @@ def payloads(read: dict, uni: dict, truth: dict, coastal: dict | None, winter: d
         "window": meta["window"], "staleness": stale, "budgets_s": dict(BUDGETS_S),
         "dim": meta["dim"], "winter": meta["winter"], "skew": meta["skew"],
         "model_tier": meta["model_tier"], "cells": cells, "units": flagged,
-    } | pack(coastal=coastal) | {
+    } | pack(coastal=_coastal(coastal)) | {
         "floodnet": pack(source=fn["source"], status=fn["status"], citation=fn["citation"],
                          caveats=fn["caveats"], rule=fn["rule"],
                          window_min=fn["window_min"], asof=fn["asof"],
@@ -543,7 +591,7 @@ def payloads(read: dict, uni: dict, truth: dict, coastal: dict | None, winter: d
                     error=mta.get("error"), chips=mta.get("chips") or [],
                     geojson=_mta_geojson(mta)),
     }
-    return {
+    return _prune({
         "flood.json": ungated,
         "flood-meta.json": meta | {"lineage": "ungated", "counts": {
             "cells": len(cells), "units_flagged": len(flagged),
@@ -557,7 +605,7 @@ def payloads(read: dict, uni: dict, truth: dict, coastal: dict | None, winter: d
                             for c in mta.get("chips") or [])},
             "status": mta["status"], "asof": mta["asof"],
             "budgets_s": dict(BUDGETS_S)},
-    }
+    })
 
 
 def _coops_newest(coastal: dict | None) -> datetime | None:
@@ -615,11 +663,11 @@ def log(root: Path, now: datetime, read: dict, full: bool, truth: dict | None) -
     day. The FULL unit-state vector only when the model tier recomputed (~24/day); the
     flagged subset every other cycle; a truth snapshot when it is handed one."""
     d = as_root(root) / LOG_DIR
-    path = d / f"{now:%Y-%m-%d}.ndjson"
+    path = d / f"{now:%Y-%m-%d}{LOG_SUFFIX}"
     if not path.exists():
         d.mkdir(parents=True, exist_ok=True)
-        cutoff = f"{now.date() - timedelta(days=LOG_KEEP_DAYS)}.ndjson"
-        for old in d.glob("*.ndjson"):
+        cutoff = f"{now.date() - timedelta(days=LOG_KEEP_DAYS)}{LOG_SUFFIX}"
+        for old in d.glob(f"*{LOG_SUFFIX}"):
             if old.name < cutoff:
                 old.unlink()
     units = [pack(asset_id=u["asset_id"], kind=u["kind"], cell=u["cell"], tier=u["tier"],
@@ -637,7 +685,7 @@ def log(root: Path, now: datetime, read: dict, full: bool, truth: dict | None) -
                      "floodnet_status": truth["floodnet"]["status"],
                      "mta_active": truth["mta"].get("active"),
                      "mta_status": truth["mta"]["status"]})
-    with path.open("a") as fh:
+    with gzip.open(path, "at") as fh:
         for row in rows:
             fh.write(json.dumps(row, default=str) + "\n")
 

@@ -390,6 +390,43 @@ def test_absent_is_never_null_anywhere_in_a_payload(ida, uni, det, art):
 
     for name in ("flood.json", "flood-meta.json", "flood-mta.json", "flood-mta-meta.json"):
         walk(docs[name], name)
+    # empty is NOT absent - "no sensor is reporting" and "no chip is open" are answers
+    assert docs["flood.json"]["floodnet"]["geojson"]["features"] == []
+    assert docs["flood-mta.json"]["mta"]["chips"] == []
+    assert docs["flood-mta-meta.json"]["counts"]["chips"] == 0
+
+
+def test_a_foreign_tier_with_its_own_nulls_is_pruned_too(ida, uni, det, art):
+    """Three members here are other modules' shapes and every one carries explicit Nones
+    by ITS convention: a CO-OPS chip's `reason` is None when nothing is wrong and its
+    `observed_ft` is None when the gauge is OUT. Packing this document key by key would
+    have missed them - the fixture path had `coastal` absent entirely, and it did."""
+    coastal = {"source": "noaa_coops", "asof": NOW.isoformat(), "stage": "nws_minor",
+               "chips": [{"station": "8518750", "state": "OUTAGE", "observed_ft": None,
+                          "obs_t": None, "reason": "no observation in the last hour",
+                          "next_high": None, "anomaly": {"anomaly_ft": None, "n": 0}}],
+               "recolor": {"gauges": ["8518750"], "units": None}}
+    _, docs = render(ida, uni, det, art, coastal=coastal)
+    blob = json.dumps(docs["flood.json"])
+    assert ": null" not in blob and "null," not in blob
+    chip = docs["flood.json"]["coastal"]["chips"][0]
+    assert chip["state"] == "OUTAGE" and "observed_ft" not in chip
+    assert chip["reason"], "the reason for the outage is DATA and must survive"
+
+
+def test_the_static_recolor_set_does_not_ride_in_a_thirty_second_payload(ida, uni, det, art):
+    """MEASURED: 1,072 rows / 212 KB during a real APPROACHING tide, in a `no-cache`
+    payload republished every two minutes - the largest member of the file, static, and
+    already carried per Cell as `surge_margin_ft` from gold/flood_exposure. The COUNTS
+    ship, so a page can still say how many Units a hot gauge covers."""
+    coastal = {"source": "noaa_coops", "asof": NOW.isoformat(), "stage": "nws_minor",
+               "chips": [], "recolor": {"gauges": ["8518750"], "n_units": 1072,
+                                        "n_no_margin": 77, "n_below_minor": 5,
+                                        "units": [{"asset_id": "bus:1"}] * 1072}}
+    _, docs = render(ida, uni, det, art, coastal=coastal)
+    r = docs["flood.json"]["coastal"]["recolor"]
+    assert "units" not in r and r["n_units"] == 1072 and r["gauges"] == ["8518750"]
+    assert "bus:1" not in json.dumps(docs["flood.json"])
 
 
 def test_every_floodnet_feature_carries_a_boolean_display(ida, uni, det, art):
@@ -508,20 +545,40 @@ def test_the_log_holds_the_full_vector_only_when_the_model_recomputed(tmp_path, 
     read, _ = render(ida, uni, det, art)
     fp.log(tmp_path, NOW, read, full=True, truth=None)
     fp.log(tmp_path, NOW, read, full=False, truth=None)
-    rows = [json.loads(l) for l in
-            (tmp_path / fp.LOG_DIR / f"{NOW:%Y-%m-%d}.ndjson").read_text().splitlines()]
+    rows = [json.loads(l) for l in _log_lines(tmp_path, NOW)]
     assert rows[0]["kind"] == "full" and rows[1]["kind"] == "flagged"
     assert len(rows[0]["units"]) > len(rows[1]["units"])
     assert all(u["tier"] != fd.NONE for u in rows[1]["units"])
     assert all("eta" not in u for r in rows for u in r["units"])
 
 
+def _log_lines(root, now):
+    import gzip
+    with gzip.open(root / fp.LOG_DIR / f"{now:%Y-%m-%d}{fp.LOG_SUFFIX}", "rt") as fh:
+        return fh.read().splitlines()
+
+
+def test_the_log_is_gzipped_because_the_raw_vector_blows_the_byte_budget(tmp_path, ida,
+                                                                        uni, det, art):
+    """MEASURED on the real universe: one full vector is 15,106 rows = 1,651,324 B raw, so
+    the ~24 recomputes a day the spec describes are 39.6 MB/day and 1.2 GB across the
+    30-day prune, against a budget of "~3 MB/day, <= ~100 MB". Gzipped it is 3.2 MB/day.
+    Appending gzip members keeps the file appendable and readable in one pass."""
+    read, _ = render(ida, uni, det, art)
+    for _ in range(3):
+        fp.log(tmp_path, NOW, read, full=True, truth=None)
+    path = tmp_path / fp.LOG_DIR / f"{NOW:%Y-%m-%d}{fp.LOG_SUFFIX}"
+    assert path.is_file() and path.read_bytes()[:2] == b"\x1f\x8b"
+    assert len(_log_lines(tmp_path, NOW)) == 3, "appended members read back as one stream"
+    assert path.stat().st_size < len("".join(_log_lines(tmp_path, NOW)))
+
+
 def test_the_log_prunes_on_the_first_write_of_a_day(tmp_path, ida, uni, det, art):
     read, _ = render(ida, uni, det, art)
     d = tmp_path / fp.LOG_DIR
     d.mkdir(parents=True)
-    old = d / f"{(NOW - timedelta(days=fp.LOG_KEEP_DAYS + 1)).date()}.ndjson"
-    keep = d / f"{(NOW - timedelta(days=2)).date()}.ndjson"
+    old = d / f"{(NOW - timedelta(days=fp.LOG_KEEP_DAYS + 1)).date()}{fp.LOG_SUFFIX}"
+    keep = d / f"{(NOW - timedelta(days=2)).date()}{fp.LOG_SUFFIX}"
     old.write_text("{}\n")
     keep.write_text("{}\n")
     fp.log(tmp_path, NOW, read, full=False, truth=None)
