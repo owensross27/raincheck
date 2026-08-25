@@ -445,8 +445,14 @@ def pooled(per_event: list[dict], kind: str) -> dict:
         d["far"] = d["fp"] / d["flagged"] if d["flagged"] else None
         den = d["flagged"] + out["positives"] - d["tp"]
         d["csi"] = d["tp"] / den if den else None
+        d["precision"] = d["tp"] / d["flagged"] if d["flagged"] else None
         d["lift_over_base_rate"] = (d["csi"] / out["base_rate"]
                                     if d["csi"] and out["base_rate"] else None)
+        # PRECISION LIFT, not raw precision: at a 0.5% base rate a raw precision reads as a
+        # disaster whatever the model does, and the only honest comparison across two
+        # universes divides each by its own base rate (flood 18).
+        d["precision_lift"] = (d["precision"] / out["base_rate"]
+                               if d["precision"] and out["base_rate"] else None)
     return out
 
 
@@ -535,6 +541,8 @@ def build(root: Path | str | None = None, only: str | None = None,
         "excluded": excluded(per_event, walk_only),
         "deltas": pooled_deltas(per_event),
         "flag_volume": {k: pooled(per_event, k) for k in ("cell", "bus_stop", "complex")},
+        "concentration": [concentration(per_event, fits_reference()["per_event"], k, r)
+                          for k, r in (("cell", "cell"), ("bus_stop", "point"))],
         "point_universes_note": POINT_NOTE,
         "no_complex_skill_claim": det["display"]["no_complex_skill_claim"],
         "flood_09": fits_reference(),
@@ -652,6 +660,57 @@ def pooled_deltas(per_event: list[dict]) -> dict:
     return out
 
 
+def concentration(per_event: list[dict], f9: dict, kind: str, role: str) -> dict:
+    """WHERE THE ALERT BUDGET GOES, which a pooled row cannot show.
+
+    The provisional cut is a WITHIN-KIND RANK of the current vector, so it spends the same
+    ~10% of the city on every event that clears the two gates — it has no absolute anchor
+    that lets a big storm buy more alarms than a small one. flood 09's operating point is a
+    single global cut and does the opposite. This is that difference, measured over the top
+    and bottom QUARTILE by positives; a top-and-bottom-ten split leaves the small bucket
+    degenerate (0 flags, 0 positives) and shows nothing. Every bucket carries its own alert
+    rate, because POD without it is partly a statement about how often the thing alarms.
+    """
+    by_pos = sorted(per_event, key=lambda e: -e["skill"][kind]["positives"])
+    q = max(1, len(by_pos) // 4)
+    off = {r["event_id"]: r for r in f9[role]}
+
+    def roll(rows):
+        d = {"events": len(rows),
+             "rows": sum(e["skill"][kind]["rows"] for e in rows),
+             "positives": sum(e["skill"][kind]["positives"] for e in rows),
+             "flagged": sum(e["skill"][kind][fd.ELEVATED]["flagged"] for e in rows),
+             "tp": sum(e["skill"][kind][fd.ELEVATED]["tp"] for e in rows),
+             "fp": sum(e["skill"][kind][fd.ELEVATED]["fp"] for e in rows),
+             "flood_09_positives": sum(off[e["event_id"]]["positives"] for e in rows),
+             "flood_09_tp": sum(off[e["event_id"]]["tp"] for e in rows),
+             "flood_09_fp": sum(off[e["event_id"]]["fp"] for e in rows)}
+        d["alert_rate"] = d["flagged"] / d["rows"] if d["rows"] else None
+        d["pod"] = d["tp"] / d["positives"] if d["positives"] else None
+        d["flood_09_pod"] = (d["flood_09_tp"] / d["flood_09_positives"]
+                             if d["flood_09_positives"] else None)
+        return d
+
+    return {"grain": kind, "compared_with": role, "quartile_events": q,
+            "top_quartile_by_positives": roll(by_pos[:q]),
+            "bottom_quartile_by_positives": roll(by_pos[-q:]),
+            "reading": ("a within-kind rank has no absolute anchor, so it spends the same "
+                        "share of the city on a storm that floods nothing as on one that "
+                        "floods everywhere; a single global cut spends where the rain is")}
+
+
+def derived(d: dict) -> dict:
+    """The blocks that are pure functions of `per_event` — recomputed by `--render-only`
+    so a changed summary never needs a 13-minute replay to reappear in the asset."""
+    return d | {
+        "flag_volume": {k: pooled(d["per_event"], k)
+                        for k in ("cell", "bus_stop", "complex")},
+        "deltas": pooled_deltas(d["per_event"]),
+        "concentration": [concentration(d["per_event"], d["flood_09"]["per_event"], k, r)
+                          for k, r in (("cell", "cell"), ("bus_stop", "point"))],
+    }
+
+
 # ---- the rendered table -----------------------------------------------------------------
 
 def pct(x: float | None, n: int = 2) -> str:
@@ -712,6 +771,24 @@ def render(d: dict) -> str:
                  f"| {pct(r['alert_rate'], 2)} | {r['tp']:,} | {r['fp']:,} | "
                  f"{num(r['pod'])} | {num(r['far'])} | {num(r['csi'])} | "
                  f"{num(r['lift_over_base_rate'], 2)} |")
+    L += ["", "Precision (TP / flagged) and its lift over the universe's own base rate:", ""]
+    for kind in ("cell", "bus_stop", "complex"):
+        p = d["flag_volume"][kind]
+        L.append(f"- `{kind}` base {pct(p['base_rate'], 3)} — " + " · ".join(
+            f"{t} precision {pct(p[t]['precision'], 2)} ({num(p[t]['precision_lift'], 2)}x)"
+            for t in (fd.ELEVATED, fd.HIGH)))
+    for c in d.get("concentration", []):
+        b, w = c["top_quartile_by_positives"], c["bottom_quartile_by_positives"]
+        L += ["", f"**Where the alert budget goes — `{c['grain']}` grain, ELEVATED-and-"
+                  f"above, vs flood 09's `{c['compared_with']}` (quartiles of "
+                  f"{c['quartile_events']} events each).**",
+              f"- TOP quartile by positives: this cut alarms at {pct(b['alert_rate'])} for "
+              f"POD {num(b['pod'], 3)}; flood 09 reaches POD {num(b['flood_09_pod'], 3)} "
+              f"there. {b['fp']:,} FP against flood 09's {b['flood_09_fp']:,}.",
+              f"- BOTTOM quartile: {w['fp']:,} false alarms for {w['tp']} hits at "
+              f"{pct(w['alert_rate'])}, against flood 09's {w['flood_09_fp']:,} for "
+              f"{w['flood_09_tp']}.",
+              f"- {c['reading']}."]
     L += ["", f"{d['point_universes_note']}.", "",
           f"Complex rows are VOLUMES, never skill: {d['no_complex_skill_claim']}", "",
           "## Per-event POD and raw FP, beside flood 09's own per-event table", "",
@@ -768,10 +845,12 @@ def main() -> None:
     ap.add_argument("--only", help="replay one event_id")
     ap.add_argument("--limit", type=int, help="replay the first N events (smoke run)")
     ap.add_argument("--render-only", action="store_true",
-                    help="re-render the .md from the committed .json without replaying")
+                    help="recompute the derived summary blocks from the committed "
+                         "per-event rows and re-render, without replaying")
     a = ap.parse_args()
     if a.render_only:
-        d = json.loads(OUT.read_text())
+        d = derived(json.loads(OUT.read_text()))
+        OUT.write_text(json.dumps(d, indent=1, sort_keys=True, default=str) + "\n")
         DOC.write_text(render(d))
     else:
         d = build(only=a.only, limit=a.limit)
