@@ -16,9 +16,10 @@ the same day is a no-op.
   coldpush   push Bronze, including the hours just filled, to R2 (ticket 18)
   coldcheck  soft - see coldcheck() below
   events     every closed service day of the last 14 that has no Silver partition and
-             does hold all the Bronze VP it is built from (Legs + Passages), then gold
-             for the months those days touch; a day still short of Bronze is deferred
-             out loud rather than frozen short
+             does hold all the Bronze VP it is built from (Legs + Passages); a day still
+             short of Bronze is deferred out loud rather than frozen short
+  gold       the months those days touch, rolled once behind them - the days that landed
+             only, which is what keeps a failed day's month out of Gold (ticket 06)
   precip     the current MRMS month rebuilt from Bronze, unlanded Pass2 hours fetched on
              the way (ticket 11); on the 1st, the month just ended as well - its tail
              publishes after that month's last run
@@ -32,6 +33,9 @@ and the .env credentials.
 Run: make daily   (python -m raincheck.daily)
 One stage: python -m raincheck.daily <stage>   - the form every task pod of the
 nightly DAG runs (ticket 05), where Airflow owns the ordering this driver owns here.
+One item: python -m raincheck.daily <stage> <item>   - one Service date, one feed kind:
+the form a runtime that gives every item its own pod runs (ticket 06). The reduce
+behind those pods takes the whole list the same way: daily gold '["2026-08-20", ...]'.
 """
 import json
 import subprocess
@@ -71,17 +75,29 @@ class Stage(NamedTuple):
                                # so a module rc of 1 arrives as 2 and INCONCLUSIVE stops
                                # being distinguishable from broken (orch 03, measured both
                                # ways). main() below never reads this - it is already in
-                               # process, and its own any-non-zero rule is unchanged
+                               # process, and its own any-non-zero rule is unchanged.
+                               # A MAPPED stage takes one item of its axis as this form's
+                               # trailing argument (ticket 06)
+    reduces: str | None = None # the axis this stage rolls up ONCE, behind the pods that
+                               # mapped it. A reduce is never itself mapped: a runtime that
+                               # gives every item its own pod hands this stage the whole
+                               # list those pods were expanded from, as its own trailing
+                               # argument, and the disk says which of them landed (06)
 
 
 STAGES = (
-    Stage("gapfill", "make:gapfill", "transport", fanout="kind"),
+    Stage("gapfill", "make:gapfill", "transport", fanout="kind", argv=("gapfill", "fill")),
     Stage("gapverify", "make:gapverify", "gate", fanout="kind", argv=("gapfill", "verify")),
     # ticket 20: strictly after the fill
     Stage("gapcheck", "make:gapcheck", "gate", argv=("gapfill", "check")),
     Stage("coldpush", "make:coldpush", "transport"),
     Stage("coldcheck", "py:raincheck.daily:coldcheck", "gate", soft=True, argv=("daily", "coldcheck")),
     Stage("events", "py:raincheck.daily:build", "transport", fanout="service_date", argv=("daily", "events")),
+    # ticket 06: the reduce that used to be the tail of build(). It is a stage of its own the
+    # moment `events` can be one pod per Service date, and it is never mapped - one session
+    # rolling N months beats N sessions rolling one, and the days it rolls are not its own.
+    Stage("gold", "py:raincheck.daily:gold", "transport", argv=("daily", "gold"),
+          reduces="service_date"),
     Stage("precip", "py:raincheck.daily:precip", "transport", fanout="month", argv=("daily", "precip")),
     Stage("prune", "py:raincheck.daily:prune_live", "transport", argv=("daily", "prune")),
 )
@@ -120,6 +136,12 @@ def unheld(root: Path, day: str) -> list[str]:
                   if int(h) < TAIL_H and h not in gapfill.DEAD.get(("vp", nxt), ())]
 
 
+def silver(root: Path, day: str) -> bool:
+    """Both Silver partitions present - what makes a service day BUILT rather than a gap.
+    Read forwards by gaps() (skip it) and backwards by gold() (roll its month)."""
+    return all((root / "silver" / t / f"service_date={day}" / PART).exists() for t in SILVER)
+
+
 def gaps(root: Path, closed: date) -> list[str]:
     """The WINDOW_DAYS closed service days ending at `closed` that have Bronze VP, are
     missing a Silver partition, and hold every Bronze hour they are built from.
@@ -141,7 +163,7 @@ def gaps(root: Path, closed: date) -> list[str]:
             day = (closed - timedelta(days=n)).isoformat()
             if not any((root / "archive" / "vp" / f"date={day}").glob("hour=*/*.parquet")):
                 continue  # before capture, or a day we never saw at all - not ours to build
-            if all((root / "silver" / t / f"service_date={day}" / PART).exists() for t in SILVER):
+            if silver(root, day):
                 continue
             missing = unheld(root, day)
             if missing:
@@ -157,34 +179,61 @@ def months(days: list[str]) -> list[str]:
     return sorted({d[:7] for d in days})
 
 
-def build(root: Path, closed: date) -> None:
-    """Build each gap day and roll the months those days touch. One session for the lot,
-    and no session at all when there is nothing to build."""
-    days = gaps(root, closed)
-    print(f"daily: {len(days)} service day(s) to build: {', '.join(days) or '-'}", flush=True)
-    if not days:
+def build(root: Path, closed: date, days: list[str], service_date: str | None = None) -> None:
+    """Build the gap days. One session for the lot, and no session at all when there is
+    nothing to build.
+
+    `service_date` is ONE day: the form a runtime that gives every day its own pod runs
+    (ticket 06), and the reason the monthly rollup is gold() below rather than the tail of
+    this function - N pods cannot share the reduce that used to sit inside the one that
+    looped. `days` is the run's own record of what it set out to build; gold() rolls the
+    months of the ones that landed, and in a mapped runtime the graph hands it the same
+    list instead of this one."""
+    todo = [service_date] if service_date else gaps(root, closed)
+    print(f"daily: {len(todo)} service day(s) to build: {', '.join(todo) or '-'}", flush=True)
+    if not todo:
         return
-    from raincheck import events, gold
+    days.extend(todo)
+    from raincheck import events
     from raincheck.spark import session
 
     spark = session()
-    built, failed = [], []
+    failed = []
     try:
-        for day in days:
+        for day in todo:
             try:
                 events.leg_hours(root, spark, day)
                 events.events(root, spark, day)
-                built.append(day)
             except (Exception, SystemExit) as e:  # one poisoned day must not starve the newer ones
                 print(f"daily: events {day} FAILED: {e}", flush=True)
                 failed.append(day)
-        for month in months(built):
-            gold.speed(root, spark, month)
-            gold.route(root, spark, month)
     finally:
-        spark.stop()  # the precip stages that follow start their own JVM
+        spark.stop()  # gold and the precip stages that follow start their own JVM
     if failed:
         raise SystemExit(f"events failed for {', '.join(failed)}")
+
+
+def gold(root: Path, days: list[str]) -> None:
+    """Roll the months the days that actually BUILT touch - one session, once, behind them.
+
+    A failed day cannot pull its month into Gold, and the disk is what says so: silver() is
+    the same predicate gaps() defers on, read after the fact. That is why both runtimes hand
+    this the days they set out to build rather than a verdict - in a mapped one the days are
+    pods, whose task states carry a map index and no Service date at all."""
+    rolled = months([d for d in days if silver(root, d)])
+    print(f"daily: gold rolls {len(rolled)} month(s): {', '.join(rolled) or '-'}", flush=True)
+    if not rolled:
+        return
+    from raincheck import gold as tables
+    from raincheck.spark import session
+
+    spark = session()
+    try:
+        for month in rolled:
+            tables.speed(root, spark, month)
+            tables.route(root, spark, month)
+    finally:
+        spark.stop()  # the precip stages that follow start their own JVM
 
 
 def precip_months(today: date) -> list[str]:
@@ -239,12 +288,41 @@ def resolve(ref: str) -> Callable:
     return getattr(import_module(mod), attr)
 
 
+def axis_items(axis: str, root: Path, now: datetime) -> list[str]:
+    """The items ONE declared fanout axis expands to. The single home for that question:
+    `make daily` expands precip's months from here, and the DAG's plan pod (ticket 06)
+    prints these for Airflow to hand one pod each."""
+    # Imported per axis and not up front: this runs on the way into EVERY `make daily`, and
+    # gapfill pulls pyarrow and fsspec behind it for a list of five strings.
+    return {"kind": lambda: list(import_module("raincheck.gapfill").KINDS),
+            "service_date": lambda: gaps(root, closed_through(now)),
+            "month": lambda: precip_months(now.date())}[axis]()
+
+
+def plan(axis: str, out: str | None = None) -> None:
+    """The items a MAPPING runtime expands one stage's axis over, as JSON.
+
+    Not a stage: it is the answer to "how many pods", and only a pod can answer it - the
+    scan is a read of the data root, which no scheduler has. Airflow can expand a task only
+    over an XCom, and a pod's only XCom is the file the operator's sidecar reads back, so
+    the graph hands this the path to write and takes the list from there (ticket 06)."""
+    items = axis_items(axis, data_root(), datetime.now(timezone.utc))
+    print(f"daily: plan {axis} - {len(items)} item(s): {', '.join(items) or '-'}", flush=True)
+    if out:
+        Path(out).write_text(json.dumps(items))
+    else:
+        print(json.dumps(items), flush=True)
+
+
 def call(s: Stage, ctx: dict):
     """Run one stage's entrypoint, handing it only the ctx values its own signature names.
     That binding is why the runtime below dispatches without naming a single stage."""
     kind, _, ref = s.entrypoint.partition(":")
     if kind == "make":
-        return run(ref)
+        # a make target takes one axis item as the axis's OWN make variable; the module
+        # form (argv, above) takes it as a trailing argument
+        item = ctx.get(s.fanout) if s.fanout else None
+        return run(ref, **({s.fanout.upper(): item} if item else {}))
     fn = resolve(ref)
     return fn(**{p: ctx[p] for p in signature(fn).parameters})
 
@@ -313,10 +391,24 @@ def main(argv: list[str] | None = None) -> None:
     args = list(argv or [])
     if args and args[0] == "report":       # not a stage: the DAG's ending, from Airflow
         return report(args[1])
+    if args and args[0] == "plan":         # nor is this: how many pods one axis is worth
+        return plan(*args[1:])
     root, now = data_root(), datetime.now(timezone.utc)
-    ctx = {"root": root, "closed": closed_through(now)}
+    # Every declared axis starts unbound - steps() binds the ones THIS runtime supplies, and
+    # a stage whose axis nobody supplied fans out inside itself exactly as it always has.
+    ctx = {"root": root, "closed": closed_through(now), "days": [],
+           **{s.fanout: None for s in STAGES if s.fanout}}
     # MRMS months are UTC, unlike the service day above
-    axes = {"month": precip_months(now.date())}
+    axes = {"month": axis_items("month", root, now)}
+    if len(args) > 1:
+        # A runtime that gives a stage a container of its own hands it its own share of the
+        # work: ONE item of the axis it maps over, or - for the reduce standing behind those
+        # containers - the whole list they were expanded from.
+        one = next((s for s in STAGES if s.name == args[0]), None)
+        if one and one.fanout:
+            axes[one.fanout] = [args[1]]
+        elif one and one.reduces:
+            ctx["days"] = json.loads(args[1])
     todo = steps(ctx, axes)
     if args:
         todo = [s for s in todo if s[0] == args[0] or s[0].startswith(f"{args[0]} ")]
