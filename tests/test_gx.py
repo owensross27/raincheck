@@ -883,19 +883,28 @@ def test_a_feed_whose_listing_failed_is_held_out_and_the_short_batch_stays_green
 
 
 @needs_gx
-def test_a_judged_feed_that_counted_no_hours_fails_rather_than_passing_quietly(tmp_path):
+def test_a_judged_feed_that_measured_nothing_fails_rather_than_passing_quietly(tmp_path):
     """NULL is the could-not-check convention and those rows are not in this frame, so a row
-    claiming to have been judged while carrying no `hours_seen` is a producer that started
-    publishing a measurement it never took. The not-null is the only thing in front of it:
-    an in-set expectation IGNORES nulls and succeeds without them, which is why every count
-    claim in this suite is PAIRED with one."""
-    rows = [backfill_row(f, checks.OK) for f in gx.BACKFILL.FEEDS]
-    rows[0] = backfill_row(gx.BACKFILL.FEEDS[0], checks.OK, hours_seen=None)  # only this one
-    backfill_batch(tmp_path, rows)
-    results, _ = gx.run(tmp_path, (declared_suite(CENSUS),))
-    assert results[0].outcome == checks.FAIL
-    assert results[0].failed == (gx.BACKFILL.FEEDS[0],)
-    assert not results[0].inconclusive     # a vanished measure is not a check that did not run
+    claiming to have been judged while carrying no count is a producer that started
+    publishing a measurement it never took.
+
+    THE NOT-NULL IS THE ONLY THING IN FRONT OF IT, which is why every claim in this suite is
+    PAIRED with one: an in-set expectation IGNORES nulls and succeeds without them (orch 08
+    measured the same for `between`), so `zero_byte in [0]` is perfectly happy with a
+    `zero_byte` that vanished. Every NULL-able measure is driven here rather than just the
+    first: the mutation probe found the `zero_byte` and `stale_dead` not-nulls surviving
+    deletion while only `hours_seen` was exercised. One root per column, so the batches
+    cannot fold into each other."""
+    for column in ("hours_seen", "zero_byte", "stale_dead"):
+        root = tmp_path / column
+        rows = [backfill_row(f, checks.OK) for f in gx.BACKFILL.FEEDS]
+        rows[0] = backfill_row(gx.BACKFILL.FEEDS[0], checks.OK, **{column: None})
+        backfill_batch(root, rows)
+        results, _ = gx.run(root, (declared_suite(CENSUS),))
+        assert results[0].outcome == checks.FAIL, column
+        assert results[0].failed == (gx.BACKFILL.FEEDS[0],), column
+        # a vanished measure is not a check that did not run
+        assert not results[0].inconclusive, column
 
 
 @needs_gx
