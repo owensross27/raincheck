@@ -589,3 +589,121 @@ def test_the_snapshot_is_read_through_features_own_sha_pinned_path():
     assert features.stormwater_zip(r).name == features.SW_ZIP
     src = Path(sx.__file__).read_text()
     assert src.count("stormwater_zip(") == 1, "the digest is checked in exactly one place"
+
+
+# --- what the first mutation round found: six claims the fixtures could not discriminate --
+
+
+def plant(root: Path, rows: list[tuple]) -> Path:
+    """Write the table with the rows in EXACTLY the physical order given, and no ORDER BY.
+
+    `sx.write` sorts, so a table built through it can never tell "the reader ordered this"
+    from "the file happened to be in that order" - the same reason `tests/test_export.py`
+    pins its property ORDER separately from byte-identity. A scrambled file is the only
+    fixture that can.
+    """
+    import duckdb
+
+    out = root / "silver" / sx.TABLE / "part-00000.parquet"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    con = duckdb.connect()
+    con.execute("INSTALL spatial; LOAD spatial;")
+    con.execute("CREATE TABLE t (scenario VARCHAR, horizon VARCHAR, rain_in_hr DOUBLE, "
+                "category VARCHAR, poly BIGINT, wkb BLOB, src_asof DATE, zip_sha256 VARCHAR)")
+    con.executemany("INSERT INTO t VALUES (?,?,?,?,?,?,?,?)", rows)
+    con.execute(f"""COPY (SELECT scenario, horizon, rain_in_hr, category, poly,
+                                 ST_GeomFromWKB(wkb) AS geometry, src_asof, zip_sha256
+                          FROM t) TO '{out}' (FORMAT PARQUET)""")
+    con.close()
+    return out
+
+
+def row(category: str, poly: int, geom, scenario: str = "moderate", horizon: str = sx.CURRENT):
+    return (scenario, horizon, 2.13, category, poly, shapely.to_wkb(geom),
+            date(2026, 8, 23), features.SW_ZIP_SHA256)
+
+
+def square(lon: float, lat: float, w: float = 0.002):
+    return shapely.box(lon, lat, lon + w, lat + w)
+
+
+HOURGLASS = shapely.Polygon([(-73.99, 40.75), (-73.988, 40.75), (-73.989, 40.751),
+                             (-73.988, 40.752), (-73.99, 40.752), (-73.989, 40.751)])
+SUB_METRE = shapely.box(-73.97, 40.75, -73.97 + 2e-6, 40.75 + 2e-6)
+
+
+def test_a_polygon_that_precision_snapping_splits_still_exports_as_a_multipolygon(tmp_path):
+    """MEASURED: `ST_ReducePrecision` splits a polygon whose waist is narrower than the 5 dp
+    grid, and `ST_Collect` over a mixed Polygon/MultiPolygon list then returns a
+    GEOMETRYCOLLECTION, which MapLibre does not draw. Every square fixture above snaps to a
+    plain Polygon, so none of them can see the dump go missing - this hourglass can."""
+    import duckdb
+
+    con = duckdb.connect()
+    con.execute("INSTALL spatial; LOAD spatial;")
+    kind = con.execute("SELECT ST_GeometryType(ST_ReducePrecision(ST_GeomFromWKB(?), 0.00001))",
+                       [shapely.to_wkb(HOURGLASS)]).fetchone()[0]
+    con.close()
+    assert kind == "MULTIPOLYGON", "the fixture must actually split, or this proves nothing"
+
+    plant(tmp_path, [row("deep", 0, square(-73.98, 40.76)), row("deep", 1, HOURGLASS)])
+    (path,) = sx.export(tmp_path, tmp_path / "geo").values()
+    (f,) = json.loads(path.read_text())["features"]
+    assert f["geometry"]["type"] == "MultiPolygon"
+    assert f["properties"]["n_polygons"] == len(f["geometry"]["coordinates"]) == 3
+
+
+def test_a_polygon_that_collapses_at_five_dp_is_dropped_and_never_counted(tmp_path):
+    """A polygon ~0.2 m across reduces to POLYGON EMPTY. Emitting it would put an empty
+    member in the MultiPolygon and overstate `n_polygons`; the table keeps the row."""
+    plant(tmp_path, [row("deep", 0, square(-73.98, 40.76)), row("deep", 1, SUB_METRE)])
+    (path,) = sx.export(tmp_path, tmp_path / "geo").values()
+    (f,) = json.loads(path.read_text())["features"]
+    assert f["properties"]["n_polygons"] == len(f["geometry"]["coordinates"]) == 1
+    assert all(ring for poly in f["geometry"]["coordinates"] for ring in poly)
+
+
+def test_the_exported_polygons_follow_poly_and_not_the_files_own_order(tmp_path):
+    """Two runs in one process pick the same arbitrary order, so byte-identity alone leaves
+    a dropped ORDER BY green while a rebuild on another machine comes out scrambled."""
+    lons = [-73.99, -73.97, -73.95]
+    plant(tmp_path, [row("deep", i, square(lon, 40.76))
+                     for i, lon in reversed(list(enumerate(lons)))])   # file order REVERSED
+    (path,) = sx.export(tmp_path, tmp_path / "geo").values()
+    (f,) = json.loads(path.read_text())["features"]
+    west = [min(x for x, _ in poly[0]) for poly in f["geometry"]["coordinates"]]
+    assert west == sorted(west) == pytest.approx(lons)
+
+
+def test_the_exported_features_are_ordered_by_category_not_by_the_files_order(tmp_path):
+    plant(tmp_path, [row(c, 0, square(-73.99 + i * 0.01, 40.76))
+                     for i, c in enumerate(["nuisance", sx.MASK, "deep"])])
+    (path,) = sx.export(tmp_path, tmp_path / "geo").values()
+    got = [f["properties"]["category"] for f in json.loads(path.read_text())["features"]]
+    assert got == sorted(got) == ["deep", sx.MASK, "nuisance"]
+
+
+def test_write_puts_the_table_in_a_total_order_whatever_order_it_is_handed(tmp_path):
+    """The table's own order is what `poly` ordering above is read against, and it is what
+    makes the parquet diffable across machines."""
+    handed = [row("nuisance", 1, square(-73.95, 40.76)),
+              row("deep", 0, square(-73.99, 40.76), horizon="2050"),
+              row("nuisance", 0, square(-73.97, 40.76)),
+              row("deep", 0, square(-73.93, 40.76))]
+    sx.write(tmp_path, handed)
+    t = pq.read_table(tmp_path / "silver" / sx.TABLE).to_pylist()
+    keys = [(r["scenario"], r["horizon"], r["category"], r["poly"]) for r in t]
+    assert keys == sorted(keys) != [(r[0], r[1], r[3], r[4]) for r in handed]
+
+
+def test_a_category_row_with_no_geometry_is_a_failure(tmp_path):
+    """`census` reads a table off DISK, so it has to answer for one this module did not
+    write. A category that is present with nothing to draw is a real gap, not an OK."""
+    plant(tmp_path, [row("deep", 0, square(-73.98, 40.76)),
+                     row("nuisance", 0, shapely.Polygon())])
+    rows = {r.subject: r for r in sx.census(tmp_path, None, ())}
+    assert rows["moderate current deep"].outcome == checks.OK
+    empty = rows["moderate current nuisance"]
+    assert empty.outcome == checks.FAIL and empty.measures["vertices_kept"] == 0
+    assert "no geometry" in empty.detail
+    assert checks.rc(list(rows.values())) == 1
