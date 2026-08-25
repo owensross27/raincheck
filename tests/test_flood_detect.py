@@ -234,6 +234,15 @@ def test_holes_is_a_state_distinct_from_the_walk_and_from_staleness(ida):
     assert fd.staleness(ida["we"], ida["we"])["state"] == fd.FRESH
 
 
+def test_a_just_opened_window_is_complete_and_not_holed(ida):
+    """Nothing is missing when nothing is expected. A Window opens at 21:00 NY, so a
+    coverage that falls to 0.0 with no elapsed hours paints the degrade state nightly."""
+    for k in (0, 1, 2):
+        f = fd.window_features(ida["hours"], ida["ws"], ida["ws"] + timedelta(hours=k))
+        assert f["state"] == fd.OK and f["coverage"] == 1.0, k
+    assert fd.window_features([], ida["ws"], ida["ws"])["state"] == fd.OK
+
+
 def test_a_null_hour_counts_as_missing_and_never_as_zero(ida):
     cell = next(iter(ida["mx"]))
     mid = ida["ws"] + timedelta(hours=10)
@@ -690,6 +699,23 @@ def test_the_staleness_budgets_are_read_from_the_modules_that_fetch(det):
     assert b["coops_min"] == fl.OBS_STALE_MIN
     assert b["floodnet_min"] == ftr.MAX_AGE_MIN
     assert det["throttles"]["fetch_timeout_s"] == fl.TIMEOUT
+
+
+def test_the_budgets_really_are_derived_and_not_hand_typed(monkeypatch):
+    """The equality test above compares the artifact to the module it was built from, so it
+    passes whether the value is derived or hard-coded at the same number. This moves the
+    SOURCE and asserts the artifact follows — the only form that can catch the decoupling."""
+    monkeypatch.setattr(fl, "KNYC_STALE_MIN", 137)
+    monkeypatch.setattr(fl, "OBS_STALE_MIN", 41)
+    monkeypatch.setattr(ftr, "MAX_AGE_MIN", 7)
+    monkeypatch.setattr(fl, "NWS_OBS", "https://example.invalid/moved")
+    a = fd.artifact()
+    assert a["staleness_budgets"]["nws_knyc_obs_min"] == 137
+    assert a["staleness_budgets"]["coops_min"] == 41
+    assert a["staleness_budgets"]["floodnet_min"] == 7
+    assert a["query_strings"]["nws_knyc_obs"] == "https://example.invalid/moved"
+    assert a["detector_version"] != fd.constants()["detector_version"], \
+        "a moved budget is a moved decision and must move the digest"
 
 
 def test_the_settled_nws_budget_is_two_knyc_report_intervals_and_not_fifteen_minutes(det):
