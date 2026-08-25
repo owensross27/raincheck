@@ -10,7 +10,8 @@ lives OUTSIDE the cluster, so it is not cluster ingress and draws no security-gr
 
 The bucket IS the `web/` tree, so the page's relative paths work unchanged:
 
-    index.html · app.js · app.css · vendor/*        deploy-time      family `site`
+    index.html · six .js modules · app.css ·
+      vendor/*                                    deploy-time      family `site`
     files/cells.geojson · headline · zones ·
       files/index.json                             per build        family `insight`
     files/live.geojson · files/meta.json            30 s             family `live`   GATED
@@ -150,8 +151,15 @@ FAMILIES: dict[str, Family] = {
     "site": Family(
         cadence="deploy-time", writer="the operator, after `make vendor`",
         src=lambda: WEB, prefix="",
-        files=("index.html", "app.js", "app.css",
-               "vendor/maplibre-gl.js", "vendor/maplibre-gl.css"),
+        # The page is SIX ES modules with `app.js` as the entry (frontend2 01), and every
+        # one of them is a key here: the order below is LOAD order, and it is also the
+        # order `tests/page.py` concatenates the `.js` keys in to read the page as one
+        # text. Adding a module to the page means adding it HERE, which is what puts it
+        # under the page's own rules - a module the family does not name is a module no
+        # test can see. Adding a key is additive under contract.PROMISE[1]: no bump.
+        files=("index.html",
+               "layers.js", "freshness.js", "panel.js", "insight.js", "live.js", "app.js",
+               "app.css", "vendor/maplibre-gl.js", "vendor/maplibre-gl.css"),
         cache=RARE_CACHE),
 }
 

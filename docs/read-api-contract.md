@@ -31,7 +31,7 @@ cadences, so a sync would publish a gated payload and republish a stale one.
 
 | family | keys | cadence | Cache-Control | notes |
 |---|---|---|---|---|
-| `site` | `index.html`, `app.js`, `app.css`, `vendor/maplibre-gl.js`, `vendor/maplibre-gl.css` | deploy-time | `public, max-age=86400` | the page itself; MapLibre is version-pinned |
+| `site` | `index.html`, `layers.js`, `freshness.js`, `panel.js`, `insight.js`, `live.js`, `app.js`, `app.css`, `vendor/maplibre-gl.js`, `vendor/maplibre-gl.css` | deploy-time | `public, max-age=86400` | the page itself — six ES modules, `app.js` the entry, no build step; MapLibre is version-pinned |
 | `insight` | `files/cells.geojson`, `files/headline.json`, `files/zones.geojson`, `files/index.json` | per build | `public, max-age=300` | all four or none |
 | `live` | `files/live.geojson`, `files/meta.json` | 30 s | `no-cache` | **GATED, dark** — see below |
 | `history` | `files/history/**` | per spine rebuild | `public, max-age=300` | one file per asset |
@@ -127,6 +127,12 @@ changing its content type breaks that subset relation and the test demands the b
 working, so it does not bump. That asymmetry is why the promise is a subset check rather
 than a digest — a digest would move on every additive change, and an integer that moves
 for reasons no consumer can see teaches consumers to ignore it.
+
+Worked example, 2026-08-25: `web/app.js` was split into six ES modules and the five new
+modules became five new `site` keys. Every key contract 1 promised is still rendered, so
+the subset held and the integer did **not** move — which is the right answer, because no
+consumer binds to the page's internal file layout. A digest over the surface would have
+bumped for it.
 
 **The named limit, stated rather than papered over.** The integer covers the DISCOVERABLE
 SURFACE: which keys exist, in which family, with which content type. It does **not**

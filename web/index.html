@@ -105,7 +105,9 @@
 
 <div id="tip" role="tooltip"></div>
 
+<!-- the vendored MapLibre UMD stays a CLASSIC tag and a global; the page's own code
+     is ONE ES-module entry (frontend2 01: no build step, no bundler, six modules) -->
 <script src="vendor/maplibre-gl.js"></script>
-<script src="app.js"></script>
+<script type="module" src="app.js"></script>
 </body>
 </html>
