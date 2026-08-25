@@ -9,16 +9,16 @@ at Bronze would publish feed rows to a public host.
 
 **Blocked by:** 02 (check-result rows), 05 (the nightly DAG).
 
-**Status:** ready-for-agent
+**Status:** ✅ DONE 2026-08-25 (branch `orch08-gx-foundation`) — see the close-out at the bottom
 
-- [ ] Great Expectations installs as an optional extra in the one image; no pipeline module imports it
-- [ ] An adapter turns check-result rows into a validation result that preserves all three outcomes — inconclusive is not flattened into pass or fail
-- [ ] A named live-capture completeness suite expects on the hour-completeness rows: every kind x closed day is 24/24 or misses only allowlisted hours, no row reports a stale allowlist entry, and the unrecoverable subway positions are excluded by the check's own note
-- [ ] The suite is scoped to the live-capture era and is never pointed at the backfill range
-- [ ] It runs as an in-DAG checkpoint with zero retries on an `all_done` edge — loud, named, never blocking a later stage
-- [ ] Data Docs build once at the end of a run
-- [ ] The Great Expectations major version is pinned and recorded; suites are written against that API only, since the 0.x and 1.x context/checkpoint APIs differ substantially
-- [ ] A suite test, skipping cleanly when the library is absent, validates a fixture batch holding one passing, one failing and one inconclusive subject, and asserts the inconclusive one is neither
+- [x] Great Expectations installs as an optional extra in the one image; no pipeline module imports it
+- [x] An adapter turns check-result rows into a validation result that preserves all three outcomes — inconclusive is not flattened into pass or fail
+- [x] A named live-capture completeness suite expects on the hour-completeness rows: every kind x closed day is 24/24 or misses only allowlisted hours, no row reports a stale allowlist entry, and the unrecoverable subway positions are excluded by the check's own note
+- [x] The suite is scoped to the live-capture era and is never pointed at the backfill range
+- [x] It runs as an in-DAG checkpoint with zero retries on an `all_done` edge — loud, named, never blocking a later stage
+- [x] Data Docs build once at the end of a run
+- [x] The Great Expectations major version is pinned and recorded; suites are written against that API only, since the 0.x and 1.x context/checkpoint APIs differ substantially
+- [x] A suite test, skipping cleanly when the library is absent, validates a fixture batch holding one passing, one failing and one inconclusive subject, and asserts the inconclusive one is neither
 
 ## Inherited from orchestration 03 (landed 2026-08-24, b37a761)
 
@@ -92,3 +92,158 @@ This composes with cloud 09's publish target rather than replacing it: build Dat
 `<data_root>/gx/data_docs`, which is where `publish --family docs` reads, and remember the
 publisher's suffix **ALLOWLIST refuses anything that is not a web payload** — a Docs site
 that emits a `.pickle` or a `.parquet` fails the publish loudly.
+
+
+---
+
+# CLOSE-OUT — landed 2026-08-25, branch `orch08-gx-foundation`
+
+Worktree `/Users/ross/raincheck-wt/orch08`, off master `909739b`. **GX PINNED TO MAJOR
+VERSION 1; measured against 1.21.0.** Own-module tests only; never the full suite.
+
+## What shipped, as a surface (this is what tickets 09/10/13 build on)
+
+`src/raincheck/gx.py`, plus `make gxcheck` / `python -m raincheck.gx` / the `gxcheck`
+stage. `import raincheck.gx` works WITHOUT the library - every GX import is inside a
+function.
+
+    ERA_START: str                     # gapfill.START.isoformat(); the live-capture boundary
+    DATASOURCE = "checks"  SITE = "raincheck"  DOCS = ("gx", "data_docs")
+    RESULT_FORMAT                      # COMPLETE + unexpected_index_column_names=["subject"]
+
+    Suite(name, check, columns, expectations, era=None)          # NamedTuple
+        name          the suite's own name; it becomes a Data Docs page and a URL segment,
+                      so NO SPACES (they arrive %20-encoded on the public host)
+        check         the producer's name on disk: checks/check=<check>/
+        columns       THAT producer's own CHECK_COLUMNS constant, never a literal list
+        expectations  () -> list[gxe.Expectation]; a CALLABLE, because building one
+                      imports the optional extra and importing this module must not
+        era           the column holding an ISO day, if the batch has one; values before
+                      ERA_START are REFUSED
+
+    Result(suite, check, ok=(), failed=(), inconclusive=(), detail="")   # frozen dataclass
+        .outcome -> checks.OK | FAIL | INCONCLUSIVE   (checks.rc's precedence)
+        .row()   -> checks.Row                        (not persisted; rc() uses it)
+        .line()  -> the printed line
+
+    available()                 -> bool               # is the extra installed
+    docs_dir(root)              -> Path               # <root>/gx/data_docs
+    batch(root, check)          -> Path | None        # the NEWEST run= stamp
+    rows(path, columns, era=None) -> list[dict]       # + column and era refusals
+    context(docs)               -> an ephemeral GX context writing its one site into `docs`
+    validate(ctx, suite, rows)  -> Result             # THE ADAPTER
+    run(root, suites=SUITES)    -> (list[Result], docs_path)
+    rc(results)                 -> int                # checks.rc over Result.row()
+
+    SUITES = (Suite("live-capture-completeness", "gapcheck",
+                    gapfill.CHECK_COLUMNS["gapcheck"], _completeness, era="day"),)
+
+**To add a suite: append a `Suite` to `SUITES`.** Nothing else - `run()` finds the batch,
+asserts the columns, refuses the era, splits the outcomes, validates and renders.
+
+## The three-outcome mapping, and the trap inside it
+
+**INCONCLUSIVE rows are HELD OUT of the frame GX sees.** An expectation has exactly two
+answers, so any row inside the batch has already been flattened into two by the time the
+suite runs. They come back on `Result.inconclusive`, they decide the outcome when nothing
+failed, and they are in neither `ok` nor `failed` by construction. Mutation-checked in
+both directions (rows entering the frame -> rendered as a FAILURE; rows dropped -> rendered
+as a PASS; and both flattenings of `Result.outcome`).
+
+**THE TRAP, and it is not theoretical - a test caught it during this build. EVERY
+EXPECTATION IN A SUITE HERE MUST BE PER-ROW, NEVER AGGREGATE.** The held-out rows SHORTEN
+the frame, so an aggregate expectation sees a short batch and fails - which renders "could
+not check" as a FAILURE, the exact conflation this ticket exists to prevent. The first
+draft used `ExpectColumnDistinctValuesToEqualSet` over the kinds and went red the moment a
+kind came back INCONCLUSIVE. **A batch-level claim has to be made over the WHOLE batch,
+before the split, in the adapter - not as an expectation.** Pinned by
+`test_an_inconclusive_row_never_makes_an_expectation_fail` and by a mutation that puts the
+aggregate back.
+
+Beside it, the mirror: **GX's own `success` decides the outcome, and the named subjects
+only say WHICH.** An aggregate expectation (or a per-row one over an all-null column) fails
+without naming anybody, so a failing suite that named nobody is charged to `<check batch>`.
+Without that fallback a failed suite would read INCONCLUSIVE or OK.
+
+**The DAG side is free.** The stage is `Stage("gxcheck", "make:gxcheck", "gate",
+argv=("gx",))`, so ticket 07's `skip_rc()` - which reads the declaration and names no
+stage - maps this module's rc 2 onto a `skipped` task with no coordination between the two
+branches. Nothing in `dags/` was edited.
+
+## Decisions worth not re-deriving
+
+- **The suite reads the producer's VERDICT, never a copy of its rule.** `gapfill.check()`
+  is `FAIL if fillable or stale else OK`; the suite expects `outcome == checks.OK`.
+  Expecting on `fillable`/`stale_dead` instead would put that expression in a second home.
+  So "24/24 or only allowlisted hours, and no stale allowlist entry" is ONE expectation.
+- **The unrecoverable subway positions** are excluded by `kind ∈ gapfill.KINDS`:
+  `subway_vp` is not a kind (gtfsrt.io archives subway TU only), so a batch that grew one
+  reports a 0/24 gap nobody can fill. The check's note says it in words; this says it in an
+  expectation, read from the constant.
+- **The era refusal is a REFUSAL, not an expectation.** A suite pointed at the backfill
+  range is pointed at the wrong data - a defect, not a finding - so `rows(..., era="day")`
+  raises. `ERA_START` is `gapfill.START`, read not retyped.
+- **Ephemeral context.** No `great_expectations.yml`, no expectations/ tree, no
+  uncommitted/ tree on the data root. The suites are in the module, the batches are on
+  disk, and the only durable output is the rendered site.
+- **Analytics OFF explicitly** (`ctx.enable_analytics(False)`) and progress bars off.
+  1.21.0 does not bundle the posthog client; that is not a promise about 1.22.
+
+## MEASURED FACTS a later ticket should not have to re-find (GX 1.21.0)
+
+1. **A Data Docs site is 23 files / ~4 MB, and TEN of them are `.otf` font faces.**
+   `publish.PUBLISHABLE` had `.woff` and `.woff2` and no OTF, so **`make publish
+   FAMILY=docs` refused the whole family on a font** - proven by re-running `plan()` with
+   master's allowlist. `.otf` was added to the allowlist (one format, not a category;
+   `mimetypes` already answers `font/otf`, so no TYPES entry was needed). The suffixes a
+   Docs site emits, measured: `.html .css .otf .png .svg .gif .ico` - and nothing else.
+2. **`build_data_docs()` REBUILDS THE WHOLE SITE.** A re-validated suite's page is replaced
+   and a RETIRED suite's pages disappear entirely. An `rmtree` of the site was written and
+   then **deleted** - it survived every mutation because nothing could observe it. A test
+   pins the behaviour instead; that is where a future GX that stops cleaning shows up.
+3. **A validation page's URL carries the run's timestamp**
+   (`validations/<suite>/__none__/<ts>/checks-<suite>.html`), so it does not exist
+   tomorrow. `docs/index.html` is the stable entry point. Written into
+   `docs/read-api-contract.md`.
+4. **`unexpected_index_column_names` is what lets a failing expectation NAME check
+   subjects.** It needs `result_format: COMPLETE` and a column in the frame; `subject` is
+   in `checks.CORE`, so every batch has one.
+5. **`TupleFilesystemStoreBackend` refuses a relative `base_directory`** without a project
+   root ("must be an absolute path if root_directory is not provided").
+6. **Data Docs are POSIX-ONLY.** `run()` refuses an object-store root outright - the same
+   list as `precip_live`, `export` and `live_export` (cloud 12/13). Relevant to cloud 10
+   and to orch 12's cutover: the pods' root is the `/staging` emptyDir today, which is
+   POSIX, so nothing is blocked now.
+7. **`ExpectColumnValuesToBeBetween` cannot compare ISO date STRINGS** - it fails with no
+   unexpected index rather than working. That is half of why the era check is a refusal.
+8. Core GX 1.21 pulls altair, cryptography, jinja2, jsonschema, marshmallow, mistune,
+   numpy, pandas, pydantic, pyparsing, python-dateutil, requests, ruamel.yaml, scipy, tqdm,
+   tzlocal - and **no sqlalchemy**: the pandas path needs no engine. `pandas>=1.3.0` on
+   py3.12, so it does not move the repo's pinned pandas.
+
+## The three-part stage change, as landed
+
+- `daily.STAGES` gained `Stage("gxcheck", "make:gxcheck", "gate", argv=("gx",))`, **LAST**
+  (it expects on the rows the stages above wrote, and Data Docs build once at the end).
+  Not `soft`: a red suite is named in the run's own ending.
+- `deploy/k8s/raincheck/build.yaml`'s `raincheck.io/stages` gained `gxcheck` on the
+  `raincheck-stage` template, in the same commit.
+- `tests/test_daily.py:240-241`'s literal step list became a PROPERTY derived from
+  `daily.STAGES` - **byte-identical to the change ticket 06 makes on its own branch**, so
+  the wave gate's union of that hunk is trivial.
+- **`tests/test_dag_nightly.py` NEEDED NO EDIT.** Its tests iterate `declared()`, so the
+  new stage is covered automatically: the gate-carries-an-argv test, the
+  command-exists/shape-resolves test and the graph test all pick it up. Verified for real
+  in an Airflow 3.2.2 + cncf-kubernetes 10.17.1 venv.
+
+## What is NOT done
+
+- **No cluster proof.** `raincheck_daily` is PAUSED and was not touched. The runtime image
+  with the extra was built locally to prove `pip install -e '.[gx]'` resolves and
+  `import great_expectations` succeeds in the image; nothing was pushed to ECR and **no
+  image pin was committed** (`deploy/k8s/kustomization.yaml` and `deploy/airflow/values.yaml`
+  are untouched on this branch).
+- **Ticket 07's own file was deliberately NOT edited.** Its branch already rewrites it, so
+  an edit here would be a guaranteed conflict on a landed branch for no gain. This side of
+  the distinction is written into 07's summary line in the runbook instead.
+- **Nobody owns a `ref`-canary check-row producer** - still open, still ticket 10's.
