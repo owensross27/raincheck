@@ -279,7 +279,10 @@ def window_features(cell_hours: Iterable[Mapping], anchor: datetime, now: dateti
         c["window_coverage"] = c["window_hours"] / n_win if n_win else 1.0
         c["antecedent_coverage"] = c["antecedent_hours"] / n_ante
     present = sum(c["window_hours"] for c in cells.values())
-    cov = present / (n_win * len(cells)) if cells and n_win else 0.0
+    # A Window with no elapsed hours yet is COMPLETE, not holed: nothing is missing when
+    # nothing is expected. Falling to 0.0 here painted the degrade state over every cycle in
+    # the first hour of a Window — and a Window opens at 21:00 NY, so that fired nightly.
+    cov = 1.0 if not n_win else (present / (n_win * len(cells)) if cells else 1.0)
     return {"cells": cells, "window_hours_expected": n_win,
             "antecedent_hours_expected": n_ante, "coverage": cov,
             "unforced_cells": len(unforced - set(cells)),
