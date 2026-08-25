@@ -26,6 +26,15 @@ wide) and are named `event_*` to say so; the asset-grain facts are `sources`,
 does not recompute any part of it -- above all not the complex rule, which F10 already
 applied and verified against an independent recomputation for all 445 complexes.
 
+`assets_in_area` and `obs_near` are the AREA pair (ticket 04). CELL IS THE ONLY AREA KEY
+in v1: a bbox snaps to a Cell set before anything is read, an arbitrary polygon is not a
+parameter (a caller holding one resolves it to Cells itself), and a Zone appears nowhere --
+it is a presentation overlay the page resolves through the static Cell-to-Zone lookup at
+serving time, so it is neither a stored key nor a query parameter. Both are BOUNDED, and
+`area_too_large` names the cap it hit. `obs_near` is `local` only: it returns observation
+ROWS by definition, so `public` refuses it with `restricted_source` rather than filtering
+it into a different answer wearing the same name.
+
 Complex grain: a complex's history is the union over its child entrances (max depth,
 union of support), because a complex called dry when the entrance you did not use flooded
 is the failure story 4 names. A station is a Carrier -- it carries no history of its own
@@ -198,7 +207,8 @@ SELECT e.event_id, count(*) AS n_hours,
 
 IMPACT_FILE = ("snapshots", "subwaydata", "impact", "subway_complex_hour.parquet")
 
-ASSET_COLUMNS = ("asset_id", "kind", "name", "cell", "complex_id", "parent_asset_id")
+ASSET_COLUMNS = ("asset_id", "kind", "name", "cell", "complex_id", "parent_asset_id",
+                 "lon", "lat")   # lon/lat: obs_near takes its point from an asset id
 
 
 def unit(con, root: Path, asset_id: str) -> tuple:
@@ -215,7 +225,8 @@ def unit(con, root: Path, asset_id: str) -> tuple:
 
 def events_for_asset(con, root: Path, params: Mapping, mode: str) -> dict:
     """One Unit's dated flood history: `gold/flood_labels` joined to `silver/flood_events`."""
-    aid, kind, name, cell, complex_id, parent = unit(con, root, need(params, "asset_id"))
+    aid, kind, name, cell, complex_id, parent, *_ = unit(con, root,
+                                                         need(params, "asset_id"))
     if kind not in fl.LABEL_KINDS:  # a Carrier is located and aggregated, never scored
         raise QueryError("not_a_scored_unit", asset_id=aid, kind=kind, ask=parent)
 
@@ -303,7 +314,8 @@ def exposure_of(con, root: Path, params: Mapping, mode: str) -> dict:
     FloodNet / subwaydata ROWS; a score built from elevation, stormwater class and public
     precip is in no restricted class, so both modes get the same object.
     """
-    aid, kind, name, cell, complex_id, parent = unit(con, root, need(params, "asset_id"))
+    aid, kind, name, cell, complex_id, parent, *_ = unit(con, root,
+                                                         need(params, "asset_id"))
     got = []
     if readable(root, *EXPOSURE):   # no F10 table means NOTHING is scored, and versions()
                                     # says so by dropping the stamp rather than failing
@@ -342,9 +354,200 @@ def exposure_of(con, root: Path, params: Mapping, mode: str) -> dict:
             modelled=FALLBACK_FLAG not in flags))
 
 
+# ---- the area pair: assets_in_area and obs_near (ticket 04) -------------------------
+
+CELL_CAP = 64            # Cells per request: ~47 km2, a large neighbourhood. The city is
+                         # 4,113 Cells, so an area request cannot accidentally ask for it.
+RADIUS_M = 500.0         # obs_near's default reach
+RADIUS_CAP_M = 2000.0    # and its ceiling (1,177 rows at Times Square, the dense case)
+METRIC_CRS = "EPSG:32618"          # UTM 18N, metres: NYC sits wholly inside it
+NO_ASSETS = "no assets in this area"
+
+# The Cell set a bbox snaps to. A Cell is IN the box when its CENTROID is -- the same rule
+# `ref/cell_zone` uses to put a Cell in a Zone (centroid point-in-polygon), so the project
+# never holds two answers to "where is this Cell". `ref/assets`' kind='cell' rows carry
+# exactly `ref/cells`' centroids (measured on the real root: max |delta| = 0.0 over all
+# 4,113), so the box resolves out of the registry this query already reads rather than out
+# of a second table whose absence would be a second failure mode.
+BBOX_SQL = """
+SELECT cell FROM assets
+ WHERE kind = 'cell' AND lon BETWEEN ? AND ? AND lat BETWEEN ? AND ?
+"""
+
+# One row per asset in the area with the count of its flood history. The self-join IS the
+# complex rollup `events_for_asset` applies (a complex answers for itself and its child
+# entrances), and `count(DISTINCT event_id)` makes one event that reached two entrances one
+# event -- exactly what that query's GROUP BY gives. The two are pinned to agree by
+# test_the_area_count_is_the_history_events_for_asset_would_return.
+AREA_SQL = """
+SELECT a.asset_id, a.kind, a.name, a.cell, a.complex_id,
+       count(DISTINCT l.event_id) AS n_events, max(l.event_id) AS last_event_id
+  FROM assets a
+  LEFT JOIN assets c ON c.asset_id = a.asset_id
+                     OR (a.kind = 'complex' AND c.parent_asset_id = a.asset_id)
+  LEFT JOIN labels l ON l.asset_id = c.asset_id
+ WHERE a.cell IN {cells} AND a.kind IN {kinds}
+ GROUP BY ALL
+ ORDER BY a.kind, a.asset_id
+"""
+
+# Distance in METRES through a projection, never through ST_Distance_Sphere /
+# ST_Distance_Spheroid: those take POINT_2D as (LATITUDE, LONGITUDE), and this project's
+# geometry is CRS84 (lon, lat), so feeding them a stored point reads the axes swapped and
+# returns a plausible WRONG number -- 143.5 m for a pair that is 248.5 m apart, measured on
+# the fixture. UTM 18N agrees with the correctly-ordered spheroid to 0.93 m over a 3 km
+# radius on the real table, and unlike the point-only spheroid it also answers for the
+# MULTIPOLYGON rows (Sandy's inundation extent), which are observations too.
+NEAR_SQL = """
+WITH p AS (SELECT ST_Transform(ST_Point(?, ?), 'OGC:CRS84', '{crs}') AS g)
+SELECT o.source, o.source_id, o.ts_utc, o.obs_ts_kind, o.cell, o.depth_mm, o.text,
+       round(ST_Distance(ST_Transform(o.geometry, 'OGC:CRS84', '{crs}'), p.g), 1) AS distance_m
+  FROM obs o, p
+ WHERE ST_DWithin(ST_Transform(o.geometry, 'OGC:CRS84', '{crs}'), p.g, ?)
+ ORDER BY distance_m, o.ts_utc, o.source, o.source_id
+"""
+
+OBS_COLUMNS = ("source", "source_id", "ts_utc", "obs_ts_kind", "cell", "depth_mm", "text",
+               "geometry")
+
+
+def number(value, param: str) -> float:
+    """A caller-supplied number, or a NAMED refusal -- never a ValueError traceback."""
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        raise QueryError("missing_param", param=param, value=str(value),
+                         expect="a number") from None
+
+
+def h3(value, param: str = "cells") -> int:
+    """A Cell id as it crosses this boundary: the H3 HEX STRING, the same string a
+    `cell:<h3>` asset id carries. The int64 is refused rather than accepted quietly,
+    because 613229535722209279 is past 2^53 and a JSON reader using doubles has already
+    corrupted it by the time it arrives -- an accepted int is an accepted wrong Cell."""
+    try:
+        return int(value, 16)
+    except (TypeError, ValueError):
+        raise QueryError("missing_param", param=param, value=str(value),
+                         expect="an H3 hex string, e.g. 882a1072c1fffff") from None
+
+
+def area(con, root: Path, params: Mapping) -> tuple[list[int], list[float] | None]:
+    """The Cell set an area request resolves to, RESOLVED BEFORE ANYTHING IS READ.
+
+    Cell is the only area key in v1. `cells` is a list of H3 hex strings; `bbox` is
+    `[west, south, east, north]` and snaps to the Cells whose centroids it holds; given
+    both, the area is their union, which is the only reading of "the area" that needs no
+    precedence rule. An arbitrary polygon is not a parameter -- a caller holding one
+    resolves it to Cells itself -- and neither is a Zone: a Zone is a presentation overlay
+    the page resolves through the static Cell-to-Zone lookup at serving time, so it is
+    neither a stored key nor a parameter here [CONTEXT.md, spec section 4].
+
+    The cap is what keeps a tool call from asking for the city by accident, and it is
+    enforced on the RESOLVED set, so a bbox the size of the state is refused by the same
+    number as 4,113 hand-typed Cell ids."""
+    if params.get("cells") is None and params.get("bbox") is None:
+        raise QueryError("missing_param", param="cells|bbox")
+    given = params.get("cells") or []
+    cells = {h3(c) for c in ([given] if isinstance(given, str) else given)}
+
+    box = params.get("bbox")
+    if box is not None:
+        if isinstance(box, str) or not hasattr(box, "__len__") or len(box) != 4:
+            raise QueryError("missing_param", param="bbox", value=str(box),
+                             expect="[west, south, east, north]")
+        w, s, e, n = (number(v, "bbox") for v in box)
+        (w, e), (s, n) = sorted((w, e)), sorted((s, n))   # a flipped box is still a box
+        box = [w, s, e, n]
+        view(con, root, "ref", "assets", name="assets", columns=ASSET_COLUMNS)
+        cells |= {c for (c,) in con.execute(BBOX_SQL, [w, e, s, n]).fetchall()}
+
+    if len(cells) > CELL_CAP:
+        raise QueryError("area_too_large", n_cells=len(cells), cap=CELL_CAP,
+                         **pack(bbox=box))
+    return sorted(cells), box
+
+
+def assets_in_area(con, root: Path, params: Mapping, mode: str) -> dict:
+    """Every asset inside a Cell set, with the flood history each one carries.
+
+    This is the question that does not know an asset id yet, so the answer is the ids plus
+    enough to act on them: `n_events` is the history `events_for_asset` would return for
+    that asset (the complex rollup included), and `last_event_id` is the most recent of
+    them -- an event id is its date. An asset with no history publishes `n_events: 0` and
+    no `last_event_id`, which is the same absent-never-null rule as everywhere else.
+
+    STATIONS ARE NOT LISTED. They are Carriers: `events_for_asset` refuses them and names
+    the complex to ask, so listing one here with a count would be a number for an asset
+    that cannot be asked for it. The complex standing at the same doorway is listed and
+    answers for them, which is F05's `LABEL_KINDS` and not a second rule.
+
+    `mode` does not change this answer. It is built from `ref/assets` and F05's attachment
+    counts, and a count is not a row -- the licence boundary is about MTA / FloodNet /
+    subwaydata ROWS, so both modes get the same object."""
+    cells, box = area(con, root, params)
+    rows = []
+    if cells:
+        view(con, root, "ref", "assets", name="assets", columns=ASSET_COLUMNS)
+        view(con, root, "gold", "flood_labels", name="labels",
+             columns=("asset_id", "event_id"))
+        rows = con.execute(
+            AREA_SQL.format(cells=holes(len(cells)), kinds=holes(len(fl.LABEL_KINDS))),
+            [*cells, *fl.LABEL_KINDS]).fetchall()
+    assets = [pack(asset_id=r[0], kind=r[1], name=r[2], cell=cell_id(r[3]), complex_id=r[4],
+                   n_events=r[5], last_event_id=r[6]) for r in rows]
+    return pack(
+        area=pack(cells=[cell_id(c) for c in cells], n_cells=len(cells), bbox=box),
+        n_assets=len(assets), assets=assets,
+        reason=None if assets else NO_ASSETS)
+
+
+def obs_near(con, root: Path, params: Mapping, mode: str) -> dict:
+    """What was OBSERVED near a point -- the rows, ordered by distance.
+
+    `local` only, and refused by name in `public`. This returns observation rows by
+    definition, and rows are exactly what the licence boundary withholds: FloodNet depths
+    and sensor ids, the MTA alert row. A `public` version would have to filter to the
+    permitted sources, which is a different answer wearing the same name, so the answer is
+    a typed refusal instead [spec section 2; DEFAULT, overturned only by a licence change].
+
+    This is NOT F05's attachment and must never be read as one: F05 owns which asset a
+    report belongs to (`gold/flood_labels`, 100 m, geodesic, one owner). This asks a
+    different question -- what a person standing here would have seen reported -- so it
+    reads `silver/flood_obs` straight, by geometry, and answers for every source including
+    the polygon ones.
+
+    The point is `lon`/`lat`, or an `asset_id` resolved through the same identity seam
+    every other query uses, so "near this stop" needs no coordinates in the caller."""
+    if mode != "local":
+        raise QueryError("restricted_source", query="obs_near", mode=mode, need=MODES[1])
+    asset_id = params.get("asset_id")
+    if asset_id is None:
+        lon, lat = number(need(params, "lon"), "lon"), number(need(params, "lat"), "lat")
+    else:
+        asset_id, _kind, _name, _cell, _complex, _parent, lon, lat = unit(con, root, asset_id)
+    radius = number(params.get("radius_m", RADIUS_M), "radius_m")
+    if radius > RADIUS_CAP_M:
+        raise QueryError("area_too_large", radius_m=radius, cap_m=RADIUS_CAP_M)
+    if radius <= 0:
+        raise QueryError("missing_param", param="radius_m", value=radius,
+                         expect=f"a distance in metres, up to {RADIUS_CAP_M}")
+
+    con.execute("LOAD spatial")     # ST_Transform / ST_DWithin, as export.py loads it
+    view(con, root, "silver", "flood_obs", name="obs", columns=OBS_COLUMNS)
+    rows = con.execute(NEAR_SQL.format(crs=METRIC_CRS), [lon, lat, radius]).fetchall()
+    return pack(
+        point=pack(lon=lon, lat=lat, radius_m=radius, asset_id=asset_id),
+        n_observations=len(rows),
+        observations=[pack(source=r[0], source_id=r[1], ts_utc=jsonable(r[2]),
+                           obs_ts_kind=r[3], cell=cell_id(r[4]), depth_mm=r[5],
+                           text=r[6] or None, distance_m=r[7]) for r in rows])
+
+
 # ---- the entry point ---------------------------------------------------------------
 
-QUERIES = {"events_for_asset": events_for_asset, "exposure_of": exposure_of}
+QUERIES = {"events_for_asset": events_for_asset, "exposure_of": exposure_of,
+           "assets_in_area": assets_in_area, "obs_near": obs_near}
 
 
 def need(params: Mapping, key: str):
@@ -362,7 +565,15 @@ def view(con, root: Path, *parts: str, name: str, columns) -> None:
     """A narrowed VIEW over a parquet root -- never `rel.arrow()`, which returns a LAZY
     RecordBatchReader on this same connection: registering two unconsumed readers back
     into it and joining them deadlocks at 0% CPU (wave-1 gate, KNOWN TRAPS). The
-    projection also keeps GeoParquet's WKB `geometry` out of every payload."""
+    projection also keeps GeoParquet's WKB `geometry` out of every payload.
+
+    An UNBUILT table refuses by name here. A table is a PART FILE, not a folder: a build
+    that died between its `mkdir` and its `pq.write_table` leaves an empty directory, and
+    DuckDB's globber raises IOException on it -- a bare traceback out of a seam that
+    promises typed errors. `version_unresolved` is what `versions()` already answers for
+    exactly this root, so the reason is the module's existing one and not a ninth name."""
+    if not readable(root, *parts):
+        raise QueryError("version_unresolved", table="/".join(parts), root=str(root))
     duck.table(con, root.joinpath(*parts)).select(*columns).create_view(name)
 
 

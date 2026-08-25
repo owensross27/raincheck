@@ -191,6 +191,32 @@ Two boundary rules a consumer must honour:
   themselves, subwaydata-derived impact numbers) are never rendered onto this host. The
   boundary is enforced upstream in `raincheck.query`, not by filtering here.
 
+## Typed refusals from the query seam
+
+Nothing on this host refuses anything: a key is there or it 404s. The refusals below are
+what the seam BEHIND it (`raincheck.query`) answers, and they are named here because the
+MCP tools hand them to an agent verbatim, and because one of them explains a part of the
+query surface that is deliberately not on this host at all.
+
+- **`area_too_large`** — an area request resolved to more Cells than the cap
+  (`query.CELL_CAP` = 64, about 47 km², where the whole city is 4,113 Cells), or `obs_near`
+  was asked for a radius past `query.RADIUS_CAP_M` = 2,000 m. The detail carries the count
+  and the cap, so a caller can retry smaller rather than retry blindly. It is raised on the
+  RESOLVED Cell set, so a bounding box the size of the state is refused by the same number
+  as a hand-typed list of Cell ids.
+- **`restricted_source`** — `obs_near` was called in `public` mode. It returns observation
+  ROWS by definition, and rows are exactly what the licence boundary withholds (FloodNet
+  depths and sensor ids, the MTA alert row, subwaydata-derived numbers), so the answer is a
+  typed refusal and not a filtered-down answer wearing the same name. **No `obs_near`
+  output reaches this host, ever** — the static surface runs `public`.
+
+The area rule those refusals defend is frozen: **Cell is the only area key.** A bounding
+box snaps to a Cell set (by centroid, the rule `ref/cell_zone` already uses) before
+anything is read, an arbitrary polygon is not a parameter — a consumer holding one resolves
+it to Cells itself, client-side, from `files/cells.geojson` — and a Zone is a presentation
+overlay resolved through the static Cell-to-Zone lookup at serving time: never a stored
+key, never a query parameter.
+
 ## The custom domain is load-bearing
 
 **The bucket must sit behind a custom Cloudflare domain, not the `r2.dev` subdomain.**
