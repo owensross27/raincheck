@@ -72,10 +72,18 @@ STAMP = "%Y%m%dT%H%M%SZ"   # checks.write's own: fixed width UTC, so lexicograph
 # "the batch" is a SET and reading only the newest stamp would judge one kind and silently
 # drop four. The set has to be BOUNDED, though: a batch from a run that is over would let a
 # pod which did not run tonight answer for tonight, which is the false OK this whole
-# vocabulary exists to kill. The nightly fires once a day, so any window well short of 24 h
-# separates two runs; six hours is that with room for a transport stage's exponential
-# backoff and the node purchase in front of every pod (measured 95 s + 74 s, orch 04).
-RUN_WINDOW = timedelta(hours=6)
+# vocabulary exists to kill.
+#
+# TWO BOUNDS, and twelve hours is the middle of them. It must be LONGER than the nightly
+# itself, because the first producer's batch (`gapverify`, third task) has to still be in
+# the window when `gxcheck` reads it last - a stage's exponential backoff and the node
+# purchase in front of every pod (measured 95 s + 74 s, orch 04) both push that out, and
+# the fan-out's own baseline is 1928 s of Spark for a seven-day catch-up. And it must be
+# SHORTER than the gap between two runs: the schedule is 06:00 daily and max_active_runs
+# is 1, so one check's consecutive batches are a day apart. Erring long only ever costs a
+# false INCONCLUSIVE (the suite says it could not check a run that did); erring short is
+# what would let last night answer for tonight, which is the false OK.
+RUN_WINDOW = timedelta(hours=12)
 
 
 class Suite(NamedTuple):

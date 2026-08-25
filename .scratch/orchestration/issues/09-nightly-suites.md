@@ -10,14 +10,14 @@ gate and silently changes what passes.
 
 **Blocked by:** 03 (remaining check producers), 08 (GX foundation).
 
-**Status:** ready-for-agent
+**Status:** DONE (2026-08-25, `orch09-nightly-suites`)
 
-- [ ] A fidelity suite expects on the verifier's rows at the bands the module actually enforces — non-empty filled hour, row-count ratio and distinct-key coverage in band, archiver columns present as a typed superset
-- [ ] It fails when a kind is inconclusive on a day that **has** both a filled and a captured hour — an inconclusive there means the pair-finding broke
-- [ ] Tightening the band to the observed figure, if wanted, is raised as its own evidence-backed change to the module; this suite does not tighten it on the side
-- [ ] A cold-mirror suite reports and never gates
-- [ ] A schema-era suite expects column **presence**, not counts
-- [ ] Each suite records its placement explicitly: in-DAG gate or post-run report
+- [x] A fidelity suite expects on the verifier's rows at the bands the module actually enforces — non-empty filled hour, row-count ratio and distinct-key coverage in band, archiver columns present as a typed superset
+- [x] It fails when a kind is inconclusive on a day that **has** both a filled and a captured hour — an inconclusive there means the pair-finding broke
+- [x] Tightening the band to the observed figure, if wanted, is raised as its own evidence-backed change to the module; this suite does not tighten it on the side
+- [x] A cold-mirror suite reports and never gates
+- [x] A schema-era suite expects column **presence**, not counts
+- [x] Each suite records its placement explicitly: in-DAG gate or post-run report
 
 ## Inherited from orchestration 03 (landed 2026-08-24, b37a761)
 
@@ -249,3 +249,92 @@ that reads a null as a measured 0.
 **If you decide `eras` belongs in the nightly, that IS a stage** — the three-part change,
 and note orch 08 already added `gxcheck` LAST, so an `eras` stage must sit BEFORE it or its
 batch is a run behind. `gxcheck` reading a stale batch is not an error; it is just old news.
+
+
+## CLOSE-OUT (2026-08-25, `orch09-nightly-suites`) - what was built and what was decided
+
+**THREE SUITES, APPENDED TO `gx.SUITES` AND NOTHING ELSE.** `fill-fidelity` (check
+`gapverify`), `cold-mirror` (check `coldcheck`), `schema-eras` (check `eras`). Names are URL
+segments, so no spaces, and they are distinct from orch 08's `live-capture-completeness` and
+from orch 10's, which land in the same tuple this wave.
+
+**THE BATCH IS A SET, AND HERE IS THE RULE THAT WAS PINNED.** `gapverify` is MAPPED over
+`kind` (orch 06), so five pods write five batches per run and `gx.batch()` - the newest
+stamp - would judge whichever kind finished last and say NOTHING about the other four:
+not a gap, not a could-not-check, rows that were never in the frame. So:
+
+    gx.batches(root, check) -> [Path]   # the newest stamp + every stamp within RUN_WINDOW
+                                        # of it, NEWEST FIRST. Only the newest is parsed;
+                                        # the floor is formatted back into checks.write's
+                                        # own fixed-width alphabet and compared as text.
+    gx.fold(paths, columns, era) -> [dict]   # the newest verdict PER SUBJECT
+    gx.batch(root, check)               # unchanged meaning: the head of that set
+    gx.RUN_WINDOW = timedelta(hours=12)
+
+One rule covers both producers that need it, with no special case: `gapverify`'s five pods
+write DISJOINT subjects, so the run's rows are their union; `coldcheck` re-checks the SAME
+subjects after a re-push, so the later stamp wins - which is exactly what `batch()` has
+documented since orch 08, now implemented rather than implied. **RUN_WINDOW is bounded from
+both sides**: longer than the nightly itself (the first producer's batch has to still be in
+the window when `gxcheck` reads it LAST) and shorter than the gap between two runs (06:00
+daily, `max_active_runs=1`, so one check's consecutive batches are a day apart). Erring long
+costs a false INCONCLUSIVE; erring short is what lets last night answer for tonight.
+
+**BATCH-LEVEL CLAIMS ARE NOT EXPECTATIONS, so `Suite` gained one optional field.**
+`whole(rows, root) -> (failed, inconclusive, detail)` runs over EVERY row, before the
+inconclusive split, and `gx.merged()` folds it into the Result. Three claims live there,
+and none of them could be an expectation because each is about a row that is not in the
+frame: one row per declared kind (`gapfill.KINDS`), one row per top-level `archive/` prefix
+(`cold.kinds(root)`, read off disk so the row set grows with a new kind), and one row per
+declared `(reader, kind)` pair (`eras.READERS` x `eras.ERA_COLS`). **FAILED WINS OVER
+COULD-NOT-CHECK** in `merged()`: a subject the producer reported inconclusive and the batch
+claim proves was judgeable LEAVES the inconclusive bucket when it joins `failed`.
+
+**THE ACCEPTANCE ROW ABOUT AN INCONCLUSIVE PAIR, SOLVED WITHOUT RE-WALKING BRONZE.**
+`verify()` goes INCONCLUSIVE for exactly one reason and NULLs every measure when it does
+(`dict.fromkeys`), so a row that NAMES A DAY and still could not judge it is a kind that
+went inconclusive on a day which HAS a comparable pair. That is read off the column the
+producer already distinguishes - not by re-implementing "is there a pair here", which would
+be a second home for the one rule `verify()` owns, and which would read a disk that has
+moved on since the fill (`gxcheck` is the LAST stage).
+
+**THE COLD MIRROR REPORTS AND NEVER GATES - and that is a decision about WHAT IT EXPECTS
+ON.** There is deliberately NO expectation on `outcome`: `gx.rc()` would route a mirror gap
+straight out through the `gxcheck` GATE and make GX the hard gate `daily.coldcheck()`
+refuses to be (check, re-push once, warn, rc 0 - what survives a re-push is the EC2 box's
+own overlapping capture, ticket 19). What it expects on instead is the row CONVENTION:
+`differing` NOT NULL and >= 0 on a judged row. The mirror's counts ride out in the Result's
+`detail` and the line it prints. It can still go red - a `archive/` prefix with no row at
+all - and that is a producer defect, not a mirror gap.
+
+**THE `eras` PLACEMENT (this ticket's other half, and the wave's only stage change):**
+`Stage("eras", "make:eras", "gate", argv=("eras",))` in `daily.STAGES`, **second to last -
+after `prune`, before `gxcheck`**. Behind the stage that writes Bronze, in front of the one
+that reads batches. A GATE with an argv because both of its non-verdicts are INCONCLUSIVE
+(no date dir mixes part schemas; no JVM on this box) and `make` exits 2 for ANY recipe
+failure. `eras` added to `deploy/k8s/raincheck/build.yaml`'s `raincheck.io/stages` on
+**`raincheck-spark`** IN THE SAME COMMIT - `spark_columns` opens the mergeSchema readers,
+and a 250m/512Mi pod is not where a JVM goes. **NOT in `daily.STAGES` was not an option**:
+`gxcheck` runs `python -m raincheck.gx` in the nightly, and a `schema-eras` suite whose
+producer never runs there would report `<no batch>` every single night - a permanently
+INCONCLUSIVE gate, which is a `skipped` report task every morning.
+
+**`era=` per suite.** `fill-fidelity` carries `era="day"` (an archiver hour only exists from
+`gapfill.START`, so a pre-era pair would mean the verifier compared backfill data - a
+refusal, which is right). `cold-mirror` has no day. **`schema-eras` deliberately has NONE**:
+`eras.day` is the newest Bronze date dir whose parts disagree about their columns - the
+producer's choice of where to stand, not a declaration of scope - and `archive/` holds the
+backfilled range too, so `era="day"` would turn "the only mixed-schema day left is an old
+one" into a crash in this stage over a check that ran fine.
+
+**ONE EDIT OUTSIDE THIS TICKET'S OWN FILES, AND WHY.** `eras.py`'s `duck` and `events`
+imports are LAZY now (inside the two reader functions). `gx.SUITES` reads
+`eras.CHECK_COLUMNS` at module level - the one home for those column names - and a
+module-level `from raincheck import events` would have pulled **pyspark into the gxcheck
+pod**, a 250m/512Mi shape that renders HTML and never opens a JVM. `tests/test_check_producers.py`
+20 passed on the branch.
+
+**WHAT IS NOT DONE.** No image was built or pinned (the wave gate builds once, and it now
+carries `eras`). The 0.85-1.2x tightening is still a change to `gapfill`, with its own
+evidence - this suite does not tighten it on the side, and a test asserts a 3.0 ratio is
+outside that measurement, inside `ROW_BAND`/`KEY_BAND`, and PASSES.
