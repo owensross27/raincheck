@@ -133,3 +133,96 @@ publish order, and both come from `publish.FAMILIES["site"].files`:
 ## Forward-context from DESTINATION-PLAN.md (copied verbatim by the WAVE 5 GATE PART 2, 2026-08-25, from this ticket's summary line in waves/wave-3-plus.md)
 
 **FROM DESTINATION-PLAN (2026-08-25) — YOU LAND INTO A SPLIT FILE, AND TWO THINGS SIT UNDER YOU.** Edit only the modules frontend2 01's map assigns to tiers/impact (frontend 07 owns others, same wave). **LANDED 2026-08-25 (frontend2 01, `779e359`) — THE MODULE MAP IS ON YOUR TICKET FILE:** `layers.js` (ramps, hues, `STALE_AFTER_S`, `GATE`, the `LAYERS` table, the declare-at-boot style, `map`) · `freshness.js` (`grab`/`load`/`srcState`/`worst`) · `panel.js` (`rowHTML`/`renderLayers`/`toggle`) · `insight.js` (paint, headline, curve, views, tooltip, `drawCells`) · `live.js` (`isStale`/`renderLive`/`liveTick`) · `app.js` (**boot ONLY: 86 lines**). **07 edits `insight.js` + the `hist` entry; 08 edits `live.js` + the `fn`/`mta`/`impact` entries and `GATE`** — the only shared file is `layers.js` and the entries are disjoint. THREE MUSTs: a new `.js` file MUST be added to `publish.FAMILIES["site"].files` (that is what publishes it AND what puts it under `tests/test_page.py`; ADDITIVE, so **no `contract.CONTRACT` bump**, and update `docs/read-api-contract.md`'s site row) · **every `addEventListener` / `map.on` / `ResizeObserver` goes in `app.js` and nowhere else** — the graph is cyclic and bodies evaluate `panel·live·freshness·insight·layers·app`, so wiring beside its own code throws `ReferenceError: Cannot access '$' before initialization` at load (MEASURED) · a cross-module WRITE goes through a function (`markStyled`, `toggleLive`), because an imported binding is read-only. Your tier points paint ABOVE frontend2 03's flood-zone fills; the ONE-RAMP rule (D1) binds: while any Cell fill is on, zones are outlines and route lines are uncoloured — your impact fill joins the radio as before. If `files/flood.json` carries `design_storm` (flood-build 20, same wave, additive), render it as the design-storm sentence from its own `display` strings; if absent, render nothing — never a placeholder.
+
+## FROM FLOOD 15 (2026-08-25, branch `flood15-panel-exports`, `5925813`) — YOUR PAYLOADS EXIST
+
+The two files `web/layers.js` already fetches by name are written now, and so are their
+two metas. **These are the exact keys your `draw` functions bind to; nothing here is
+prose.** Read them, never re-derive them — every string and every budget below is read
+from `research/flood-11-detector.json` at RENDER time, which is what lets Ross record
+flood 12's verdict without a redeploy.
+
+**`files/flood.json` (layer `fn`, gate `null` — OPEN).** Top level:
+`cycle_id · detector_version · score_version · provisional · lineage ("ungated") ·
+strings · cutpoints · window · staleness · budgets_s · dim · winter · skew ·
+model_tier · cells · units · floodnet · coastal`.
+
+* **`floodnet.geojson`** is a FeatureCollection of Points, one per renderable sensor, and
+  **every feature carries a boolean `display`** — the MapLibre expression you already
+  wrote (`["get", "display"]`) works unchanged: `true` = water now (filled aqua disc),
+  `false` = dry or stale (HOLLOW RING). Other properties: `deployment_id · name · status ·
+  state ("water"|"dry"|"stale") · label? · depth_mm · rise_mm · run · age_min · fresh ·
+  gate? · cell?` (hex). **`gate` is only meaningful when `state == "water"`** — a dry
+  sensor also reports `"rain"`, which is `flood_truth`'s own wording, not a claim.
+  A sensor with no point is not a feature (counted in `floodnet.read`, not drawn).
+* **`cells`** is `{"<h3 hex>": {...}}` keyed by the SAME hex string `cells.geojson` keys
+  on, so the Cell fill joins by id with no lookup. Members, all absent-never-null:
+  `score_index` (the STATIC dormant view, within-kind CDF, bounded (0,1]) · `rank` ·
+  `tier` ("NONE"|"ELEVATED"|"HIGH") · `window_mm` · `flags[]` · `surge_margin_ft` ·
+  `latched`. **`rank`/`tier` are ABSENT whenever the model tier is dropped** — see below.
+  Geometry is deliberately not duplicated; you already load it.
+* **`units`** is point Units at **ELEVATED+ only** (never a dormant list of 13,370 bus
+  stops): `asset_id · kind · cell · tier · rank · name? · lon? · lat? · score_index? ·
+  flags? · surge_margin_ft? · latched? · suppressed_by?`. **Print `asset_id` beside
+  `name`** — names are not unique at bus-stop grain either (TRAPS).
+* **`coastal`** is `flood_live`'s CO-OPS tier whole (`chips[]` with `state`,
+  `observed_ft?`, `obs_age_min`, `next_high?`, `anomaly`) minus `recolor.units`, which is
+  a static 1,072-row table already carried per Cell as `surge_margin_ft`. `recolor` keeps
+  `gauges · n_units · n_no_margin · n_below_minor`.
+
+**`files/flood-mta.json` (layer `mta`, gate `mta-alerts` — GATED, dark today).**
+`mta.geojson` is one Point per AFFECTED COMPLEX with `display` (`true` while the station
+is active), `event_id · complex_id · name · state · chip_state · age_min`; `mta.chips[]`
+carries the same rows with `stations[]` now holding `lon`/`lat`/`cell` — **the second
+lookup against `ref/assets` is gone**, which was your ticket's blocker.
+
+**THE FRESHNESS TABLE YOU OWED A NUMBER FOR: `budgets_s` on BOTH metas** (seconds, to
+match `LAYERS`), and `staleness` beside it with the verdict already computed:
+
+    budgets_s = {precip_fresh: 5400, precip_stale: 10800, floodnet: 600,
+                 coops: 1800, nws_alerts: 900, nws_knyc_obs: 7200}
+    staleness = {precip|floodnet|coops|nws_knyc_obs: {state, age_min?, budget_s}}
+
+`state` is FRESH / STALE / DOWN — flood 11's vocabulary (`display.precip_states`), and
+the SAME three words on every source. **Every one is dated at the READER**, so the
+frozen-age trap cannot come back through this door; a stamp further ahead than
+`staleness_budgets.clock_ahead_min` reads DOWN, never FRESH. **`floodnet: 600` is exactly
+the `budget: 600` you already have on the `fn` layer** — derive the JS number from
+`flood_panel.BUDGETS_S` in a test rather than mirroring it (TRAPS: a page constant that
+mirrors a python constant will drift).
+
+**WHAT YOU MUST RENDER AS DATA, not as absence** — all four already in the payload:
+
+* `window.state` ∈ OK / HOLES / INSUFFICIENT_DATA / WINDOW_CAPPED. A holed Window is
+  still a Window and `window.anchor` stands; INSUFFICIENT_DATA means there is NO Window
+  (the key is then absent) and `units` is `[]` while `cells` still carries `score_index`.
+* `skew.model_tier` is `"ok"` or `"refused"` with a `reason`. **On a refusal
+  `model_tier` is `"dropped"`, `units` is `[]` and no Cell carries `rank` or `tier` —
+  render the refusal and its reason, never a last-good number.** The static
+  `score_index` view survives, because it is not the model tier.
+* `dim.dimmed` + `dim.dry_hours` — the "rain ended Xh ago" number.
+* `winter.suppressed` + `winter.label` (absent when it is not suppressing) + `basis`
+  ("observed" | "calendar").
+
+**THE STRINGS ARE ALL UNDER `strings` AND NONE MAY BE RE-WORDED IN JS.** `tier_labels ·
+tiers · cutpoint_basis · cutpoints_confirmed_by · window_interval · window_states ·
+precip_states · forcing_stamp · winter_label · winter_unknown_label ·
+no_complex_skill_claim · within_cell` come from `display.*`; plus `operating_truth` (the
+FROZEN honesty string — verbatim, and notify 09 renders the same words), `estimand` +
+`estimand_note`, `tiers_provisional`, `complex_rule`, `gate_branch`, and `panel` (the
+gate's pre-selected `headline` / `release` / `caveat`). **`provisional` is a top-level
+boolean: while it is true the panel says the tiers are provisional. flood 12 recommended
+RANK-ONLY, so build the no-badge branch as the real one** — if Ross records it,
+`cutpoints` stops being a display object, `detector_version` bumps and every open Window
+rolls, and this payload changes with no page edit.
+
+**Never render `eta` or a probability** — neither crosses the boundary and
+`make release-check` fails if one ever does. The human-facing value is `rank` or
+`score_index`. **Never present the point tier as resting on a validated distance**
+(`estimand_note` says why). **`no_complex_skill_claim` rides with any complex row and
+`within_cell` with any two Units in one Cell.**
+
+Cadence: both files are `no-cache` and rewritten only when the forcing advances or the
+FloodNet throttle (120 s) expires — measured 6 rewrites in 21 loop cycles. `flood.json`
+is **317,837 B raw** on the real root (cells 169 KB + floodnet 159 KB); size decisions
+here stay in RAW bytes until the gzip curl is recorded ([YOU], TRAPS).

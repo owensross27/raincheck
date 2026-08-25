@@ -51,3 +51,57 @@ two export files do not exist yet, and measured two things you inherit:
 ## Forward-context from DESTINATION-PLAN.md (copied verbatim by the WAVE 5 GATE PART 2, 2026-08-25, from this ticket's summary line in waves/wave-3-plus.md)
 
 **FROM DESTINATION-PLAN (2026-08-25):** you are the ONLY editor of `live_loop.py`/`flood_truth.py` in wave 7 (flood-build 20 was held to wave 8 for that reason); where `impact.json` lives in `publish.FAMILIES` is your call — frontend 05 froze the filename, not the family. Route-grain attribution is NOT yours: flood-build 21 owns it (descriptive v1); your Cell-grain caveats (median event day indistinguishable; only the tail reads) are inherited by it verbatim.
+
+## FROM FLOOD 15 (2026-08-25, `flood15-panel-exports`, `5925813`) — THE TICK YOU MERGE INTO
+
+You are the ONLY editor of `live_loop.py` and `flood_truth.py` in wave 7, and the flood
+tick is already inside the loop. **Do not add a second call to `cycle()`** — merge into
+the one that exists, the same way this ticket merged into cloud 05's.
+
+**THE SEAM.** `live_loop.cycle()` now ends:
+
+    flood = flood_panel.tick(con, root, out_dir, state.get("flood"), now, detected)
+    return {"meta": ..., "detector": detected, "detected_at": ..., "flood": flood,
+            "publish": ship(out_dir, state), "at": now}
+
+`flood_panel.tick(con, root, out_dir, prev, now, detector=None, ship_=None) -> state`.
+It NEVER raises: an outage comes back as `state["error"]` and the loop carries on. It
+SKIPS unless the newest `valid_ts=` partition name moved or the artifact's
+`throttles.floodnet_s` (120 s) expired — measured 6 work cycles in 21 ticks, the rest
+returning in under 10 ms. `detector` is the loop's own `flood_live.live()` read, already
+fetched on the 360 s `DETECT_S` cadence; take yours from there rather than fetching again
+at the render rate (that is the false-OUTAGE failure `DETECT_S` exists to prevent).
+
+**WHERE YOUR TWO OVERLAYS GO.** `publish.FAMILIES` now has `flood` (open) and `flood-mta`
+(GATED with `live.geojson`). Your overlays are BOTH VP/TU-derived, so they are on the
+GATED side: either append to `flood-mta`'s `files` tuple (it is `("flood-mta.json",
+"flood-mta-meta.json")`, meta LAST — a third payload goes BEFORE the meta) or add your
+own gated family for `files/impact.json` (frontend 05 froze that filename; the family is
+your call). **Do not put anything MTA- or VP-derived into `flood`** — `make
+release-check` has a row that fails if an alert id, a complex id or the word `mta`
+reaches the open side, and that row is the whole point of the split.
+
+**FOUR THINGS THAT WILL SAVE YOU A DAY.**
+
+1. **The pod is limited to 768 MiB and this tick already peaks at ~500 MiB** (raised from
+   384Mi to a measured 512Mi request in `deploy/k8s/raincheck/live.yaml`). Three reads in
+   this path cost **6,576 MiB** before they were rewritten. The rule, and it is not
+   style: **projection and predicate go INSIDE the read's own statement.**
+   `duck.table()` binds the path as a PARAMETER, so a `.filter()/.project()` chain or a
+   view queried afterwards cannot push into the scan — `flood_truth.alert_rows` was
+   5,000 MiB and 9.4 s for SIX rows that way, and 173 MiB / 0.25 s in one statement. Use
+   `flood_panel._rows(con, sql_with_{read}, path)`, and MEASURE your read's peak RSS.
+2. **Your grain is sparse at the head, and the panel has to say so** (frontend 02): the
+   newest closed hour of `gold/cell_hour_speed` carries 24 Cells, the densest 1,169.
+3. **The Cell fill is an exclusive channel** — the delay layer already fills the same
+   ~1,200 Cells. `cells` in `flood.json` is keyed by the H3 HEX string, the same spelling
+   `cells.geojson` uses; key yours the same way so all three join without a lookup.
+4. **`flood_truth.mta()` now attaches lon/lat/cell to every chip station** via
+   `complex_points(root)` + `place()`. If you touch that module, keep it: a payload that
+   names an asset a consumer cannot locate is a defect this repo has now shipped twice.
+
+The honesty strings you owe (median event day indistinguishable; weekends unreadable;
+only the tail reads — Ida 157) are yours to write, but put them where this ticket put
+its own: **under `display` in the detector artifact if the panel branches on them, or in
+your payload's `strings` object** — never typed into a JS file, because `display.*` is
+outside `detector_version` and a reworded label must not roll a live Window.
