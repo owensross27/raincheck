@@ -62,10 +62,47 @@ re-plumbing this ticket was built to be spared.
 - **Rows are rebuilt and focus is restored** (`renderLayers`, the same mechanism as
   `setHour`); the change handler is DELEGATED to `#layers`. **MUST: keep any new control
   inside that delegation** — a listener bound to a rendered row dies on the next toggle.
-- **MUST, and it bites the first slice to add code: `web/app.js` is 781 lines and
-  `tests/test_live.py` is 775, both against an 800 cap.** SPLIT THE FILE, never the page
-  (frontend 01 D1): a second `<script src="layers.js">` tag plus ONE line in `publish.py`'s
-  `site` family tuple, and the same for a second test module beside the existing seam.
+- **RETIRED — the split is DONE. `web/app.js` is 86 lines now, not 781** (frontend2 01,
+  2026-08-25). Do not split anything; the old MUST here told you to add a second
+  `<script>` tag, and that is now WRONG — there is exactly ONE script tag for the page's
+  own code. **Read "The module map" below and edit the module that owns your surface.**
+  `tests/test_live.py` is likewise gone: page rules are `tests/test_page.py`, the export
+  seam is `tests/test_live_export.py`.
+
+### The module map — which module owns what (frontend2 01, `36901d4`)
+
+The page is six ES modules, `type="module"`, no build step, no bundler. Load order is
+publish order, and both come from `publish.FAMILIES["site"].files`:
+
+| module | owns | lines |
+| --- | --- | --- |
+| `web/layers.js` | the ramps and the four hues, `STALE_AFTER_S` / `DELAY_CUT_S`, the `GATE` table, the **`LAYERS` table**, `L` / `shut` / `$` / `fmt` / `SMALL` / `on`, and the declare-at-boot map + style (the twelve layers in the frozen order). Constructs `map`. | 202 |
+| `web/freshness.js` | `ages` / `whys`, `grab` / `load` / `forget`, `fmtAge`, `srcState` (the five states) and `worst`. | 86 |
+| `web/panel.js` | `chipHTML` / `srcRows` / **`rowHTML`**, `renderLayers` (the focus restore), `applyVisibility`, `toggle` (the exclusive fill channel). | 79 |
+| `web/insight.js` | `paint` / `colorExpr`, `renderHeadline`, `renderCurve`, `setHour` / `setView` / `buildViews`, `showTip`, `drawCells`. | 256 |
+| `web/live.js` | `metaAge` / `isStale`, `renderLive`, `liveTick`, `toggleLive`. | 134 |
+| `web/app.js` | boot ONLY: the map controls, every `addEventListener`, every `map.on` / `map.once`, both `ResizeObserver`s, the first `renderLayers()`. | 86 |
+
+**MUST — three rules the split makes structural, each pinned by a test in
+`tests/test_page.py`:**
+
+1. **Every new `.js` file is a `site` family key** in `publish.FAMILIES` — that is the ONLY
+   thing that publishes it AND the only thing that puts it under the page's tests
+   (`tests/page.py` derives the file list from the family, so a hand list cannot go stale).
+   Adding a key is ADDITIVE under `contract.PROMISE[1]`: **no `contract.CONTRACT` bump.**
+   Update `docs/read-api-contract.md`'s `site` row in the same commit.
+2. **All DOM and map wiring lives in `app.js` and nowhere else.** The module graph is
+   CYCLIC by construction, so bodies do not evaluate in import order — MEASURED under node
+   25: `panel · live · freshness · insight · layers · app`, i.e. `layers.js` evaluates
+   almost LAST. Put an `addEventListener` / `map.on` / `ResizeObserver` back beside its own
+   code and the page throws `ReferenceError: Cannot access '$' before initialization` at
+   load and never paints (measured, not predicted).
+3. **Cross-module WRITES go through a named function** — an imported binding is read-only.
+   `layers.markStyled()` and `live.toggleLive()` are the two that exist; follow that shape.
+- **08 edits `layers.js` (the `fn` / `mta` / `impact` entries and the `GATE` table) and
+  `live.js` — 07 edits `insight.js` and the `hist` entry.** The overlap is the `LAYERS`
+  table in `layers.js`: 08 touches only `fn` / `mta` / `impact` / `GATE`, 07 only `hist`.
+  Nothing else is shared. That separation is the whole reason frontend2 01 ran early.
 - Layout: nothing may position against a guessed `#provenance` height — `--prov` is written
   from the strip's measured `offsetHeight` and `#left`/`#right` clear it off that variable.
 
