@@ -44,6 +44,19 @@ def ida() -> dict:
 
 
 @pytest.fixture(scope="module")
+def wet_ante(ida) -> dict:
+    """A SECOND real event, and the reason it exists is a mutation survivor: Ida's
+    antecedent is exactly 0.0 for every Cell, so the Ida slice cannot test that term and a
+    'frozen antecedent' assertion over it passes on zeros."""
+    e = dict(ida["wet_antecedent_event"])
+    e["ws"], e["we"] = _dt(e["window_start_utc"]), _dt(e["window_end_utc"])
+    e["hours"] = [{"cell": c["cell"], "hour_end_utc": _dt(h), "mm_1h": mm}
+                  for c in e["cells"] for h, mm in c["hourly"].items()]
+    e["mx"] = {c["cell"]: c["matrix"] for c in e["cells"]}
+    return e
+
+
+@pytest.fixture(scope="module")
 def art() -> dict:
     return fe.coefficients()
 
@@ -244,12 +257,41 @@ def test_a_cell_with_no_value_at_all_is_unforced_and_not_a_hole(ida):
     assert f["state"] == fd.OK and f["unforced_cells"] == 1 and -1 not in f["cells"]
 
 
-def test_the_antecedent_is_frozen_at_the_anchor_and_does_not_move(ida):
-    cell = next(iter(ida["mx"]))
-    seen = {fd.window_features(ida["hours"], ida["ws"], ida["ws"] + timedelta(hours=k)
-                               )["cells"][cell]["antecedent_mm_24h"]
-            for k in (1, 12, 30, 54)}
-    assert len(seen) == 1
+def test_the_antecedent_is_frozen_at_the_anchor_and_does_not_move(wet_ante):
+    for cell in wet_ante["mx"]:
+        seen = {fd.window_features(wet_ante["hours"], wet_ante["ws"],
+                                   wet_ante["ws"] + timedelta(hours=k)
+                                   )["cells"][cell]["antecedent_mm_24h"] for k in (1, 6, 24, 48)}
+        assert len(seen) == 1 and seen.pop() > 0.0, cell
+
+
+def test_the_antecedent_block_is_the_twenty_four_hours_ending_at_the_anchor(wet_ante):
+    """[anchor-23h, anchor] inclusive — the same rows flood_matrix reads at `at_open`. Not
+    the 24 h before `now`, which for a grown Window sits INSIDE it and sums to nothing."""
+    f = fd.window_features(wet_ante["hours"], wet_ante["ws"], wet_ante["we"])
+    for cell, want in wet_ante["mx"].items():
+        c = f["cells"][cell]
+        assert c["antecedent_hours"] == fd.ANTECEDENT_H == 24
+        assert c["antecedent_coverage"] == 1.0
+        assert fd.precip_terms(c)["log1p_antecedent_mm_24h"] == pytest.approx(
+            want["log1p_antecedent_mm_24h"], abs=1e-6), cell
+    assert min(w["log1p_antecedent_mm_24h"] for w in wet_ante["mx"].values()) > 1.0, \
+        "this fixture is useless if its antecedent is zero — Ida's is"
+
+
+def test_an_antecedent_hour_is_never_also_a_window_hour(wet_ante):
+    a, n = wet_ante["ws"], wet_ante["we"]
+    ante = {a - timedelta(hours=h) for h in range(fd.ANTECEDENT_H)}
+    assert not (ante & set(fd.hour_ends(a, n))) and a in ante
+
+
+def test_the_wet_antecedent_event_also_reproduces_the_offline_matrix(wet_ante):
+    f = fd.window_features(wet_ante["hours"], wet_ante["ws"], wet_ante["we"])
+    for cell, want in wet_ante["mx"].items():
+        got = fd.precip_terms(f["cells"][cell])
+        for k in ("log1p_precip_max_mm_1h", "log1p_precip_total_mm",
+                  "log1p_antecedent_mm_24h"):
+            assert got[k] == pytest.approx(want[k], abs=1e-6), (cell, k)
 
 
 def test_the_precip_terms_are_log1p_once(ida):
