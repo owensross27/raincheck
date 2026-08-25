@@ -101,3 +101,140 @@ what ticks orch 13's open checkbox, and only a real gap scan can produce it. The
 
 **A zero expansion writes NO LOG at all** (never scheduled), so it appears in the graph and
 in no row of the run table - which is also why the pod count is 2 x instances that RAN.
+
+
+## Close-out — what the shadow is, and what shadowing CANNOT prove (2026-08-25, `orch11-shadow-parity`)
+
+**What shipped.** `dags/raincheck_shadow.py` (the nightly's build shape on a SHADOW data
+root), `raincheck_stage.at_root()` / `stage_task(root=)` (the one difference a shadow is
+allowed to have, rewritten on every container of the pod and *asserted* — a shape that
+stopped binding `RAINCHECK_ARCHIVE_ROOT` raises rather than defaulting), and
+`scripts/shadow-day.py`, which runs BOTH sides and records the pair. `raincheck.parity` is
+consumed as-is; there is no second definition of "equal" anywhere in this ticket.
+
+**The shadow root is `s3a://raincheck-bronze/shadow`** — a prefix of its own inside the
+archive bucket, never the bucket root (that IS the cold mirror, and it holds the reference
+tables every build reads) and never the Mac's tree. The Mac side builds into a LOCAL shadow
+root (`~/raincheck-shadow` by default) whose `archive/`, `ref/` and the four `silver/`
+reference tables are SYMLINKS to the Mac's real tree: its outputs are its own, and the live
+Silver and Gold are never written. That symmetry is not tidiness — `gold` rolls a month out
+of whatever Silver its root holds, so a reduce over the Mac's whole August could never equal
+a reduce over the two days the shadow staged.
+
+**Two independent proofs per shadow day, both recorded in `research/orch-11-shadow.json`:**
+
+1. **CONTENT** — `parity.compare()` at the **PARTITION** level, on
+   `silver/events/service_date=D`, `silver/leg_hours/service_date=D` and the reduce's
+   `gold/cell_hour_speed|cell_hour_route/month=M`. Partition level and never the table root:
+   a shadow root holds the days it staged and nothing else, so a table-rooted compare lists
+   every other partition as `only_in_b` and can never be `ok` — a red verdict that says
+   nothing about the day under test. Pinned by
+   `tests/test_parity.py::test_a_shadow_is_compared_at_the_partition_level_and_never_at_the_table_root`.
+2. **OUTCOME** — the two runtimes' own record of what happened: Airflow's task states (the
+   expansion is exactly as wide as the day list, every index `success`, the reduce
+   `success`) against the rc `daily.py` exits with on the Mac. Independent of every sha
+   above: a build that wrote the right bytes and reported a failure, or reported success on
+   a day it never expanded to, is a cutover defect no digest can see.
+
+**A precondition the recorder enforces before it believes either proof: the two sides read
+the SAME Bronze.** `parity.compare` runs over each input partition (`archive/{vp,tu}/date=D`
+and `date=D+1`, because `events` reads `date IN (D, D+1)`), local against shadow, and a day
+whose mirror is a part behind is INCONCLUSIVE rather than DIFFERS. Without it the comparison
+is a statement about the cold mirror, not about the two runtimes. And both sides' outputs are
+DELETED before either builds — cloud 13's trap encoded: its first comparison ran a fresh
+remote build against a Mac partition built two days earlier and reported 1,469,145 vs
+1,354,911 rows, which reads exactly like a broken writer and was sixteen `gapfill` parts
+landing in between. **Build both sides, then compare** — neither side may be an artifact that
+was already lying there.
+
+### The three mutating stages — why a shadow cannot prove them, and what does
+
+The shadow DAG's FIRST task echoes the declared stages it does not run, derived from
+`daily.STAGES`, so the run says it rather than silently skipping them. Three of them mutate
+state the Mac also writes; a shadow that ran them would BE the second writer it exists to
+avoid.
+
+**1. `gapfill` — writes Bronze.** Its target is the one Bronze tree both runtimes read, and
+its subject is "which hours are missing *there*". Run against a shadow copy it reads the
+copy's own `missing_hours()`, so it would fill hours that are already filled in the real tree
+and prove nothing about the real gaps; run against the real tree it is the data event.
+**Proven after cutover by its own two checks, which already exist and already write rows:**
+`gapverify` compares each filled hour against its archiver neighbours (a row per kind under
+`<root>/checks/check=gapverify/`, `row_ratio`/`key_ratio` inside `gapfill.ROW_BAND`/`KEY_BAND`
+— the module's bands, never the measured 0.85-1.2x), and `gapcheck` reports what is still
+missing per kind x closed day. On the first nights after cutover the falsifiable reading is:
+`gapcheck`'s missing set equals what the Mac's last night reported minus what the fill filled,
+and `gapverify` has a judgeable pair for every kind. orch 09's `fill-fidelity` suite expects on
+exactly those rows, so the GX page is the standing form of this proof.
+*(A weaker pre-cutover option exists and is deliberately not claimed as parity: stage a day
+with one hour removed and watch the shadow's fill restore it. That is a functional test of the
+fetcher, not a statement that the two runtimes fill the same tree the same way.)*
+
+**2. `coldpush` — writes the cold mirror.** `aws s3 sync <root>/archive -> s3://<bucket>/archive`:
+its destination is the bucket the shadow root is a prefix OF. From a shadow root it would push
+the copied subset back over the objects it was copied from — a no-op whose green would be about
+objects that were already there. And the claim changes shape at cutover: once the data root IS
+the bucket, "push Bronze to R2" is local-to-itself and stops meaning what it means today, which
+is a writer question **cloud 10 owns and orch 12 must not assume away**. **Proven after cutover
+by `coldcheck`'s own rows** (a check straight after the push, one row per top-level `archive/`
+prefix, `differing` counts) and by `make coldgaps` for the loss-versus-drift distinction that
+`coldcheck` deliberately does not make; orch 09's `cold-mirror` suite expects on the row
+convention and reports without gating, which is the right strength for a check whose red is
+usually the capture box's overlapping write.
+
+**3. `prune` — deletes.** `stream.prune(root)` removes `live/date=/hour=` past the 48 h
+horizon. A deletion cannot be compared: two runtimes cannot both delete the same directory and
+be observed doing it, and a shadow root has no `live/` at all (the streaming job writes it, and
+`precip_live` still refuses an object-store root outright). It is also the only stage whose
+damage is irreversible, which is why **orch 12's rollback line matters most here.** **Proven
+after cutover as a property of the tree AFTER a run**, on any morning, with one listing:
+`live/` holds no partition older than the horizon AND still holds the newest hour — falsifiable
+in both directions (nothing pruned, or too much). Watch it on every one of the first mornings,
+because a `prune` that over-deletes is not recoverable from the cluster side.
+
+### What else a shadow does not prove, said plainly
+
+- **The scheduler's clock.** Every shadow run is triggered by hand. That the 06:00
+  America/New_York timetable fires, that `catchup=False` holds under a missed interval, and
+  that DST is followed are proven only by the first unpaused nightly's own `run_id`
+  (`daily-YYYY-MM-DD`) and `next_dagrun_logical_date`, and the DST boundary only by living
+  through one.
+- **`precip`.** Not in a shadow day: it rebuilds the current MRMS month and fetches unlanded
+  Pass2 hours from outside, at month grain, off inputs the shadow root does not hold.
+- **`gxcheck`.** It expects on the check rows THIS run wrote, and a shadow day writes none.
+  Independently, **GX Data Docs are POSIX-only — `gx.run()` refuses an object-store root** — so
+  a shadow on an `s3a://` root structurally cannot run it. The first Data Docs tree is landed by
+  the first real nightly, which is orch 12's, not this ticket's.
+- **The three outcomes end to end in a real nightly.** rc 2 -> `skipped`, rc 1 -> `failed` and a
+  zero-length expansion -> `skipped` were all proven on the cluster at the wave-5 gate
+  (`gateprobe-1`), synthetically. No real check has exercised them.
+- **Contention.** Both sides ran alone. Nothing here says what a nightly does while the
+  streaming job, the live loop and the capture box are all writing.
+
+### The ledger, and how orch 12 counts seven clean days
+
+`research/orch-11-shadow.json` is a JSON array, appended one entry per shadow DAY (a run
+over N days appends N entries). Each entry carries `day`, `recorded_utc`, `run_id`,
+`shadow_root`, `mac_root`, `inputs_equal`, `inputs_reconciled` (the input partitions that
+had to be taken from this Mac rather than the mirror - see the finding above), `content`
+(one compare per partition, with the row count and the leading 12 of the sha per partition),
+`outcome`, and `clean` - the AND of both proofs. **Seven clean days is
+`sum(e["clean"] for e in ledger)`, and the count starts at the first entry recorded by this
+ticket.** A re-run of the same day appends a SECOND entry rather than replacing the first:
+the ledger is a receipt log, not a state file, and a day that went red once and clean on a
+retry is exactly the thing a cutover gate should be able to see.
+
+`scripts/shadow-day.py DAY [DAY ...]` is the whole procedure; it exits 0 only if every day
+it was given is clean, 1 if a day differs and 2 if a step could not be run (the third
+outcome, as everywhere else here: could-not-check is never rendered as either verdict).
+A run over several days is ONE cluster run with a mapped expansion that wide - which is
+also the cheapest way to buy shadow days, because a task is two burst pods and the node
+purchase, not the work, is what a short stage costs.
+
+**The shadow DAG reaches the cluster only in the `-airflow` image**, like every other DAG:
+there is no git-sync and no DAG volume. A wave gate's image build over the landed tree is
+what delivers it; a ticket session that needs it before then builds the `dags` target alone
+under a scratch tag and converges with a temporarily edited (never committed)
+`deploy/airflow/values.yaml`, which is what this session did. **`raincheck_daily` stays
+PAUSED throughout - unpausing it is orch 12's cutover, not this ticket's** - and only
+`raincheck_shadow` is unpaused.
