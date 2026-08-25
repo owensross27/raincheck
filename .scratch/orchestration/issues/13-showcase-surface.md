@@ -8,7 +8,7 @@ fan-out rather than asserting it.
 
 **Blocked by:** 06 (fan-out), 08 (GX foundation).
 
-**Status:** ready-for-agent
+**Status:** DONE (2026-08-25, `orch13-showcase-surface`) - see the close-out at the bottom.
 
 - [ ] Data Docs, a rendered DAG graph, a run summary and a written walkthrough publish to the public static host — never to the Bronze bucket
 - [ ] Nothing in the portfolio view requires cluster access
@@ -238,3 +238,117 @@ check rows.
 ## Forward-context from DESTINATION-PLAN.md (copied verbatim by the WAVE 5 GATE PART 2, 2026-08-25, from this ticket's summary line in waves/wave-3-plus.md)
 
 **FROM DESTINATION-PLAN (2026-08-25), one line:** two more static families reach the host — `files/geo/**` (flood-build 19 / frontend2 03) and `files/summary/**` (frontend2 04) — both listed in `index.json` automatically; the showcase links them when they exist and re-describes neither.
+
+## CLOSE-OUT — DONE (2026-08-25, branch `orch13-showcase-surface`)
+
+**Status: DONE.** Landed as `src/raincheck/showcase.py` + `tests/test_showcase.py` (+35),
+a sixth `publish.FAMILIES` entry, `make showcase`, and one committed run record.
+
+**THE THREE ARTIFACTS, and what each is rendered FROM.**
+
+    web/showcase/index.html   the walkthrough      <- the declaration + the record + FAMILIES
+    web/showcase/graph.svg    the task graph       <- daily.STAGES + the DAG file's MAPPED
+    web/showcase/run.json     one recorded run     <- that run's own Airflow task logs
+
+They publish as family **`showcase`** (`showcase/**`, a TREE, `public, max-age=300`,
+prefix `showcase/`), which is why the file names above are this writer's to make and a
+fourth artifact owes no `contract.CONTRACT` bump. `files/index.json` lists the family
+automatically (`test_the_index_covers_every_family_including_itself` passes unchanged),
+`docs/read-api-contract.md` gained its row, and `contract.SCHEMA` points the tree at this
+module. `publish.plan("showcase")` accepts the rendered tree - 3 objects, the right
+content types - and **nothing was published**: `raincheck-public` does not exist ([YOU]).
+
+**THE SURFACE, for whoever records the next run.**
+
+    showcase.tasks() -> list[Task(id, kind, stage, axis)]   kind: plan | stage | report
+    showcase.mapped_axes() -> tuple[str, ...]               ast-read from dags/raincheck_daily.py
+    showcase.graph_svg() -> str                             self-contained, `rc-`-prefixed CSS
+    showcase.run_record(log_dir, label) -> dict             label: probe | shadow | nightly
+    showcase.record(path=None) -> dict                      newest research/orch-13-run-*.json
+    showcase.build(rec, out=None) -> list[Path]             out defaults to the family's src()
+
+    make showcase                                           re-render from the newest record
+    python -m raincheck.showcase --logs <dir> --label shadow    record a run, then render
+
+**THE GRAPH IS RENDERED FROM `declared()`, AND THE DERIVATION IS CHECKED RATHER THAN
+TRUSTED.** `tasks()` repeats the DAG file's own loop (it has to - importing that file means
+importing Airflow), and `test_the_rendered_graph_is_the_graph_airflow_builds` asserts
+`[t.task_id for t in dag.tasks] == [t.id for t in showcase.tasks()]` against the DAG object
+Airflow really builds. RUN FOR REAL in a throwaway venv on Airflow 3.2.2 +
+cncf-kubernetes 10.17.1: **35 passed / 0 skipped**. The picture is the 14-task graph -
+`plan_kind · gapfill · gapverify · gapcheck · coldpush · coldcheck · plan_service_date ·
+events · gold · precip · prune · eras · gxcheck · report` - with the two mapped stages and
+`events` drawn as stacks, `gold` labelled the reduce, `precip`'s declared `month` axis
+labelled as deliberately one pod, the five gates outlined apart, and `plan_*`/`report`
+dashed because they are in the graph and not in the declaration.
+
+**THE VERDICT IS NEVER THE DagRun STATE.** `run.json` carries no run state at all. The
+verdict is the closing line `daily.verdict()` wrote, lifted out of the report task's log
+(the stage pod's stdout arrives under a `[base] ` prefix); a per-stage `daily: <name>
+<outcome> in Ns` line is deliberately not matched. A run with no `report` task says so
+rather than inventing one.
+
+**ONE RECORDED RUN, AND IT IS A PROBE - MEASURED, NOT ASSUMED.** `raincheck_daily` has
+NEVER RUN: `s3://raincheck-bronze/airflow-logs/` holds exactly `dag_id=raincheck_gateprobe`
+and `dag_id=raincheck_smoke` and nothing else, and orch 11's shadow has no RUN LOG entry.
+So the record is the wave-5 gate's probe, labelled `probe`, and the page says in its own
+words that a probe is not a nightly. From its nine kept logs:
+**9 task instances / 18 burst pods / 275 s wall / 336 s of task time**, `gate_rc2` skipped
+with `exit_code 2` beside `gate_rc1` failed with `exit_code 1` (orch 07's rendering, on a
+real scheduler), `mapped_a` three wide, and `mapped_empty` in NO row because a zero
+expansion is never scheduled and writes no log. **The "events mapped >= 5 Service dates
+wide" checkbox is NOT ticked**: the widest map is measured into the record
+(`totals.widest_map`) and the page says the declared width is not what this run shows.
+
+- [x] Data Docs, a rendered DAG graph, a run summary and a written walkthrough publish to
+      the public static host, never to Bronze — the family is `showcase` on
+      `raincheck-public`; `docs/**` was already cloud 09's and the walkthrough LINKS
+      `docs/index.html`, never a validation page
+- [x] Nothing in the portfolio view requires cluster access — three static files, and the
+      page says why that is structural
+- [x] No published artifact contains feed payload — `run.json`'s instances are a frozen
+      eight-field list (a test pins it), so no pod name, node address or log prose reaches
+      the host; the Data Docs half is orch 08's structural argument, restated as a link
+- [ ] **One recorded run has an events map at least five Service dates wide** — NOT MET,
+      and it cannot be until a real nightly runs. The recorded run is the probe (3 wide);
+      per-task durations ARE exported. **Owner: orch 11's shadow, then orch 12.**
+- [x] The serial baseline is stated next to it — `SERIAL = 1928 s / 7 service days /
+      ~275 s/day`, on the page beside the run, with the reason both numbers travel together
+
+**THE TWO SUITE HAND-OFFS ORCH 10 LEFT: I TOOK NEITHER, AND THE REASON IS MEASURED RATHER
+THAN INHERITED.** `flood-build 19`'s `stormwater_extent` cannot be expected on because it
+does not exist: branch `floodbuild19-stormwater-extents` has **ZERO commits** (its tip IS
+master `90ce33d`), it is not pushed, `git grep stormwater_extent` over its `src/` returns
+nothing, and it has no RUN LOG entry - so there is no batch, no `CHECK_COLUMNS` constant
+and no shape to write a `Suite` against. Inventing one is the exact thing orch 10 refused.
+`flood-build 21a`'s `route_flood` is wave 7 and has no ticket file at all. **Both are still
+owed, and the recipe is unchanged**: one `Suite(...)` appended to `gx.NON_NIGHTLY` plus a
+`make gx<name>` target; `Suite.whole` is the seam for a batch-level claim and a named run
+already renders into `<root>/gx/docs-<suite>`. The wave-8 gate should read this paragraph
+as the gap, not as a decision.
+
+**MUTATION ROUND: 22 mutants, 22 KILLED**, pristine control green before AND after, tree
+empty after every restore. One of them earned the round on its own: **"read identity off
+`rows[0]` instead of the first line that HAS a `task_id`" killed 15 tests only because the
+fixture was fixed first to open the way a real log opens.** A real Airflow task log's first
+line is the runner's `::group::Pre Execute`, which carries no `task_id`, no `map_index` and
+no `dag_id`; the first draft of the fixture started with an identity-carrying line, and
+under that fixture the mutant was invisible while the parser would have died on every real
+log. Also killed: the skip/error precedence swapped (an INCONCLUSIVE gate logs BOTH, so
+reading the error first turns every could-not-check into a failure), `MAPPED` ignored, the
+plan task moved behind its stage, the report dropped from the picture, the gate outline
+dropped, the stack dropped, the first attempt preferred to the newest, `widest_map` faked,
+2 pods per instance flattened to 1, every `daily:` line read as a verdict, INCONCLUSIVE
+dropped from the verdict pattern, a probe described as a nightly, the width caveat
+suppressed, the non-nightly suites shown as published, the baseline dropped, the family
+table restated, the whole log head published, the tree turned into a fixed file list, and
+the renderer writing somewhere the publisher does not read.
+
+**WHAT I DID NOT DO, and why.** No image was built and **the image pin was not touched**
+(single-writer for the wave). Nothing was published (no bucket). `docs/read-api-contract.md`
+is named on the page by its repo path rather than linked, because `.md` is not in
+`publish.PUBLISHABLE` and the repo is not public (measured: github.com/owensross27/raincheck
+returns 404) - a dead link would be worse than a citation, and widening rule 2's allowlist
+for one link is a decision, not a fix. `files/geo/**` and `files/summary/**` are not
+mentioned by name: the "what is on the host" list is DERIVED from `publish.FAMILIES`, so
+they appear the moment they land and are re-described never.
