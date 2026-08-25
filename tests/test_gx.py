@@ -73,11 +73,25 @@ def test_the_authoritative_batch_is_the_newest_run_stamp(tmp_path):
 
 def test_no_batch_at_all_is_inconclusive_and_never_ok(tmp_path):
     """A producer with nothing on disk did not run. Reporting that as a pass is the exact
-    false-OK the check vocabulary was built to kill."""
+    false-OK the check vocabulary was built to kill. Rows only: the same claim is made
+    through run() below, because a Result built by hand tests the constructor and not the
+    path that actually builds one."""
     assert gx.batch(tmp_path, "gapcheck") is None
     result = gx.Result("s", "gapcheck", inconclusive=("<no batch>",))
     assert result.outcome == checks.INCONCLUSIVE
     assert gx.rc([result]) == 2
+
+
+@needs_gx
+def test_a_run_with_no_batch_on_disk_reports_could_not_check(tmp_path):
+    """The whole stage on an empty root: the suite could not run, so the run is
+    INCONCLUSIVE and its rc is 2 - which on this declared gate is a `skipped` task rather
+    than a red one (orch 07). Data Docs still build: an empty report is the honest one."""
+    results, docs = gx.run(tmp_path)
+    assert [r.outcome for r in results] == [checks.INCONCLUSIVE]
+    assert results[0].inconclusive == ("<no batch>",) and not results[0].ok
+    assert gx.rc(results) == 2
+    assert (docs / "index.html").is_file()
 
 
 def test_a_batch_that_drifted_from_the_producers_constant_is_refused(tmp_path):
@@ -178,6 +192,23 @@ def test_the_unrecoverable_subway_positions_are_excluded_by_the_checks_own_kinds
 
 
 @needs_gx
+def test_a_judged_row_that_carries_no_measure_fails_rather_than_passing_quietly(tmp_path):
+    """NULL is the could-not-check convention, and those rows are not in this frame - so a
+    row that claims to have been judged and then carries no `hours_held` is a producer bug,
+    not a third outcome. It has to FAIL: a between-expectation counts nulls as MISSING and
+    succeeds without them, so the not-null expectation is the only thing standing between a
+    measure that vanished and a green suite."""
+    rows = [gapcheck_row(k, checks.OK) for k in gapfill.KINDS]
+    rows[0] = gapcheck_row("vp", checks.OK, held=None)
+    path = checks.write(tmp_path, "gapcheck", rows, COLUMNS)
+    (suite,) = gx.SUITES
+    result = gx.validate(gx.context(tmp_path / "docs"), suite, gx.rows(path, COLUMNS))
+    assert result.outcome == checks.FAIL
+    assert result.failed == (f"vp {DAY}",)
+    assert not result.inconclusive     # a missing measure is not a check that did not run
+
+
+@needs_gx
 def test_a_suite_that_failed_without_naming_a_row_is_still_a_failure(tmp_path):
     """An AGGREGATE expectation - one orch 09/10 may well want - fails without an
     unexpected index, so nobody is named. GX's own `success` is what decides the outcome;
@@ -271,15 +302,21 @@ def test_the_docs_target_is_the_publishers_own(monkeypatch, tmp_path):
 
 @needs_gx
 def test_the_site_is_rebuilt_each_run_and_never_becomes_a_served_history(tmp_path):
-    """`docs/**` is THIS run's report. A timestamped validation page per run would
-    otherwise pile up in a tree that is published wholesale every night - the same "no
-    served history" rule cloud 09 wrote for the live family, read across."""
+    """`docs/**` is THIS run's report, published wholesale every night - so nothing may
+    accumulate in it. MEASURED: GX replaces the page of a suite it re-validates all by
+    itself, so the case that needs the rebuild is a suite that STOPS running - a rename, a
+    retirement, a producer removed. Its page would otherwise sit there forever, dated and
+    linked to nothing, describing a check nobody runs. That is the assertion here."""
     full_batch(tmp_path)
-    gx.run(tmp_path)
+    (live,) = gx.SUITES
+    retired = gx.Suite("retired-suite", "gapcheck", COLUMNS, live.expectations, era=live.era)
+    gx.run(tmp_path, (live, retired))
     docs = gx.docs_dir(tmp_path)
-    (stale,) = [p for p in docs.rglob("*.html") if p.parent.parent.name == "__none__"]
-    gx.run(tmp_path)
-    assert not stale.exists()
+    assert (docs / "expectations" / "retired-suite.html").is_file()
+
+    gx.run(tmp_path, (live,))
+    assert not (docs / "expectations" / "retired-suite.html").exists()
+    assert (docs / "expectations" / f"{live.name}.html").is_file()
     assert len([p for p in docs.rglob("*.html") if p.parent.parent.name == "__none__"]) == 1
 
 
