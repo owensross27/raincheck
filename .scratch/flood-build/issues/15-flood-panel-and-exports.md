@@ -273,3 +273,81 @@ as provenance with its limit attached (one storm carries the wet pairs).
 **One number your panel can use as-is:** every OK replay cycle reported `coverage 1.0` and
 `unforced_cells 168` — a Cell with no forcing anywhere is UNFORCED, not a hole, and the
 panel should render those two as different states for exactly the reason the replay does.
+
+---
+
+## DONE 2026-08-25 — branch `flood15-panel-exports`, `5925813`, +63 tests
+
+**What shipped.** `src/raincheck/flood_panel.py` (the tick), `src/raincheck/release_check.py`
+(the release checklist, third slide, landed), two `publish.FAMILIES` entries, coordinates
+on the MTA chip, and `make flood-panel` / `make release-check`. The tick JOINS cloud 05's
+loop: ONE call in `live_loop.cycle()` and ONE field on `state` (`flood`). No new daemon.
+
+**THE FOUR FILES AND THEIR FAMILIES, frozen.** The payload names are frontend 05's; the
+two metas are this ticket's, one per gate side, per frontend 01's decision.
+
+| family | keys, in publish order | gate |
+|---|---|---|
+| `flood` | `files/flood.json`, `files/flood-meta.json` | OPEN |
+| `flood-mta` | `files/flood-mta.json`, `files/flood-mta-meta.json` | GATED with `live.geojson` |
+
+`gated` is a property of a FAMILY, which is why the split had to be two entries and not
+one. Both additive under `contract.PROMISE[1]`: **no `CONTRACT` bump, and none was made.**
+
+**TOP-LEVEL KEYS (this is the contract a renderer binds to).**
+
+* `flood.json` — `cycle_id · detector_version · score_version · provisional · lineage
+  ("ungated") · strings · cutpoints · window · staleness · budgets_s · dim · winter ·
+  skew · model_tier ("ok"|"dropped") · cells · units · floodnet · coastal`
+* `flood-meta.json` — the same head plus `staleness · budgets_s · window · dim · skew ·
+  winter · revisions (a COUNT) · model_tier · lineage · counts{cells, units_flagged,
+  units_high, floodnet_sensors, floodnet_detected}`
+* `flood-mta.json` — `cycle_id · detector_version · score_version · provisional ·
+  lineage ("mta-alerts") · strings · mta`
+* `flood-mta-meta.json` — the head plus `lineage · counts{chips, active, stations} ·
+  status · asof · budgets_s`
+
+`cells` is `{"<h3 hex>": {score_index, rank?, tier?, window_mm?, flags?,
+surge_margin_ft?, latched?}}` — **one dict per Cell, absent-never-null**, keyed by the
+same hex string `cells.geojson` keys on (the key IS the asset id minus `cell:`, so it is
+not repeated inside). `units` is point Units at ELEVATED+ ONLY, each
+`{asset_id, kind, cell, tier, rank, name?, lon?, lat?, score_index?, flags?,
+surge_margin_ft?, latched?, suppressed_by?}`. `floodnet.geojson` and `mta.geojson` are
+FeatureCollections and **every feature carries a boolean `display`**.
+
+**FOR FLOOD-BUILD 20 (wave 8), which adds `design_storm` per Cell — its box in
+DESTINATION-PLAN §2 is not mine to edit, so read this.**
+
+1. **Where it goes: `flood.json` -> `cells["<hex>"]["design_storm"]`.** The writer is
+   `flood_panel._cells()`; it builds one `query.pack(...)` per Cell, so adding a member is
+   one keyword there and nothing else. Absent-never-null is enforced document-wide by
+   `flood_panel._prune()` at the end of `payloads()`, so you may pass `None` freely and
+   the key simply will not appear.
+2. **The Cell universe is the 1,351 SCORED Cells** (`kind = "cell"` in
+   `gold/flood_exposure`), not the 4,113-Cell grid. `cell_totals` covers all 4,113 but a
+   Cell with no exposure row gets no dict. If `design_storm` is defined for the whole
+   grid, say so and change the loop deliberately — do not assume the key set is the grid.
+3. **Do not add a fifth read to the tick without measuring its peak RSS.** The pod is
+   limited to 768 MiB and this tick already measures ~500 MiB peak; three reads in this
+   path cost 6,576 MiB before they were rewritten (see the RUN LOG entry and TRAPS).
+   `flood_panel._rows(con, sql, path)` is the read helper and its shape is load-bearing:
+   projection and predicate INSIDE the read's own statement.
+4. **`flood 17` is the ONLY editor of `live_loop.py` and `flood_truth.py` in wave 7**, and
+   it merges into this same tick. If 20 lands after it, rebase onto its shape.
+5. The design-storm number is a RATE, and everything human-facing on this panel is a rank
+   or an index — if it renders as a depth or an mm, it needs its own string under
+   `display` in the detector artifact, not a sentence typed into the writer.
+
+**Two things measured here that the earlier bullets got wrong, corrected rather than
+carried:** the log's "~3 MB/day" budget was written before the Unit count was known (one
+full vector is 15,106 rows = 1,651,324 B, so 24 recomputes are 39.6 MB/day) — the file is
+gzipped (`.ndjson.gz`, 12.4x, 3.2 MB/day, 96 MB over the 30-day prune); and the "three
+export files" of the original bullet are TWO payloads plus their two metas, because
+frontend 05 froze the two filenames the page fetches and frontend 01 split the meta by
+lineage. Nothing was dropped: all Cells as geometry became `cells` keyed by the hex the
+page already has geometry for, so 1,351 polygons are not published twice.
+
+**Small thing for whoever renders the FloodNet tier (frontend 08):**
+`flood_truth.sensors()` sets `gate: "rain"` for every sensor that is not gated, INCLUDING
+dry ones — the string is only meaningful on a `water` sensor. Paint from `display`; read
+`gate` only when `state == "water"`.
