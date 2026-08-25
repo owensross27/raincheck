@@ -22,10 +22,18 @@ are therefore EVENT-grain (every source's observations inside the event's window
 wide) and are named `event_*` to say so; the asset-grain facts are `sources`,
 `label_support` and `depth_mm`, all of them read straight out of F05's row.
 
+`exposure_of` reads `gold/flood_exposure` (F10's published score, ONE row per Unit) and
+does not recompute any part of it -- above all not the complex rule, which F10 already
+applied and verified against an independent recomputation for all 445 complexes.
+
 Complex grain: a complex's history is the union over its child entrances (max depth,
 union of support), because a complex called dry when the entrance you did not use flooded
 is the failure story 4 names. A station is a Carrier -- it carries no history of its own
-and raises `not_a_scored_unit` naming the complex to ask instead.
+and raises `not_a_scored_unit` naming the complex to ask instead. The two queries draw the
+Unit/Carrier line from DIFFERENT authorities and disagree about entrances ON PURPOSE: a
+history is F05's LABEL_KINDS (an entrance carries labels of its own), a score is F10's
+table MEMBERSHIP (an entrance publishes no row -- its score exists only inside its
+complex's max).
 
 Conventions: absent, never null (an unpublishable value is an ABSENT KEY); every payload
 carries the version stamps of the universe that answered it, and an unresolvable stamp is
@@ -94,6 +102,9 @@ def sources(source_mix: int | None) -> list[str]:
 
 # ---- version stamps ----------------------------------------------------------------
 
+EXPOSURE = ("gold", "flood_exposure")   # F10's table: the stamp and exposure_of both read it
+
+
 def one_value(con, table_root: Path, column: str) -> str:
     got = duck.table(con, table_root).project(column).distinct().fetchall()
     if len(got) != 1:
@@ -104,15 +115,28 @@ def one_value(con, table_root: Path, column: str) -> str:
 
 def versions(con, root: Path) -> dict:
     """The universe that answered. Resolved BEFORE any answer is built, so an unstamped
-    payload cannot exist -- not even the empty-history one. `score_version` / `model_id`
-    join this when F10's scores are read (ticket 03), which is why score is absent here
-    rather than null."""
+    payload cannot exist -- not even the empty-history one.
+
+    `score_version` (ticket 03) joins on any root that publishes `gold/flood_exposure`, and
+    is ABSENT -- never null -- on a root that has no scores to stamp. It reaches
+    `files/index.json` too, because `contract.index()` calls this same function; that is
+    additive to a promise made of (family, key, content type) triples, so it owes no
+    `contract.CONTRACT` bump.
+
+    `model_id` does NOT join here and cannot: F10 ships TWO of them (`point:l2_logistic`
+    scores stops and complexes, `cell:l2_logistic` scores Cells), so it is a fact about the
+    ANSWER, not about the universe -- `one_value` would read the real table as
+    `version_unresolved` and break every query on it. It rides on exposure_of's payload."""
     try:
-        return {"assets_version": ref.assets_version(root),
-                "spine_version": one_value(con, root / "silver" / "flood_events",
-                                           "spine_version"),
-                "label_version": one_value(con, root / "gold" / "flood_labels",
-                                           "label_version")}
+        out = {"assets_version": ref.assets_version(root),
+               "spine_version": one_value(con, root / "silver" / "flood_events",
+                                          "spine_version"),
+               "label_version": one_value(con, root / "gold" / "flood_labels",
+                                          "label_version")}
+        scores = root.joinpath(*EXPOSURE)
+        if scores.exists():   # absent, never null: a root with no scores stamps none
+            out["score_version"] = one_value(con, scores, "score_version")
+        return out
     except QueryError:
         raise
     except Exception as e:
@@ -167,15 +191,21 @@ IMPACT_FILE = ("snapshots", "subwaydata", "impact", "subway_complex_hour.parquet
 ASSET_COLUMNS = ("asset_id", "kind", "name", "cell", "complex_id", "parent_asset_id")
 
 
-def events_for_asset(con, root: Path, params: Mapping, mode: str) -> dict:
-    """One Unit's dated flood history: `gold/flood_labels` joined to `silver/flood_events`."""
-    asset_id = need(params, "asset_id")
+def unit(con, root: Path, asset_id: str) -> tuple:
+    """The registry row behind an asset_id, or `unknown_asset`. Which of those rows is a
+    Unit is the QUERY's rule, not this one's -- the two queries answer it from different
+    authorities (see the module docstring) -- so this resolves identity and nothing else."""
     view(con, root, "ref", "assets", name="assets", columns=ASSET_COLUMNS)
     got = con.execute(f"SELECT {', '.join(ASSET_COLUMNS)} FROM assets WHERE asset_id = ?",
                       [asset_id]).fetchall()
     if not got:
         raise QueryError("unknown_asset", asset_id=asset_id)
-    aid, kind, name, cell, complex_id, parent = got[0]
+    return got[0]
+
+
+def events_for_asset(con, root: Path, params: Mapping, mode: str) -> dict:
+    """One Unit's dated flood history: `gold/flood_labels` joined to `silver/flood_events`."""
+    aid, kind, name, cell, complex_id, parent = unit(con, root, need(params, "asset_id"))
     if kind not in fl.LABEL_KINDS:  # a Carrier is located and aggregated, never scored
         raise QueryError("not_a_scored_unit", asset_id=aid, kind=kind, ask=parent)
 
@@ -237,9 +267,67 @@ def subway_impact(con, root: Path, kind: str, complex_id: str | None,
                                  [str(path), complex_id, *event_ids]).fetchall()}
 
 
+# ---- exposure_of -------------------------------------------------------------------
+
+EXPOSURE_COLUMNS = ("asset_id", "model_id", "score_ref", "score_severe", "score_index",
+                    "surge_margin_ft", "flags")
+FALLBACK_FLAG = "score_fallback_kind_median"   # F10: the kind median, not an evaluation
+
+
+def exposure_of(con, root: Path, params: Mapping, mode: str) -> dict:
+    """One Unit's published exposure: F10's row, READ.
+
+    Nothing here is recomputed, and the complex rule least of all: the `kind='complex'` row
+    already holds the max over its child entrance scores, verified at F10's landing against
+    an independent SQL recomputation for all 445. It is not even re-derivable downstream --
+    entrances publish no row -- so a second max would be a second implementation of a rule
+    with one home.
+
+    `not_a_scored_unit` fires on ABSENCE from that table, which is the Unit/Carrier rule
+    made concrete rather than re-stated: stations and entrances are Carriers and their
+    `parent_asset_id` names the complex to ask instead; a ref Cell outside F10's fit set
+    (2,762 of 4,113 on the real root) is simply not scored and has no parent, so `ask` is
+    absent rather than null.
+
+    `mode` does not change this answer. The licence boundary is one rule about MTA /
+    FloodNet / subwaydata ROWS; a score built from elevation, stormwater class and public
+    precip is in no restricted class, so both modes get the same object.
+    """
+    aid, kind, name, cell, complex_id, parent = unit(con, root, need(params, "asset_id"))
+    part = root.joinpath(*EXPOSURE)
+    got = []
+    if part.exists():   # a root with no F10 table scores NOTHING, and versions() says so
+        view(con, root, *EXPOSURE, name="exposure", columns=EXPOSURE_COLUMNS)
+        got = con.execute("SELECT model_id, score_ref, score_severe, score_index, "
+                          "surge_margin_ft, flags FROM exposure WHERE asset_id = ?",
+                          [aid]).fetchall()
+    if not got:
+        raise QueryError("not_a_scored_unit", asset_id=aid, kind=kind, **pack(ask=parent))
+    model_id, score_ref, score_severe, score_index, margin, flags = got[0]
+    return pack(
+        asset=pack(asset_id=aid, kind=kind, name=name, cell=cell_id(cell),
+                   complex_id=complex_id),
+        exposure=pack(
+            model_id=model_id,
+            # THE human-facing number is the within-kind rank, bounded (0, 1]. score_ref and
+            # score_severe are the LINEAR PREDICTOR at F10's reference forcings -- negative
+            # for nearly every Unit -- and travel as the raw model output they are.
+            score_index=score_index, score_ref=score_ref, score_severe=score_severe,
+            # 404 Units have no point elevation behind them: ABSENT, never 0.0 -- a zero
+            # margin means the water is at the doorway. `no_surge_margin` carries the reason.
+            surge_margin_ft=margin,
+            # F10's closed vocabulary, passed through unworded; each flag's one-line meaning
+            # is published under `flags` in research/flood-10-coefficients.json.
+            flags=list(flags),
+            # 60 bus stops outside the DEM footprint score on the kind MEDIAN, not on a model
+            # evaluation. Derivable from the flags, said explicitly so a renderer cannot
+            # present one as a modelled rank by simply not looking.
+            modelled=FALLBACK_FLAG not in flags))
+
+
 # ---- the entry point ---------------------------------------------------------------
 
-QUERIES = {"events_for_asset": events_for_asset}
+QUERIES = {"events_for_asset": events_for_asset, "exposure_of": exposure_of}
 
 
 def need(params: Mapping, key: str):

@@ -39,6 +39,8 @@ _Avoid_: district, area
 **Unit**:
 A flood-scored asset: a subway complex, a bus stop, or a Cell. The only kinds
 that ever publish a flood score; one row each in `ref/assets`, kind-separated.
+Kind is necessary, not sufficient: `gold/flood_exposure`'s membership is the rule,
+and the 2,762 Cells outside the fit set are Units of a scored kind with no score.
 _Avoid_: asset (when scoring is meant), target
 
 **Carrier**:
