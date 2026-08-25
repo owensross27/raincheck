@@ -182,6 +182,14 @@ gapverify:  ## sanity: filled hours vs adjacent archiver hours (rows, key covera
 eras:  ## every verified Bronze bus reader still surfaces the era columns -> rows under <root>/checks/ (exit 1 a reader dropped one, 2 no mixed-era day to read)
 	$(PY) -m raincheck.eras
 
+# --- orchestration ticket 08: the Great Expectations suites and Data Docs ------------
+# Expects on the check-result rows under <root>/checks/, never on Bronze - GX renders
+# unexpected values into Data Docs and Data Docs are published. Needs the optional extra
+# (pip install -e '.[gx]'); without it the run is INCONCLUSIVE, not a failure.
+.PHONY: gxcheck
+gxcheck:  ## GX suites over the check-result rows -> Data Docs at <root>/gx/data_docs (exit 1 a suite failed, 2 a suite could not run)
+	$(PY) -m raincheck.gx
+
 # --- ticket 11: MRMS live precip ---------------------------------------------------
 .PHONY: precip-live
 precip-live:  ## one live RadarOnly tick -> live/precip_cell (the 300 s LaunchAgent runs this)

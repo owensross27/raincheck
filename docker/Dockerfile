@@ -47,9 +47,16 @@ COPY pyproject.toml README.md Makefile /opt/raincheck/
 COPY src /opt/raincheck/src
 COPY web /opt/raincheck/web
 COPY scripts /opt/raincheck/scripts
-RUN pip install --no-cache-dir -e /opt/raincheck \
+#
+# `[gx]` is the Great Expectations extra (orchestration 08): the nightly's gxcheck stage
+# runs in a pod on THIS image, so the extra installs here or the stage has nothing to run.
+# It is an extra and not a dependency because no pipeline module imports it - raincheck.gx
+# imports it lazily and reports INCONCLUSIVE when it is absent. Imported in the check below
+# for the same reason everything else is: a dependency whose failure mode is import time is
+# untested until something imports it, and 03:00 in a pod is the wrong place to find out.
+RUN pip install --no-cache-dir -e "/opt/raincheck[gx]" \
  && ln -s /opt/venv /opt/raincheck/.venv \
- && python -c "import raincheck.spark, eccodes, duckdb, confluent_kafka" \
+ && python -c "import raincheck.spark, eccodes, duckdb, confluent_kafka, great_expectations" \
  && python -c "from raincheck.paths import REPO; assert str(REPO) == '/opt/raincheck', REPO" \
  && make -C /opt/raincheck --dry-run events DATE=1970-01-01 >/dev/null
 

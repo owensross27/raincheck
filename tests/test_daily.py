@@ -301,8 +301,8 @@ def test_the_driver_names_its_steps_from_the_declaration(seeded):
     """main()'s printed lines, in order: every declared stage once, in declared order,
     expanded ONLY over the axes this runtime supplies items for - here just precip's
     months. Asserted as that property rather than as a copy of the list: the declaration
-    grows (ticket 06 added the rollup) and a literal here is a second declaration to keep
-    in step with the first."""
+    grows (ticket 06 added the rollup, ticket 08 the checkpoint) and a literal here is a
+    second declaration to keep in step with the first."""
     root, _ = seeded
     months = daily.precip_months(NOW.date())
     names = [name for name, _fn, _soft in daily.steps({"root": root, "closed": CLOSED},
