@@ -12,9 +12,11 @@ NULLs   subway TU NYCT-extension columns (train_id, direction, is_assigned,
         rows keep presence as gtfsrt.io stored it (proto3 absent-vs-default is theirs).
         subway_vp is not archived there at all - those hours are unrecoverable.
 
-Fill:   python -m raincheck.gapfill fill [--feed vp] [--date 2026-08-19[:2026-08-21]]
+Fill:   python -m raincheck.gapfill fill [vp] [--date 2026-08-19[:2026-08-21]]
 Check:  python -m raincheck.gapfill check   (hour completeness per kind x closed day)
-Verify: python -m raincheck.gapfill verify  (filled hours vs adjacent archiver hours)
+Verify: python -m raincheck.gapfill verify [vp]  (filled hours vs adjacent archiver hours)
+The optional kind is POSITIONAL, and that is the seam a scheduler maps on: one pod per
+kind runs `<the stage's process form> <kind>` with nothing else changed (orch 06).
 Both return checks.Row batches (ticket 02): printed as today, persisted under
 <root>/checks/, exit 1 any fail / 2 any inconclusive / 0.
 """
@@ -426,13 +428,13 @@ def line(r: checks.Row) -> str:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("cmd", nargs="?", default="fill", choices=("fill", "check", "verify"))
-    ap.add_argument("--feed", choices=KINDS, help="one Bronze kind; default all five")
+    ap.add_argument("kind", nargs="?", choices=KINDS, help="one Bronze kind; default all five")
     ap.add_argument("--date", help="YYYY-MM-DD or START:END (UTC); default 2026-08-15..yesterday")
     args = ap.parse_args()
     root = data_root()
     if args.cmd in ("check", "verify"):
         name = "gapcheck" if args.cmd == "check" else "gapverify"
-        rows = check(root) if args.cmd == "check" else verify(root, args.feed)
+        rows = check(root) if args.cmd == "check" else verify(root, args.kind)
         for r in rows:
             print(line(r))
         if args.cmd == "check":
@@ -457,7 +459,7 @@ def main() -> None:
     # the failure mode gapfill.DEAD exists to avoid. One good day in the span is enough to
     # prove the source was reachable.
     attempted = failed = 0
-    for kind in [args.feed] if args.feed else KINDS:
+    for kind in [args.kind] if args.kind else KINDS:
         for day in span:
             attempted += 1
             failed += not fill_day(root, kind, day)

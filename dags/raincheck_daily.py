@@ -28,12 +28,32 @@ WHAT THIS DAG DECIDES AND WHAT IT REFUSES TO.
   gate turns a stable red into a flapping one. Transport stages - the ones that can fail on
   a blip and are idempotent - retry with exponential backoff.
 
+WHAT THE FAN-OUT ADDED (ticket 06). The stages whose declared axis this runtime maps
+become ONE POD PER ITEM: the fill and its verifier per feed kind, the build per Service
+date. Nothing here names them - `stage["fanout"]` is in the declaration and MAPPED below
+says which axes this runtime buys pods for.
+
+  HOW MANY PODS IS A QUESTION ONLY A POD CAN ANSWER. The Service dates come from a scan of
+  the data root, which no scheduler has, and Airflow can expand a task only over an XCom -
+  so each mapped axis gets ONE plan task in front of it, running the same read the mapped
+  stage used to do inside itself, in that stage's own measured shape.
+
+  AN EXPANSION TO ZERO IS A SKIP, and a green one. A morning with no gaps is not an alert
+  (user story 13); `all_done` carries the rest of the graph past it either way. The plan
+  writing `[]` and the plan writing NOTHING are deliberately different outcomes - an empty
+  list is a skip, an absent one is upstream_failed - so a scan that broke can never read as
+  a quiet morning (airflow 3.2.2 models/taskmap.py; cncf-kubernetes 10.17.1 turns an empty
+  result file into no XCom at all).
+
+  THE REDUCE STAYS ONE POD. `gold` rolls the months the built days touched, and one Spark
+  session rolling N months beats N sessions rolling one. It reads the SAME plan its days
+  were expanded from and lets the disk say which of them landed - a finished task's record
+  carries a map index and no Service date, so a state alone cannot name a month.
+
 WHAT IS DELIBERATELY NOT HERE. `coldgaps` (the remote census over unrecoverable Mac-era
 subway positions: it would page forever about hours nobody can recover) and `make eras`
 (a check whose place in the nightly is ticket 09's call, which is why ticket 01 left it out
-of the declaration). `gold` is not a task either: it is the reduce INSIDE `daily.build`
-over the months the built days touched, and it only needs splitting out when `events`
-becomes one pod per Service date - which is ticket 06's fan-out, not this graph.
+of the declaration).
 """
 from __future__ import annotations
 
@@ -42,7 +62,7 @@ import datetime
 import pendulum
 from airflow.sdk import DAG
 
-from raincheck_stage import command, module, shape_of, stage_task, stages
+from raincheck_stage import XCOM, command, module, shape_of, stage_task, stages
 from raincheck_timetable import DailyRunIdTimetable
 
 # A pendulum timezone, not a `zoneinfo.ZoneInfo`: the DAG imports and even runs with one,
@@ -57,6 +77,11 @@ RETRIES = {"transport": {"retries": 3,
                          "retry_exponential_backoff": True,
                          "max_retry_delay": datetime.timedelta(minutes=20)},
            "gate": {"retries": 0}}
+# The axes this runtime buys pods for. `month` is deliberately not one: precip rebuilds one
+# or two MRMS months in a single Spark session, and a second pod would buy a second node and
+# a second JVM to save nothing - a task is TWO burst pods and the node purchase (measured:
+# 95 s for the worker's, 74 s more for the stage's) is what a short stage's clock is made of.
+MAPPED = ("kind", "service_date")
 
 with DAG(
     dag_id="raincheck_daily",
@@ -67,19 +92,35 @@ with DAG(
     max_active_runs=1,          # two runs could build one Service date at once
     tags=["raincheck", "nightly"],
 ):
-    previous = None
+    chain, plans = [], {}
     for declared in stages():
-        task = stage_task(declared["name"], shape_of(declared["name"]), command(declared),
-                          trigger_rule="all_done", **RETRIES[declared["retry"]])
-        if previous is not None:
-            previous >> task
-        previous = task
+        axis = declared["fanout"] if declared["fanout"] in MAPPED else None
+        if axis and axis not in plans:
+            # The items, once per axis, from the first stage that maps on it and in that
+            # stage's own shape - it is the read that stage did inside itself before it was
+            # mapped. A transport retry class: a listing blip must not cost the night.
+            plans[axis] = stage_task(f"plan_{axis}", shape_of(declared["name"]),
+                                     module("daily", "plan", axis, XCOM),
+                                     trigger_rule="all_done", do_xcom_push=True,
+                                     **RETRIES["transport"])
+            chain.append(plans[axis])
+        cmds = command(declared)
+        if declared["reduces"]:
+            # the reduce takes the whole list its pods were expanded from, from the same
+            # plan; which of those days landed is the disk's answer, not this graph's
+            cmds = cmds + ["{{ ti.xcom_pull(task_ids='plan_" + declared["reduces"] + "') | tojson }}"]
+        chain.append(stage_task(declared["name"], shape_of(declared["name"]), cmds,
+                                items=plans[axis].output if axis else None,
+                                trigger_rule="all_done", **RETRIES[declared["retry"]]))
 
     # The driver's own ending, from Airflow's record of the run. It has to be a POD like
     # every other task - a callable here would run on the scheduler, on the floor - and a
     # pod cannot see the run it belongs to, so the finished tasks' states and durations are
     # rendered INTO its argument. `all_done` and no retries: it reports, it does not work.
-    previous >> stage_task(
+    chain.append(stage_task(
         "report", "raincheck-stage",
         module("daily", "report", "{{ ti.get_task_breadcrumbs(ti.dag_id, ti.run_id) | tojson }}"),
-        trigger_rule="all_done", retries=0)
+        trigger_rule="all_done", retries=0))
+
+    for upstream, downstream in zip(chain, chain[1:]):
+        upstream >> downstream

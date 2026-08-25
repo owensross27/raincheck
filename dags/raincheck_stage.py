@@ -40,6 +40,11 @@ DECLARATION = Path(os.environ.get("RAINCHECK_DECLARATION", "/opt/airflow/placeme
 # The spelling every raincheck manifest writes, and the transformer rewrites.
 IMAGE_NAME = "raincheck"
 REPO = "/opt/raincheck"          # where the image installs the repo, editable
+# A pod's ONLY way to hand a value back: the operator mounts this path from a shared volume,
+# stamps a sidecar that keeps the pod alive after the stage exits, and `kubectl exec`s the
+# file out of it (PodDefaults.XCOM_MOUNT_PATH + return.json, cncf-kubernetes 10.17.1). A
+# task can be expanded only over an XCom, so this is where a plan lands (ticket 06).
+XCOM = "/airflow/xcom/return.json"
 
 
 def make(target: str, **variables: str) -> list[str]:
@@ -163,12 +168,37 @@ def pod(shape: str, image: str | None = None) -> dict:
     }
 
 
-def stage_task(task_id: str, shape: str, command: list[str], **kwargs):
-    """A KubernetesPodOperator that fills in the COMMAND on `shape` and nothing else."""
+def argv_of(item: str) -> list[str]:
+    """One axis item as the ARGS of a mapped stage's container - the trailing argument
+    every stage's process form takes (`... events 2026-08-20`, `... fill vp`). Kubernetes
+    joins command + args, so the command stays constant across an expansion and only this
+    moves. A module-level function and not a lambda: Airflow stores a mapped task's
+    callable as its own SOURCE in the serialized DAG (measured, 3.2.2)."""
+    return [item]
+
+
+def stage_task(task_id: str, shape: str, command: list[str], items=None, **kwargs):
+    """A KubernetesPodOperator that fills in the COMMAND on `shape` and nothing else.
+
+    `items` (ticket 06) is an XComArg holding one axis's items: the task becomes ONE POD PER
+    ITEM, each running `command` with its own item appended. Still the same measured shape N
+    times over - a mapped stage is not a new kind of pod, and the two shapes stay two - and
+    a task is TWO burst pods (the executor's worker and this), so an expansion to N days is
+    2N Karpenter decisions. An expansion to ZERO is a skipped task, which is exactly what a
+    morning with nothing to build should look like."""
     from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 
     spec = pod(shape)
-    return KubernetesPodOperator(
+    if items is not None:
+        return KubernetesPodOperator.partial(
+            **_task(task_id, spec, command, **kwargs)).expand(arguments=items.map(argv_of))
+    return KubernetesPodOperator(**_task(task_id, spec, command, **kwargs))
+
+
+def _task(task_id: str, spec: dict, command: list[str], **kwargs) -> dict:
+    """The operator arguments a stage task is built from, mapped or not - one home, so a
+    mapped stage cannot quietly get a different pod, timeout or finish policy."""
+    return dict(
         task_id=task_id,
         namespace=spec["metadata"]["namespace"],
         pod_template_dict=spec,

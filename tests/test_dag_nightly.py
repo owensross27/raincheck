@@ -84,13 +84,13 @@ def test_the_nightly_names_no_stage_and_builds_no_task_by_hand():
     assert spelled == ["report"], f"the nightly names its own stages: {spelled}"
 
 
-@pytest.mark.parametrize("absent", ["coldgaps", "eras", "gold"])
+@pytest.mark.parametrize("absent", ["coldgaps", "eras"])
 def test_what_is_deliberately_not_in_the_nightly_is_not_in_the_nightly(absent):
     """`coldgaps` covers Mac-era subway positions nobody can recover, so it would page every
     morning forever. `eras` is a real check whose PLACE is ticket 09's call, which is why
-    ticket 01 left it out of the declaration. `gold` is the reduce inside daily.build over
-    the months the built days touched; it only needs its own task once `events` is one pod
-    per Service date, which is ticket 06's fan-out.
+    ticket 01 left it out of the declaration. (`gold` was on this list until ticket 06: it
+    was the reduce INSIDE daily.build, and it became a stage of its own the moment `events`
+    became one pod per Service date, which is the one thing that cannot share it.)
 
     Asserted against the DECLARATION and not by grepping the DAG file: this file's own prose
     has to be able to NAME what it is keeping out, and a grep that cannot tell a warning from
@@ -142,7 +142,7 @@ def test_the_one_stage_form_runs_that_stage_and_exits_on_its_own_outcome(monkeyp
     assert "daily: FAILED - precip" in str(exit.value)
     assert len(ran) == 1 + len(daily.precip_months(daily.date.today()))
     with pytest.raises(SystemExit, match="not a declared stage"):
-        daily.main(["gold"])
+        daily.main(["coldgaps"])
 
 
 # --- the ending -------------------------------------------------------------------------
@@ -212,15 +212,26 @@ def test_the_dag_airflow_builds_and_stores_is_the_declaration():
     dag = next(d for d, _ in DagContext.autoregistered_dags if d.dag_id == "raincheck_daily")
 
     names = [s["name"] for s in declared()]
-    assert [t.task_id for t in dag.tasks] == names + ["report"]
-    # the declared linear order, and a report that ends it
-    edges = {t.task_id: sorted(t.downstream_task_ids) for t in dag.tasks}
-    assert edges == {a: [b] for a, b in zip(names + ["report"], names[1:] + ["report", None])
-                     if b is not None} | {"report": []}
+    ordered = [t.task_id for t in dag.tasks]
+    # every declared stage, in declared order, and a report that ends it. The graph holds
+    # MORE tasks than the declaration since ticket 06 - one plan per mapped axis - so this
+    # is the property and not a list: a copy here would just be a third declaration.
+    assert [t for t in ordered if t in names] == names
+    assert ordered[-1] == "report" and ordered.count("report") == 1
+    # ...linear: every consecutive pair is an edge, and no edge ever runs backwards
+    for a, b in zip(ordered, ordered[1:]):
+        assert b in dag.get_task(a).downstream_task_ids, f"{a} does not lead to {b}"
     for task in dag.tasks:
-        assert task.trigger_rule.value == "all_done", f"{task.task_id} can be skipped by an upstream red"
-    for task, stage in zip(dag.tasks, declared()):
-        assert task.retries == (0 if stage["retry"] == "gate" else 3), task.task_id
+        for down in task.downstream_task_ids:
+            assert ordered.index(down) > ordered.index(task.task_id), f"{task.task_id} -> {down}"
+    assert dag.get_task("report").downstream_task_ids == set()
+    for task in dag.tasks:
+        # == and not `.value`: a MAPPED task carries the rule as the plain string it was
+        # given, an unmapped one as the enum, and both compare equal to it (measured 3.2.2)
+        assert task.trigger_rule == "all_done", f"{task.task_id} can be skipped by an upstream red"
+    for stage in declared():
+        assert dag.get_task(stage["name"]).retries == (0 if stage["retry"] == "gate" else 3), \
+            stage["name"]
     assert dag.get_task("report").retries == 0
 
     assert dag.catchup is False
@@ -240,3 +251,76 @@ def test_the_dag_airflow_builds_and_stores_is_the_declaration():
     built = dag.get_task("report").build_pod_request_obj()
     assert built.spec.containers[0].command[:3] == ["python", "-m", "raincheck.daily"]
     assert built.spec.node_selector == {"raincheck.io/pool": "burst"}
+
+
+# --- the fan-out (ticket 06) ------------------------------------------------------------
+
+def test_the_declared_axes_this_runtime_maps_are_mapped_and_the_reduce_is_not():
+    """The acceptance row, against the DAG Airflow builds. What is mapped is exactly what
+    the declaration says is mappable and this runtime buys pods for - no stage is named
+    here or there - and the rollup is a single task standing behind them, because one
+    session rolling N months beats N sessions rolling one.
+
+    A mapped stage is still `stage_task`'s pod: the expansion moves the ARGUMENTS, never
+    the shape, so N days is the measured pod N times and not a new kind of pod."""
+    pytest.importorskip("airflow", reason="airflow is a cluster dependency, not a repo one")
+    from airflow.sdk.definitions._internal.contextmanager import DagContext
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
+
+    DagContext.current_autoregister_module_name = "raincheck_daily"
+    import raincheck_daily
+    dag = next(d for d, _ in DagContext.autoregistered_dags if d.dag_id == "raincheck_daily")
+
+    want = {s["name"] for s in declared() if s["fanout"] in raincheck_daily.MAPPED}
+    assert want, "this runtime maps no axis at all"
+    assert {t.task_id for t in dag.tasks if isinstance(t, MappedOperator)} == want
+    # ...and ONE index of each is the placement table's pod with the item as its args:
+    # Kubernetes joins command + args, so the process form is untouched and the item is
+    # the trailing argument every mapped stage's CLI takes.
+    for stage in declared():
+        if stage["name"] not in want:
+            continue
+        built = dag.get_task(stage["name"]).unmap({"arguments": ["ITEM"]}).build_pod_request_obj()
+        container = built.spec.containers[0]
+        assert container.command == raincheck_stage.command(stage)
+        assert container.args == ["ITEM"]
+        table = raincheck_stage.pod(raincheck_stage.shape_of(stage["name"]), image=IMAGE)
+        assert container.resources.requests == \
+            table["spec"]["containers"][0]["resources"]["requests"]
+        assert built.spec.node_selector == {"raincheck.io/pool": "burst"}
+    for stage in declared():
+        if stage["reduces"]:
+            reduce = dag.get_task(stage["name"])
+            assert not isinstance(reduce, MappedOperator), f"{stage['name']} is mapped"
+            # it takes the list its pods were expanded from, from the plan they came from
+            assert reduce.cmds[-1] == \
+                "{{ ti.xcom_pull(task_ids='plan_" + stage["reduces"] + "') | tojson }}"
+            assert stage["reduces"] in raincheck_daily.MAPPED, (
+                f"{stage['name']} reduces an axis nothing maps, so its list is always empty")
+
+
+def test_one_plan_pod_stands_in_front_of_each_mapped_axis():
+    """How many pods is a question only a pod can answer - the Service dates come from a
+    scan of the data root, which no scheduler has, and a task can be expanded only over an
+    XCom. So each mapped axis gets ONE plan task, immediately before the first stage that
+    maps on it, in that stage's own measured shape: it is the read that stage did inside
+    itself before it was mapped."""
+    pytest.importorskip("airflow", reason="airflow is a cluster dependency, not a repo one")
+    from airflow.sdk.definitions._internal.contextmanager import DagContext
+
+    DagContext.current_autoregister_module_name = "raincheck_daily"
+    import raincheck_daily
+    dag = next(d for d, _ in DagContext.autoregistered_dags if d.dag_id == "raincheck_daily")
+
+    ordered = [t.task_id for t in dag.tasks]
+    axes = [s["fanout"] for s in declared() if s["fanout"] in raincheck_daily.MAPPED]
+    assert sum(t.startswith("plan_") for t in ordered) == len(set(axes))
+    for axis in set(axes):
+        first = next(s for s in declared() if s["fanout"] == axis)
+        plan = dag.get_task(f"plan_{axis}")
+        assert ordered[ordered.index(plan.task_id) + 1] == first["name"]
+        assert plan.cmds == raincheck_stage.module("daily", "plan", axis, raincheck_stage.XCOM)
+        # the same shape as the stage it plans for, so no third opinion about pods exists
+        assert plan.build_pod_request_obj().spec.containers[0].resources.requests == \
+            dag.get_task(first["name"]).partial_kwargs["pod_template_dict"]["spec"][
+                "containers"][0]["resources"]["requests"]

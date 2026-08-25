@@ -328,7 +328,7 @@ def test_fill_reports_failure_when_it_filled_nothing(tmp_path, fake_gcs, monkeyp
     second - no network after a crash - and still exited 0, so its driver logged success.
     """
     monkeypatch.setattr(gapfill, "data_root", lambda: tmp_path / "root")
-    monkeypatch.setattr(sys, "argv", ["gapfill", "fill", "--feed", "tu", "--date", DAY])
+    monkeypatch.setattr(sys, "argv", ["gapfill", "fill", "tu", "--date", DAY])
     with pytest.raises(SystemExit) as e:
         gapfill.main()
     assert e.value.code, "exit code must be truthy when nothing was filled"
@@ -346,7 +346,7 @@ def test_fill_tolerates_one_unpublished_day_among_good_ones(tmp_path, fake_gcs, 
     nxt = "2026-08-20"                      # deliberately NOT published
     monkeypatch.setattr(gapfill, "data_root", lambda: root)
     monkeypatch.setattr(sys, "argv",
-                        ["gapfill", "fill", "--feed", "vp", "--date", f"{DAY}:{nxt}"])
+                        ["gapfill", "fill", "vp", "--date", f"{DAY}:{nxt}"])
     gapfill.main()                          # must NOT raise: one day filled, one lagging
 
 
