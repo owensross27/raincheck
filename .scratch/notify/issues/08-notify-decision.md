@@ -21,3 +21,47 @@ Spec: section 6; SEAM N.
 - [ ] clock-derived behaviour is pinned on a fixed epoch, never on wall clock
 - [ ] every contract assertion is mutation-checked: inverting the rule it pins turns the test red
 - [ ] which branch v1 ships is selected by F12's outcome, and holding the notify path is an acceptable outcome — the decision never manufactures confidence the backtest refused
+
+
+## Inherited from flood 11's build (2026-08-25, branch `flood11-detector-core`)
+
+Your decision function consumes flood 11's tiers. **The tier vocabulary is closed and
+ordered**, and it is `fd.TIERS` — read it, do not re-spell it:
+
+    from raincheck import flood_detect as fd
+    fd.TIERS        == ("NONE", "ELEVATED", "HIGH")     # ordered; index() is the comparison
+    fd.NONE, fd.ELEVATED, fd.HIGH
+    fd.constants()["cutpoints"]  # {ELEVATED 0.10, HIGH 0.02, basis, provisional, confirmed_by}
+    fd.constants()["display"]["tier_labels"]  # {"ELEVATED": "elevated", "HIGH": "high", ...}
+
+**A tier is a WITHIN-KIND RANK of the current live score vector, not a probability and not a
+threshold on a depth.** ELEVATED is the top 10% and HIGH the top 2% of the Units of that kind
+being scored right now, ANDed with two gates that are both latched inside a Window: the
+Unit's own Cell must have taken >= 2.0 mm this Window, and the city must be actively raining.
+
+**FOUR PROPERTIES YOUR DECISION MUST NOT FIGHT.**
+
+- **Tiers LATCH within a Window and only a Window roll clears them** (`fd.latch`,
+  `fd.rolled`). A Unit's tier never falls mid-Window, so a notifier that fires on a
+  transition fires ONCE per Unit per Window — which is the property that makes per-stop
+  messaging bearable. A downward series revision is LOGGED (`fd.revisions`) and never clears
+  a flag.
+- **THE CUTPOINTS ARE PROVISIONAL** until flood-build ticket 12's replay, whose verdict is
+  **[YOU]-Ross's to read**. flood 09's preview of the volume: at the fits' 1.11% point-row
+  alert budget the pooled out-of-fold decisions cost 8,295 false alarms against 381 hits, and
+  Ida alone cost 5,715 FP against 195 hits. **flood 11's tiers are LOOSER than that budget**,
+  so "v1 ships rank-only" is a live branch and your policy must survive the tiers being
+  removed entirely.
+- **ENTRANCES NEVER PUBLISH A LIVE NUMBER.** Only `bus_stop`, `complex` and `cell` rows come
+  out of `fd.evaluate`. A complex's number is the max over its child doorway scores and
+  carries **no complex-grain skill claim** — the independent complex set caught 1 of 118.
+  Never word a message as though a complex tier were measured.
+- **The winter gate can zero every tier while the Window still exists.**
+  `fd.winter_gate(temp_c, now, stale)` suppresses at or below 0.5 C and falls back to the
+  CALENDAR (flood_spine's snowmelt months) when the temperature is absent or stale — so a
+  dead NWS endpoint is not a citywide outage in July and not a rendered rain tier in
+  February. A suppressed cycle still returns its Window and its two digests.
+
+**THE MODEL TIER CAN REFUSE ITSELF.** `fd.skew(art, table_score_version)` compares the
+artifact's `score_version` against the table you read, and an ABSENT stamp refuses. A refused
+cycle must send nothing, not a last-good tier.
