@@ -29,8 +29,10 @@ additive change, and a contract integer that moves for a reason no consumer can 
 teaches consumers to ignore it.
 
 **The version stamps come from SEAM Q and are never re-derived here** (`query.versions`,
-the same three the per-asset history payloads carry). They describe the flood universe —
-ref identity, the event spine and the labels — which is the history family's universe;
+the same ones the per-asset history payloads carry). They describe the flood universe —
+ref identity, the event spine, the labels, and `score_version` on a root that publishes
+F10's scores (notify ticket 03; absent, like every unpublishable value, when it does not) —
+which is the history family's universe;
 the insight payloads have no version seam of their own today and this document does not
 invent one for them. An unresolvable stamp is an ABSENT `versions` key beside a
 `versions_unresolved` reason, which is query.py's own convention: a consumer that needs a

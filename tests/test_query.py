@@ -19,8 +19,16 @@ impact hours for those two days. The cast is chosen so the WRONG JOIN is detecta
   stn:409      carries no label of its own; two of its four child entrances do (story 4)
   stn:611      alert-sourced labels in both events, and the subwaydata numbers
   cell:882a103827fffff   labelled in both events by FloodNet, so it carries the depths
+
+Ticket 03 extended that same cut rather than starting a second one: `gold/flood_exposure`
+rows for every scored asset above, plus TWO assets whose exposure answer is the interesting
+one -- `bus:503102` (outside the DEM footprint: the kind-median fallback score, NULL surge
+margin, three flags) and `cell:882a100011fffff` (a ref Cell outside F10's fit set, so it
+has NO exposure row and no parent to ask). Neither sits in a Cell any fixture observation
+touches, so the attachment tests above see exactly what they saw before.
 """
 import ast
+import inspect
 import json
 import shutil
 from pathlib import Path
@@ -30,15 +38,21 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from raincheck import query as q
+from raincheck import duck, flood_exposure as fe, query as q
+from raincheck.paths import data_root
 
 FIXTURES = Path(__file__).parent / "fixtures"
 LAYOUT = {"assets": ("ref", "assets"), "events": ("silver", "flood_events"),
-          "obs": ("silver", "flood_obs"), "labels": ("gold", "flood_labels")}
+          "obs": ("silver", "flood_obs"), "labels": ("gold", "flood_labels"),
+          "exposure": ("gold", "flood_exposure")}
 IMPACT = ("snapshots", "subwaydata", "impact")
 
 COMPLEX, STATION, ROLLUP = "stn:611", "sta:725", "stn:409"
 CELL_UNIT, DRY, CROSSED = "cell:882a103827fffff", "bus:400021", "bus:400081"
+ENTRANCE = "ent:409:40.722103:-73.996812"     # a Unit for history, a Carrier for a score
+FALLBACK = "bus:503102"                       # no DEM footprint -> the kind median
+UNSCORED_CELL = "cell:882a100011fffff"        # in ref/assets, outside F10's fit set
+SCORED = (COMPLEX, ROLLUP, CELL_UNIT, DRY, CROSSED, FALLBACK)
 EVENTS = ("2023-08-29", "2023-11-24")
 # the restricted values themselves: every one of these is a real production value, and
 # none of them may appear anywhere in a `public` payload
@@ -67,6 +81,16 @@ def root(tmp_path_factory):
 
 def ask(root, asset_id, **kw):
     return q.query("events_for_asset", {"asset_id": asset_id}, root, **kw)
+
+
+def score(root, asset_id, **kw):
+    return q.query("exposure_of", {"asset_id": asset_id}, root, **kw)
+
+
+def exposure_rows(root) -> dict:
+    """F10's rows as they sit on disk -- what the payload is compared against."""
+    return {r["asset_id"]: r
+            for r in pq.read_table(root / "gold" / "flood_exposure").to_pylist()}
 
 
 def leaves(obj):
@@ -275,7 +299,10 @@ def test_every_payload_carries_the_version_stamps(root):
     assert stamps["label_version"] == labels.column("label_version")[0].as_py()
     assert stamps["spine_version"] == events.column("spine_version")[0].as_py()
     assert len(stamps["assets_version"]) == 40
-    assert "score_version" not in stamps   # absent, not null: no score is read here
+    exposure = pq.read_table(root / "gold" / "flood_exposure")
+    assert stamps["score_version"] == exposure.column("score_version")[0].as_py()
+    assert "model_id" not in stamps   # two of them ship: a fact about the ANSWER, not the
+                                      # universe, so it rides on the exposure payload
 
 
 def test_an_unresolvable_stamp_is_an_error_not_an_unstamped_answer(root, tmp_path):
@@ -304,3 +331,164 @@ def test_the_read_path_holds_no_lazy_arrow_reader(root):
     called = {n.func.attr for n in ast.walk(tree)
               if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)}
     assert "arrow" not in called and "create_view" in called
+
+
+# ---- ticket 03: exposure_of and the Unit/Carrier rule ------------------------------
+
+def test_the_exposure_fixture_is_not_degenerate_for_what_these_tests_pin(root):
+    """A fallback row whose flags were empty, or a margin that happened to be non-NULL,
+    would let the two payload rules below pass while asserting nothing."""
+    rows = exposure_rows(root)
+    assert set(rows) == set(SCORED)                     # and NOT the station or entrance
+    assert rows[FALLBACK]["surge_margin_ft"] is None
+    assert "score_fallback_kind_median" in rows[FALLBACK]["flags"]
+    assert rows[CELL_UNIT]["surge_margin_ft"] is None
+    assert rows[COMPLEX]["surge_margin_ft"] is not None  # or "absent" proves nothing
+    assert {r["model_id"] for r in rows.values()} == {"point:l2_logistic", "cell:l2_logistic"}
+
+
+def test_the_answer_is_f10s_row_read_and_nothing_is_recomputed(root):
+    """The complex row ALREADY holds the max over its child entrances (F10 computed it and
+    verified it against an independent recomputation for all 445), and entrances publish no
+    row, so it is not even re-derivable here. Equality against the table is the pin; the
+    source check is the second half, because a recomputation that agreed on this fixture
+    would still be a second implementation of a one-home rule."""
+    rows = exposure_rows(root)
+    for asset in SCORED:
+        got = score(root, asset)["exposure"]
+        row = rows[asset]
+        assert got["model_id"] == row["model_id"]
+        assert (got["score_ref"], got["score_severe"], got["score_index"]) == (
+            row["score_ref"], row["score_severe"], row["score_index"])
+        assert got["flags"] == row["flags"]
+    src = inspect.getsource(q.exposure_of)
+    assert "max(" not in src.lower() and "group by" not in src.lower()
+
+
+def test_the_complex_answer_is_the_one_the_table_publishes_not_a_child_rollup(root):
+    """stn:409's four entrances are in this fixture's registry and NONE of them is in
+    gold/flood_exposure -- a query that rolled up children here would have nothing to roll
+    up and could not return the complex's number at all."""
+    rows = exposure_rows(root)
+    children = [a["asset_id"] for a in
+                pq.read_table(root / "ref" / "assets").to_pylist()
+                if a["parent_asset_id"] == ROLLUP]
+    assert len(children) == 5 and not set(children) & set(rows)
+    assert score(root, ROLLUP)["exposure"]["score_index"] == rows[ROLLUP]["score_index"]
+
+
+def test_a_carrier_is_never_scored_and_names_the_complex_to_ask(root):
+    """The table's MEMBERSHIP is the Unit/Carrier rule made concrete: `not_a_scored_unit`
+    fires on absence, not on a kind list. An entrance is the case the two queries disagree
+    about on purpose -- it carries a history of its own and no score of its own."""
+    for carrier, parent in ((STATION, COMPLEX), (ENTRANCE, ROLLUP)):
+        with pytest.raises(q.QueryError) as e:
+            score(root, carrier)
+        assert e.value.reason == "not_a_scored_unit"
+        assert e.value.detail["ask"] == parent
+    assert ask(root, ENTRANCE)["asset"]["kind"] == "entrance"   # history: a Unit
+
+
+def test_a_cell_outside_the_fit_set_is_unscored_with_no_ask_rather_than_a_null_one(root):
+    """2,762 of the real root's 4,113 ref Cells are outside F10's fit set. They are not
+    Carriers and have no parent, so `ask` is ABSENT -- a null would read as an answer."""
+    with pytest.raises(q.QueryError) as e:
+        score(root, UNSCORED_CELL)
+    assert e.value.reason == "not_a_scored_unit" and e.value.detail["kind"] == "cell"
+    assert "ask" not in e.value.detail
+    with pytest.raises(q.QueryError) as e:
+        score(root, "bus:000000")
+    assert e.value.reason == "unknown_asset"      # unknown is not the same as unscored
+
+
+def test_a_missing_surge_margin_is_absent_never_zero(root):
+    """404 Units have no point elevation behind them. Zero would say the water is AT the
+    doorway; the reason rides on the flag instead."""
+    got = score(root, FALLBACK)["exposure"]
+    assert "surge_margin_ft" not in got and "no_surge_margin" in got["flags"]
+    assert score(root, COMPLEX)["exposure"]["surge_margin_ft"] > 0
+
+
+def test_a_fallback_score_is_never_presented_as_a_modelled_rank(root):
+    """60 bus stops score on the KIND MEDIAN because their features could not be built at
+    all. The rank is still published -- it is what the median means -- but a renderer that
+    never looks at flags must not be able to read it as a model evaluation."""
+    assert score(root, FALLBACK)["exposure"]["modelled"] is False
+    assert all(score(root, a)["exposure"]["modelled"] is True
+               for a in SCORED if a != FALLBACK)
+
+
+def test_the_flags_are_f10s_closed_vocabulary_and_their_meanings_are_published(root):
+    """Passed through unworded: the payload names the flag, the coefficient artifact says
+    what it means, so nobody words it twice and the two cannot drift."""
+    published = json.loads(fe.COEFFICIENTS.read_text())["flags"]
+    assert set(published) == set(fe.FLAGS)
+    for asset in SCORED:
+        assert set(score(root, asset)["exposure"]["flags"]) <= set(published)
+
+
+def test_the_human_facing_number_is_the_rank_and_the_scores_are_the_raw_predictor(root):
+    """A score is the LINEAR PREDICTOR, negative for nearly every Unit -- shipping it as
+    "the number" invites a probability reading. `score_index` is the within-kind rank."""
+    for asset in SCORED:
+        got = score(root, asset)["exposure"]
+        assert 0 < got["score_index"] <= 1
+        assert got["score_ref"] < 0 and got["score_severe"] < 0
+        assert got["score_severe"] > got["score_ref"]     # severe forcing, same Unit
+
+
+def test_the_licence_boundary_does_not_reach_this_answer(root):
+    """One rule, and it is about MTA / FloodNet / subwaydata ROWS. A score built from
+    elevation, stormwater class and public precip is in no restricted class."""
+    for asset in SCORED:
+        pub, loc = score(root, asset), score(root, asset, mode="local")
+        assert loc.pop("mode") == "local" and pub.pop("mode") == "public"
+        assert pub == loc
+
+
+def test_one_asset_gets_one_answer_from_both_queries_both_stamped(root):
+    """The per-asset payload composes with 02's history: the same identity block, the same
+    stamps, two objects a renderer can put side by side."""
+    hist, exp = ask(root, COMPLEX), score(root, COMPLEX)
+    assert hist["asset"] == exp["asset"]
+    assert hist["versions"] == exp["versions"]
+    assert exp["query"] == "exposure_of" and exp["mode"] == "public"
+
+
+def test_the_score_stamp_is_absent_on_a_root_that_publishes_no_scores(root, tmp_path):
+    """Absent, never null -- the convention `files/index.json` renders. contract.index()
+    calls this same seam, so a Gold-only root there loses the key rather than nulling it."""
+    con = duck.connect()
+    assert "score_version" in q.versions(con, root)
+    bare = tmp_path / "bare"
+    shutil.copytree(root, bare)
+    shutil.rmtree(bare / "gold" / "flood_exposure")
+    assert "score_version" not in q.versions(con, bare)
+    con.close()
+    with pytest.raises(q.QueryError) as e:
+        score(bare, COMPLEX)
+    assert e.value.reason == "not_a_scored_unit"   # no table, so nothing is a scored Unit
+
+
+def test_the_exposure_payload_is_json_able_and_carries_no_null(root):
+    for asset in SCORED:
+        for mode in q.MODES:
+            payload = score(root, asset, mode=mode)
+            assert json.loads(json.dumps(payload)) == payload
+            assert None not in leaves(payload)
+
+
+def test_the_registry_and_the_scored_table_agree_about_who_is_a_unit():
+    """Real-root canary. F10's membership is the rule this query enforces; `ref/assets`
+    declares `scored` independently. They agree EXACTLY on the real root (15,166 both
+    ways), so a disagreement means one of the two moved without the other."""
+    root = data_root()
+    part = root / "gold" / "flood_exposure"
+    if not part.exists() or not (root / "ref" / "assets").exists():
+        pytest.skip("no built gold/flood_exposure on this root")
+    con = duck.connect()
+    scored = {r[0] for r in duck.table(con, root / "ref" / "assets").query(
+        "t", "SELECT asset_id FROM t WHERE scored").fetchall()}
+    published = {r[0] for r in duck.table(con, part).project("asset_id").fetchall()}
+    con.close()
+    assert scored == published and len(published) == 15166

@@ -87,11 +87,21 @@ in any insight payload turns it red. `files/index.json` therefore contains no cl
 - `assets_version` — the identity of the asset registry (`ref/assets`)
 - `spine_version` — the flood event spine
 - `label_version` — the asset-to-event attachment
+- `score_version` — the exposure model and every input behind it (`gold/flood_exposure`),
+  present only on a root that publishes scores
 
 They describe the **flood universe**, which is the `history` family's universe and the
 one an aggregating consumer joins across. The `insight` payloads have no version seam of
 their own today; this document does not invent one for them, and a consumer must not read
-these three as stamping `cells.geojson`.
+these as stamping `cells.geojson`.
+
+`score_version` is the one stamp that can be **absent while the others resolve**: it is
+read from `gold/flood_exposure`, so a root built without the exposure table publishes the
+other three and no score stamp. That absence is the honest answer — nothing on such a root
+carries a score — and it is the same absent-never-null rule as everywhere else, not a
+partial failure. There is deliberately **no `model_id` stamp**: the exposure model is
+per-Unit (`point:l2_logistic` scores stops and complexes, `cell:l2_logistic` scores Cells),
+so it is a property of an answer and rides in the `exposure_of` payload instead.
 
 If the stamps cannot be resolved, `versions` is **ABSENT** and `versions_unresolved`
 carries the reason. Absent, never null: a consumer that needs a stamp refuses on the

@@ -485,7 +485,8 @@ def test_the_page_loads_only_vendored_scripts():
 # ------------------------------------------------- frontend 06: the discovery document
 
 FLOOD_FIXTURES = {"assets": ("ref", "assets"), "events": ("silver", "flood_events"),
-                  "labels": ("gold", "flood_labels")}
+                  "labels": ("gold", "flood_labels"),
+                  "exposure": ("gold", "flood_exposure")}
 
 
 @pytest.fixture(scope="module")
@@ -543,13 +544,19 @@ def test_the_keys_the_index_advertises_are_exactly_what_the_publisher_would_uplo
 
 
 def test_the_version_stamps_come_from_the_query_seam_and_are_not_re_derived(stamped):
-    """SEAM Q resolves these three for every history payload; a second copy of the rule
-    here would drift silently. Asserting equality proves the values match today - patching
-    the seam and watching the document follow proves it is the same code path."""
+    """SEAM Q resolves these for every history payload; a second copy of the rule here
+    would drift silently. Asserting equality proves the values match today - patching the
+    seam and watching the document follow proves it is the same code path.
+
+    `score_version` is the fourth (notify ticket 03) and it arrives here by that seam and
+    no other: this root publishes gold/flood_exposure, so the discovery document carries
+    the stamp of the universe that scored it. Additive to a promise made of (family, key,
+    content type) triples, so no `contract.CONTRACT` bump is owed."""
     con = duck.connect()
     idx = json.loads(contract.text(con, stamped))
     assert idx["versions"] == query.versions(duck.connect(), stamped)
-    assert set(idx["versions"]) == {"assets_version", "spine_version", "label_version"}
+    assert set(idx["versions"]) == {"assets_version", "spine_version", "label_version",
+                                    "score_version"}
     assert "versions_unresolved" not in idx
 
 
