@@ -1,6 +1,6 @@
 # frontend2 01 — split the file
 
-**Status: in-progress** (opened 2026-08-25; written from the paste box in
+**Status: DONE 2026-08-25** — branch `frontend2-01-split-the-file`, `36901d4`. (Written from the paste box in
 `~/vault/raincheck-runbook/DESTINATION-PLAN.md` §2)
 
 **Gate: SATISFIED.** frontend 05 (`33d6400`) and 06 (`914c068`) landed on master
@@ -61,7 +61,31 @@ is that rule. Anything a later ticket adds follows it or the page throws a TDZ
 Cross-module writes go through a named function for the same reason (an imported binding
 is read-only): `layers.markStyled()` and `live.toggleLive()`.
 
+## What was measured
+
+- **Zero behaviour change, proved by DIFF not by inspection.** Master's single-file page
+  and the six-module page were each loaded under node 25 with a stubbed DOM/MapLibre and
+  the real `web/files/` (2.3 MB `cells.geojson`, 1,200 Cells; 263 zones): both print
+  BYTE-IDENTICAL boot output — 12 layers declared, 6 layer rows, 6 views, 7 hour buttons,
+  headline `0.72–0.82` / `0.86`, the same chip vector, the same GATED live panel, and the
+  same behaviour when every layer is toggled and the fill radio is switched.
+- **`make web`** (`python -m http.server --directory web`) answers 200 with
+  `text/javascript` for all six modules.
+- **A real browser**: headless Chrome loads master and the branch IDENTICALLY — one
+  `webglcontextcreationerror` from MapLibre and no other console message, so the module
+  graph, the `type="module"` tag and the MapLibre global are clean in a real engine. This
+  Mac's headless Chrome has no WebGL, so `new maplibregl.Map()` throws on BOTH pages and
+  boot stops there. **A VISIBLE-TAB check was NOT done** — see the RUN LOG entry.
+- **12 mutations, 12 killed**, both pristine controls 65 passed. Includes: a wiring line
+  moved out of `app.js` (red, AND the page throws a real TDZ `ReferenceError`), a seventh
+  module with no family key, a family key with no file, `type="module"` dropped, a second
+  entry tag, `app.js` renamed (correctly reads as BREAKING and demands a bump), the
+  `markStyled` indirection removed, and one inherited rule per moved module.
+- **Test delta +4** (806 -> 810 `def test_`): `test_live.py` 37 -> `test_live_export.py`
+  15 + `test_page.py` 26. Every pre-existing assertion is unchanged apart from its import.
+
 ## PROTOCOL
 
-Worktree only; own-module tests only (`tests/test_page.py`, `tests/test_live_export.py`,
-`tests/test_publish.py`); never the full suite.
+Worktree `/Users/ross/raincheck-wt/frontend2-01`; own-module tests only
+(`tests/test_page.py`, `tests/test_live_export.py`, `tests/test_publish.py`); never the
+full suite.
