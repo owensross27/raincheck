@@ -33,7 +33,7 @@ spec:
         volumeType: gp3
         deleteOnTermination: true
   tags:
-    Project: raincheck-cloud   # keeps burst nodes inside the $130 budget filter
+    Project: raincheck-cloud   # keeps burst nodes inside the $200 budget filter
     raincheck.io/pool: burst
 ---
 apiVersion: karpenter.sh/v1
@@ -118,7 +118,7 @@ spec:
         volumeType: gp3
         deleteOnTermination: true
   tags:
-    Project: raincheck-cloud   # keeps these nodes inside the $130 budget filter
+    Project: raincheck-cloud   # keeps these nodes inside the $200 budget filter
     raincheck.io/pool: stateful
 ---
 apiVersion: karpenter.sh/v1

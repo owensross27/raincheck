@@ -3,7 +3,7 @@
 # it against what AWS actually has and exits 1 on any difference.
 #
 # WHY A FILE AND NOT A PARAGRAPH: there is no NAT Gateway (it would cost ~$32/mo against
-# a $130 envelope), so the nodes are in PUBLIC subnets with PUBLIC IPs. Subnet placement
+# a $200 envelope), so the nodes are in PUBLIC subnets with PUBLIC IPs. Subnet placement
 # is not what keeps the internet out - these security groups are, together with the
 # absence of any LoadBalancer/NodePort Service. That makes the SG contents a load-bearing
 # invariant, and load-bearing invariants get audited, not remembered.

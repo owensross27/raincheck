@@ -1,5 +1,5 @@
 """Cloud ticket 08 against a stub aws: the monthly bill review renders actual, run rate
-and the delta against the frozen $130 envelope; a crossing is a HARD LOOK that stamps an
+and the delta against the frozen $200 envelope; a crossing is a HARD LOOK that stamps an
 unrecorded decision and `--check` keeps failing until someone writes one (never an
 auto-stop, never a silent continuation); missing tag data and any aws error are
 INCONCLUSIVE (2), never `under budget`. Plus the standing constraint the downscale path
@@ -40,7 +40,7 @@ def run(script: str, env: dict, *args: str) -> subprocess.CompletedProcess:
                           env={**os.environ, **env}, capture_output=True, text=True)
 
 
-def bill_env(tmp_path: Path, groups: str, account: str = "180.00",
+def bill_env(tmp_path: Path, groups: str, account: str = "320.00",
              tags: str = "raincheck-cloud", ticket: Path | None = None) -> dict:
     write_stub(tmp_path / "aws", AWS_STUB)
     (tmp_path / "groups").write_text(groups)
@@ -53,37 +53,43 @@ def bill_env(tmp_path: Path, groups: str, account: str = "180.00",
             "RAINCHECK_BILL_TICKET": str(ticket or tmp_path / "ticket.md")}
 
 
-UNDER = "Amazon Elastic Kubernetes Service\t73.00\nEC2 - Other\t45.00\n"
-OVER = "Amazon Elastic Kubernetes Service\t73.00\nEC2 - Other\t61.20\n"
+# 189.83 is not an arbitrary fixture: it is the run rate MEASURED on 2026-08-25, the day
+# the envelope was raised to $200 (EKS control plane 73.00 + three spot nodes 97.24 +
+# 3x public IPv4 10.95 + 108 GiB gp3 8.64). Keeping the real number here means the
+# under-the-line case is also a record of how little headroom the line was set with:
+# -10.17, i.e. 95% consumed on day one.
+UNDER = "Amazon Elastic Kubernetes Service\t73.00\nEC2 - Other\t116.83\n"
+OVER = "Amazon Elastic Kubernetes Service\t73.00\nEC2 - Other\t134.20\n"
 
 
 def test_review_of_a_closed_month_reports_lines_total_and_delta(tmp_path):
     r = run("cloud-bill-review.sh", bill_env(tmp_path, UNDER), "2026-07")
     assert r.returncode == 0, r.stderr
     assert "| Amazon Elastic Kubernetes Service | 73.00 |" in r.stdout
-    assert "**tagged total (31 of 31 days)** | **118.00**" in r.stdout
+    assert "**tagged total (31 of 31 days)** | **189.83**" in r.stdout
     # a closed month covers every day, so the run rate is the actual and the delta is exact
-    assert "Run rate 118.00/mo against the $130 envelope: -12.00" in r.stdout
-    assert "Account total 180.00 (backstop $210)" in r.stdout
+    assert "Run rate 189.83/mo against the $200 envelope: -10.17" in r.stdout
+    assert "Account total 320.00 (backstop $350)" in r.stdout
     assert "Verdict: OK" in r.stdout
 
 
 def test_crossing_the_envelope_is_a_hard_look_with_an_unrecorded_decision(tmp_path):
     r = run("cloud-bill-review.sh", bill_env(tmp_path, OVER), "2026-07")
     assert r.returncode == 1, r.stdout
-    assert "Verdict: HARD LOOK - actual $134.20 crossed the $130 line" in r.stdout
+    assert "Verdict: HARD LOOK - actual $207.20 crossed the $200 line" in r.stdout
     assert "Decision: REQUIRED - not yet recorded" in r.stdout
 
 
 def test_run_rate_catches_the_drift_a_month_before_the_actual_does(tmp_path):
-    """$129 of closed-day spend is under the line as an actual and over it as a rate, on
+    """$199 of closed-day spend is under the line as an actual and over it as a rate, on
     every day of a month but the 1st. Catching that IS the point of a monthly review --
-    the AWS alarm only fires once the month has already crossed."""
+    the AWS alarm only fires once the month has already crossed. At a 95%-consumed
+    envelope this path is the one that will actually fire, and it fires a month early."""
     if _today_day() == 1:
         pytest.skip("no closed days yet this month; the run-rate path needs one")
-    r = run("cloud-bill-review.sh", bill_env(tmp_path, "EC2 - Other\t129.00\n"), _current_month())
+    r = run("cloud-bill-review.sh", bill_env(tmp_path, "EC2 - Other\t199.00\n"), _current_month())
     assert r.returncode == 1, r.stdout
-    assert "Verdict: HARD LOOK - run rate" in r.stdout and "crosses the $130 line" in r.stdout
+    assert "Verdict: HARD LOOK - run rate" in r.stdout and "crosses the $200 line" in r.stdout
     assert "Decision: REQUIRED - not yet recorded" in r.stdout
 
 
@@ -141,7 +147,7 @@ def test_check_fails_while_a_crossing_has_no_decision_and_passes_once_it_does(tm
 
 
 def test_every_crossing_recorded_in_the_real_ticket_carries_a_decision():
-    """The standing gate: a $130 crossing may not sit in the log undecided."""
+    """The standing gate: a $200 crossing may not sit in the log undecided."""
     r = run("cloud-bill-review.sh", {"RAINCHECK_BILL_TICKET": str(TICKET)}, "--check")
     assert r.returncode == 0, r.stdout + r.stderr
 
@@ -150,13 +156,13 @@ def test_the_service_sum_is_not_shadowed_by_a_bash_special_variable(tmp_path):
     """A `GROUPS=` capture is silently ignored by bash 3.2 and the sum reads the caller's
     primary GID instead -- $0.00 spend and a clean bill. The named-variable trap, pinned."""
     r = run("cloud-bill-review.sh", bill_env(tmp_path, UNDER), "2026-07")
-    assert "**118.00**" in r.stdout and "**0.00**" not in r.stdout
+    assert "**189.83**" in r.stdout and "**0.00**" not in r.stdout
 
 
 def test_the_envelope_is_frozen_in_the_script_not_read_from_the_environment(tmp_path):
     env = bill_env(tmp_path, OVER)
     r = run("cloud-bill-review.sh", {**env, "ENVELOPE": "500", "RAINCHECK_ENVELOPE": "500"}, "2026-07")
-    assert r.returncode == 1 and "$130 line" in r.stdout
+    assert r.returncode == 1 and "$200 line" in r.stdout
 
 
 # --- the standing constraint: no stage may depend on a cluster-only feature ----------
