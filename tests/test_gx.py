@@ -470,12 +470,18 @@ def test_a_mapped_stage_writes_one_batch_per_pod_and_the_run_is_their_union(tmp_
     assert {r["kind"] for r in folded} == set(gapfill.KINDS)
 
 
-def test_a_batch_from_a_run_that_is_over_never_answers_for_this_one(tmp_path):
+def test_last_nights_batch_never_answers_for_this_run(tmp_path):
     """RUN_WINDOW is what makes the set a RUN rather than a history. A pod that did not run
     tonight, leaving last night's `ok` in tonight's frame, is a false OK with a whole feed
-    behind it - and it would be invisible, because the row looks exactly like a fresh one."""
+    behind it - and it would be invisible, because the row looks exactly like a fresh one.
+
+    The interval here is the NIGHTLY'S OWN - 24 h, `raincheck_daily`'s schedule - and not
+    `RUN_WINDOW` shifted by a second: a fixture derived from the constant moves with it, so
+    widening the window to a year would leave this green. Asked the other way, the bound is
+    the claim: strictly inside a day, and long enough to hold a stage's retries."""
+    assert timedelta(hours=1) <= gx.RUN_WINDOW < timedelta(days=1)
     checks.write(tmp_path, "gapverify", [verify_row("vp", checks.OK)], VERIFY,
-                 at=AT - gx.RUN_WINDOW - timedelta(seconds=1))
+                 at=AT - timedelta(days=1))
     checks.write(tmp_path, "gapverify", [verify_row("tu", checks.OK)], VERIFY, at=AT)
     assert len(gx.batches(tmp_path, "gapverify")) == 1
     assert {r["kind"] for r in gx.fold(gx.batches(tmp_path, "gapverify"), VERIFY)} == {"tu"}
