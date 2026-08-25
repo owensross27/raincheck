@@ -26,6 +26,13 @@ one -- `bus:503102` (outside the DEM footprint: the kind-median fallback score, 
 margin, three flags) and `cell:882a100011fffff` (a ref Cell outside F10's fit set, so it
 has NO exposure row and no parent to ask). Neither sits in a Cell any fixture observation
 touches, so the attachment tests above see exactly what they saw before.
+
+Ticket 04 extended that same cut once more, with the four `cell:` REGISTRY rows for the
+Cells the assets above sit in (`882a100d61fffff`, `882a103a45fffff`, `882a10725bfffff`,
+`882a1072c1fffff`). The real registry holds a Cell row for every populated Cell; without
+them a bbox resolves to a Cell set containing no bus stop, and the resolution tests would
+pass while asserting nothing. They add no label and no exposure row, so every count above
+is unchanged -- only `assets_version`, which no test pins by value, moves.
 """
 import ast
 import inspect
@@ -265,7 +272,7 @@ def test_an_unknown_id_raises_unknown_asset(root):
         q.query("events_for_asset", {}, root)
     assert e.value.reason == "missing_param"
     with pytest.raises(q.QueryError) as e:
-        q.query("obs_near", {}, root)
+        q.query("obs_anywhere", {}, root)      # ticket 04 registered obs_near itself
     assert e.value.reason == "unknown_query"
 
 
@@ -529,3 +536,288 @@ def test_the_registry_and_the_scored_table_agree_about_who_is_a_unit():
     assert census == {"elev_ring15_fallback": 36, "no_dem_footprint": 60,
                       "score_fallback_kind_median": 60, "no_surge_margin": 404}
     assert "no_matrix_row" not in census   # frozen at 0 by F10's own gate
+
+
+# ---- ticket 04: the area pair, the cap, and the licence refusal --------------------
+
+AREA = "882a1072c1fffff"          # the Cell stn:409, its four entrances, bus:400081 and
+                                  # the Carrier sta:638 all sit in
+AREA_ASSETS = ("bus:400081", "cell:882a1072c1fffff", "stn:409",
+               "ent:409:40.722103:-73.996812", "ent:409:40.722226:-73.996790",
+               "ent:409:40.722408:-73.997477", "ent:409:40.722477:-73.997419")
+AREA_BBOX = [-74.005, 40.720, -73.999, 40.726]     # a box around that Cell's centroid
+OCEAN = [-73.60, 40.20, -73.55, 40.25]             # the Atlantic: a box with no Cell in it
+SENSOR_M = 248.4                  # CELL_UNIT's centroid to the beach FloodNet sensor
+
+
+def where(root, mode="public", **params):
+    return q.query("assets_in_area", params, root, mode=mode)
+
+
+def near(root, mode="local", **params):
+    return q.query("obs_near", params, root, mode=mode)
+
+
+def ids(payload) -> list:
+    return [a["asset_id"] for a in payload["assets"]]
+
+
+def test_the_area_fixture_is_not_degenerate_for_what_these_tests_pin(root):
+    """Three properties this section leans on. The registry cut is COMPLETE the way the
+    real one is -- every asset's Cell has a `cell:` row of its own -- or a bbox would
+    resolve to a Cell set that holds no bus stop and the resolution test would pass while
+    asserting nothing. The area holds a station, so excluding Carriers is a real exclusion.
+    And its complex carries NO label row of its own, so `n_events` for it can only come
+    from the rollup over its entrances."""
+    assets = pq.read_table(root / "ref" / "assets").to_pylist()
+    assert {a["cell"] for a in assets} == {a["cell"] for a in assets if a["kind"] == "cell"}
+    here = {a["kind"] for a in assets if a["cell"] == int(AREA, 16)}
+    assert here == {"bus_stop", "cell", "complex", "entrance", "station"}
+    own = {r["asset_id"] for r in pq.read_table(root / "gold" / "flood_labels").to_pylist()}
+    assert ROLLUP not in own and any(a.startswith("ent:409") for a in own)
+
+
+def test_a_cell_id_crosses_the_area_boundary_as_an_h3_hex_string(root):
+    """In and out: the same string a `cell:<h3>` asset id carries. The int64 is REFUSED by
+    name rather than accepted, because 613229535722209279 is past 2^53 and a JSON reader
+    using doubles has already corrupted it by the time it arrives here."""
+    got = where(root, cells=[AREA])
+    assert got["area"] == {"cells": [AREA], "n_cells": 1}
+    assert {a["cell"] for a in got["assets"]} == {AREA}
+    assert where(root, cells=AREA) == got          # one Cell needs no list
+    with pytest.raises(q.QueryError) as e:
+        where(root, cells=[int(AREA, 16)])
+    assert e.value.reason == "missing_param" and e.value.detail["param"] == "cells"
+    with pytest.raises(q.QueryError):
+        where(root, cells=["not-hex"])
+
+
+def test_the_area_lists_every_unit_in_the_cell_and_no_carrier(root):
+    """`assets_in_area` answers with ids a caller did not have to know. Stations are
+    Carriers -- `events_for_asset` refuses them and names the complex -- so listing one
+    with a count would publish a number for an asset that cannot be asked for it."""
+    got = where(root, cells=[AREA])
+    assert sorted(ids(got)) == sorted(AREA_ASSETS) and got["n_assets"] == 7
+    assert STATION not in ids(got) and ROLLUP in ids(got)
+    with pytest.raises(q.QueryError) as e:      # the reason it is not listed
+        ask(root, STATION)
+    assert e.value.reason == "not_a_scored_unit"
+
+
+def test_the_area_count_is_the_history_events_for_asset_would_return(root):
+    """One rollup rule, two queries: a complex answers for its child entrances in both, so
+    `n_events` here and the event list there cannot drift. stn:409 is the case that proves
+    it -- zero label rows of its own, one event through an entrance."""
+    for area in ([AREA], [CELL_UNIT.split(":")[1]]):     # the second Cell has TWO events,
+        for asset in where(root, cells=area)["assets"]:  # so `last_` is not `first_`
+            events = ask(root, asset["asset_id"])["events"]
+            assert asset["n_events"] == len(events)
+            assert asset.get("last_event_id") == (events[-1]["event_id"] if events else None)
+    assert [a["n_events"] for a in where(root, cells=[AREA])["assets"]
+            if a["asset_id"] == ROLLUP] == [1]
+    assert [a["last_event_id"] for a in where(root, cells=[CELL_UNIT.split(":")[1]])["assets"]
+            if a["asset_id"] == CELL_UNIT] == [EVENTS[-1]]
+
+
+def test_a_bbox_snaps_to_a_cell_set_and_answers_the_same_as_the_cells_do(root):
+    """A bbox is not a second area key: it RESOLVES to Cells (by centroid, the rule
+    `ref/cell_zone` already uses) and the answer names them. A flipped box is still a box."""
+    got = where(root, bbox=AREA_BBOX)
+    assert got["area"]["cells"] == [AREA] and got["area"]["bbox"] == AREA_BBOX
+    assert ids(got) == ids(where(root, cells=[AREA]))
+    flipped = [AREA_BBOX[2], AREA_BBOX[3], AREA_BBOX[0], AREA_BBOX[1]]
+    assert where(root, bbox=flipped) == got
+    with pytest.raises(q.QueryError) as e:
+        where(root, bbox=[-74.0, 40.7])
+    assert e.value.reason == "missing_param" and e.value.detail["param"] == "bbox"
+    with pytest.raises(q.QueryError) as e:
+        where(root, cells=None, bbox=None)
+    assert e.value.detail["param"] == "cells|bbox"
+
+
+def test_an_area_past_the_cap_is_refused_by_name_before_anything_is_read(root, tmp_path):
+    """The cap is what stops a tool call asking for the city (4,113 Cells) by accident, and
+    the refusal NAMES it so an agent can retry smaller. `before anything is read` is the
+    other half and it is measurable: on a root whose labels table is gone, an over-large
+    area still returns `area_too_large` while an in-cap one dies resolving the tables."""
+    over = [format(int(AREA, 16) + i, "x") for i in range(q.CELL_CAP + 1)]
+    with pytest.raises(q.QueryError) as e:
+        where(root, cells=over)
+    assert e.value.reason == "area_too_large"
+    assert e.value.detail == {"n_cells": q.CELL_CAP + 1, "cap": q.CELL_CAP}
+
+    bare = tmp_path / "unlabelled"
+    shutil.copytree(root, bare)
+    shutil.rmtree(bare / "gold" / "flood_labels")
+    con = duck.connect()
+    with pytest.raises(q.QueryError) as e:
+        q.assets_in_area(con, bare, {"cells": over}, "public")
+    assert e.value.reason == "area_too_large"
+    with pytest.raises(q.QueryError) as e:
+        q.assets_in_area(con, bare, {"cells": [AREA]}, "public")
+    assert e.value.reason == "version_unresolved"
+    con.close()
+
+
+def test_an_area_with_nothing_in_it_says_so_and_is_still_stamped(root):
+    """Absence is legible as absence: a box over open water resolves to no Cell at all and
+    that is an answer, not an error -- an empty list, a stated reason, the same stamps."""
+    got = where(root, bbox=OCEAN)
+    assert got["area"] == {"cells": [], "n_cells": 0, "bbox": OCEAN}
+    assert got["n_assets"] == 0
+    assert got["assets"] == [] and got["reason"] == q.NO_ASSETS
+    assert got["versions"]["label_version"]
+
+
+def test_zone_is_not_an_area_key_and_no_polygon_query_exists(root):
+    """v1's frozen shape: FOUR query names, Cell the only area key. A Zone is a
+    presentation overlay resolved through the static Cell-to-Zone lookup at serving time --
+    it is no stored key, no parameter and no query -- and a caller holding a polygon
+    resolves it to Cells itself."""
+    assert set(q.QUERIES) == {"events_for_asset", "exposure_of", "assets_in_area",
+                              "obs_near"}
+    for name in ("assets_in_zone", "obs_in_polygon"):
+        with pytest.raises(q.QueryError) as e:
+            q.query(name, {}, root)
+        assert e.value.reason == "unknown_query"
+    with pytest.raises(q.QueryError) as e:          # a Zone is not a parameter either
+        where(root, zone_id=161)
+    assert e.value.reason == "missing_param" and e.value.detail["param"] == "cells|bbox"
+    assert "zone" not in json.dumps(where(root, cells=[AREA])).lower()
+
+
+def test_the_area_answer_is_the_same_in_both_modes(root):
+    """Mode-invariance: this answer is built from the registry and F05's attachment COUNTS,
+    and a count is not a row. The boundary differs by refusal, never by shape."""
+    pub, loc = where(root, cells=[AREA]), where(root, mode="local", cells=[AREA])
+    assert loc.pop("mode") == "local" and pub.pop("mode") == "public"
+    assert pub == loc
+
+
+# ---- obs_near: the local-only one --------------------------------------------------
+
+def test_obs_near_is_local_only_and_public_refuses_it_by_name(root):
+    """It returns observation ROWS by definition, and rows are what the licence withholds.
+    The refusal comes FIRST -- before a missing parameter, before an unknown asset -- so
+    `public` can never learn anything from the shape of a later error."""
+    for params in ({}, {"lon": -73.98758, "lat": 40.75575}, {"asset_id": "bus:000000"}):
+        with pytest.raises(q.QueryError) as e:
+            near(root, mode="public", **params)
+        assert e.value.reason == "restricted_source"
+        assert e.value.detail == {"query": "obs_near", "mode": "public", "need": "local"}
+
+
+def test_obs_near_returns_the_rows_inside_the_radius_ordered_by_distance(root):
+    """The answer is the rows themselves, nearest first, each carrying how far it was."""
+    got = near(root, asset_id=CELL_UNIT, radius_m=500)
+    assert got["n_observations"] == 2 and len(got["observations"]) == 2
+    assert [o["source"] for o in got["observations"]] == ["floodnet"] * 2
+    assert [o["depth_mm"] for o in got["observations"]] == list(FLOODNET_DEPTHS)
+    assert [round(o["distance_m"]) for o in got["observations"]] == [round(SENSOR_M)] * 2
+    assert all(o["distance_m"] <= 500 for o in got["observations"])
+    assert near(root, asset_id=CELL_UNIT, radius_m=100)["n_observations"] == 0
+    wider = near(root, asset_id=COMPLEX, radius_m=1500)["observations"]
+    assert [o["source"] for o in wider] == ["mta_alert", "mta_alert", "311"]
+    assert [o["distance_m"] for o in wider] == sorted(o["distance_m"] for o in wider)
+
+
+def test_obs_near_returns_the_restricted_rows_the_public_side_can_never_see(root):
+    """The point of the local mode, asserted against the real values in the fixture."""
+    text = json.dumps(near(root, asset_id=CELL_UNIT, radius_m=500))
+    assert FLOODNET_SENSOR in text and str(FLOODNET_DEPTHS[0]) in text
+    alerts = near(root, asset_id=COMPLEX, radius_m=100)["observations"]
+    assert {o["source_id"] for o in alerts} >= {ALERT_SOURCE_ID}
+    assert {o["text"] for o in alerts} == {ALERT_TEXT}
+
+
+def test_the_distance_is_metres_on_lon_lat_data_not_a_swapped_axis(root):
+    """THE trap in this query. DuckDB's `ST_Distance_Sphere` / `ST_Distance_Spheroid` read
+    a point as (LATITUDE, LONGITUDE); every geometry in this project is CRS84 (lon, lat).
+    Handed a stored point they return a plausible WRONG number -- 143.5 m for this pair,
+    which is 248.5 m apart -- so the projection is the implementation and this test is its
+    gate. The oracle is the spheroid called with the axes the RIGHT way round."""
+    con = duckdb.connect()
+    con.execute("LOAD spatial")
+    lon, lat = (near(root, asset_id=CELL_UNIT, radius_m=500)["point"][k]
+                for k in ("lon", "lat"))
+    got = near(root, asset_id=CELL_UNIT, radius_m=500)["observations"][0]["distance_m"]
+    oracle, swapped = con.execute(
+        "SELECT min(ST_Distance_Spheroid(ST_Point(ST_Y(geometry), ST_X(geometry))::POINT_2D,"
+        f"                               ST_Point({lat}, {lon})::POINT_2D)),"
+        "       min(ST_Distance_Spheroid(ST_Point(ST_X(geometry), ST_Y(geometry))::POINT_2D,"
+        f"                               ST_Point({lon}, {lat})::POINT_2D))"
+        f" FROM read_parquet('{root}/silver/flood_obs/**/*.parquet')").fetchone()
+    assert abs(got - oracle) < 1.0                 # metres, and the right axes
+    assert abs(got - swapped) > 100                # and the wrong ones are this far off
+    con.close()
+
+
+def test_the_point_can_be_an_asset_id_through_the_same_identity_seam(root):
+    """"Near this stop" needs no coordinates in the caller, and identity is resolved by the
+    one function that owns it, so an unknown id is `unknown_asset` here as everywhere."""
+    by_asset = near(root, asset_id=CELL_UNIT, radius_m=500)
+    assert by_asset["point"]["asset_id"] == CELL_UNIT
+    by_point = near(root, radius_m=500,
+                    lon=by_asset["point"]["lon"], lat=by_asset["point"]["lat"])
+    assert "asset_id" not in by_point["point"]
+    assert by_point["observations"] == by_asset["observations"]
+    with pytest.raises(q.QueryError) as e:
+        near(root, asset_id="bus:000000")
+    assert e.value.reason == "unknown_asset"
+    with pytest.raises(q.QueryError) as e:
+        near(root, lat=40.75)
+    assert e.value.reason == "missing_param" and e.value.detail["param"] == "lon"
+
+
+def test_a_radius_past_the_cap_is_refused_by_name_and_a_useless_one_too(root):
+    """Same fuse as the area cap, same reason: a radius is an area. A radius of zero or
+    less would return an empty answer that reads like `nothing happened here`."""
+    with pytest.raises(q.QueryError) as e:
+        near(root, asset_id=CELL_UNIT, radius_m=q.RADIUS_CAP_M + 1)
+    assert e.value.reason == "area_too_large" and e.value.detail["cap_m"] == q.RADIUS_CAP_M
+    for bad in (0, -100):
+        with pytest.raises(q.QueryError) as e:
+            near(root, asset_id=CELL_UNIT, radius_m=bad)
+        assert e.value.reason == "missing_param"
+    with pytest.raises(q.QueryError) as e:
+        near(root, asset_id=CELL_UNIT, radius_m="near-ish")
+    assert e.value.reason == "missing_param" and e.value.detail["param"] == "radius_m"
+    assert near(root, asset_id=CELL_UNIT)["point"]["radius_m"] == q.RADIUS_M
+
+
+def test_an_empty_table_directory_is_a_typed_refusal_and_never_takes_the_root_down(root,
+                                                                                   tmp_path):
+    """A table is a PART FILE, not a folder. An empty `gold/flood_exposure/` -- what a run
+    that died between its `mkdir` and its `pq.write_table` leaves -- must cost this root its
+    score stamp and NOTHING else: neither area query reads a score. An empty
+    `silver/flood_obs/` is the same shape one table over, and there the globber's
+    IOException would reach a caller as a bare traceback if the read path did not test for
+    the part file."""
+    bare = tmp_path / "emptied"
+    shutil.copytree(root, bare)
+    for f in (bare / "gold" / "flood_exposure").iterdir():
+        f.unlink()
+    got = where(bare, cells=[AREA])
+    assert ids(got) == ids(where(root, cells=[AREA]))
+    assert "score_version" not in got["versions"]
+    assert near(bare, asset_id=CELL_UNIT, radius_m=500)["n_observations"] == 2
+
+    for f in (bare / "silver" / "flood_obs").iterdir():
+        f.unlink()
+    with pytest.raises(q.QueryError) as e:
+        near(bare, asset_id=CELL_UNIT, radius_m=500)
+    assert e.value.reason == "version_unresolved"
+    assert e.value.detail["table"] == "silver/flood_obs"
+    assert where(bare, cells=[AREA])["n_assets"] == 7      # untouched by that table
+
+
+def test_every_area_payload_is_json_able_carries_no_null_and_is_stamped(root):
+    """The module's three payload conventions, over both new queries."""
+    payloads = [where(root, cells=[AREA]), where(root, bbox=AREA_BBOX),
+                where(root, bbox=OCEAN), near(root, asset_id=COMPLEX, radius_m=1500),
+                near(root, asset_id=CELL_UNIT, radius_m=500)]
+    for payload in payloads:
+        assert json.loads(json.dumps(payload)) == payload
+        assert None not in leaves(payload)
+        assert set(payload["versions"]) == {"assets_version", "spine_version",
+                                            "label_version", "score_version"}

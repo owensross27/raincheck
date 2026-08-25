@@ -6,14 +6,14 @@ overlay. Spec: sections 2 and 4; CONTEXT.md (Cell, Zone); SEAM Q.
 
 **Blocked by:** 03.
 
-**Status:** ready-for-agent
+**Status:** DONE (2026-08-25, branch `notify04-area-queries`)
 
-- [ ] `assets_in_area` takes Cell ids, or a bbox resolved to a Cell set before anything is read — Cell is the only area key
-- [ ] Zone resolves through the static Cell-to-Zone lookup at serving time and appears in no stored key and no query parameter
-- [ ] a request resolving past the stated Cell cap returns `area_too_large` naming the cap, so a tool call cannot accidentally ask for the city
-- [ ] `obs_near` returns observations within a radius of a point and is `local` mode only; calling it in `public` returns `restricted_source`
-- [ ] no query accepts an arbitrary polygon — a caller with one resolves it to Cells itself
-- [ ] area answers carry the same version stamps as every other payload
+- [x] `assets_in_area` takes Cell ids, or a bbox resolved to a Cell set before anything is read — Cell is the only area key
+- [x] Zone resolves through the static Cell-to-Zone lookup at serving time and appears in no stored key and no query parameter
+- [x] a request resolving past the stated Cell cap returns `area_too_large` naming the cap, so a tool call cannot accidentally ask for the city
+- [x] `obs_near` returns observations within a radius of a point and is `local` mode only; calling it in `public` returns `restricted_source`
+- [x] no query accepts an arbitrary polygon — a caller with one resolves it to Cells itself
+- [x] area answers carry the same version stamps as every other payload
 
 
 ## Inherited from notify 02 (landed 2026-08-24, branch `notify02-query-core`, 13a93ab)
@@ -85,3 +85,50 @@ not scored", read that membership rather than re-typing a kind list.
 ## Forward-context from DESTINATION-PLAN.md (copied verbatim by the WAVE 5 GATE PART 2, 2026-08-25, from this ticket's summary line in waves/wave-3-plus.md)
 
 **FROM DESTINATION-PLAN (2026-08-25), one line:** after flood-build 19 (wave 6) `silver/stormwater_extent` exists (scenario x horizon x category polygons). A scenario-as-area parameter for `assets_in_area` is a POSSIBLE later addition, not built here and not owed — Cell stays the only area key in v1.
+
+
+## LANDED 2026-08-25 (branch `notify04-area-queries`) — the two call shapes
+
+    query("assets_in_area", {"cells": ["882a1072c1fffff", ...]}, root, mode=...) -> dict
+    query("assets_in_area", {"bbox": [west, south, east, north]}, root, mode=...) -> dict
+
+    {"query": "assets_in_area", "mode": "public",
+     "area":   {"cells": ["<h3 hex>", ...], "n_cells": N, "bbox"?: [w, s, e, n]},
+     "n_assets": N,
+     "assets": [{asset_id, kind, name?, cell, complex_id?, n_events, last_event_id?}, ...],
+     "reason"?: "no assets in this area",
+     "versions": {assets_version, spine_version, label_version, score_version?}}
+
+    query("obs_near", {"asset_id": "cell:882a103827fffff", "radius_m": 500}, root,
+          mode="local") -> dict      # or {"lon": …, "lat": …, "radius_m": …}
+
+    {"query": "obs_near", "mode": "local",
+     "point":  {lon, lat, radius_m, asset_id?},
+     "n_observations": N,
+     "observations": [{source, source_id, ts_utc, obs_ts_kind, cell?, depth_mm?, text?,
+                       distance_m}, ...],          # nearest first
+     "versions": {...}}
+
+- `cells` takes H3 HEX STRINGS (a lone string is accepted as a one-element list); the int64
+  is REFUSED by name (`missing_param`) rather than accepted, because it has already been
+  corrupted by any JSON reader using doubles. Both forms may be given: the area is their
+  union, which needs no precedence rule.
+- **`CELL_CAP = 64`** Cells (~47 km²; the city is 4,113) and **`RADIUS_CAP_M = 2000.0`**
+  metres (`RADIUS_M = 500.0` is obs_near's default) — both raise `area_too_large` naming
+  the cap. The area cap is enforced on the RESOLVED Cell set, before any table is read.
+- A bbox snaps to the Cells whose CENTROID it holds — the rule `ref/cell_zone` already
+  uses — read from `ref/assets`' `kind='cell'` rows, whose lon/lat are exactly `ref/cells`'
+  centroids (measured: max |delta| 0.0 over all 4,113). No second table, no second failure
+  mode. A flipped box is normalised, not refused.
+- Stations are NOT listed in an area (Carriers: `events_for_asset` refuses them and names
+  the complex). `n_events` is the history `events_for_asset` would return for that asset,
+  complex rollup included, and a test pins the two to agree.
+- `REASONS` IS STILL UNCHANGED — `area_too_large` and `restricted_source` were already in
+  it and are now raised; both are documented in `docs/read-api-contract.md`. An UNBUILT
+  table (the empty-directory trap) is `version_unresolved` naming the table, raised in
+  `view()` so every query gets it, not a globber traceback.
+- **DuckDB `ST_Distance_Sphere` / `ST_Distance_Spheroid` take (LATITUDE, LONGITUDE)** and
+  this project's geometry is CRS84 (lon, lat): handed a stored point they return a
+  plausible WRONG number (143.5 m for a pair 248.5 m apart). `obs_near` measures through
+  `EPSG:32618` (UTM 18N, metres) instead, which also answers for the MULTIPOLYGON rows
+  (Sandy) that the point-only spheroid cannot.
