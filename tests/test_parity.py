@@ -180,3 +180,21 @@ def test_two_spark_sessions_digest_equal(tmp_path, spark):
                   == {p.read_bytes() for p in b.rglob("*.parquet")})
     assert parity.digest(a) == parity.digest(b), f"(parquet bytes identical: {same_bytes})"
     assert parity.compare(a, b).ok
+
+
+def test_a_shadow_is_compared_at_the_partition_level_and_never_at_the_table_root(tmp_path):
+    """cloud 13's measurement, as a test, because orchestration 11's shadow is the caller
+    that would get it wrong: a shadow root holds the day it staged and nothing else, so a
+    compare rooted on the TABLE lists every partition the Mac also holds as missing and can
+    never be `ok` - a red verdict that says nothing about the day under test. Rooted on the
+    PARTITION, the same two trees are equal.
+
+    Note WHICH property fails: not "the shas differ" but "only_in_b is non-empty", which is
+    also why `Report.ok` is three conditions and not one."""
+    mac = write(tmp_path / "mac", ROWS)                       # two service dates
+    shadow = write(tmp_path / "shadow", [r for r in ROWS if r["service_date"] == "2026-08-01"])
+    table = parity.compare(shadow, mac)
+    assert not table.ok
+    assert table.only_in_b == ["service_date=2026-08-02"] and table.differing == []
+    day = "service_date=2026-08-01"
+    assert parity.compare(shadow / day, mac / day).ok

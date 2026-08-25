@@ -148,4 +148,5 @@ COPY --chown=airflow:root src/raincheck/daily.py /opt/airflow/placement/daily.py
 RUN test -n "$RAINCHECK_IMAGE" \
  && python -c "import sys; sys.path.insert(0, '/opt/airflow/dags'); import raincheck_smoke" \
  && python -c "import sys; sys.path.insert(0, '/opt/airflow/dags'); import airflow; import raincheck_daily" \
+ && python -c "import sys; sys.path.insert(0, '/opt/airflow/dags'); import airflow; import raincheck_shadow" \
  && test "$(python -c "import sys; sys.path.insert(0, '/opt/airflow/dags'); import raincheck_stage as s; print(s.pod('raincheck-spark')['spec']['containers'][0]['image'])")" = "$RAINCHECK_IMAGE"
