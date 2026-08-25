@@ -71,3 +71,104 @@ spec:
   # outrunning the budget alarm's reporting lag.
   limits:
     cpu: "32"
+---
+# The STATEFUL pool. Added 2026-08-25 after the floor outage (post-mortem in full at the top
+# of .scratch/cloud/cluster.yaml).
+#
+# WHY THIS EXISTS. Three workloads carry EBS volumes — the Kafka broker (10Gi gp3-1f), the
+# Airflow metadata DB (8Gi gp3-1f) and the Spark streaming driver's checkpoint (10Gi gp3-1f).
+# All three used to sit on the floor nodegroup, and because EBS is AZ-bound that pinned the
+# ENTIRE floor to us-east-1f — the single spot pool that went dry and took the cluster with
+# it. They are the only things that genuinely need a specific AZ, so they get their own pool
+# and the floor gets to spread across three.
+#
+# NO AZ CONSTRAINT IS DECLARED HERE, ON PURPOSE. Karpenter follows Pod -> PersistentVolumeClaim
+# -> StorageClass and reads `gp3-1f`'s allowedTopologies itself, so it places the node in
+# us-east-1f because the VOLUME says so. Declaring the AZ here too would be a second source of
+# truth for one zone, free to drift from the StorageClass. Move the volume, and the node follows.
+#
+# SPOT FIRST, ON-DEMAND ONLY WHEN SPOT IS DRY. Karpenter's documented precedence for a NodePool
+# compatible with several capacity types is reserved -> spot -> on-demand, so listing both here
+# buys spot pricing in the normal case and an automatic on-demand fallback during a squeeze like
+# 2026-08-25's. That is the whole point: the four-hour outage would have cost about $0.27 of
+# on-demand instead of taking Kafka, Airflow and the stream down. Do not remove "on-demand" to
+# save money — it costs nothing while spot has capacity, because spot wins whenever it exists.
+---
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: stateful
+spec:
+  amiFamily: AL2023
+  amiSelectorTerms:
+    - alias: al2023@latest
+  role: eksctl-KarpenterNodeRole-raincheck
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: raincheck
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: raincheck
+  # Same reasoning as burst: no NAT Gateway (spec §7), so egress needs a public IP.
+  associatePublicIPAddress: true
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 30Gi      # the floor's size; these carry no build scratch
+        volumeType: gp3
+        deleteOnTermination: true
+  tags:
+    Project: raincheck-cloud   # keeps these nodes inside the $130 budget filter
+    raincheck.io/pool: stateful
+---
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: stateful
+spec:
+  template:
+    metadata:
+      labels:
+        raincheck.io/pool: stateful
+    spec:
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: stateful
+      requirements:
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["arm64"]              # Graviton only; the image is arm64
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["spot", "on-demand"]  # the fallback — see the header
+        - key: karpenter.k8s.aws/instance-category
+          operator: In
+          values: ["c", "m", "r", "t"]
+        - key: karpenter.k8s.aws/instance-generation
+          operator: Gt
+          values: ["5"]
+        # Bound the SIZE, not just the family. Without these an on-demand fallback during a
+        # squeeze is free to buy something large and bill it at on-demand rates all night.
+        # 2 or 4 vCPU with >=8 GiB: the three tenants sum to 1550m / 4096Mi (broker 500m/1536Mi
+        # + metadata DB 50m/512Mi + streaming driver 1000m/2048Mi), which fits a 2 vCPU node
+        # only just once daemonsets take their ~155m. Letting Karpenter also consider 4 vCPU
+        # means it bin-packs correctly instead of wedging; cheapest-first still picks the
+        # 2 vCPU node whenever the three do fit on one.
+        - key: karpenter.k8s.aws/instance-cpu
+          operator: In
+          values: ["2", "4"]
+        - key: karpenter.k8s.aws/instance-memory
+          operator: Gt
+          values: ["7000"]               # MiB; excludes the 4 GiB types at both sizes
+      expireAfter: Never                 # a database does not get recycled on a 168h timer
+  disruption:
+    # WhenEmpty, never WhenEmptyOrUnderutilized. This is the setting that makes the pool safe
+    # for a database: an underutilized-node policy would evict a running Postgres to save a few
+    # cents, which is exactly the "volume detached out from under it on a schedule" failure the
+    # old postgres.yaml comment was avoiding by pinning to the floor.
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: 5m                 # reclaim only a genuinely empty node
+  limits:
+    cpu: "8"                             # headroom for a rolling replace of the three tenants,
+                                         # not a fleet: this pool never fans out

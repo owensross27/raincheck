@@ -54,11 +54,23 @@ spec:
     metadata:
       labels:
         app: airflow-metadata-db
+      annotations:
+        # Same reasoning as the Kafka broker: excludes this node from drift disruption too,
+        # not just consolidation, so an AMI bump cannot roll the metadata DB mid-DAG.
+        karpenter.sh/do-not-disrupt: "true"
     spec:
-      # The floor, not burst: burst nodes are consolidated away when idle (1 m), which
-      # for a database means the volume is detached out from under it on a schedule.
+      # The `stateful` pool, not burst and no longer the floor. The original objection to
+      # burst still stands verbatim - burst is WhenEmptyOrUnderutilized with a 1 m
+      # consolidateAfter, which for a database means the volume is detached out from under
+      # it on a schedule. The stateful pool answers that objection directly: WhenEmpty only,
+      # consolidateAfter 5 m, expireAfter Never, so a node carrying a running Postgres is
+      # never a consolidation candidate.
+      #
+      # MOVED OFF THE FLOOR 2026-08-25. This pod's 8Gi volume is us-east-1f-bound, and that
+      # pin is half of why the floor nodegroup was single-AZ when its one spot pool went dry.
+      # Karpenter now reads the AZ off the PVC. See .scratch/cloud/cluster.yaml.
       nodeSelector:
-        raincheck.io/pool: floor
+        raincheck.io/pool: stateful
       securityContext:
         fsGroup: 70          # the alpine image's postgres user is uid/gid 70, not 999
       containers:
