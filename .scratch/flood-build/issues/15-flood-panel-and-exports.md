@@ -112,3 +112,84 @@ Two more the page's rendering depends on, both cheap if done at write time and a
   deliberate, and it is why guessing a threshold downstream is refused by a test that counts
   the budgeted sources. FloodNet's is already derived from `flood_truth.MAX_AGE_MIN`; the
   precip / CO-OPS / NWS budgets are yours.
+
+
+## Inherited from flood 11's build (2026-08-25, branch `flood11-detector-core`)
+
+The tiers you render come from `src/raincheck/flood_detect.py`; the strings, budgets and
+vocabularies come from `research/flood-11-detector.json`. Read them, never re-type them.
+
+    from raincheck import flood_detect as fd
+    fd.DETECTOR                                   # research/flood-11-detector.json
+    fd.constants()                     -> dict    # the rule book; one file, one call
+    det["detector_version"]                       # sha1 over fd.DIGESTED, NOT of the file
+    fd.walk(now, wet_by_hour)          -> {anchor, state, walked_days, pad, missing_pad}
+    fd.window_features(cell_hours, anchor, now)   # {cells:{...}, coverage, unforced_cells, state}
+    fd.evaluate(art, units, feats)     -> [{asset_id, kind, cell, eta, rank}]
+    fd.tiers(scored, feats, citywide_active) / fd.latch(prev, cur) / fd.revisions(prev, feats)
+    fd.winter_gate(temp_c, now, stale) -> {suppressed, basis, temp_c, label}
+    fd.staleness(newest, now) / fd.skew(art, table_score_version) / fd.rolled(...)
+    fd.cycle(state, now, cell_hours, units, art, det, temp_c=, temp_stale=,
+             table_score_version=, wet_by_hour=)   # one whole read; its return IS next state
+
+Artifact keys: `window` {anchor_local_hour 21, tz, pad_hours 3, cap_days 6,
+antecedent_hours 24, wet_mm 1.0, **wet_cells_k 5**, interval "(anchor, now]", states} ·
+`cutpoints` {ELEVATED 0.10, HIGH 0.02, tiers, basis, **provisional true**, confirmed_by} ·
+`gates` {own_cell_window_mm 2.0, citywide_active, latched_within_window,
+dim_after_dry_hours 3, downward_revision_clears_a_flag **false**,
+entrances_publish_a_live_number **false**, complex_rule} · `winter` {freeze_c 0.5, label,
+unknown_label, unknown_fallback_months} · `staleness_budgets` {precip_fresh_min 90,
+precip_stale_min 180, floodnet_min, coops_min, **nws_knyc_obs_min 120**, **nws_alerts_min
+15**, clock_ahead_min} · `throttles` · `forcing` {product, rejected_products, stamp, url,
+name, retention_days, **scale_band_applied false**} · `vocabularies` · `query_strings` ·
+`nws_ugc_zones` **null, owed** · `canary` · `display` · `detector_version_scope`.
+
+**THE VERSION-SKEW RULE.** `fd.skew(art, table_score_version)` compares
+`art["score_version"]` against the score_version of **the table you actually read** —
+the column on every row of `gold/flood_exposure` and its parquet footer key
+`b"score_version"` — never a constant. An ABSENT table stamp REFUSES; "I could not tell" is
+not "they match". `fd.rolled(prev_state, anchor, score_version, detector_version)` rolls the
+Window when the anchor moves OR either digest moves, which is how a coefficient swap
+mid-Window cannot leave latched tiers standing that the running model never produced.
+
+**THE SETTLED STALENESS BUDGET.** The spec's 15 min is the per-cycle NWS **ALERTS** budget,
+not the KNYC observation's. KNYC reports HOURLY, so at 15 min the winter gate could never
+fire. The observation budget is **120 min = two report intervals**, published as
+`staleness_budgets.nws_knyc_obs_min` and asserted equal to `flood_live.KNYC_STALE_MIN`.
+
+**WHAT YOU MUST RENDER AS DATA, not as absence.** `window.state` is one of `OK` / `HOLES` /
+`INSUFFICIENT_DATA` / `WINDOW_CAPPED`; `staleness.state` is `FRESH` / `STALE` / `DOWN`.
+**HOLES and staleness are different facts** — a holed Window is still a Window and its anchor
+still stands — and both are different from `INSUFFICIENT_DATA`, which means there is no
+Window at all. `dim.dimmed` is true after `gates.dim_after_dry_hours` (3) consecutive
+citywide-dry hours and `dim.dry_hours` is the "rain ended Xh ago" number.
+
+**THE TIERS ARE PROVISIONAL AND THE PANEL SAYS SO.** `fd.TIERS_PROVISIONAL` is the sentence;
+`cutpoints.provisional` is `true` until flood 12's replay lands, and **flood 12's verdict is
+[YOU]-Ross's to read**. Never render a tier as confirmed. `display.tier_labels` is the
+vocabulary; `display.no_complex_skill_claim` and `display.within_cell` are the two
+disclaimers that must ride with a complex row and with any two Units in one Cell.
+
+**NEVER present the point tier as resting on a validated distance.** The estimand is
+`flooded_reported` WITHIN 100 m of a report, and flood 18 measured the radius as NOT optimal
+(lift per own base rate 11.13x at 50 m / 6.05x at 100 m / 4.42x at 200 m — the widest radius
+has the highest raw CSI and the LOWEST skill). `estimand_note` in the artifact says it.
+
+**A SCORE IS THE LINEAR PREDICTOR AND IS NEGATIVE FOR NEARLY EVERY UNIT** (bus_stop
+-7.39..-3.91, complex -6.54..-4.12, cell -5.27..+1.06). Anything human-facing is the RANK
+(`rank`, 0..1 within kind) or `score_index`, never a raw eta, and never a probability —
+do not sigmoid it. `art["cdf"].by_kind` is the STATIC view for DORMANT weather only.
+
+**THE MODEL TIER REFUSES ON SKEW, and the payload says so even when it produced nothing.**
+`cycle()` stamps `score_version` AND `detector_version` on every return, including an
+`INSUFFICIENT_DATA` one. `skew.model_tier` is `"ok"` or `"refused"` with a `reason` — render
+the refusal, do not fall back to a stale number.
+
+**FRESHNESS IS DATED AT THE READER.** `fd.staleness(newest, now)` takes the newest stamp and
+the reader's clock; a future stamp reads `DOWN`, never `FRESH`. Do not serve a
+writer-frozen age (TRAPS: "frozen age is not an age").
+
+**STILL OWED AND NOW TWICE SLID: flood 09's release checklist.** flood 11 did not create it
+either — it is not this ticket's artifact and inventing one here would assert a branch nobody
+re-evaluated. It stays yours, and `gate.panel_strings` in the coefficient JSON is the READ
+that feeds it.

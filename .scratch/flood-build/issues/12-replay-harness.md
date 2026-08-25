@@ -73,3 +73,90 @@ good on raw CSI while alarming 4.2x as often (alert rate 0.01108 -> 0.04664). Yo
 "cutpoints confirmed, or v1 ships rank-only" call should be made on the FP volumes at the
 primary's 100 m labelling, with the note that a wider labelling would have inflated every
 headline you might otherwise have quoted in its favour.
+
+
+## Inherited from flood 11's build (2026-08-25, branch `flood11-detector-core`)
+
+The walk you replay is `src/raincheck/flood_detect.py`, and the rules are
+`research/flood-11-detector.json`. Both are READS.
+
+    from raincheck import flood_detect as fd
+    fd.DETECTOR                                   # research/flood-11-detector.json
+    fd.constants()                     -> dict    # the rule book; one file, one call
+    det["detector_version"]                       # sha1 over fd.DIGESTED, NOT of the file
+    fd.walk(now, wet_by_hour)          -> {anchor, state, walked_days, pad, missing_pad}
+    fd.window_features(cell_hours, anchor, now)   # {cells:{...}, coverage, unforced_cells, state}
+    fd.evaluate(art, units, feats)     -> [{asset_id, kind, cell, eta, rank}]
+    fd.tiers(scored, feats, citywide_active) / fd.latch(prev, cur) / fd.revisions(prev, feats)
+    fd.winter_gate(temp_c, now, stale) -> {suppressed, basis, temp_c, label}
+    fd.staleness(newest, now) / fd.skew(art, table_score_version) / fd.rolled(...)
+    fd.cycle(state, now, cell_hours, units, art, det, temp_c=, temp_stale=,
+             table_score_version=, wet_by_hour=)   # one whole read; its return IS next state
+
+Artifact keys: `window` {anchor_local_hour 21, tz, pad_hours 3, cap_days 6,
+antecedent_hours 24, wet_mm 1.0, **wet_cells_k 5**, interval "(anchor, now]", states} ·
+`cutpoints` {ELEVATED 0.10, HIGH 0.02, tiers, basis, **provisional true**, confirmed_by} ·
+`gates` {own_cell_window_mm 2.0, citywide_active, latched_within_window,
+dim_after_dry_hours 3, downward_revision_clears_a_flag **false**,
+entrances_publish_a_live_number **false**, complex_rule} · `winter` {freeze_c 0.5, label,
+unknown_label, unknown_fallback_months} · `staleness_budgets` {precip_fresh_min 90,
+precip_stale_min 180, floodnet_min, coops_min, **nws_knyc_obs_min 120**, **nws_alerts_min
+15**, clock_ahead_min} · `throttles` · `forcing` {product, rejected_products, stamp, url,
+name, retention_days, **scale_band_applied false**} · `vocabularies` · `query_strings` ·
+`nws_ugc_zones` **null, owed** · `canary` · `display` · `detector_version_scope`.
+
+**THE VERSION-SKEW RULE.** `fd.skew(art, table_score_version)` compares
+`art["score_version"]` against the score_version of **the table you actually read** —
+the column on every row of `gold/flood_exposure` and its parquet footer key
+`b"score_version"` — never a constant. An ABSENT table stamp REFUSES; "I could not tell" is
+not "they match". `fd.rolled(prev_state, anchor, score_version, detector_version)` rolls the
+Window when the anchor moves OR either digest moves, which is how a coefficient swap
+mid-Window cannot leave latched tiers standing that the running model never produced.
+
+**THE SETTLED STALENESS BUDGET.** The spec's 15 min is the per-cycle NWS **ALERTS** budget,
+not the KNYC observation's. KNYC reports HOURLY, so at 15 min the winter gate could never
+fire. The observation budget is **120 min = two report intervals**, published as
+`staleness_budgets.nws_knyc_obs_min` and asserted equal to `flood_live.KNYC_STALE_MIN`.
+
+**FIVE MEASUREMENTS THAT CHANGE HOW YOU READ YOUR OWN REPLAY.**
+
+1. **THE LIVE WALK DOES NOT REPRODUCE THE OFFLINE WINDOW IN GENERAL, and that is the rule
+   working.** It does on a fixture day (2021-09-01 mid-storm lands exactly on
+   `window_start`). Population-wide it agrees on **89 of 166 AORC-era events with citywide
+   rain (54%)**, and the usual disagreement is **ONE DAY EARLIER (56 cases)** because the
+   evening before the storm-eve was also wet; full distribution -1 d 56 · -2 d 4 · -3 d 3 ·
+   0 d 89 · +1 d 10 · +2 d 1 · insufficient 3. The live anchor is observation-derived, the
+   offline window is a calendar fact. **Do not file the difference as a defect and do not
+   "fix" the walk to agree** — your signed live-minus-offline feature deltas are measuring
+   exactly this, and a longer Window is a LARGER total by construction, not a bias.
+2. **The Window arithmetic itself is exact.** The live features reproduce
+   `gold/flood_matrix`'s Ida row for **all 1,351 `fit_cell` Cells, ZERO mismatches at 1e-6**,
+   and live eta at Window close equals the offline event eta to **2.3e-8**. So any delta you
+   publish is the WINDOW moving, never the arithmetic.
+3. **AORC has 168 permanently dark Cells of 4,113** (every hour of 2021-09 has exactly 3,945
+   non-null). They are UNFORCED, not holed, and are out of the coverage denominator — counting
+   them as holes would make every replay report HOLES forever. Live MRMS has all 4,113.
+4. **`cycle(wet_by_hour=...)` is not optional for you.** "Citywide" means the whole grid;
+   defaulting it off `cell_hours` is right in production and silently redefines citywide as
+   "these Cells" the moment a replay passes a subset. Pass the real citywide series.
+5. **K = 5 wet Cells is measured, and it is nearly inert for the anchor** (88 of 166 events
+   at K=5 vs 89 at K=41; only 1,540 of 90,888 AORC hours hold 1-41 wet Cells at all). It is
+   NOT inert for the citywide gate, which is why it is small. If your replay wants to sweep
+   it, sweep the GATE, not the walk.
+
+**THE TIER DECISION IS YOURS AND THE ARTIFACT IS WHERE IT LANDS.** `cutpoints.provisional`
+is `true` and `confirmed_by` names this ticket. Either flip it with the cutpoints confirmed,
+or drop `cutpoints` to rank-only — **either way `detector_version` bumps**, and a bump rolls
+every open Window (`fd.rolled`), which is correct. `fd.DIGESTED` is the eleven keys the
+digest covers; rewording a `_note` deliberately does NOT bump it.
+
+**THE RADAR-ONLY-vs-AORC RATIO IS OWED TO YOU.** `scale_band.pass2_over_aorc` = [0.86, 0.92]
+was measured on **Pass2**; the live forcing is **RadarOnly** and its bias against AORC is
+UNMEASURED. flood 11 applied no band for exactly that reason and shipped rank-only with one
+raw-total gate. You are the first build with both sides in hand — measure it and record it,
+and note the direction that matters: if RadarOnly runs low, the 2.0 mm gate is CONSERVATIVE.
+
+**Capped and insufficient Windows are already distinguishable**: `walk()` returns
+`WINDOW_CAPPED` (6 days, no dry anchor) and `INSUFFICIENT_DATA` (a pad stamp missing — it
+stops rather than falling through to a day it can see). Your checklist says exclude AND
+count them; both states carry `walked_days` and `missing_pad` so the count is free.
