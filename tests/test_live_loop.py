@@ -119,3 +119,57 @@ def test_the_export_half_carries_its_own_previous_meta(con, tmp_path, monkeypatc
     states, _ = run(con, tmp_path, monkeypatch, times=[NOW, NOW + timedelta(seconds=30)])
     assert states[1]["meta"]["stale"] is True          # empty root: the failure path
     assert "n_vehicles" in states[1]["meta"]
+
+
+# --- flood 15: the flood tick joined this loop ----------------------------------------
+
+def test_the_flood_tick_rides_this_cycle_rather_than_a_second_daemon(con, tmp_path,
+                                                                     monkeypatch):
+    """One process, one clock, one warm connection - so the panel's halves cannot age
+    apart (spec story 28, the reason this module exists at all). The flood tick is ONE
+    call inside cycle() and ONE field on state; a second Deployment would be three
+    interpreters, three requests on a tight floor and three clocks."""
+    seen = []
+
+    def fake_tick(con_, root, out_dir, prev, now, detector=None, ship_=None):
+        seen.append((root, out_dir, prev, now, detector))
+        return {"skipped": False, "at": now, "counts": {"cells": 1}}
+
+    monkeypatch.setattr(live_loop.flood_panel, "tick", fake_tick)
+    states, _ = run(con, tmp_path, monkeypatch, times=[NOW, NOW + timedelta(seconds=30)])
+    assert len(seen) == 2, "every cycle offers the tick its turn; the tick decides"
+    assert seen[0][1] == tmp_path / "web", "it writes into the directory this loop wrote"
+    assert seen[1][2] == states[0]["flood"], "the previous state is carried across"
+    assert "flood" in states[0]
+
+
+def test_the_flood_tick_is_handed_the_detector_read_this_cycle_already_made(con, tmp_path,
+                                                                            monkeypatch):
+    """The winter gate's Central Park temperature and the coastal chips come out of the
+    read this loop already fetched on its 360 s cadence. Fetching them again inside the
+    flood tick would re-ask two public APIs at the RENDER rate, which is the false-OUTAGE
+    failure DETECT_S exists to prevent."""
+    seen = []
+    monkeypatch.setattr(live_loop.flood_panel, "tick",
+                        lambda *a, **k: seen.append(a[5] if len(a) > 5 else k.get("detector")) or {})
+    states, calls = run(con, tmp_path, monkeypatch,
+                        times=[NOW, NOW + timedelta(seconds=30)])
+    assert len(calls["detect"]) == 1, "still one fetch per DETECT_S, not one per tick"
+    assert all(d is not None and d["coastal"]["stage"] == "quiet" for d in seen)
+
+
+def test_a_broken_flood_tick_never_stops_the_fleet(con, tmp_path, monkeypatch):
+    """Copied failure policy: an outage is a field on state. The flood tick swallows its
+    own errors, so this asserts the loop does not depend on that promise being kept by
+    accident - the export and the publish still happen."""
+    monkeypatch.setattr(live_loop.flood_panel, "tick",
+                        lambda *a, **k: {"skipped": False, "error": "Boom: it broke"})
+    states, calls = run(con, tmp_path, monkeypatch)
+    assert calls["publish"], "the export half must still publish"
+    assert "flood=error" in live_loop.line(states[0])
+
+
+def test_the_flood_tick_reports_itself_on_the_one_log_line(con, tmp_path, monkeypatch):
+    monkeypatch.setattr(live_loop.flood_panel, "tick", lambda *a, **k: {"skipped": True})
+    states, _ = run(con, tmp_path, monkeypatch)
+    assert "flood=skipped" in live_loop.line(states[0])

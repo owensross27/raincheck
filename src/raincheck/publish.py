@@ -15,6 +15,9 @@ The bucket IS the `web/` tree, so the page's relative paths work unchanged:
     files/cells.geojson · headline · zones ·
       files/index.json                             per build        family `insight`
     files/live.geojson · files/meta.json            30 s             family `live`   GATED
+    files/flood.json · files/flood-meta.json        30 s loop        family `flood`
+    files/flood-mta.json ·
+      files/flood-mta-meta.json                     30 s loop        family `flood-mta` GATED
     files/history/**                                per spine rebuild  family `history`
     docs/**                                         per Airflow run  family `docs`
     showcase/**                                     per landing      family `showcase`
@@ -35,6 +38,15 @@ structural here rather than remembered:
    so a `.pb`, a `.parquet` or a tarball is refused by construction rather than by
    review - including one that appears inside a directory-tree family later.
 3. MTA ATTRIBUTION ON THE PAGE - `web/index.html`, pinned by tests/test_publish.py.
+
+**THE GATE CUTS BY LINEAGE, WHICH IS WHY THE FLOOD PANEL IS TWO FAMILIES AND NOT ONE**
+(frontend 01 D3, measured; flood 15 writes both). `flood` carries the FloodNet tier, the
+CO-OPS coastal chips and the 311/USGS/AORC-derived exposure - no MTA content at all, so
+withholding the MTA feed must not withhold it. `flood-mta` carries the alert-derived tier
+alone and is gated with `live.geojson`. A single family could not do this: `gated` is a
+property of a family, and one shared meta file is exactly what would have taken the
+FloodNet tier down with the bus data. Each is payload-first / meta-LAST for the same
+reason the live pair is.
 
 **Publish order inside the live family is load-bearing too.** live.geojson goes first and
 meta.json goes LAST, because the page reads freshness out of meta.json: a publisher that
@@ -150,6 +162,21 @@ FAMILIES: dict[str, Family] = {
         # ones. It is `insight` rather than a family of its own because it is written by
         # the same run, on the same cadence, by the same writer - frontend 06.
         files=("cells.geojson", "headline.json", "zones.geojson", "index.json")),
+    # flood 15's two, one per side of the MTA lineage gate. Both are written by the SAME
+    # tick inside cloud 05's loop, so they carry one cycle_id - but they publish as two
+    # families because only one of them may go public today.
+    "flood": Family(
+        cadence="30 s loop (skips unless the forcing advanced)",
+        writer="the flood tick in the live Deployment [flood 15]",
+        src=lambda: WEB / "files", prefix="files/",
+        files=("flood.json", "flood-meta.json"),   # meta LAST - see the docstring
+        cache=NO_CACHE),
+    "flood-mta": Family(
+        cadence="30 s loop (skips unless the forcing advanced)",
+        writer="the flood tick in the live Deployment [flood 15]",
+        src=lambda: WEB / "files", prefix="files/",
+        files=("flood-mta.json", "flood-mta-meta.json"),
+        cache=NO_CACHE, gated=True),
     "docs": Family(
         cadence="per Airflow run", writer="the GX checkpoint's Data Docs task [orch 08]",
         src=lambda: data_root() / "gx" / "data_docs", prefix="docs/"),

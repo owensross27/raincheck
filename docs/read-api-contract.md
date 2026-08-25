@@ -25,18 +25,33 @@ consumer can learn the whole surface without a human in the loop.
 
 ## The families
 
-Six, each an EXPLICIT file list or an explicit prefix. Never a directory sync — the
-insight files and the live pair are written into one directory by two writers on two
-cadences, so a sync would publish a gated payload and republish a stale one.
+Eight, each an EXPLICIT file list or an explicit prefix. Never a directory sync — the
+insight files, the live pair and the two flood pairs are written into one directory by
+three writers on three cadences, so a sync would publish a gated payload and republish a
+stale one.
 
 | family | keys | cadence | Cache-Control | notes |
 |---|---|---|---|---|
 | `site` | `index.html`, `layers.js`, `freshness.js`, `panel.js`, `insight.js`, `live.js`, `app.js`, `app.css`, `vendor/maplibre-gl.js`, `vendor/maplibre-gl.css` | deploy-time | `public, max-age=86400` | the page itself — six ES modules, `app.js` the entry, no build step; MapLibre is version-pinned |
 | `insight` | `files/cells.geojson`, `files/headline.json`, `files/zones.geojson`, `files/index.json` | per build | `public, max-age=300` | all four or none |
 | `live` | `files/live.geojson`, `files/meta.json` | 30 s | `no-cache` | **GATED, dark** — see below |
+| `flood` | `files/flood.json`, `files/flood-meta.json` | 30 s loop, skips unless the forcing advanced | `no-cache` | the flood panel's OPEN side: the FloodNet tier, the CO-OPS coastal chips and the 311/USGS/AORC-derived exposure. Both or neither; the meta goes LAST |
+| `flood-mta` | `files/flood-mta.json`, `files/flood-mta-meta.json` | 30 s loop, skips unless the forcing advanced | `no-cache` | **GATED, dark** — the alert-derived tier alone, on the same gate side as `live.geojson` |
 | `history` | `files/history/**` | per spine rebuild | `public, max-age=300` | one file per asset |
 | `docs` | `docs/**` | per Airflow run | `public, max-age=300` | Great Expectations Data Docs |
 | `showcase` | `showcase/**` | per landing or recorded run | `public, max-age=300` | the walkthrough, the task graph and one recorded run [orch 13] |
+
+**THE FLOOD PANEL IS TWO FAMILIES BECAUSE THE GATE CUTS THROUGH IT.** `flood` and
+`flood-mta` are written by ONE tick, in one process, carrying one `cycle_id` — and they
+publish separately because only one of them may go public today. The split is by LINEAGE,
+not by panel: the FloodNet tier contains no MTA-derived content at all, so withholding the
+MTA feed must not withhold it, and a single shared meta file is exactly what would have.
+Each pair is payload first and meta LAST, for the same reason the live pair is: a
+publisher that dies between them leaves an OLD meta over a new payload, never a fresh meta
+over a payload that is not there. The staleness budgets a consumer needs to turn an age
+into a verdict ride in `budgets_s` on both metas (precip 5400 fresh / 10800 down, FloodNet
+600, CO-OPS 1800, NWS alerts 900, KNYC observation 7200 — all seconds, all derived from
+`research/flood-11-detector.json`). Every human-readable string is under `strings`.
 
 **`docs/**` is the CURRENT run's report, not an archive of runs.** The nightly's `gxcheck`
 stage rebuilds the whole Data Docs site every run (orchestration ticket 08), so a
