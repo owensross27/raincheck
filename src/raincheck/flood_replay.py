@@ -235,10 +235,15 @@ def replay(ev: dict, wet: dict, temp: dict, by_hour: dict, us: list[dict],
         # this event's features against the next Window's.
         if w["anchor"] is not None and w["anchor"] <= ws:
             feats_at, anchor_at = state["features"], w["anchor"]
+    end = (state or {}).get("units", [])
     return {"cycles": len(nows), "states": dict(states), "union": union,
             "peak": dict(peak), "revisions": revs, "winter_cycles": winter_cycles,
             "features": feats_at, "anchor": anchor_at,
-            "published": [u["asset_id"] for u in (state or {}).get("units", [])]}
+            "published": [u["asset_id"] for u in end],
+            # what was still STANDING on the last replayed cycle. Published so the readout
+            # can be checked rather than believed: for a storm that ended before its
+            # Window rolled, this is 0 while the union is in the hundreds.
+            "end_flagged": sum(1 for u in end if u["tier"] != fd.NONE)}
 
 
 def skill(us: list[dict], union: dict, kind: str) -> dict:

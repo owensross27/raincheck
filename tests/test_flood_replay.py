@@ -274,9 +274,11 @@ def test_the_readout_is_the_union_over_cycles_and_not_the_standing_set_at_the_en
     subscriber actually received."""
     r = _replay(ida, art, det)
     assert r["union"], "the storm flagged something"
-    last = {a for a in r["published"]}
-    assert last, "the last cycle still publishes rows"
+    assert r["published"], "the last cycle still publishes rows"
     assert r["states"].get(fd.OK) == r["cycles"]
+    assert r["end_flagged"] == 0, "Ida's Window has rolled by window_end"
+    assert len(r["union"]) > r["end_flagged"], \
+        "reading the standing set at window_end measures the morning after the storm"
     assert max(r["peak"].values()) <= len(r["union"])
 
 
@@ -300,9 +302,18 @@ def test_skill_counts_hits_and_false_alarms_against_the_matrix_label(ida, art, d
     assert e["pod"] == pytest.approx(e["tp"] / s["positives"])
 
 
+def test_the_high_row_counts_the_high_band_alone_and_the_elevated_row_counts_both(ida):
+    """`tiers` puts HIGH inside the ELEVATED cut, so the two rows are nested and NOT equal:
+    an ELEVATED Unit belongs to the ELEVATED-and-above row only. Folding ELEVATED into the
+    HIGH row would publish the top-2% cut alarming at the top-10% volume, which is the one
+    number in this table a reader would use to argue the cut is affordable."""
+    us = [u for u in _units(ida) if u["kind"] == "bus_stop"]
+    a, b = us[0]["asset_id"], us[1]["asset_id"]
+    s = fr.skill(us, {a: fd.ELEVATED, b: fd.HIGH}, "bus_stop")
+    assert s[fd.ELEVATED]["flagged"] == 2 and s[fd.HIGH]["flagged"] == 1
+
+
 def test_high_is_a_subset_of_elevated_and_above(ida, art, det):
-    """`tiers` puts HIGH inside the ELEVATED cut, so the HIGH row can never flag a Unit the
-    ELEVATED-and-above row does not."""
     us = _units(ida)
     r = _replay(ida, art, det, units=us)
     for kind in ("cell", "bus_stop"):
