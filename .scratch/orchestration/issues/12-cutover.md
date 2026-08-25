@@ -15,3 +15,12 @@ mutating stages verified by their own checks, with exactly one writer running.
 - [ ] The retirement is added to the Mac decommission checklist in the cloud effort — this ticket does not open a second checklist
 - [ ] Rollback is one `launchctl` command and is written down before the agent is booted out
 - [ ] The daily make target stays runnable unchanged, so the escape hatch is real
+
+## From orch 13's landing (2026-08-25, `orch13-showcase-surface`) — one line of yours
+
+When a real nightly has run under your cutover, re-record the showcase's run so the public
+surface stops showing a probe: `python -m raincheck.showcase --logs <dir> --label nightly`,
+commit the `research/orch-13-run-<run_id>.json` it writes, `make showcase`,
+`make publish FAMILY=showcase`. `--label nightly` is the only label that lets the page drop
+its "this is not the fan-out at its declared width" caveat, and it drops it only when the
+run's own `totals.widest_map` is five or more - which is measured from the logs, not typed.

@@ -69,3 +69,35 @@ days)`. `python -m raincheck.daily events <YYYY-MM-DD>` is the exact form both r
 what makes the two sides comparable at all — compare at the PARTITION level, as the ticket
 already says. Note `daily.build` no longer rolls Gold: if a shadow day compares Gold, it has
 to run the `gold` step too, and give it the day list.
+
+## From orch 13's landing (2026-08-25, `orch13-showcase-surface`) — record your shadow run
+
+**Your shadow is the FIRST real run this project will have had**, and the showcase says so
+in its own words today: measured 2026-08-25, `s3://raincheck-bronze/airflow-logs/` holds
+only `dag_id=raincheck_gateprobe` and `dag_id=raincheck_smoke`, so the recorded run on the
+public surface is the wave-5 gate's PROBE, labelled `probe`, with the page stating that a
+probe is not a nightly and that its map is three wide rather than five.
+
+**Recording yours is two commands and no new code**, once your run's logs are on R2:
+
+    aws s3 cp s3://raincheck-bronze/airflow-logs/dag_id=raincheck_daily/run_id=<id>/ \
+        <dir>/ --recursive --endpoint-url $RAINCHECK_COLD_ENDPOINT
+    python -m raincheck.showcase --logs <dir> --label shadow
+
+That writes `research/orch-13-run-<run_id>.json` (commit it - the render must not need the
+cold credential) and re-renders `web/showcase/`. `--label` is REQUIRED and is
+`probe|shadow|nightly`: the label decides what the page CLAIMS, and a shadow shown as a
+nightly is the one failure that surface exists to avoid.
+
+**What the record derives, so you know what it can and cannot say.** Per instance:
+`task_id · map_index · tries · started · ended · seconds · state · exit_code`, the newest
+attempt winning. **State is derived from each log's own ending, in the operator's own
+precedence** - a `Skipping task.` line BEFORE any `error` line, because an INCONCLUSIVE
+gate logs both. Identity comes from the log LINES, never the key path, so copying the logs
+anywhere is safe. `totals.widest_map` is the fan-out's claim, MEASURED: five or more is
+what ticks orch 13's open checkbox, and only a real gap scan can produce it. The verdict is
+`daily`'s own closing line out of the `report` task's log (`[base] daily: OK` /
+`INCONCLUSIVE - ` / `FAILED - `) and **never the DagRun state**.
+
+**A zero expansion writes NO LOG at all** (never scheduled), so it appears in the graph and
+in no row of the run table - which is also why the pod count is 2 x instances that RAN.
