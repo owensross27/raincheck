@@ -49,6 +49,13 @@ says which axes this runtime buys pods for.
   session rolling N months beats N sessions rolling one. It reads the SAME plan its days
   were expanded from and lets the disk say which of them landed - a finished task's record
   carries a map index and no Service date, so a state alone cannot name a month.
+  A GATE HAS THREE OUTCOMES (ticket 07). A task state carries no rc, so a gate that exits
+  `daily.INCONCLUSIVE_RC` - it COULD NOT CHECK - would otherwise be indistinguishable from
+  one that found a real gap. `skip_rc()` gives exactly the gates that run their module the
+  `skip_on_exit_code` that lands that rc in `skipped`, a terminal state that is neither
+  success nor failure, and `report` carries the same mapping because its own exit line is
+  the run's verdict. Nothing here renders inconclusive as ok and nothing renders it as
+  failed; the persisted rows under `<root>/checks/` remain the record either way.
 
 WHAT IS DELIBERATELY NOT HERE. `coldgaps` (the remote census over unrecoverable Mac-era
 subway positions: it would page forever about hours nobody can recover) and `make eras`
@@ -62,7 +69,8 @@ import datetime
 import pendulum
 from airflow.sdk import DAG
 
-from raincheck_stage import XCOM, command, module, shape_of, stage_task, stages
+from raincheck_stage import (XCOM, command, constant, module, shape_of, skip_rc,
+                             stage_task, stages)
 from raincheck_timetable import DailyRunIdTimetable
 
 # A pendulum timezone, not a `zoneinfo.ZoneInfo`: the DAG imports and even runs with one,
@@ -109,18 +117,28 @@ with DAG(
             # the reduce takes the whole list its pods were expanded from, from the same
             # plan; which of those days landed is the disk's answer, not this graph's
             cmds = cmds + ["{{ ti.xcom_pull(task_ids='plan_" + declared["reduces"] + "') | tojson }}"]
+        # skip_rc (ticket 07): a GATE's INCONCLUSIVE_RC lands the task in `skipped`, mapped
+        # or not - a mapped gate's N pods each carry the same rendering.
         chain.append(stage_task(declared["name"], shape_of(declared["name"]), cmds,
                                 items=plans[axis].output if axis else None,
-                                trigger_rule="all_done", **RETRIES[declared["retry"]]))
+                                trigger_rule="all_done", skip_on_exit_code=skip_rc(declared),
+                                **RETRIES[declared["retry"]]))
 
     # The driver's own ending, from Airflow's record of the run. It has to be a POD like
     # every other task - a callable here would run on the scheduler, on the floor - and a
     # pod cannot see the run it belongs to, so the finished tasks' states and durations are
     # rendered INTO its argument. `all_done` and no retries: it reports, it does not work.
+    #
+    # It carries the skip mapping for the same reason a gate does (ticket 07): report()
+    # exits with daily.verdict(), which is INCONCLUSIVE_RC on a run that could only not
+    # check. Without it the run's own summary - the one task whose state IS the nightly's
+    # outcome - would render that as FAILED, which is the exact conflation this graph
+    # spent three tasks avoiding one level down.
     chain.append(stage_task(
         "report", "raincheck-stage",
         module("daily", "report", "{{ ti.get_task_breadcrumbs(ti.dag_id, ti.run_id) | tojson }}"),
-        trigger_rule="all_done", retries=0))
+        trigger_rule="all_done", retries=0,
+        skip_on_exit_code=constant("INCONCLUSIVE_RC")))
 
     for upstream, downstream in zip(chain, chain[1:]):
         upstream >> downstream

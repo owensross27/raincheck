@@ -106,6 +106,39 @@ def command(stage: dict) -> list[str]:
     return make(target)
 
 
+def constant(name: str):
+    """A module-level literal from the declaration, read the way stages() reads STAGES.
+
+    Same seam and same reason: this image has no raincheck package to import the number
+    from, and a copy of it here would be a second home for a contract that only works
+    while there is exactly one.
+    """
+    tree = ast.parse(DECLARATION.read_text())
+    return next(ast.literal_eval(n.value) for n in tree.body if isinstance(n, ast.Assign)
+                and any(getattr(t, "id", None) == name for t in n.targets))
+
+
+def skip_rc(stage: dict) -> int | None:
+    """The rc this stage's pod may land in `skipped` for, or None - orchestration ticket 07.
+
+    A TASK STATE CARRIES NO rc. The number comes from the stage pod and reaches Airflow
+    through the operator's own exit handling, which is success-or-failure, so an
+    INCONCLUSIVE stage is indistinguishable from a broken one unless something names the
+    code. `skip_on_exit_code` is that something, and `skipped` is the only terminal state
+    Airflow has that is neither success nor failure. The persisted batch under
+    `<root>/checks/check=<name>/` stays the record; this is a rendering of it.
+
+    ONLY A GATE, and only one that runs its module. A gate is the declaration's own word
+    for a stage whose output is a verdict, and a verdict is what has three values. Wiring
+    it onto a make target would be the same conflation inverted - GNU make exits 2 for ANY
+    recipe failure (orch 03), so a genuinely broken recipe would render as "could not
+    check". Both halves are asserted in tests/test_dag_nightly.py.
+    """
+    if stage["retry"] != "gate" or not stage["argv"]:
+        return None
+    return constant("INCONCLUSIVE_RC")
+
+
 def shape_of(name: str) -> str:
     """The placement table's OWN answer to "which pod does this stage get".
 

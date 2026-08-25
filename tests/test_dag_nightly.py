@@ -132,6 +132,9 @@ def test_the_one_stage_form_runs_that_stage_and_exits_on_its_own_outcome(monkeyp
     pod here - and exit on THAT stage's verdict, because Airflow owns the ordering now."""
     ran = []
     monkeypatch.setattr(daily, "run", lambda target, **v: ran.append(target) or 0)
+    # gapfill carries an argv now (ticket 06), so the driver SPAWNS it (ticket 07) - stub
+    # that seam too, or this test runs the real fill against whatever root the env names
+    monkeypatch.setattr(daily, "spawn", lambda argv: ran.append(argv[0]) or 0)
     monkeypatch.setattr(daily, "data_root", lambda: Path("/nowhere"))
     monkeypatch.setattr(daily, "precip", lambda month: ran.append(f"precip {month}") or 1)
 
@@ -143,6 +146,82 @@ def test_the_one_stage_form_runs_that_stage_and_exits_on_its_own_outcome(monkeyp
     assert len(ran) == 1 + len(daily.precip_months(daily.date.today()))
     with pytest.raises(SystemExit, match="not a declared stage"):
         daily.main(["coldgaps"])
+
+
+# --- the third outcome (orchestration ticket 07) ---------------------------------------
+#
+# A TASK STATE CARRIES NO rc. The number comes from the stage pod and reaches Airflow
+# through the operator's own exit handling, which is success-or-failure - so unless
+# something names the code, a gate that COULD NOT CHECK is indistinguishable from one that
+# found a real gap. `skip_on_exit_code` names it, and the pinned property is negative:
+# nothing renders INCONCLUSIVE as failed and nothing renders it as ok.
+
+
+def test_only_a_gate_that_runs_its_module_may_land_a_pod_in_skipped():
+    """Both halves of the rule, off the declaration. A gate is the declaration's own word
+    for a stage whose output is a VERDICT, and a verdict is the thing with three values.
+    The other half is the conflation inverted: GNU make exits 2 for ANY recipe failure, so
+    wiring the skip onto a make target would file a genuinely broken recipe as "could not
+    check" - which is why the mapping refuses a stage with no process form."""
+    for stage in declared():
+        rc = raincheck_stage.skip_rc(stage)
+        if stage["retry"] == "gate":
+            assert rc == daily.INCONCLUSIVE_RC, f"{stage['name']} cannot say INCONCLUSIVE"
+            assert raincheck_stage.command(stage)[:2] == ["python", "-m"]
+        else:
+            assert rc is None, f"{stage['name']} is not a gate but may skip on rc {rc}"
+        # never 0 and never 1: a success is not a skip, and neither is a real failure
+        assert rc not in (0, 1)
+
+
+def test_the_skip_code_is_the_check_rows_own_verdict_and_not_a_number_in_a_dag():
+    """The task state is a RENDERING; the persisted batch under <root>/checks/check=<name>/
+    is the record. This is the seam between them, and it is read from the declaration the
+    DAG image bakes - the same file `stages()` parses - rather than typed here, because a
+    second copy of a contract is how the two runtimes start disagreeing."""
+    from raincheck import checks
+
+    could_not = checks.Row("gapverify", "vp", checks.INCONCLUSIVE, "no pair to compare")
+    assert raincheck_stage.constant("INCONCLUSIVE_RC") == checks.rc([could_not])
+    assert daily.INCONCLUSIVE_RC == checks.rc([could_not])
+    assert re.search(r"(?m)^INCONCLUSIVE_RC = ", raincheck_stage.DECLARATION.read_text())
+
+
+def test_the_report_counts_a_stage_that_could_not_check_apart_from_one_that_failed(capsys):
+    """Neither number inflates the other. A real gap outranks a not-run check, so the run
+    still ends FAILED - but the skipped stage is named on its own line and is absent from
+    the failure list, and a run with only skips does not exit like a run that broke."""
+    def run(*crumbs):
+        return json.dumps([{"task_id": t, "map_index": -1, "state": st, "duration": 1.0}
+                           for t, st in crumbs])
+
+    with pytest.raises(SystemExit) as exit:
+        daily.report(run(("gapverify", "skipped"), ("gapcheck", "failed")))
+    assert str(exit.value) == "daily: FAILED - gapcheck (every stage ran; see above)"
+    assert "INCONCLUSIVE - gapverify" in capsys.readouterr().out
+
+    with pytest.raises(SystemExit) as exit:
+        daily.report(run(("gapverify", "skipped"), ("gapcheck", "success")))
+    assert exit.value.code == daily.INCONCLUSIVE_RC   # not 1, and not a clean exit either
+
+    # and a soft stage joins neither list, exactly as it joins neither in the driver
+    daily.report(run(("coldcheck", "skipped"), ("gapcheck", "success")))
+
+
+def test_a_quiet_morning_is_not_an_inconclusive_and_only_a_gate_can_be_one(capsys):
+    """The conflation pointing the other way, and the one this rendering could newly cause.
+    `skipped` is what a ZERO-LENGTH dynamic expansion lands in too (ticket 06: nothing to
+    build, nothing to fill), so counting every skip as "could not check" would report a
+    quiet morning as an inconclusive nightly - every quiet morning. Only a GATE carries the
+    mapping, in the DAG and here, so only a gate's skip is a verdict. It still prints its
+    raw state and never `ok`."""
+    transport = [s.name for s in daily.STAGES if s.retry != "gate" and not s.soft]
+    assert transport, "the declaration has no non-gate stage to skip"
+    daily.report(json.dumps([{"task_id": t, "map_index": -1, "state": "skipped",
+                              "duration": None} for t in transport]))   # exits 0
+    printed = capsys.readouterr().out
+    assert " ok " not in printed and printed.count("skipped") == len(transport)
+    assert "INCONCLUSIVE" not in printed
 
 
 # --- the ending -------------------------------------------------------------------------
@@ -324,3 +403,81 @@ def test_one_plan_pod_stands_in_front_of_each_mapped_axis():
         assert plan.build_pod_request_obj().spec.containers[0].resources.requests == \
             dag.get_task(first["name"]).partial_kwargs["pod_template_dict"]["spec"][
                 "containers"][0]["resources"]["requests"]
+def test_the_three_outcomes_reach_three_different_task_states():
+    """The ticket, driven through the OPERATOR'S OWN exit handling rather than around it.
+
+    A task state carries no rc, so this is the only place the mapping actually happens:
+    KubernetesPodOperator.cleanup() reads the base container's terminated exit code and
+    decides what to raise. Three pods in - 0, 1 and INCONCLUSIVE_RC - and the three
+    endings have to be three different things, because a skip that raises like a failure
+    is a failure and a skip that raises nothing is an ok.
+
+    The two calls that hit the API server (the already-checked patch and the deletion) are
+    stubbed; every line that decides the outcome is the provider's."""
+    pytest.importorskip("airflow", reason="airflow is a cluster dependency, not a repo one")
+    from airflow.sdk.exceptions import AirflowException, AirflowSkipException
+    from airflow.sdk.definitions._internal.contextmanager import DagContext
+    from kubernetes.client import models as k8s
+
+    DagContext.current_autoregister_module_name = "raincheck_daily"
+    import raincheck_daily                                   # noqa: F401  (registers the DAG)
+    dag = next(d for d, _ in DagContext.autoregistered_dags if d.dag_id == "raincheck_daily")
+
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
+
+    def concrete(task):
+        # a MAPPED gate (ticket 06) is read through one unmapped index: the kwarg is the
+        # same on every pod of the expansion, and only a built operator normalises it
+        return task.unmap({"arguments": ["ITEM"]}) if isinstance(task, MappedOperator) else task
+
+    gates = [s["name"] for s in declared() if s["retry"] == "gate"]
+    assert gates, "the declaration has no gate to render"
+    for task in dag.tasks:
+        want = daily.INCONCLUSIVE_RC if task.task_id in gates + ["report"] else None
+        # the operator normalises to a list, so [] is "any non-zero exit code is a failure"
+        assert concrete(task).skip_on_exit_code == ([want] if want is not None else []), \
+            task.task_id
+
+    def pod(exit_code: int):
+        state = k8s.V1ContainerState(terminated=k8s.V1ContainerStateTerminated(
+            exit_code=exit_code, reason="Completed"))
+        return k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(name=f"gapverify-{exit_code}", namespace="raincheck"),
+            status=k8s.V1PodStatus(
+                phase="Succeeded" if exit_code == 0 else "Failed",
+                container_statuses=[k8s.V1ContainerStatus(
+                    name="base", image="x", image_id="", ready=False, restart_count=0,
+                    state=state)]))
+
+    operator = concrete(dag.get_task(gates[0]))
+    # The exit code is read off the BASE container by name, and the placement table calls
+    # its container `stage`. The operator renames it when it stamps `pod_template_dict`,
+    # which is the only reason the lookup resolves - if it stopped renaming, or if a
+    # base_container_name were set here, `skip_on_exit_code` would silently never fire and
+    # every inconclusive would land as a failure. Measured on the cluster 2026-08-25:
+    # the pods really do report `container=base` with the stage's own command in it.
+    built = operator.build_pod_request_obj()
+    assert operator.base_container_name == "base"
+    assert [c.name for c in built.spec.containers] == ["base"]
+    assert built.spec.containers[0].command == raincheck_stage.command(
+        next(d for d in declared() if d["name"] == gates[0]))
+
+    operator.patch_already_checked = lambda *a, **k: None
+    operator.process_pod_deletion = lambda *a, **k: None
+    operator.is_istio_enabled = lambda *a, **k: False   # it READS the pod: a live API call
+
+    ends = {}
+    for code in (0, 1, daily.INCONCLUSIVE_RC):
+        try:
+            operator.cleanup(pod=pod(code), remote_pod=pod(code))
+            ends[code] = "success"
+        except AirflowSkipException:          # a subclass of AirflowException: order matters
+            ends[code] = "skipped"
+        except AirflowException:
+            ends[code] = "failed"
+    assert ends == {0: "success", 1: "failed", daily.INCONCLUSIVE_RC: "skipped"}
+    assert len(set(ends.values())) == 3       # and no two of them are the same state
+
+    # the pod carrying the number is KEPT, so `kubectl get pod -o jsonpath=...exitCode`
+    # still has it: an inconclusive is debuggable, not just distinguishable
+    assert operator.on_finish_action.value == "delete_succeeded_pod"
