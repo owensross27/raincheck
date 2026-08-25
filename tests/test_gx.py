@@ -801,13 +801,33 @@ def test_a_complete_census_is_ok_and_the_range_rides_out_in_the_detail(tmp_path)
 
 
 @needs_gx
-def test_a_zero_byte_part_fails_and_names_the_feed(tmp_path):
-    """THE TICKET'S ZERO-BYTE RULE. An object can exist and still be useless, and a
-    zero-byte part would otherwise count as present and verify the range OK - the same
-    false-OK that makes `gapverify` useless over this era. The suite names WHICH feed, which
-    is what the count expectation buys over the verdict alone on the Docs page."""
+def test_the_census_verdict_is_expected_on_rather_than_recomputed(tmp_path):
+    """Every threshold keeps ONE home. The census decides what a complete range is; this
+    expects the verdict it wrote. So a row whose measures are all perfectly clean and whose
+    OUTCOME says fail still fails - which is only true because the expectation is on
+    `outcome` and not on a copy of `not (missing or no_part or ... )`."""
     rows = [backfill_row(f, checks.OK) for f in gx.BACKFILL.FEEDS]
-    rows[1] = backfill_row(gx.BACKFILL.FEEDS[1], checks.FAIL, zero_byte=2)
+    rows[0] = backfill_row(gx.BACKFILL.FEEDS[0], checks.FAIL)      # every count still 0
+    backfill_batch(tmp_path, rows)
+    results, _ = gx.run(tmp_path, (declared_suite(CENSUS),))
+    assert results[0].outcome == checks.FAIL
+    assert results[0].failed == (gx.BACKFILL.FEEDS[0],)
+
+
+@needs_gx
+def test_a_zero_byte_part_fails_even_where_the_census_called_the_feed_ok(tmp_path):
+    """THE TICKET'S ZERO-BYTE RULE. An object can exist and still be useless, and a
+    zero-byte part counted as present would verify the range OK - the same false-OK that
+    makes `gapverify` useless over this era.
+
+    The row here says `ok` WHILE carrying a zero-byte part, which is the census contradicting
+    itself, and isolating it that way is the whole point: with `outcome` set to fail as well,
+    this test passed with the zero-byte expectation DELETED - the verdict expectation was
+    failing the row and this one proved nothing. Measured by the mutation probe, and it is
+    the degenerate-fixture rule applied to a suite: check the fixture is not already failing
+    for the reason you are not testing."""
+    rows = [backfill_row(f, checks.OK) for f in gx.BACKFILL.FEEDS]
+    rows[1] = backfill_row(gx.BACKFILL.FEEDS[1], checks.OK, zero_byte=2)
     backfill_batch(tmp_path, rows)
     results, _ = gx.run(tmp_path, (declared_suite(CENSUS),))
     assert results[0].outcome == checks.FAIL
@@ -832,9 +852,13 @@ def test_a_stale_dead_entry_fails_the_feed_that_owns_the_allowlist(tmp_path):
     """THE TICKET'S DEAD-HOUR-LIST RULE. A listed dead hour that turned up after all means
     the allowlist is WRONG, and a wrong allowlist HIDES REAL GAPS - which is why this is
     failed rather than reported. The list itself stays inside the census script, one home,
-    disjoint from `gapfill.DEAD` by a test of its own."""
+    disjoint from `gapfill.DEAD` by a test of its own.
+
+    The row says `ok` AND carries the stale entry, for the same isolation reason as the
+    zero-byte test above: with `outcome` failing too, this passed with the expectation
+    deleted."""
     rows = [backfill_row(f, checks.OK) for f in gx.BACKFILL.FEEDS]
-    rows[0] = backfill_row(gx.BACKFILL.FEEDS[0], checks.FAIL, stale_dead=1)
+    rows[0] = backfill_row(gx.BACKFILL.FEEDS[0], checks.OK, stale_dead=1)   # ok, and stale
     backfill_batch(tmp_path, rows)
     results, _ = gx.run(tmp_path, (declared_suite(CENSUS),))
     assert results[0].outcome == checks.FAIL
@@ -866,7 +890,7 @@ def test_a_judged_feed_that_counted_no_hours_fails_rather_than_passing_quietly(t
     an in-set expectation IGNORES nulls and succeeds without them, which is why every count
     claim in this suite is PAIRED with one."""
     rows = [backfill_row(f, checks.OK) for f in gx.BACKFILL.FEEDS]
-    rows[0] = backfill_row(gx.BACKFILL.FEEDS[0], checks.OK, hours_seen=None, zero_byte=None)
+    rows[0] = backfill_row(gx.BACKFILL.FEEDS[0], checks.OK, hours_seen=None)  # only this one
     backfill_batch(tmp_path, rows)
     results, _ = gx.run(tmp_path, (declared_suite(CENSUS),))
     assert results[0].outcome == checks.FAIL
