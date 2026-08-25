@@ -23,7 +23,10 @@ export async function grab(lyrId, s) {
   delete whys[key];
   ages[key] = null;
   try {
-    const res = await fetch(s.url, { cache: "no-store" });
+    // `head: true` (frontend2 02's basemap): the same two headers, none of the body. A
+    // 52 MB PMTiles archive still has an age a reader is owed, and the tiles inside it are
+    // read by MapLibre's own protocol, which hands this page no headers at all.
+    const res = await fetch(s.url, { cache: "no-store", method: s.head ? "HEAD" : "GET" });
     if (!res.ok) {
       whys[key] = res.status === 404 ? "not published on this host" : `HTTP ${res.status}`;
       return null;
@@ -31,7 +34,7 @@ export async function grab(lyrId, s) {
     const d = Date.parse(res.headers.get("Date")), m = Date.parse(res.headers.get("Last-Modified"));
     if (Number.isNaN(d) || Number.isNaN(m)) whys[key] = "no age from the response headers";
     else ages[key] = Math.max(0, (d - m) / 1000);
-    return await res.json();
+    return s.head ? true : await res.json();
   } catch (err) {
     whys[key] = "fetch failed";
     return null;
@@ -71,7 +74,11 @@ export function srcState(lyr, s) {
   if (typeof age === "number" && s.inner && liveMeta && typeof liveMeta[s.inner] === "number")
     age += liveMeta[s.inner];       // the live pair's composite: file age + DATA age
   if (shut(lyr)) return { s: "GATED", why: "the MTA redistribution terms are not verified" };
-  if (!on[lyr.id]) return { s: "OFF", why: "nothing is being fetched" };
+  // an OFF row keeps a RECORDED reason if there is one. A layer the reader unticked has
+  // none (forget() clears them), so it still reads "nothing is being fetched"; a layer that
+  // turned ITSELF off because its payload was not there says so instead - which is what
+  // makes a missing basemap an explained chip rather than a silently empty ground.
+  if (!on[lyr.id]) return { s: "OFF", why: whys[key] || "nothing is being fetched" };
   if (age === null || age === undefined)
     return { s: "STALE", why: whys[key] || "no age from the response headers" };
   if (s.budget === null) return { s: "AGE", why: "no budget frozen for this source", age };

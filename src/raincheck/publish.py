@@ -10,8 +10,9 @@ lives OUTSIDE the cluster, so it is not cluster ingress and draws no security-gr
 
 The bucket IS the `web/` tree, so the page's relative paths work unchanged:
 
-    index.html · six .js modules · app.css ·
+    index.html · seven .js modules · app.css ·
       vendor/*                                    deploy-time      family `site`
+    tiles/nyc.pmtiles                             deploy-time      family `tiles`
     files/cells.geojson · headline · zones ·
       files/index.json                             per build        family `insight`
     files/live.geojson · files/meta.json            30 s             family `live`   GATED
@@ -103,11 +104,27 @@ RARE_CACHE = "public, max-age=86400"
 # `.woff`/`.woff2` were already here and the list simply had no OTF - so this widens the
 # allowlist by one web payload format and not by a category. Rule 2 is unchanged: a `.pb`,
 # a `.parquet` or a tarball is still refused by construction.
+# `.pmtiles` and `.pbf` were added by frontend2 02, MEASURED rather than anticipated, and
+# they are the two halves of one basemap: a PMTiles archive is the map's own tile store,
+# read by HTTP range request and by nothing else, and a `.pbf` here is a FONT - one glyph
+# range of one fontstack, the same category as the `.woff`/`.woff2`/`.otf` faces already
+# above, and the only way MapLibre can draw a label at all.
+# **Rule 2 is unchanged and this does not widen it into a data endpoint.** A family is an
+# explicit file list, so the only `.pmtiles` that can ever be published is `tiles/`'s one
+# named object and the only `.pbf` is the vendored glyph range in `site`; a `.pb`, a
+# `.parquet` or a tarball is still refused by construction, and no raincheck-derived data
+# gains a bulk format here - the basemap is third-party OSM geometry that enters no stage.
 PUBLISHABLE = frozenset({".geojson", ".json", ".html", ".css", ".js", ".map", ".svg",
                          ".png", ".jpg", ".gif", ".ico", ".txt",
-                         ".woff", ".woff2", ".otf"})
-# mimetypes knows the rest; these two it either misses or answers inconsistently by OS.
-TYPES = {".geojson": "application/geo+json", ".js": "text/javascript"}
+                         ".woff", ".woff2", ".otf",
+                         ".pmtiles", ".pbf"})
+# mimetypes knows the rest; these it either misses or answers inconsistently by OS. The two
+# basemap types are what the upstream hosts actually serve, measured 2026-08-25
+# (build.protomaps.com for the archive, protomaps.github.io for the glyph range) rather
+# than a plausible-looking guess - and pinning them here is what keeps `files/index.json`
+# byte-identical across operating systems.
+TYPES = {".geojson": "application/geo+json", ".js": "text/javascript",
+         ".pmtiles": "application/octet-stream", ".pbf": "application/octet-stream"}
 
 # --- the MTA redistribution gate (spec sec.9) -------------------------------------------
 # live.geojson is the one family that re-serves an MTA-derived, feed-shaped payload. The
@@ -202,9 +219,26 @@ FAMILIES: dict[str, Family] = {
         # under the page's own rules - a module the family does not name is a module no
         # test can see. Adding a key is additive under contract.PROMISE[1]: no bump.
         files=("index.html",
-               "layers.js", "freshness.js", "panel.js", "insight.js", "live.js", "app.js",
-               "app.css", "vendor/maplibre-gl.js", "vendor/maplibre-gl.css"),
+               "layers.js", "freshness.js", "panel.js", "insight.js", "live.js",
+               "basemap.js", "app.js",
+               "app.css", "vendor/maplibre-gl.js", "vendor/maplibre-gl.css",
+               # frontend2 02: the basemap's three vendored assets. `pmtiles.js` is the
+               # protocol as a self-contained ES module (imported by basemap.js, NOT a
+               # third script tag); `basemap-dark.json` is the STYLE, vendored so no third
+               # host is in the demo path; the glyph range is what lets a label exist.
+               "vendor/pmtiles.js", "vendor/basemap-dark.json",
+               "vendor/notosans-0-255.pbf"),
         cache=RARE_CACHE),
+    "tiles": Family(
+        # frontend2 02. The basemap is ONE object, served by RANGE REQUEST and by no
+        # compute at all - which is the entire reason the 2026-08-17 refusal in
+        # `.scratch/pipeline/issues/14-serving-surface.md:88-97` could be reversed. It is
+        # deliberately NOT a `site` key: `web/tiles/` is gitignored, the archive is never
+        # committed, and it moves on its own cadence (an operator running `make basemap`)
+        # rather than with the page. Its bytes are pinned in the Makefile, not here.
+        cadence="deploy-time", writer="the operator, after `make basemap`",
+        src=lambda: WEB / "tiles", prefix="tiles/",
+        files=("nyc.pmtiles",), cache=RARE_CACHE),
 }
 
 

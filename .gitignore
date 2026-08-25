@@ -7,3 +7,4 @@ __pycache__/
 web/files/
 web/showcase/
 web/vendor/
+web/tiles/

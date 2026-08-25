@@ -12,6 +12,8 @@
  *   panel.js      the layer rows, the focus restore, applyVisibility, toggle.
  *   insight.js    paint / headline / curve / views / hours / tooltip / drawCells.
  *   live.js       metaAge / isStale / renderLive / liveTick / toggleLive.
+ *   basemap.js    the vector basemap: the vendored dark style spliced in above `bg` and
+ *                 below all twelve, the pmtiles protocol, and the fall back to `bg`.
  *   app.js        this file: boot.
  *
  * WHY ALL THE WIRING IS HERE, and not beside the code it drives. The module graph is
@@ -34,8 +36,12 @@ import { setHour, setView, showTip } from "./insight.js";
 import { toggleLive } from "./live.js";
 
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
+// The COMPACT control is a convenience, never the attribution itself: it ships collapsed
+// behind a button, and both OSM's guidelines and spec sec.9 want the credit visible. The
+// binding copy is the always-mounted #provenance strip in index.html.
 map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution:
-  "MTA Bus Time GTFS-RT; nycbuspositions archive; NOAA AORC; NYC TLC taxi zones" }));
+  "MTA Bus Time GTFS-RT; nycbuspositions archive; NOAA AORC; NYC TLC taxi zones; " +
+  "basemap Protomaps &copy; OpenStreetMap contributors (ODbL)" }));
 
 // delegated, because the rows are rebuilt: #layers itself is the stable element
 $("layers").addEventListener("change", e => {

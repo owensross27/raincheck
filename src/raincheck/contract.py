@@ -96,6 +96,10 @@ SCHEMA = {
     "files/history/**": "src/raincheck/query.py (events_for_asset, mode='public')",
     "docs/**": "Great Expectations Data Docs (orchestration ticket 08)",
     "showcase/**": "src/raincheck/showcase.py (orchestration ticket 13)",
+    # the basemap archive's shape is the PMTiles spec, and its CONTENT is OpenStreetMap
+    # under ODbL - a consumer that re-serves it inherits that licence (frontend2 02)
+    "tiles/nyc.pmtiles": "PMTiles v3 - https://github.com/protomaps/PMTiles "
+                         "(built by `make basemap`; ODbL, (c) OpenStreetMap contributors)",
 }
 
 

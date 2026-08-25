@@ -43,16 +43,28 @@ def test_every_page_module_is_a_site_family_key_and_nothing_hides_from_these_tes
 
 
 def test_the_page_is_one_module_entry_with_no_build_step():
-    """ES modules, no bundler, no npm (spec L). index.html carries exactly ONE script tag
-    for the page's own code - `type="module"`, app.js - and the vendored MapLibre UMD stays
-    a CLASSIC tag, because that is what puts `maplibregl` on window for every module to use.
-    MUTATION KILLED: adding a second entry (which evaluates the graph twice), dropping
-    `type="module"` (every `import` becomes a syntax error), or making the vendored bundle a
-    module (`maplibregl` stops being a global and the map never constructs)."""
+    """ES modules, no bundler, no npm (spec L). index.html carries exactly ONE script tag for
+    the page's OWN code - `type="module"`, app.js - and the vendored library UMDs stay
+    CLASSIC tags, because that is what puts `maplibregl` and `pmtiles` on window for every
+    module to use. frontend2 02 added the second UMD and it could not be an import: the
+    pmtiles ESM build carries a bare `from "fflate"`, which no browser resolves without an
+    import map (measured - node's resolver refused it). The rule that matters is ONE ENTRY,
+    so it is asserted as one module tag and classic tags that are all vendored, rather than
+    as a count that a later vendored library would make wrong for no reason.
+    MUTATION KILLED: adding a second entry module (which evaluates the graph twice),
+    dropping `type="module"` (every `import` becomes a syntax error), making a vendored
+    bundle a module (its global disappears and the map never constructs), or tagging one of
+    the page's own modules instead of importing it."""
     html = page_html()
     assert '<script type="module" src="app.js"></script>' in html
-    assert '<script src="vendor/maplibre-gl.js"></script>' in html
-    assert html.count("<script") == 2, "one entry module plus the vendored UMD, nothing else"
+    assert html.count('type="module"') == 1, "exactly one entry for the page's own code"
+    tags = re.findall(r'<script(?: type="(\w+)")? src="([^"]+)"></script>', html)
+    assert html.count("<script") == len(tags), "no inline script: no build step, no shim"
+    assert [src for kind, src in tags if kind != "module"] == \
+        ["vendor/maplibre-gl.js", "vendor/pmtiles.js"]
+    for kind, src in tags:
+        if kind != "module":
+            assert src in publish.FAMILIES["site"].files, f"{src} is not vendored+published"
     for mod in page_files():
         if mod != "app.js":
             assert f'src="{mod}"' not in html, f"{mod} is imported, never tagged"
@@ -95,7 +107,8 @@ def test_splitting_the_page_added_keys_and_did_not_move_the_contract_integer():
     is a breaking change and this stops being additive."""
     promised = {k for _, k, _ in contract.PROMISE[1]}
     added = set(page_files()) - promised
-    assert added == {"layers.js", "freshness.js", "panel.js", "insight.js", "live.js"}
+    assert added == {"layers.js", "freshness.js", "panel.js", "insight.js", "live.js",
+                     "basemap.js"}          # frontend2 02 added the seventh, additively
     assert "app.js" in promised, "app.js was promised at contract 1 and must keep its name"
     assert contract.CONTRACT == 1, "an additive change may not bump the contract integer"
     assert not (contract.PROMISE[contract.CONTRACT] - contract.surface())
@@ -156,8 +169,73 @@ def test_all_twelve_layers_are_declared_at_boot_in_the_frozen_order():
     MUTATION KILLED: moving any layer in the style block, dropping one, or adding one
     through a later addLayer() instead of declaring it here."""
     assert style_layers(page_js()) == SPEC_ORDER
-    assert "addLayer(" not in page_js(), "a lazily added layer lands on top of the order"
-    assert "addSource(" not in page_js()
+
+
+def test_the_basemap_goes_above_bg_and_below_every_one_of_the_twelve():
+    """frontend2 02. The basemap's layer ids come from a VENDORED style, not from this
+    repo, so the order rule cannot be a longer literal - there is nothing honest to write
+    down. It is an INVARIANT instead: the twelve keep their frozen relative order (the test
+    above), and every basemap layer is inserted with a `beforeId` naming the FIRST of the
+    twelve after `bg`, which places all of it in the one gap between the background and the
+    ground. That is also the only sanctioned addLayer/addSource on this page, and it lives
+    in one module, so "declare at boot" still holds for everything this repo authors.
+    MUTATION KILLED: dropping the `beforeId` (the whole basemap then lands ON TOP of the
+    delay Cells and hides the answer), pointing it at a later layer, adding a second
+    addLayer site in another module, or reordering SPEC_ORDER so `bg` is not first."""
+    mods = module_js()
+    base = mods["basemap.js"]
+    assert SPEC_ORDER[0] == "bg", "the background is the only layer below the basemap"
+    # the insertion point is DERIVED from the frozen order, never a second copy of the name
+    assert f'const FIRST_DATA_LAYER = "{SPEC_ORDER[1]}";' in base
+    assert "map.addLayer(l, FIRST_DATA_LAYER);" in base, "every basemap layer carries it"
+    for name, js in mods.items():
+        if name == "basemap.js":
+            continue
+        assert "addLayer(" not in js, f"{name}: a lazily added layer lands on top"
+        assert "addSource(" not in js, name
+    assert base.count("map.addLayer(") == 1 and base.count("map.addSource(") == 1
+
+
+def test_the_basemap_falls_back_to_the_flat_bg_rectangle_and_never_throws():
+    """A basemap is the least important thing on this page: the delay Cells are the answer
+    and the ground is context. So every failure path - the archive not published, the
+    vendored style missing, MapLibre refusing a layer - ends in the layer turning ITSELF
+    off, the partial insert being removed, and the page painting the `bg` rectangle it has
+    always had. Nothing here may throw into the boot handler, which awaits every layer's
+    draw in turn: one rejection there and no layer after it ever loads.
+    MUTATION KILLED: letting drawBasemap reject (dropping the try/catch), leaving a partial
+    layer set behind on failure, or claiming the layer is still on after a failed fetch."""
+    base = module_js()["basemap.js"]
+    body = base.split("export async function drawBasemap(ok)", 1)[1]
+    assert "if (!ok) { on.basemap = false; return; }" in body
+    assert "} catch (err) {" in body and "dropBasemap();" in body
+    assert "on.basemap = false;" in body.split("} catch (err) {", 1)[1]
+    drop = base.split("function dropBasemap()", 1)[1].split("\n}", 1)[0]
+    assert "map.removeLayer(id)" in drop and "map.removeSource(SRC)" in drop
+    # idempotent: toggling the layer off and back on must not re-add an existing source
+    assert "if (map.getSource(SRC)) return;" in body
+    # and the fallback it falls back TO is still declared at boot
+    assert '{ id: "bg", type: "background"' in page_js()
+
+
+def test_the_basemap_is_vendored_and_names_no_third_host_at_demo_time():
+    """spec L, unchanged since ticket 13: a demo must not be one unpkg request from a black
+    screen. All three of the basemap's web assets come through `make vendor` with their own
+    sha256 pins and are `site` family keys; the archive is the `tiles` family. Every URL the
+    page uses for them is RELATIVE, so the bucket being the web/ tree is what makes them
+    same-origin - which is also what lets the archive's age be read off its own response.
+    MUTATION KILLED: pointing the style, the protocol or the glyphs at a CDN."""
+    js = page_js()
+    for host in ("unpkg.com", "cdn.", "protomaps.github.io", "api.protomaps.com"):
+        assert host not in js, f"the page must not fetch from {host} at demo time"
+    assert 'export const TILES = "tiles/nyc.pmtiles";' in js
+    assert 'export const STYLE = "vendor/basemap-dark.json";' in js
+    assert 'glyphs: "vendor/{fontstack}-{range}.pbf",' in js
+    keys = set(publish.FAMILIES["site"].files)
+    assert {"vendor/pmtiles.js", "vendor/basemap-dark.json",
+            "vendor/notosans-0-255.pbf"} <= keys
+    assert publish.FAMILIES["tiles"].files == ("nyc.pmtiles",)
+    assert "tiles/nyc.pmtiles" not in keys, "the archive is never a site key, never committed"
 
 
 def test_every_source_boots_empty_and_every_data_layer_boots_hidden():
@@ -246,13 +324,13 @@ def test_only_a_source_with_a_frozen_budget_may_render_a_verdict():
     js = page_js()
     entries = layer_entries(js)
     all_budgets = [b for e in entries.values() for b in budgets(e)]
-    assert len(all_budgets) == 9, "nine sources, nine budget declarations"
-    assert all_budgets.count("null") == 6
+    assert len(all_budgets) == 10, "ten sources, ten budget declarations"
+    assert all_budgets.count("null") == 7    # frontend2 02's basemap is the seventh
 
     assert budgets(entries["live"]) == ["STALE_AFTER_S.live", "STALE_AFTER_S.live"]
     assert "const STALE_AFTER_S = { live: 120, bronze: 900 };" in js   # ticket 14's table
     assert budgets(entries["fn"]) == [str(flood_truth.MAX_AGE_MIN * 60)]
-    for lid in ("zones", "cells", "mta", "impact", "hist"):
+    for lid in ("basemap", "zones", "cells", "mta", "impact", "hist"):
         assert budgets(entries[lid]) == ["null"] * len(budgets(entries[lid]))
 
 
@@ -267,6 +345,30 @@ def test_the_age_is_read_off_the_response_headers_and_never_off_a_payload():
     assert "Date.now()" not in grab, "a browser clock cannot be allowed to fake freshness"
     assert "Math.max(0, (d - m) / 1000)" in grab
     assert 'cache: "no-store"' in grab
+
+
+def test_the_basemap_archive_is_dated_by_a_head_and_a_failed_fetch_is_explained():
+    """Two halves of one rule. (a) A 52 MB archive still owes the reader an age, and the age
+    must not cost 52 MB to learn - so its source is read with HEAD, which returns the same
+    `Date` and `Last-Modified` every other source is dated from. It cannot be dated any
+    other way: the tiles inside it are fetched by MapLibre's own pmtiles protocol, and a
+    source MapLibre fetches for itself hands this page no headers at all (the same trap that
+    made every other source boot from an empty FeatureCollection). (b) A layer that turned
+    ITSELF off because its payload was not there prints the RECORDED reason instead of
+    "nothing is being fetched" - so a missing basemap is an explained chip, never a silently
+    black ground. A layer the reader unticked still reads the generic text, because
+    forget() clears the reason.
+    MUTATION KILLED: GETting the archive (52 MB per freshness poll), dating the basemap off
+    a payload or a clock, or swallowing the reason on the OFF row."""
+    js = page_js()
+    grab = js.split("async function grab(lyrId, s)", 1)[1].split("\n}", 1)[0]
+    assert 'method: s.head ? "HEAD" : "GET"' in grab
+    assert "return s.head ? true : await res.json();" in grab
+    assert "head: true" in layer_entries(js)["basemap"], "the archive is HEAD-ed, not fetched"
+    state = js.split("function srcState(lyr, s)", 1)[1].split("\n}", 1)[0]
+    assert 'return { s: "OFF", why: whys[key] || "nothing is being fetched" };' in state
+    forget = js.split("function forget(lyrId)", 1)[1].split("\n}", 1)[0]
+    assert "delete whys[" in forget, "an unticked layer must not inherit an old reason"
 
 
 def test_a_missing_payload_is_stale_with_a_reason_and_never_an_empty_map():
@@ -307,9 +409,9 @@ def test_every_layer_names_its_gate_side_by_lineage():
     entries = layer_entries(page_js())
     gates = {lid: re.search(r"gate: (\"[a-z-]+\"|null)", e).group(1)
              for lid, e in entries.items()}
-    assert gates == {"zones": "null", "cells": "null", "live": '"mta-vehicles"',
-                     "fn": "null", "mta": '"mta-alerts"', "impact": '"mta-vehicles"',
-                     "hist": "null"}
+    assert gates == {"basemap": "null", "zones": "null", "cells": "null",
+                     "live": '"mta-vehicles"', "fn": "null", "mta": '"mta-alerts"',
+                     "impact": '"mta-vehicles"', "hist": "null"}
 
 
 def test_a_gated_layer_renders_dark_and_explained_never_absent():
@@ -335,8 +437,9 @@ def test_the_four_not_yet_landed_sources_are_honest_off_or_gated_chips():
     entries = layer_entries(page_js())
     owed = {lid: re.search(r'owed: (\"[a-z0-9 ]+\"|null)', e).group(1)
             for lid, e in entries.items()}
-    assert owed == {"zones": "null", "cells": "null", "live": "null", "fn": '"flood 15"',
-                    "mta": '"flood 15"', "impact": '"flood 17"', "hist": '"notify 05"'}
+    assert owed == {"basemap": "null", "zones": "null", "cells": "null", "live": "null",
+                    "fn": '"flood 15"', "mta": '"flood 15"', "impact": '"flood 17"',
+                    "hist": '"notify 05"'}
     for lid in ("fn", "mta", "impact"):
         assert "draw: null" in entries[lid], f"{lid} may not claim to paint a payload it has not seen"
 
@@ -372,8 +475,37 @@ def test_a_small_screen_opens_with_the_fill_on_and_every_point_layer_off():
     points = {lid for lid, e in entries.items() if "point: true" in e}
     assert points == {"live", "fn", "mta", "hist"}
     opens = {lid for lid, e in entries.items() if "open: true" in e}
-    assert opens == {"zones", "cells"}, "nothing but the ground and the fill opens lit"
+    assert opens == {"basemap", "zones", "cells"}, "the ground, the basemap and the fill"
+    assert "basemap" not in points, (
+        "the basemap is GROUND, not a point layer: a phone that opens on a black rectangle "
+        "is worse than one that opens on geography, and it costs no legibility to keep")
     assert "@media (max-width: 900px)" in page_css()
+
+
+def test_the_basemap_attribution_is_in_the_mode_invariant_strip():
+    """Attribution is a CONDITION of using this data, not a credit line, so it lives in the
+    always-mounted #provenance strip - the same reason cloud 09 put the MTA line there
+    rather than only inside MapLibre's compact control, which ships collapsed behind a
+    button. The strings below are the two upstream requirements as READ on 2026-08-25, not
+    paraphrased: the OSMF Attribution Guidelines want "(c) OpenStreetMap contributors"
+    adjacent to the map, made clear to be under the Open Database License by linking
+    openstreetmap.org/copyright; github.com/protomaps/basemaps requires a Produced Work to
+    visibly attribute (c) OpenStreetMap and asks for credit to Protomaps.
+    MUTATION KILLED: moving the credit into the compact control alone, dropping the ODbL
+    sentence (attribution without the licence is not attribution under these guidelines),
+    or dropping either link."""
+    html = page_html()
+    strip = html.split('id="provenance"')[1]
+    assert '<p id="basemap-attribution">' in strip
+    for s_ in ("OpenStreetMap contributors",
+               "https://www.openstreetmap.org/copyright",
+               "Open Database License (ODbL)",
+               "Protomaps",
+               "https://github.com/protomaps/basemaps"):
+        assert s_ in strip, s_
+    # and it survives the page's one styling switch: the strip has no mode-conditional rule
+    assert "#provenance" in page_css()
+    assert "no basemap" not in html, "the ticket 14 sentence is retired, not left standing"
 
 
 def test_nothing_is_positioned_against_a_guessed_provenance_height():

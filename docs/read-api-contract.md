@@ -25,14 +25,15 @@ consumer can learn the whole surface without a human in the loop.
 
 ## The families
 
-Eight, each an EXPLICIT file list or an explicit prefix. Never a directory sync — the
+Nine, each an EXPLICIT file list or an explicit prefix. Never a directory sync — the
 insight files, the live pair and the two flood pairs are written into one directory by
 three writers on three cadences, so a sync would publish a gated payload and republish a
 stale one.
 
 | family | keys | cadence | Cache-Control | notes |
 |---|---|---|---|---|
-| `site` | `index.html`, `layers.js`, `freshness.js`, `panel.js`, `insight.js`, `live.js`, `app.js`, `app.css`, `vendor/maplibre-gl.js`, `vendor/maplibre-gl.css` | deploy-time | `public, max-age=86400` | the page itself — six ES modules, `app.js` the entry, no build step; MapLibre is version-pinned |
+| `site` | `index.html`, `layers.js`, `freshness.js`, `panel.js`, `insight.js`, `live.js`, `basemap.js`, `app.js`, `app.css`, `vendor/maplibre-gl.js`, `vendor/maplibre-gl.css`, `vendor/pmtiles.js`, `vendor/basemap-dark.json`, `vendor/notosans-0-255.pbf` | deploy-time | `public, max-age=86400` | the page itself — seven ES modules, `app.js` the entry, no build step; every vendored asset is version- and sha256-pinned by `make vendor` |
+| `tiles` | `tiles/nyc.pmtiles` | deploy-time | `public, max-age=86400` | the basemap, ONE object read by range request — see below |
 | `insight` | `files/cells.geojson`, `files/headline.json`, `files/zones.geojson`, `files/index.json` | per build | `public, max-age=300` | all four or none |
 | `live` | `files/live.geojson`, `files/meta.json` | 30 s | `no-cache` | **GATED, dark** — see below |
 | `flood` | `files/flood.json`, `files/flood-meta.json` | 30 s loop, skips unless the forcing advanced | `no-cache` | the flood panel's OPEN side: the FloodNet tier, the CO-OPS coastal chips and the 311/USGS/AORC-derived exposure. Both or neither; the meta goes LAST |
@@ -70,6 +71,26 @@ cluster has no inbound path from the internet, so the Airflow UI is reachable by
 family for the same reason `docs/**` is: the file names inside it belong to its writer,
 so a fourth artifact is additive and owes no bump.
 
+**`tiles/nyc.pmtiles` is ONE object served by RANGE REQUEST, and it needs no compute.**
+A PMTiles archive is a single file whose header, directories and tiles are read with HTTP
+`Range:` — the client fetches a few KB per tile out of a 52 MB file and never downloads the
+whole thing. R2 answers ranges (`206` + `Content-Range` + `Accept-Ranges: bytes`), which is
+what makes this a static object rather than a tile server, and it is why the 2026-08-17
+refusal of a basemap (`.scratch/pipeline/issues/14-serving-surface.md:88-97`, "needs a
+Range server") was reversed by frontend2 02. **A consumer must send a Range request**; a
+plain GET of this key transfers 52 MB.
+
+It is a family of its own, not a `site` key, because its cadence is its own: it is built by
+an operator running `make basemap`, is never committed (`web/tiles/` is gitignored) and
+moves only when the basemap is rebuilt, whereas `site` moves with every page deploy.
+
+**LICENCE, and it travels with the bytes.** The archive is an OpenStreetMap Produced Work
+under the **Open Database License (ODbL)**, built from the Protomaps daily basemap build.
+Any consumer that re-serves it inherits the attribution requirement: credit
+"© OpenStreetMap contributors" with a link to `openstreetmap.org/copyright`, visible
+adjacent to the map. The page does this in its `#provenance` strip. The archive states the
+same requirement in its own metadata (`pmtiles show tiles/nyc.pmtiles`).
+
 **Publish order inside a family is load-bearing.** `files/live.geojson` lands before
 `files/meta.json`, because meta carries the freshness the page reads: a publisher that
 dies mid-pair must leave a fresh fleet under an old meta (reads STALE — safe), never the
@@ -88,7 +109,11 @@ receipt exists the publisher refuses with rc 3 — a designed state, not a failu
 structural rules keep it a view rather than a feed even when it opens: current snapshot
 only (the two keys are literals, so no tick can write a dated second copy, and bucket
 versioning stays OFF with no lifecycle rule), no bulk or protobuf endpoint (an allowlist
-of web payload suffixes), and MTA attribution on the page.
+of web payload suffixes), and MTA attribution on the page. The allowlist gained `.pmtiles`
+and `.pbf` with frontend2 02 — the basemap archive and one font glyph range — and neither
+widens that refusal: a family is an explicit file list, so the only publishable `.pmtiles`
+is `tiles/`'s one named object and the only `.pbf` is the vendored glyph range, while a
+`.pb`, a `.parquet` or a tarball is still refused by construction.
 
 ## Dating a payload: the reader dates the file
 
