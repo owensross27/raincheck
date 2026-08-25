@@ -14,6 +14,9 @@ progress, and the table below says exactly how far it has got.
 - **Domain vocabulary** — `CONTEXT.md` (Poll, Snapshot, Ping, Passage, Delay, Cell,
   Unit, Bronze/Silver/Gold, and what not to call them). Read it before naming anything.
 - **Decisions with consequences** — `docs/adr/`
+- **The public read API** — `docs/read-api-contract.md` (the static contract on the
+  bucket: families, keys, cache semantics, the `contract` integer a consumer refuses
+  on, and how a payload's age is dated by the reader)
 - **Storage layout and schemas** — `research/09-storage-schemas.md`
 - **Feed facts** — `~/vault/nyc-mta-bus-feeds-reference.md` (off-repo)
 

@@ -16,6 +16,7 @@ is byte-identical.
 """
 import json
 import math
+import shutil
 import re
 import statistics
 import threading
@@ -28,7 +29,7 @@ from pathlib import Path
 
 import pytest
 
-from raincheck import export
+from raincheck import contract, duck, export, publish, query
 from raincheck.ref import WINDOWS
 
 CP1 = "882a100895fffff"   # Central Park, Zone 43 - 14-1's named fixture Cell
@@ -479,3 +480,99 @@ def test_the_page_loads_only_vendored_scripts():
     assert not remote, f"the page loads remote assets: {remote}"
     for tag in ("vendor/maplibre-gl.js", "vendor/maplibre-gl.css", "app.js", "app.css"):
         assert tag in html
+
+
+# ------------------------------------------------- frontend 06: the discovery document
+
+FLOOD_FIXTURES = {"assets": ("ref", "assets"), "events": ("silver", "flood_events"),
+                  "labels": ("gold", "flood_labels")}
+
+
+@pytest.fixture(scope="module")
+def stamped(tmp_path_factory):
+    """A root the version seam can actually stamp: notify 02's real cut of ref/assets, the
+    event spine and the labels. The `exported` fixture's Gold-only root deliberately
+    cannot, which is the other half of this contract and is tested below."""
+    r = tmp_path_factory.mktemp("stamped")
+    for name, parts in FLOOD_FIXTURES.items():
+        d = r.joinpath(*parts)
+        d.mkdir(parents=True)
+        shutil.copy(Path(__file__).parent / "fixtures" / f"notify_query_{name}.parquet",
+                    d / "part-00000.parquet")
+    return r
+
+
+def test_the_export_run_that_writes_the_payloads_writes_the_index_beside_them(exported):
+    """One run, four files. index.json names the three payloads beside it, so a run that
+    wrote it separately could publish a contract describing a build that never landed."""
+    files, _, out = exported
+    assert (out / contract.NAME).is_file()
+    idx = files[contract.NAME]
+    keys = {k["key"] for f in idx["families"].values() for k in f["keys"]}
+    assert {"files/cells.geojson", "files/headline.json", "files/zones.geojson"} <= keys
+
+
+def test_the_index_covers_every_family_including_itself(exported):
+    """"Discoverable" means one fetch answers everything, this file included - a discovery
+    document that omits its own key cannot be re-fetched by a consumer that only has it."""
+    files, _, _ = exported
+    idx = files[contract.NAME]
+    assert set(idx["families"]) == set(publish.FAMILIES)
+    assert "files/index.json" in {k["key"] for k in idx["families"]["insight"]["keys"]}
+    for name, fam in idx["families"].items():
+        assert fam["keys"] and fam["cadence"] and fam["writer"] and fam["cache_control"]
+        assert all(k["content_type"] for k in fam["keys"])
+        assert fam["gated"] is publish.FAMILIES[name].gated
+
+
+def test_the_index_carries_the_contract_integer_and_points_at_its_written_half(exported):
+    files, _, _ = exported
+    idx = files[contract.NAME]
+    assert idx["contract"] == contract.CONTRACT and isinstance(idx["contract"], int)
+    assert (Path(export.REPO) / idx["contract_doc"]).is_file()
+
+
+def test_the_keys_the_index_advertises_are_exactly_what_the_publisher_would_upload(exported):
+    """The document is DERIVED from publish.FAMILIES rather than typed beside it, so this
+    cross-check runs against the publisher's own plan over the REAL export output - not
+    against a second list, and not against a fixture that could agree for the wrong
+    reason."""
+    files, _, out = exported
+    planned = [i.key for i in publish.plan("insight", out)]
+    assert [k["key"] for k in files[contract.NAME]["families"]["insight"]["keys"]] == planned
+
+
+def test_the_version_stamps_come_from_the_query_seam_and_are_not_re_derived(stamped):
+    """SEAM Q resolves these three for every history payload; a second copy of the rule
+    here would drift silently. Asserting equality proves the values match today - patching
+    the seam and watching the document follow proves it is the same code path."""
+    con = duck.connect()
+    idx = json.loads(contract.text(con, stamped))
+    assert idx["versions"] == query.versions(duck.connect(), stamped)
+    assert set(idx["versions"]) == {"assets_version", "spine_version", "label_version"}
+    assert "versions_unresolved" not in idx
+
+
+def test_an_unresolvable_stamp_is_an_absent_key_and_a_named_reason(exported, monkeypatch):
+    """query.py's own convention: absent, never null. A consumer that needs a stamp refuses
+    on the missing key; a null or a placeholder would be read as an answer. Patching the
+    seam and seeing the document change is also what proves the document goes THROUGH it."""
+    _, root, _ = exported
+    idx = json.loads(contract.text(duck.connect(), root))   # a Gold-only root has no spine
+    assert "versions" not in idx and idx["versions_unresolved"] == "version_unresolved"
+
+    def boom(con, root):
+        raise query.QueryError("version_unresolved", table="patched")
+
+    monkeypatch.setattr(query, "versions", boom)
+    assert "versions" not in json.loads(contract.text(duck.connect(), root))
+
+
+def test_the_index_carries_no_wall_clock_and_re_renders_identically(stamped):
+    """A writer's own timestamp in a payload is the frozen-age trap AND it breaks
+    byte-identity (test_re_export_is_byte_identical above covers index.json too, since the
+    exporter returns it). Every value in here is a frozen constant or a content digest."""
+    first = contract.text(duck.connect(), stamped)
+    assert first == contract.text(duck.connect(), stamped)
+    for banned in ("as_of_utc", "generated_at", "written_at", "timestamp"):
+        assert banned not in first

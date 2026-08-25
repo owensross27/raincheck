@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from raincheck import publish
+from raincheck import contract, publish
 
 REPO = Path(publish.__file__).parents[2]
 LIVE_META = {"as_of_utc": "2026-08-24T04:00:00Z", "source": "live", "error": None,
@@ -34,6 +34,7 @@ def web(tmp_path):
     files.mkdir()
     for name in ("cells.geojson", "headline.json", "zones.geojson"):
         (files / name).write_text('{"type":"FeatureCollection","features":[]}')
+    (files / contract.NAME).write_text(json.dumps({"contract": contract.CONTRACT}))
     (files / "live.geojson").write_text('{"type":"FeatureCollection","features":[]}')
     (files / "meta.json").write_text(json.dumps(LIVE_META))
     for name in ("index.html", "app.js", "app.css"):
@@ -141,7 +142,8 @@ def test_the_insight_family_never_sweeps_up_the_live_pair(web):
     on every build - straight past the gate above - and would republish a stale live pair
     under a fresh insight build. Families name their files for exactly this reason."""
     keys = [i.key for i in publish.plan("insight", web / "files")]
-    assert keys == ["files/cells.geojson", "files/headline.json", "files/zones.geojson"]
+    assert keys == ["files/cells.geojson", "files/headline.json", "files/zones.geojson",
+                    "files/index.json"]
     assert not any("live.geojson" in k or "meta.json" in k for k in keys)
 
 
@@ -251,3 +253,85 @@ def test_the_page_dates_meta_json_itself_so_a_dead_exporter_cannot_read_live():
     age = js.split("function metaAge")[1].split("\n}")[0]
     assert "Date.parse(m.as_of_utc)" in age and "Infinity" in age  # unparseable is stale
     assert "Math.max(0," in age, "clock skew must err stale, never fresh"
+
+
+# --- frontend 06: the discovery file and the contract integer -----------------------------
+
+def test_the_discovery_file_ships_in_an_explicit_family_list_and_goes_last(web):
+    """`files/index.json` is published because `insight` NAMES it, not because anything
+    swept `web/files/` - the standing rule this module exists to keep. And it goes LAST,
+    for meta.json's reason: it names the three files beside it and the universe that
+    stamped them, so an interrupted publish must leave an OLD contract over new payloads,
+    never a new contract over payloads that are not there yet."""
+    assert "index.json" in publish.FAMILIES["insight"].files
+    assert publish.FAMILIES["insight"].files[-1] == "index.json"
+    sent = []
+    publish.publish("insight", web / "files", dest="b", put=lambda i, d: sent.append(i.key))
+    assert sent[-1] == "files/index.json"
+    assert [i.cache for i in publish.plan("insight", web / "files")][-1] == publish.BUILD_CACHE
+
+
+def test_a_build_without_its_discovery_file_is_refused(web):
+    """All four or none. A build that published three payloads and no index.json would
+    leave a consumer reading the PREVIOUS build's contract - which is the state the
+    integer exists to make impossible."""
+    (web / "files" / contract.NAME).unlink()
+    with pytest.raises(publish.Refused, match="incomplete"):
+        publish.plan("insight", web / "files")
+
+
+def test_the_contract_integer_covers_the_surface_a_consumer_binds_to():
+    """THE contract rule, and it is a SUBSET check rather than a digest on purpose.
+
+    `PROMISE[CONTRACT]` is the frozen (family, key, content type) surface this contract
+    promised. Removing a key, renaming one, moving it between families or changing its
+    content type stops the promise being a subset of what publish.FAMILIES renders today,
+    and this test demands the bump. ADDING a family or a key is additive - existing
+    consumers keep working - so it stays green, which a digest could not do.
+
+    Mutation-checked (see the RUN LOG entry): dropping headline.json, renaming
+    cells.geojson, moving a key between families and changing the .geojson content type
+    each turned this RED; adding a new key left it green."""
+    missing = contract.PROMISE[contract.CONTRACT] - contract.surface()
+    assert not missing, (
+        f"BREAKING: contract {contract.CONTRACT} promised {sorted(missing)} and the "
+        "publisher no longer renders it. Add a new PROMISE entry beside the old one, "
+        "bump contract.CONTRACT, and update docs/read-api-contract.md - in one commit.")
+
+
+def test_every_contract_ever_promised_is_still_frozen_beside_the_current_one():
+    """An edited promise is a contract nobody can audit: the whole value of the integer is
+    that a consumer can read what version N meant. Old entries stay; the current one is
+    the highest."""
+    assert contract.CONTRACT == max(contract.PROMISE)
+    assert set(contract.PROMISE) == set(range(1, contract.CONTRACT + 1))
+
+
+def test_the_promise_names_real_keys_and_the_surface_is_derived_not_copied():
+    """The promise is hand-frozen, so it could name a key that never existed; the surface
+    is derived from publish.FAMILIES, so it cannot. Cross-check them both ways: every
+    promised explicit key is a real file in its family, and every family the publisher has
+    is on the surface."""
+    for family, key, _ in contract.PROMISE[contract.CONTRACT]:
+        fam = publish.FAMILIES[family]
+        assert key.startswith(fam.prefix)
+        tail = key[len(fam.prefix):]
+        assert tail in fam.files if fam.files else tail == "**"
+    assert {f for f, _, _ in contract.surface()} == set(publish.FAMILIES)
+
+
+def test_the_written_contract_document_exists_and_tracks_the_integer():
+    """The doc is the human half of the same contract, and a bump that does not reach it
+    leaves a consumer reading last version's promise in prose. The expected string is
+    DERIVED from the constant, so this cannot pass by mirroring itself."""
+    doc = (REPO / contract.DOC).read_text()
+    assert f"contract {contract.CONTRACT}" in doc
+    for name in publish.FAMILIES:
+        assert f"`{name}`" in doc, f"the contract document does not describe family {name}"
+    for _, key, _ in contract.PROMISE[contract.CONTRACT]:
+        assert key in doc, f"the contract document does not name promised key {key}"
+    # the four things the decision made this document responsible for saying
+    assert "custom Cloudflare domain" in doc and "load-bearing" in doc
+    assert "refused" in doc and "frozen-age trap" in doc         # the build-time merge
+    assert "<response `Date`> − <response `Last-Modified`>" in doc   # the reader dates the file
+    assert "NOT a consumer" in doc and "never be wired as one" in doc
