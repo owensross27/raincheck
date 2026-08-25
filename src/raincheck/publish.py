@@ -1,4 +1,4 @@
-"""`make publish FAMILY=<name>` (cloud ticket 09 / spec sec.9): the five payload families
+"""`make publish FAMILY=<name>` (cloud ticket 09 / spec sec.9): the payload families
 onto the public static host.
 
 The host is a NEW public bucket - `raincheck-public` - and never `raincheck-bronze`
@@ -20,6 +20,7 @@ The bucket IS the `web/` tree, so the page's relative paths work unchanged:
     files/flood-mta.json ·
       files/flood-mta-meta.json                     30 s loop        family `flood-mta` GATED
     files/history/**                                per spine rebuild  family `history`
+    files/geo/**                                    per ref rebuild  family `geo`
     docs/**                                         per Airflow run  family `docs`
     showcase/**                                     per landing      family `showcase`
 
@@ -209,6 +210,15 @@ FAMILIES: dict[str, Family] = {
     "history": Family(
         cadence="per spine rebuild", writer="`make export`'s static query surface [notify 05]",
         src=lambda: WEB / "files" / "history", prefix="files/history/"),
+    "geo": Family(
+        # flood-build 19. A TREE family because its file set is DERIVED: `make geo` exports
+        # every current-sea-level scenario silver/stormwater_extent holds, and DEP publishes
+        # four scenarios of which one is unreadable from the pinned snapshot and two are
+        # sea-level-rise horizons that D3 keeps off the host. Naming the files here would
+        # freeze a list that is a measurement, and would refuse the whole family the day one
+        # of them is absent - which is the state it ships in.
+        cadence="per ref rebuild", writer="`make geo` [flood-build 19]",
+        src=lambda: WEB / "files" / "geo", prefix="files/geo/"),
     "site": Family(
         cadence="deploy-time", writer="the operator, after `make vendor`",
         src=lambda: WEB, prefix="",
