@@ -569,6 +569,110 @@ def test_the_detector_version_does_not_move_when_only_prose_moves(det):
     assert fd.detector_version(same) == det["detector_version"]
 
 
+def _leaves(o, path=""):
+    if isinstance(o, dict):
+        return [p for k, v in sorted(o.items()) for p in _leaves(v, f"{path}.{k}")]
+    return [path]
+
+
+def test_the_digested_leaves_are_frozen(det):
+    """THE SCOPING RULE IS ABOUT LEAVES, NOT TOP-LEVEL KEYS, and the first draft got that
+    wrong: it excluded `display` and `*_note` BY NAME while `cutpoints.basis`,
+    `cutpoints.confirmed_by`, `forcing.stamp` and `canary.checks` sat as pure prose INSIDE
+    digested dicts. Fixing a typo in one of them moved the digest, which rolls every open
+    Window and clears every latched flag mid-storm. This inventory makes adding a field
+    inside a digested dict a deliberate act rather than an accident."""
+    got = _leaves({k: det[k] for k in fd.DIGESTED})
+    assert got == [
+        ".canary.pattern",
+        ".canary.product",
+        ".cutpoints.ELEVATED",
+        ".cutpoints.HIGH",
+        ".cutpoints.provisional",
+        ".forcing.name",
+        ".forcing.product",
+        ".forcing.rejected_products",
+        ".forcing.retention_days",
+        ".forcing.scale_band_applied",
+        ".forcing.url",
+        ".gates.citywide_active",
+        ".gates.complex_rule",
+        ".gates.dim_after_dry_hours",
+        ".gates.downward_revision_clears_a_flag",
+        ".gates.entrances_publish_a_live_number",
+        ".gates.latched_within_window",
+        ".gates.own_cell_window_mm",
+        ".nws_ugc_zones",
+        ".query_strings.coops_begin_fmt",
+        ".query_strings.coops_hilo.application",
+        ".query_strings.coops_hilo.datum",
+        ".query_strings.coops_hilo.format",
+        ".query_strings.coops_hilo.interval",
+        ".query_strings.coops_hilo.product",
+        ".query_strings.coops_hilo.range",
+        ".query_strings.coops_hilo.time_zone",
+        ".query_strings.coops_hilo.units",
+        ".query_strings.coops_obs.application",
+        ".query_strings.coops_obs.datum",
+        ".query_strings.coops_obs.format",
+        ".query_strings.coops_obs.product",
+        ".query_strings.coops_obs.range",
+        ".query_strings.coops_obs.time_zone",
+        ".query_strings.coops_obs.units",
+        ".query_strings.coops_pred6.application",
+        ".query_strings.coops_pred6.datum",
+        ".query_strings.coops_pred6.format",
+        ".query_strings.coops_pred6.interval",
+        ".query_strings.coops_pred6.product",
+        ".query_strings.coops_pred6.range",
+        ".query_strings.coops_pred6.time_zone",
+        ".query_strings.coops_pred6.units",
+        ".query_strings.coops_url",
+        ".query_strings.floodnet_deployments",
+        ".query_strings.floodnet_graphql",
+        ".query_strings.nws_knyc_obs",
+        ".staleness_budgets.clock_ahead_min",
+        ".staleness_budgets.coops_min",
+        ".staleness_budgets.floodnet_min",
+        ".staleness_budgets.nws_alerts_min",
+        ".staleness_budgets.nws_knyc_obs_min",
+        ".staleness_budgets.precip_fresh_min",
+        ".staleness_budgets.precip_stale_min",
+        ".throttles.coops_s",
+        ".throttles.fetch_timeout_s",
+        ".throttles.floodnet_s",
+        ".throttles.nws_s",
+        ".vocabularies.cleared",
+        ".vocabularies.floodnet_blocked_status",
+        ".vocabularies.incident_key",
+        ".vocabularies.remove_water_legacy",
+        ".vocabularies.remove_water_live",
+        ".window.anchor_local_hour",
+        ".window.antecedent_hours",
+        ".window.cap_days",
+        ".window.pad_hours",
+        ".window.tz",
+        ".window.wet_cells_k",
+        ".window.wet_mm",
+        ".winter.freeze_c",
+        ".winter.unknown_fallback_months",
+    ], got
+
+
+def test_no_prose_a_human_reads_can_roll_a_live_window(det):
+    """Every human-facing string lives under `display`, and `display` is not digested."""
+    reworded = dict(det)
+    reworded["display"] = {k: (v + " REWORDED" if isinstance(v, str) else v)
+                           for k, v in det["display"].items()}
+    for k in [k for k in det if k.endswith("_note")]:
+        reworded[k] = "REWORDED"
+    assert fd.detector_version(reworded) == det["detector_version"]
+    a = datetime(2026, 8, 25, 1, tzinfo=UTC)
+    assert not fd.rolled({"anchor": a.isoformat(), "score_version": "s",
+                          "detector_version": det["detector_version"]},
+                         a, "s", fd.detector_version(reworded))
+
+
 def test_the_digest_scope_is_published_so_the_claim_can_be_audited(det):
     assert det["detector_version_scope"] == list(fd.DIGESTED)
     assert set(fd.DIGESTED) <= set(det)
@@ -635,7 +739,7 @@ def test_the_window_rule_is_flood_spines_boundary_and_says_so(det):
     from raincheck.flood_spine import PAD_H
     assert det["window"]["pad_hours"] == PAD_H == 3
     assert det["window"]["anchor_local_hour"] == 24 - PAD_H == 21
-    assert det["window"]["interval"] == "(anchor, now]"
+    assert det["display"]["window_interval"] == "(anchor, now]"
 
 
 def test_the_frozen_k_is_a_count_of_cells_and_is_small_on_purpose(det):
@@ -645,6 +749,34 @@ def test_the_frozen_k_is_a_count_of_cells_and_is_small_on_purpose(det):
 
 
 # ---- one cycle --------------------------------------------------------------------------
+
+def test_a_cycle_hands_its_consumers_h3_ids_json_can_actually_carry(ida, art, det):
+    """An H3 Cell id is an int64 and 613229551394226175 is past 2^53. cycle() is the seam
+    tickets 12 and 15 serialize, so it is where the id becomes hex — the lower seams keep
+    the int because they join on it."""
+    out = fd.cycle(None, ida["peak"], ida["hours"], _units(ida), art, det, temp_c=22.0,
+                   wet_by_hour=ida["wet"])
+    assert out["units"] and all(isinstance(u["cell"], str) for u in out["units"])
+    assert all(int(u["cell"], 16) in ida["mx"] for u in out["units"])
+    assert all(isinstance(c, str) for c in out["cell_totals"])
+    blob = json.dumps({k: v for k, v in out.items() if k not in ("features", "now", "window")},
+                      default=str)
+    assert str(next(iter(ida["mx"]))) not in blob, "a raw int64 H3 id crossed the boundary"
+    assert json.loads(blob)["cell_totals"] == out["cell_totals"]
+
+
+def test_the_latch_survives_the_hex_boundary(ida, art, det):
+    one = fd.cycle(None, ida["peak"], ida["hours"], _units(ida), art, det, temp_c=22.0,
+                   wet_by_hour=ida["wet"])
+    round_tripped = json.loads(json.dumps(
+        {"anchor": one["anchor"], "score_version": one["score_version"],
+         "detector_version": one["detector_version"], "latched": one["latched"],
+         "cell_totals": one["cell_totals"]}))
+    two = fd.cycle(round_tripped, ida["peak"], ida["hours"], _units(ida), art, det,
+                   temp_c=22.0, wet_by_hour=ida["wet"])
+    assert two["rolled"] is False and two["revisions"] == []
+    assert set(two["latched"]) >= set(one["latched"])
+
 
 def test_a_cycle_stamps_both_digests(ida, art, det):
     out = fd.cycle(None, ida["peak"], ida["hours"], _units(ida), art, det, temp_c=22.0,

@@ -1,23 +1,16 @@
 {
  "canary": {
-  "checks": "the MRMS RadarOnly :00 filename pattern still resolves against the live source; run at build, never in a cycle",
   "pattern": "https://noaa-mrms-pds.s3.amazonaws.com/CONUS/{product}/{d:%Y%m%d}/MRMS_{product}_{d:%Y%m%d}-{d:%H%M%S}.grib2.gz",
   "product": "RadarOnly_QPE_01H_00.00"
  },
+ "canary_note": "the MRMS RadarOnly :00 filename pattern still resolves against the live source; run at build, never in a cycle",
  "cutpoints": {
   "ELEVATED": 0.1,
   "HIGH": 0.02,
-  "basis": "within-kind rank of the CURRENT live eta vector",
-  "confirmed_by": "flood-build ticket 12",
-  "provisional": true,
-  "tiers": [
-   "NONE",
-   "ELEVATED",
-   "HIGH"
-  ]
+  "provisional": true
  },
  "cutpoints_note": "top 10% / top 2% within kind, provisional until ticket 12's replay measures per-event false-positive volume; the alternative v1 is rank-only",
- "detector_version": "91598b86edc06386b40f6f8175b3b69f06d473a6",
+ "detector_version": "01197991471fe33917ac4c583e56209db1d8c283",
  "detector_version_note": "sha1 over the keys above \u2014 what decides WHICH Units are flagged and WHEN \u2014 and deliberately not over `display` or the `_note` prose, so a reworded sentence never rolls a live Window. Like flood 10's score_version it hashes VALUES: this module's code rides only as labels, so editing `walk` moves a decision without moving the digest. The tests hold that, not the stamp.",
  "detector_version_scope": [
   "window",
@@ -33,12 +26,34 @@
   "canary"
  ],
  "display": {
+  "cutpoint_basis": "within-kind rank of the CURRENT live eta vector",
+  "cutpoints_confirmed_by": "flood-build ticket 12",
+  "forcing_stamp": "on the hour only (HHMMSS = HH0000)",
   "no_complex_skill_claim": "a complex score is an aggregate of doorway scores; the independent complex-grain set caught 1 of 118 positives, so no complex-grain skill is claimed anywhere",
+  "precip_states": [
+   "FRESH",
+   "STALE",
+   "DOWN"
+  ],
   "tier_labels": {
    "ELEVATED": "elevated",
    "HIGH": "high",
    "NONE": "not flagged"
   },
+  "tiers": [
+   "NONE",
+   "ELEVATED",
+   "HIGH"
+  ],
+  "window_interval": "(anchor, now]",
+  "window_states": [
+   "OK",
+   "HOLES",
+   "INSUFFICIENT_DATA",
+   "WINDOW_CAPPED"
+  ],
+  "winter_label": "fitted on rain \u2014 snow not modeled",
+  "winter_unknown_label": "no Central Park temperature \u2014 snow not excluded",
   "within_cell": "live ordering inside a Cell is purely static \u2014 every Unit in a Cell shares one forcing"
  },
  "estimand": "flooded_reported",
@@ -51,7 +66,6 @@
   ],
   "retention_days": 7,
   "scale_band_applied": false,
-  "stamp": "on the hour only (HHMMSS = HH0000)",
   "url": "https://noaa-mrms-pds.s3.amazonaws.com/CONUS/{product}/{d:%Y%m%d}/MRMS_{product}_{d:%Y%m%d}-{d:%H%M%S}.grib2.gz"
  },
  "forcing_note": "2-min trailing stamps converge from ABOVE and would break the converges-from-below contract; Pass2 lags 60-90 min and is the batch product. scale_band.pass2_over_aorc was measured on PASS2, and the live forcing is RadarOnly, so no band is applied to anything: the display is rank-only and the one absolute gate (2.0 mm) reads the raw total, where a low bias makes it conservative. The RadarOnly-vs-AORC ratio is UNMEASURED and owed to ticket 12's replay.",
@@ -134,32 +148,14 @@
   "incident_key": [
    "event_id"
   ],
-  "precip_states": [
-   "FRESH",
-   "STALE",
-   "DOWN"
-  ],
   "remove_water_legacy": "FLOOD[A-Z]*|WATER CONDITIONS?|WATER MAIN BREAK",
-  "remove_water_live": "REMOV(?:E|ES|ING|ED) WATER FROM THE TRACKS",
-  "window_states": [
-   "OK",
-   "HOLES",
-   "INSUFFICIENT_DATA",
-   "WINDOW_CAPPED"
-  ]
+  "remove_water_live": "REMOV(?:E|ES|ING|ED) WATER FROM THE TRACKS"
  },
  "window": {
   "anchor_local_hour": 21,
   "antecedent_hours": 24,
   "cap_days": 6,
-  "interval": "(anchor, now]",
   "pad_hours": 3,
-  "states": [
-   "OK",
-   "HOLES",
-   "INSUFFICIENT_DATA",
-   "WINDOW_CAPPED"
-  ],
   "tz": "America/New_York",
   "wet_cells_k": 5,
   "wet_mm": 1.0
@@ -167,13 +163,11 @@
  "window_note": "the anchor is flood_spine's offline window_start (NY midnight - 3 h) reached by observation instead of by calendar. K = 5 Cells of 4,113, measured: only 1,540 of 90,888 AORC hours hold 1-41 wet Cells, so the anchor walk is nearly K-inert (88 of 166 events land on the offline window_start at K=5, 89 at K=41) while the citywide gate is not \u2014 41 Cells is ~12 km2 and would miss a convective core. The live walk agrees with the offline window_start on 89 of 166 AORC-era events; the usual disagreement is one day EARLIER because the evening before the storm-eve was also wet. That is the rule working, not a defect \u2014 see ticket 12.",
  "winter": {
   "freeze_c": 0.5,
-  "label": "fitted on rain \u2014 snow not modeled",
   "unknown_fallback_months": [
    12,
    1,
    2,
    3
-  ],
-  "unknown_label": "no Central Park temperature \u2014 snow not excluded"
+  ]
  }
 }

@@ -38,7 +38,6 @@ import argparse
 import hashlib
 import json
 import math
-import sys
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -128,7 +127,7 @@ def accepts(name: str) -> bool:
     `live/precip_cell` carries cell / mm_1h / fetched_at and nothing that says which
     product wrote the row.
     """
-    head, _, tail = name.rpartition("/")
+    tail = name.rpartition("/")[2]
     if not (tail.startswith("MRMS_") and tail.endswith(".grib2.gz")):
         return False
     body = tail[len("MRMS_"):-len(".grib2.gz")]
@@ -206,7 +205,7 @@ def walk(now: datetime, wet_by_hour: Mapping[datetime, int | None],
             return {"anchor": None, "state": INSUFFICIENT_DATA, "walked_days": i,
                     "missing_pad": [h for h, v in seen.items() if v is None],
                     "pad": {h: v for h, v in seen.items()}}
-        if all(v < k for v in seen.values()):
+        if all(v is not None and v < k for v in seen.values()):
             return {"anchor": anchor, "state": OK, "walked_days": i,
                     "missing_pad": [], "pad": dict(seen)}
     return {"anchor": None, "state": WINDOW_CAPPED, "walked_days": len(cands) - 1,
@@ -312,6 +311,13 @@ def unit_feats(unit: Mapping, precip: Mapping[str, float]) -> dict[str, float]:
     return static | dict(precip)
 
 
+def hexcell(cell: int) -> str:
+    """An H3 Cell id is an int64 and JSON cannot carry one: 613229551394226175 is past 2^53,
+    so a consumer reading numbers as doubles corrupts it silently. Every id that crosses a
+    serving boundary goes as the same hex string `ref.py` already writes into `cell:<h3>`."""
+    return format(cell, "x")
+
+
 def role_of(kind: str) -> str:
     """An entrance is scored by the POINT model — it is a doorway, and the complex score is
     an aggregate of doorway scores. There is no entrance role and no entrance model."""
@@ -363,7 +369,7 @@ def evaluate(art: Mapping, units: Sequence[Mapping], feats: Mapping) -> list[dic
 
 
 def tiers(scored: Sequence[Mapping], feats: Mapping, citywide_active: bool,
-          cut: Mapping[str, float] = None) -> list[dict]:
+          cut: Mapping[str, float] | None = None) -> list[dict]:
     """The provisional tier for each Unit, before latching and before the winter gate.
 
     Two gates, and both are ANDed with the rank rather than replacing it: the Unit's own
@@ -522,19 +528,26 @@ def cycle(state: Mapping | None, now: datetime, cell_hours: Sequence[Mapping],
     feats = window_features(cell_hours, w["anchor"], now)
     roll = rolled(state, w["anchor"], art["score_version"], dv)
     prev_tiers = None if roll else (state or {}).get("latched")
-    prev_totals = None if roll else (state or {}).get("cell_totals")
+    prev_totals = None if roll else {int(c, 16): v for c, v
+                                     in ((state or {}).get("cell_totals") or {}).items()}
     dry = dry_run_hours(wet, now)
     active = dry is not None and dry == 0
     scored = latch(prev_tiers, tiers(evaluate(art, units, feats), feats, active))
     winter = winter_gate(temp_c, now, temp_stale)
     if winter["suppressed"]:
         scored = [dict(s) | {"tier": NONE, "suppressed_by": "winter"} for s in scored]
+    # THE BOUNDARY IS HERE. An H3 Cell id is an int64 and 613229551394226175 is past 2^53,
+    # so any consumer reading it as a JSON number silently corrupts it — the repo already
+    # fixed this once in ref.py and TRAPS carries it as a standing rule. The lower seams
+    # (`window_features`, `evaluate`, `tiers`) keep the int because they join on it; `cycle`
+    # is what tickets 12 and 15 serialize, so this is where it becomes hex, once.
     return out | {
-        "units": scored, "features": feats, "winter": winter, "rolled": roll,
-        "revisions": revisions(prev_totals, feats),
+        "units": [dict(s, cell=hexcell(s["cell"])) for s in scored],
+        "features": feats, "winter": winter, "rolled": roll,
+        "revisions": [dict(r, cell=hexcell(r["cell"])) for r in revisions(prev_totals, feats)],
         "dim": {"dimmed": dry is not None and dry >= DIM_AFTER_H, "dry_hours": dry},
         "latched": {s["asset_id"]: s["tier"] for s in scored if s["tier"] != NONE},
-        "cell_totals": {c: v["total_mm"] for c, v in feats["cells"].items()},
+        "cell_totals": {hexcell(c): v["total_mm"] for c, v in feats["cells"].items()},
         "anchor": w["anchor"].isoformat(),
     }
 
@@ -544,7 +557,15 @@ def cycle(state: Mapping | None, now: datetime, cell_hours: Sequence[Mapping],
 # Everything that decides WHICH Units are flagged and WHEN. Deliberately NOT the whole
 # file: `display` is labels and `*_note` is prose, and a reworded sentence must not roll a
 # live Window. Published as `detector_version_scope` so a reader can audit the claim
-# instead of taking it. The limit, stated rather than papered over: like flood 10's
+# instead of taking it.
+#
+# THE RULE IS ABOUT LEAVES, NOT TOP-LEVEL KEYS, and the first draft got that wrong: it
+# excluded `display` and `*_note` BY NAME while `cutpoints.basis`, `cutpoints.confirmed_by`,
+# `forcing.stamp` and `canary.checks` sat as pure prose INSIDE digested dicts — so fixing a
+# typo in one of them moved the digest, rolled every open Window through `rolled()` and
+# cleared every latched flag mid-storm, which is exactly the failure the scoping exists to
+# prevent. Those four moved into `display`. `test_the_digested_leaves_are_frozen` pins the
+# whole leaf inventory, so adding a field inside a digested dict is a deliberate act. The limit, stated rather than papered over: like flood 10's
 # score_version this hashes VALUES, so this module's own code rides only as labels —
 # editing `walk` moves a decision without moving the digest. Tests hold that, not this.
 DIGESTED = ("window", "cutpoints", "gates", "winter", "staleness_budgets", "throttles",
@@ -576,8 +597,7 @@ def artifact() -> dict:
         "window": {
             "anchor_local_hour": ANCHOR_LOCAL_H, "tz": "America/New_York",
             "pad_hours": PAD_H, "cap_days": CAP_DAYS, "antecedent_hours": ANTECEDENT_H,
-            "wet_mm": WET_MM, "wet_cells_k": WET_CELLS_K, "interval": "(anchor, now]",
-            "states": [OK, HOLES, INSUFFICIENT_DATA, WINDOW_CAPPED],
+            "wet_mm": WET_MM, "wet_cells_k": WET_CELLS_K,
         },
         "window_note": ("the anchor is flood_spine's offline window_start (NY midnight - "
                         "3 h) reached by observation instead of by calendar. K = 5 Cells of "
@@ -589,17 +609,14 @@ def artifact() -> dict:
                         "AORC-era events; the usual disagreement is one day EARLIER because "
                         "the evening before the storm-eve was also wet. That is the rule "
                         "working, not a defect — see ticket 12."),
-        "cutpoints": {"ELEVATED": CUT[ELEVATED], "HIGH": CUT[HIGH], "tiers": list(TIERS),
-                      "basis": "within-kind rank of the CURRENT live eta vector",
-                      "provisional": True, "confirmed_by": "flood-build ticket 12"},
+        "cutpoints": {"ELEVATED": CUT[ELEVATED], "HIGH": CUT[HIGH], "provisional": True},
         "cutpoints_note": TIERS_PROVISIONAL,
         "gates": {"own_cell_window_mm": CELL_WINDOW_MM, "citywide_active": True,
                   "latched_within_window": True, "dim_after_dry_hours": DIM_AFTER_H,
                   "downward_revision_clears_a_flag": False,
                   "entrances_publish_a_live_number": False,
                   "complex_rule": "max over child entrance scores"},
-        "winter": {"freeze_c": FREEZE_C, "label": WINTER_LABEL,
-                   "unknown_label": UNKNOWN_LABEL,
+        "winter": {"freeze_c": FREEZE_C,
                    "unknown_fallback_months": list(SNOWMELT_MONTHS)},
         "staleness_budgets": {
             "precip_fresh_min": PRECIP_FRESH_MIN, "precip_stale_min": PRECIP_STALE_MIN,
@@ -618,7 +635,6 @@ def artifact() -> dict:
                       "fetch_timeout_s": fl.TIMEOUT},
         "forcing": {
             "product": LIVE_PRODUCT, "rejected_products": list(REJECTED_PRODUCTS),
-            "stamp": "on the hour only (HHMMSS = HH0000)",
             "url": MRMS_URL, "name": MRMS_NAME, "retention_days": 7,
             "scale_band_applied": False,
         },
@@ -634,8 +650,6 @@ def artifact() -> dict:
             "remove_water_live": fa.LIVE_ANCHOR, "remove_water_legacy": fa.LEGACY_ANCHOR,
             "cleared": fa.CLEARED.pattern, "incident_key": list(fa.INCIDENT_KEY),
             "floodnet_blocked_status": sorted(ft.BLOCKED_STATUS),
-            "window_states": [OK, HOLES, INSUFFICIENT_DATA, WINDOW_CAPPED],
-            "precip_states": [FRESH, STALE, DOWN],
         },
         "query_strings": {
             "coops_obs": fl.OBS_QUERY, "coops_pred6": fl.PRED6_QUERY,
@@ -654,10 +668,23 @@ def artifact() -> dict:
         # The canary's OUTCOME is deliberately not in here. It is a build gate, and a probe
         # result carries a wall-clock stamp, which would move detector_version on every
         # build and make the artifact irreproducible — the pattern is the frozen thing.
-        "canary": {"pattern": MRMS_URL, "product": LIVE_PRODUCT,
-                   "checks": "the MRMS RadarOnly :00 filename pattern still resolves "
-                             "against the live source; run at build, never in a cycle"},
+        "canary": {"pattern": MRMS_URL, "product": LIVE_PRODUCT},
+        "canary_note": ("the MRMS RadarOnly :00 filename pattern still resolves against the "
+                        "live source; run at build, never in a cycle"),
+        # DISPLAY IS EVERY STRING A HUMAN READS AND NO CODE BRANCHES ON, and it is out of
+        # the digest for the same reason flood 10 left the flag vocabulary out of
+        # score_version: renaming a tier must never roll a live Window. The names still
+        # cannot drift — they are `fd.TIERS` and the module's state constants, pinned by
+        # tests; what is not pinned is the digest.
         "display": {"tier_labels": {ELEVATED: "elevated", HIGH: "high", NONE: "not flagged"},
+                    "tiers": list(TIERS),
+                    "cutpoint_basis": "within-kind rank of the CURRENT live eta vector",
+                    "cutpoints_confirmed_by": "flood-build ticket 12",
+                    "window_interval": "(anchor, now]",
+                    "window_states": [OK, HOLES, INSUFFICIENT_DATA, WINDOW_CAPPED],
+                    "precip_states": [FRESH, STALE, DOWN],
+                    "forcing_stamp": "on the hour only (HHMMSS = HH0000)",
+                    "winter_label": WINTER_LABEL, "winter_unknown_label": UNKNOWN_LABEL,
                     "no_complex_skill_claim": (
                         "a complex score is an aggregate of doorway scores; the independent "
                         "complex-grain set caught 1 of 118 positives, so no complex-grain "
