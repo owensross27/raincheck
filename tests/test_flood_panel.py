@@ -602,6 +602,72 @@ def test_the_newest_part_per_hour_is_exactly_the_row_level_dedupe(con):
     assert got == ref and got
 
 
+def test_the_selected_part_is_the_newest_by_name_not_merely_a_part(tmp_path):
+    """A SEMANTIC pin, and it has to be, because no value comparison can make this claim.
+
+    MEASURED on the real table 2026-08-25: of 92 hour directories, 55 hold more than one
+    part and in ZERO of them does the oldest part disagree with the newest on (cell,
+    mm_1h) - MRMS RadarOnly for a settled :00 hour is final, and `precip_live` re-fetches
+    the same grid every tick. So `got[0]` and `got[-1]` return identical rows today and a
+    round-trip test against the window-function form passes either way (it did: that
+    mutant survived). The rule is `ORDER BY fetched_at DESC`, so the assertion is that the
+    SELECTION is the maximum - which stays true the day the live product revises an hour,
+    which is the case `fd.revisions` exists for and which an offline replay can never
+    exercise (TRAPS).
+    """
+    d = tmp_path / "live" / "precip_cell" / "valid_ts=2026-08-25T20"
+    d.mkdir(parents=True)
+    names = ["part-20260825T200500.parquet", "part-20260825T203000.parquet",
+             "part-20260825T205448.parquet"]
+    for n in names:
+        (d / n).write_bytes(b"")
+    got = fp.parts(tmp_path, datetime(2026, 8, 25, tzinfo=timezone.utc))
+    assert [Path(p).name for p in got] == [max(names)] == [names[-1]]
+
+
+def test_parts_takes_one_file_per_hour_from_since_forward(tmp_path):
+    base = tmp_path / "live" / "precip_cell"
+    for hour in ("2026-08-24T22", "2026-08-25T01", "2026-08-25T02"):
+        d = base / f"valid_ts={hour}"
+        d.mkdir(parents=True)
+        (d / "part-a.parquet").write_bytes(b"")
+        (d / "part-b.parquet").write_bytes(b"")
+    got = fp.parts(tmp_path, datetime(2026, 8, 25, 1, tzinfo=timezone.utc))
+    assert len(got) == 2 and all(p.endswith("part-b.parquet") for p in got)
+    assert "2026-08-24T22" not in " ".join(got)
+
+
+def test_the_tick_hands_cycle_the_whole_grid_series_and_not_the_narrowed_rows(tmp_path,
+                                                                              monkeypatch):
+    """"Citywide" is a property of the GRID, and the per-Cell read is deliberately narrowed
+    to the hours the anchor names - so if `cycle()` were left to recompute the series from
+    those rows it would be counting a TIME subset. The walk looks back up to six days and
+    the dry-run counter further still; both would then see hours that are simply absent
+    and read INSUFFICIENT_DATA, or worse, pick a newer anchor whose wet evening the
+    narrowed read cannot see. Ticket 12's box carries the same MUST for the same reason."""
+    seen = {}
+    grid = {datetime(2026, 8, 25, h, tzinfo=timezone.utc): h for h in range(1, 6)}
+    narrow = [{"cell": 1, "hour_end_utc": datetime(2026, 8, 25, 5, tzinfo=timezone.utc),
+               "mm_1h": 0.0}]
+    monkeypatch.setattr(fp, "universe", lambda *a: {"units": [], "static": {},
+                                                    "where": {}, "table_score_version": None})
+    monkeypatch.setattr(fp, "wet_series", lambda *a, **k: grid)
+    monkeypatch.setattr(fp, "cell_hours", lambda *a, **k: narrow)
+    monkeypatch.setattr(fp, "cell_index", lambda root: False)
+    monkeypatch.setattr(fp.ft, "truth", lambda *a, **k: truth_read())
+
+    def spy(state, now, rows, units, art, det, **kw):
+        seen.update(kw, rows=rows)
+        return fd.cycle(state, now, rows, units, art, det, **kw)
+
+    monkeypatch.setattr(fp.fd, "cycle", spy)
+    fp.tick(None, tmp_path, tmp_path / "web", None, NOW,
+            ship_=lambda o, p: {fp.UNGATED: "x", fp.GATED: "x"})
+    assert seen["wet_by_hour"] == grid, "the whole-grid series must be passed explicitly"
+    assert fd.wet_counts(seen["rows"]) != grid, (
+        "this test asserts nothing unless the narrowed rows really do disagree")
+
+
 @real
 def test_the_citywide_series_counts_the_whole_grid(con):
     """"Citywide" is a property of the GRID. Deriving it from the narrowed per-Cell read
