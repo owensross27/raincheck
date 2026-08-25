@@ -59,3 +59,48 @@ which cap was hit). `query.REASONS` is the whole vocabulary; do not invent a six
 name in the wrapper. **Size warning:** a `local` `events_for_asset` payload reaches ~2 MB
 on a 73-event Cell (it carries every observation inside each event's window); the same
 answer in `public` is ~1 KB. One more reason the default stays `public`.
+
+## Inherited from notify 03 (landed 2026-08-25, branch `notify03-exposure-of`) — two of your four tools now exist
+
+    query("exposure_of", {"asset_id": "stn:611"}, root, mode="public") -> dict
+
+    {"query": "exposure_of", "mode": "public",
+     "asset":    {asset_id, kind, name?, cell?, complex_id?},
+     "exposure": {estimand, model_id, score_index, score_ref, score_severe,
+                  surge_margin_ft?, flags: [...], modelled: bool},
+     "versions": {assets_version, spine_version, label_version, score_version?}}
+
+The tool takes ONE argument, `asset_id`, the same name `events_for_asset` takes — so your
+"the query function's own argument names" checklist row is satisfied by passing it through.
+
+- **`REASONS` IS UNCHANGED — no sixth name was added, and your typed-error row is already
+  complete.** `exposure_of` reuses `not_a_scored_unit` and raises it on ABSENCE from
+  `gold/flood_exposure`, so a **station OR an entrance** (both Carriers) gets
+  `{"asset_id": …, "kind": …, "ask": "<complex asset_id>"}` — `ask` is the recovery hint
+  an agent should follow, and it is the one thing worth naming in the tool description.
+  A ref Cell outside F10's fit set (2,762 of 4,113) is also `not_a_scored_unit` and has
+  **no `ask` key at all** (no parent to ask) — absent, never null, so an agent must test
+  for the key rather than reading it.
+- **The two tools disagree about entrances ON PURPOSE.** An entrance has a HISTORY (F05
+  labels it) and NO SCORE (its score exists only inside its complex's max). An agent that
+  asks both tools for one entrance gets an answer and a typed refusal, and that is
+  correct. Say so in the descriptions or the agent will read the refusal as a bug.
+- **`mode` does not change this answer at all** (asserted): the licence boundary is one
+  rule about MTA / FloodNet / subwaydata ROWS, and a score built from elevation,
+  stormwater class and public precip is in no restricted class. `local` and `public`
+  return the same object, so the size warning below applies to `events_for_asset` alone —
+  an `exposure_of` payload is a flat ~624 B in both modes.
+- **`versions()` gained a fourth stamp, `score_version`**, on any root that publishes
+  `gold/flood_exposure` (ABSENT, never null, when it does not). Your "each tool description
+  names the version stamps it returns" row should name four, and should say that the
+  fourth can be legitimately missing.
+- **Describe the score honestly or the tool teaches an agent something false.**
+  `score_index` is the within-kind RANK, bounded (0, 1] — that is the human-facing number.
+  `score_ref` / `score_severe` are the LINEAR PREDICTOR at F10's reference forcings and are
+  NEGATIVE for nearly every Unit; they are not probabilities. `modelled: false` marks the
+  60 bus stops scored on their kind's median rather than by a model evaluation. Flags are
+  F10's closed vocabulary and every flag's one-line meaning is published under `flags` in
+  `research/flood-10-coefficients.json` — point the description at that file instead of
+  re-wording five sentences. **No complex-grain skill claim in any tool description**: the
+  complex number is an aggregate of doorway scores and the independent complex set caught
+  1 of 118.

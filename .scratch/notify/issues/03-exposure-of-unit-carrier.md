@@ -6,14 +6,39 @@ does not have. Spec: section 1 (complex grain); CONTEXT.md (Unit, Carrier); SEAM
 
 **Blocked by:** 02 — externally on flood-build 10 (`gold/flood_exposure`).
 
-**Status:** ready-for-agent
+**Status:** DONE (2026-08-25, branch `notify03-exposure-of`)
 
-- [ ] `exposure_of` returns score_ref, score_severe, score_index, surge_margin_ft and flags for a Unit, stamped with model_id / score_version
-- [ ] a complex's answer is the max over its child entrances, matching F10's rule exactly
-- [ ] a station returns `not_a_scored_unit` naming the complex to ask instead — stations are Carriers and are never scored independently
-- [ ] a bus_stop and a Cell each answer directly
-- [ ] no NULL score reaches a payload: F10's fallbacks guarantee coverage and reasons ride the flags
-- [ ] the per-asset payload composes with 02's history — one asset, one answer, both stamped
+- [x] `exposure_of` returns score_ref, score_severe, score_index, surge_margin_ft and flags for a Unit, stamped with model_id / score_version — `model_id` rides IN the payload (F10 ships two, so it is a fact about the answer, not about the universe); `score_version` joins `versions()`
+- [x] a complex's answer is the max over its child entrances, matching F10's rule exactly — by READING F10's `kind='complex'` row, which already holds that max. Nothing is recomputed here and nothing could be: entrances publish no row, so the max is not re-derivable downstream
+- [x] a station returns `not_a_scored_unit` naming the complex to ask instead — and so does an ENTRANCE, because what is enforced is ABSENCE from `gold/flood_exposure`, not a kind list
+- [x] a bus_stop and a Cell each answer directly — and a ref Cell outside F10's fit set (2,762 of 4,113) is `not_a_scored_unit` with NO `ask` key, absent rather than null
+- [x] no NULL score reaches a payload: F10's fallbacks guarantee coverage and reasons ride the flags — plus `modelled: false` on the 60 kind-median rows, and `surge_margin_ft` ABSENT (never 0.0) on the 404 Units without one
+- [x] the per-asset payload composes with 02's history — one asset, one answer, both stamped: the `asset` and `versions` blocks are identical for the same id (asserted)
+
+## What this shipped (2026-08-25, `notify03-exposure-of`)
+
+    query("exposure_of", {"asset_id": "stn:611"}, root, mode="public") -> dict
+
+    {"query": "exposure_of", "mode": "public",
+     "asset":    {asset_id, kind, name?, cell?, complex_id?},
+     "exposure": {model_id, score_index, score_ref, score_severe,
+                  surge_margin_ft?, flags: [...], modelled: bool},
+     "versions": {assets_version, spine_version, label_version, score_version?}}
+
+- **`REASONS` is unchanged** — `not_a_scored_unit` and its `ask` detail key were reused,
+  and no sixth reason was added. A Carrier's `ask` names its complex; an unscored Cell has
+  no `ask` key at all.
+- **`versions()` gained a fourth stamp, `score_version`**, on any root that publishes
+  `gold/flood_exposure` (absent, never null, when it does not) — so `files/index.json`
+  carries it too, through `contract.index()`. No `contract.CONTRACT` bump was owed.
+  `docs/read-api-contract.md` documents both halves.
+- **`unit(con, root, asset_id)`** is factored out of `events_for_asset`: it resolves
+  identity and raises `unknown_asset`, and nothing else. Which registry rows are Units is
+  each query's own rule.
+- **`modelled` is pinned on F10's published MEANINGS, not on the data**: on the real root
+  `no_dem_footprint` and `score_fallback_kind_median` sit on exactly the same 60 rows, so
+  no fixture can tell the two constants apart. Exactly one flag's published meaning says
+  "not a model evaluation", and that is what the test asserts.
 
 
 ## Inherited from notify 02 (landed 2026-08-24, branch `notify02-query-core`, 13a93ab)
