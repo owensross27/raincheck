@@ -105,6 +105,16 @@ def sources(source_mix: int | None) -> list[str]:
 EXPOSURE = ("gold", "flood_exposure")   # F10's table: the stamp and exposure_of both read it
 
 
+def readable(root: Path, *parts: str) -> bool:
+    """Is there a TABLE there, not merely a directory? A build that died between
+    `mkdir` and `pq.write_table` leaves an empty one, and on such a root DuckDB's globber
+    raises IOException -- which `versions()` would turn into `version_unresolved` for the
+    WHOLE root, killing `events_for_asset`, which reads no score at all. The repo's own
+    marker convention says the same thing: data first, marker last, a missing part file
+    reads UNBUILT."""
+    return any(root.joinpath(*parts).rglob("*.parquet"))
+
+
 def one_value(con, table_root: Path, column: str) -> str:
     got = duck.table(con, table_root).project(column).distinct().fetchall()
     if len(got) != 1:
@@ -133,9 +143,9 @@ def versions(con, root: Path) -> dict:
                                           "spine_version"),
                "label_version": one_value(con, root / "gold" / "flood_labels",
                                           "label_version")}
-        scores = root.joinpath(*EXPOSURE)
-        if scores.exists():   # absent, never null: a root with no scores stamps none
-            out["score_version"] = one_value(con, scores, "score_version")
+        if readable(root, *EXPOSURE):   # absent, never null: no scores, no score stamp
+            out["score_version"] = one_value(con, root.joinpath(*EXPOSURE),
+                                             "score_version")
         return out
     except QueryError:
         raise
@@ -294,9 +304,9 @@ def exposure_of(con, root: Path, params: Mapping, mode: str) -> dict:
     precip is in no restricted class, so both modes get the same object.
     """
     aid, kind, name, cell, complex_id, parent = unit(con, root, need(params, "asset_id"))
-    part = root.joinpath(*EXPOSURE)
     got = []
-    if part.exists():   # a root with no F10 table scores NOTHING, and versions() says so
+    if readable(root, *EXPOSURE):   # no F10 table means NOTHING is scored, and versions()
+                                    # says so by dropping the stamp rather than failing
         view(con, root, *EXPOSURE, name="exposure", columns=EXPOSURE_COLUMNS)
         got = con.execute("SELECT model_id, score_ref, score_severe, score_index, "
                           "surge_margin_ft, flags FROM exposure WHERE asset_id = ?",
@@ -308,10 +318,17 @@ def exposure_of(con, root: Path, params: Mapping, mode: str) -> dict:
         asset=pack(asset_id=aid, kind=kind, name=name, cell=cell_id(cell),
                    complex_id=complex_id),
         exposure=pack(
+            # WHAT THE NUMBER IS ABOUT, carried so no consumer has to invent it: F05's
+            # estimand, the same constant F10 hashes into score_version. Flooding that was
+            # REPORTED, not everywhere water stood.
+            estimand=fl.ESTIMAND,
             model_id=model_id,
-            # THE human-facing number is the within-kind rank, bounded (0, 1]. score_ref and
-            # score_severe are the LINEAR PREDICTOR at F10's reference forcings -- negative
-            # for nearly every Unit -- and travel as the raw model output they are.
+            # THE human-facing number is the rank WITHIN THIS UNIT'S KIND, bounded (0, 1] --
+            # F10 computes it per kind, so the three Units at 1.0 are one bus stop, one
+            # complex and one Cell, and a cross-kind ranking needs `asset.kind` beside it.
+            # score_ref and score_severe are the LINEAR PREDICTOR at F10's reference
+            # forcings -- negative for nearly every Unit -- and travel as the raw model
+            # output they are. Neither is a probability.
             score_index=score_index, score_ref=score_ref, score_severe=score_severe,
             # 404 Units have no point elevation behind them: ABSENT, never 0.0 -- a zero
             # margin means the water is at the doorway. `no_surge_margin` carries the reason.

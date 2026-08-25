@@ -53,3 +53,31 @@ never null), `jsonable(v)`, `cell_id(int)`, `sources(source_mix)`, `holes(n)`,
 **Register `assets_in_area` / `obs_near` in `query.QUERIES`** — an unregistered name
 already raises `unknown_query`, and `area_too_large` / `restricted_source` are already in
 `REASONS` waiting for you. Cell ids arrive and leave as H3 hex strings (above).
+
+## Inherited from notify 03 (landed 2026-08-25, branch `notify03-exposure-of`)
+
+**`exposure_of` is registered, so `QUERIES` has TWO entries now** and the shape you write
+is unchanged:
+
+    query("exposure_of", {"asset_id": "stn:611"}, root, mode="public") -> dict
+
+    {"query": "exposure_of", "mode": "public",
+     "asset":    {asset_id, kind, name?, cell?, complex_id?},          # 02's block, verbatim
+     "exposure": {estimand, model_id, score_index, score_ref, score_severe,
+                  surge_margin_ft?, flags: [...], modelled: bool},
+     "versions": {assets_version, spine_version, label_version, score_version?}}
+
+**No new `REASONS` entry was added and none is owed** — the frozen vocabulary is
+unchanged, and `area_too_large` / `restricted_source` are still waiting for you.
+
+**`versions()` gained a FOURTH stamp, `score_version`**, on any root that publishes
+`gold/flood_exposure`. Your area payloads carry it for free. It is ABSENT (never null) on
+a root with no exposure table, which is the same absent-never-null rule as everywhere
+else — do not "normalise" it to a null to make the shape uniform.
+
+**`unit(con, root, asset_id) -> tuple` is factored out of `events_for_asset`** and is the
+one place `unknown_asset` is raised. It resolves identity ONLY: which registry rows are
+Units is each query's own rule, and the two existing queries answer it from different
+authorities (history = F05's `LABEL_KINDS`, score = F10's table membership), which is why
+an entrance has a history and no score. If your area answer needs to say "this asset is
+not scored", read that membership rather than re-typing a kind list.

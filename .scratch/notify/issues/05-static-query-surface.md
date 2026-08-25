@@ -132,3 +132,56 @@ connection) is unchanged; nothing here re-derives them.
 **Still no wall clock**, in the manifest or the per-asset files. `index.json` carries none
 either, which is what keeps `test_re_export_is_byte_identical` covering the whole export
 run. Consumers date every payload from its own HTTP response (`Date` − `Last-Modified`).
+
+## Inherited from notify 03 (landed 2026-08-25, branch `notify03-exposure-of`) — the exposure half of your per-asset file
+
+    query("exposure_of", {"asset_id": "stn:611"}, root, mode="public") -> dict
+
+    {"query": "exposure_of", "mode": "public",
+     "asset":    {asset_id, kind, name?, cell?, complex_id?},          # 02's block, verbatim
+     "exposure": {estimand, model_id, score_index, score_ref, score_severe,
+                  surge_margin_ft?, flags: [...], modelled: bool},
+     "versions": {assets_version, spine_version, label_version, score_version?}}
+
+`asset` and `versions` are IDENTICAL to the ones `events_for_asset` returns for the same
+id (asserted by a test), so one file holding both is a merge, not a reconciliation.
+
+- **928 OF YOUR 7,955 MANIFEST ASSETS HAVE NO EXPOSURE ROW, and they are all entrances.**
+  Measured on the real root: the assets with history are 5,657 bus stops + 1,276 Cells +
+  94 complexes + **928 entrances**, and every entrance publishes a history and NO score
+  (its score exists only inside its complex's max — that is the Unit/Carrier rule). So
+  "its history and its exposure" is not a blind pairing: `exposure_of` raises
+  `QueryError("not_a_scored_unit", asset_id=…, kind="entrance", ask="<complex asset_id>")`
+  for those 928. Write the file with the history and NO exposure key (absent, never null),
+  and let the `ask` id point at the complex — do not invent a score, and do not drop the
+  asset from the manifest.
+- **Your surface is measured, both halves.** An `exposure_of` payload is a flat 590-633 B
+  (median **624 B**, 40-asset random sample, no tail at all — unlike the history payload,
+  which frontend 02 re-measured at max 23,444 B on the top-40 by event count). Publishing
+  one per Unit over all 15,166 rows is ~**9.4 MB**; publishing only the 7,027 manifest
+  assets that HAVE a score is ~4.4 MB on top of the ~10.9 MB history tree.
+- **The cost MUST above just doubled — AND THE UPGRADE IS MEASURED AND WORKS.**
+  `exposure_of` through `query()` costs **0.1024 s per asset**, ~0.09 s of it `versions()`
+  re-resolving stamps on a fresh connection; two calls per asset is ~27 min for your 7,955.
+  Calling the registry function directly on ONE connection with the stamps resolved once is
+  **0.0083 s per asset — 12x, 2.1 min over all 15,166 Units** (measured 2026-08-25, real
+  root, 100-asset sample). **One connection serves both queries and repeated calls with no
+  view-name collision** (`view()`'s `create_view` replaces), so the whole upgrade is: open
+  `duck.connect()` once, call `query.versions(con, root)` once, then
+  `query.QUERIES[name](con, root, params, "public")` per asset and add the
+  `query`/`mode`/`versions` envelope yourself. Do NOT invent a date-keyed cache.
+- **`versions()` gained `score_version`** (a fourth stamp) on any root that publishes
+  `gold/flood_exposure`, so every file you write carries it and `files/index.json` does
+  too — `contract.index()` calls the same seam. Additive: no `contract.CONTRACT` bump was
+  owed and none is owed by you. It is ABSENT, never null, on a root with no scores.
+- **Never present a fallback score as a modelled rank.** 60 bus stops (flag
+  `score_fallback_kind_median`) score on their kind's MEDIAN because their features could
+  not be built at all; `exposure.modelled` is `false` for exactly those, and the flags
+  ride beside it. Every flag's one-line meaning is published under `flags` in
+  `research/flood-10-coefficients.json` — link that rather than wording a second copy.
+  `score_index` (the within-kind rank, bounded (0, 1]) is the human-facing number;
+  `score_ref` / `score_severe` are the LINEAR PREDICTOR and are negative for nearly every
+  Unit. No complex-grain skill claim anywhere.
+- **An absent `surge_margin_ft` is not a zero.** 404 Units have no point elevation behind
+  them and carry the `no_surge_margin` flag; the key is simply not there. A zero margin
+  means the water is AT the doorway, so writing 0.0 there inverts the meaning.

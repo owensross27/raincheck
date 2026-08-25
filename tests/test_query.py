@@ -38,7 +38,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from raincheck import duck, flood_exposure as fe, query as q
+from raincheck import duck, flood_exposure as fe, flood_labels as fl, query as q
 from raincheck.paths import data_root
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -444,11 +444,15 @@ def test_the_flags_are_f10s_closed_vocabulary_and_their_meanings_are_published(r
 def test_the_human_facing_number_is_the_rank_and_the_scores_are_the_raw_predictor(root):
     """A score is the LINEAR PREDICTOR, negative for nearly every Unit -- shipping it as
     "the number" invites a probability reading. `score_index` is the within-kind rank."""
+    published = json.loads(fe.COEFFICIENTS.read_text())
+    assert published["score"]["is_probability"] is False
     for asset in SCORED:
         got = score(root, asset)["exposure"]
         assert 0 < got["score_index"] <= 1
         assert got["score_ref"] < 0 and got["score_severe"] < 0
         assert got["score_severe"] > got["score_ref"]     # severe forcing, same Unit
+        # and the payload says what the number is ABOUT, from F10's own constant
+        assert got["estimand"] == published["estimand"] == fl.ESTIMAND
 
 
 def test_the_licence_boundary_does_not_reach_this_answer(root):
@@ -471,17 +475,30 @@ def test_one_asset_gets_one_answer_from_both_queries_both_stamped(root):
 
 def test_the_score_stamp_is_absent_on_a_root_that_publishes_no_scores(root, tmp_path):
     """Absent, never null -- the convention `files/index.json` renders. contract.index()
-    calls this same seam, so a Gold-only root there loses the key rather than nulling it."""
+    calls this same seam, so a Gold-only root there loses the key rather than nulling it.
+
+    BOTH shapes of "no scores" are here, because they are not the same root: the table
+    missing, and the table's DIRECTORY present but EMPTY -- what a scoring run that died
+    between its `mkdir` and its `pq.write_table` leaves behind. A directory-existence test
+    reads the second as "this root publishes scores", and then DuckDB's globber raises,
+    `versions()` reports `version_unresolved` for the whole root, and `events_for_asset`
+    -- which reads no score at all -- dies with it. A table is a part file, not a folder."""
     con = duck.connect()
     assert "score_version" in q.versions(con, root)
-    bare = tmp_path / "bare"
-    shutil.copytree(root, bare)
-    shutil.rmtree(bare / "gold" / "flood_exposure")
-    assert "score_version" not in q.versions(con, bare)
+    for how in ("removed", "emptied"):
+        bare = tmp_path / how
+        shutil.copytree(root, bare)
+        table = bare / "gold" / "flood_exposure"
+        shutil.rmtree(table) if how == "removed" else [f.unlink() for f in table.iterdir()]
+        assert table.exists() is (how == "emptied")
+        assert "score_version" not in q.versions(con, bare)
+        assert ask(bare, COMPLEX)["n_events"] == 2      # the history is untouched by this
+        with pytest.raises(q.QueryError) as e:          # a typed refusal, never a traceback
+            score(bare, COMPLEX)
+        assert e.value.reason == "not_a_scored_unit"
+        with pytest.raises(q.QueryError):               # and on the REGISTRY call too --
+            q.exposure_of(duck.connect(), bare, {"asset_id": COMPLEX}, "public")
     con.close()
-    with pytest.raises(q.QueryError) as e:
-        score(bare, COMPLEX)
-    assert e.value.reason == "not_a_scored_unit"   # no table, so nothing is a scored Unit
 
 
 def test_the_exposure_payload_is_json_able_and_carries_no_null(root):
