@@ -44,7 +44,12 @@ class Row:
 
 def rc(rows) -> int:
     """The aggregation rule. Note an EMPTY batch is 0: a producer with nothing to say must
-    emit an inconclusive row rather than no rows - that is the false-OK this ticket kills."""
+    emit an inconclusive row rather than no rows - that is the false-OK this ticket kills.
+
+    The 2 below has ONE mirror, and it is deliberate: `daily.INCONCLUSIVE_RC`, which has to
+    be a literal because the DAG image reads daily.py as data and has no raincheck package
+    to import from (ticket 07). tests/test_daily.py derives that constant from THIS function
+    rather than comparing it to a 2, so moving the rule here goes red there."""
     if any(r.outcome == FAIL for r in rows):
         return 1
     return 2 if any(r.outcome == INCONCLUSIVE for r in rows) else 0

@@ -36,6 +36,11 @@ WHAT THIS DAG DECIDES AND WHAT IT REFUSES TO.
   the run's verdict. Nothing here renders inconclusive as ok and nothing renders it as
   failed; the persisted rows under `<root>/checks/` remain the record either way.
 
+  ONE CEILING, stated rather than discovered: a DagRun has no third state. A run whose
+  only red is an inconclusive gate leaves every task terminal and nothing failed, so the
+  RUN reads `success` while the report task reads `skipped` and its log names the stage.
+  The distinction lives on the TASK and in the rows, which is as far as Airflow goes.
+
 WHAT IS DELIBERATELY NOT HERE. `coldgaps` (the remote census over unrecoverable Mac-era
 subway positions: it would page forever about hours nobody can recover) and `make eras`
 (a check whose place in the nightly is ticket 09's call, which is why ticket 01 left it out
