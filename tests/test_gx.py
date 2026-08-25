@@ -303,10 +303,12 @@ def test_the_docs_target_is_the_publishers_own(monkeypatch, tmp_path):
 @needs_gx
 def test_the_site_is_rebuilt_each_run_and_never_becomes_a_served_history(tmp_path):
     """`docs/**` is THIS run's report, published wholesale every night - so nothing may
-    accumulate in it. MEASURED: GX replaces the page of a suite it re-validates all by
-    itself, so the case that needs the rebuild is a suite that STOPS running - a rename, a
-    retirement, a producer removed. Its page would otherwise sit there forever, dated and
-    linked to nothing, describing a check nobody runs. That is the assertion here."""
+    accumulate in it. This pins a DEPENDENCY's behaviour rather than raincheck code, on
+    purpose: `build_data_docs()` rebuilds the whole site, so a suite that STOPS running - a
+    rename, a retirement, a producer removed - leaves no page behind. An `rmtree` here was
+    written first and then deleted, because it survived every mutation: nothing could
+    observe it. If a future GX starts leaving stale pages in a published tree, this is
+    where it shows up."""
     full_batch(tmp_path)
     (live,) = gx.SUITES
     retired = gx.Suite("retired-suite", "gapcheck", COLUMNS, live.expectations, era=live.era)
