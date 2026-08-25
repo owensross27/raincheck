@@ -17,17 +17,25 @@ orch 04/05/07 precedent for Airflow.
 Nothing here reaches the network. GX analytics are disabled by the module itself.
 """
 import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
 
-from raincheck import checks, daily, gapfill, gx, publish
+from raincheck import checks, cold, daily, eras, gapfill, gx, publish
 
 ROOT = Path(__file__).parents[1]
 needs_gx = pytest.mark.skipif(not gx.available(), reason="great_expectations not installed "
                                                          "(optional extra: pip install -e '.[gx]')")
 COLUMNS = gapfill.CHECK_COLUMNS["gapcheck"]
 DAY = "2026-08-20"
+LIVE = "live-capture-completeness"
+
+
+def declared_suite(name: str) -> gx.Suite:
+    """One declared suite BY NAME, never by position: orch 09 and orch 10 both append to
+    gx.SUITES in this wave, and an index here would quietly start testing someone else's."""
+    return next(s for s in gx.SUITES if s.name == name)
 
 
 def gapcheck_row(kind: str, outcome: str, day: str = DAY, held: int = 24, **over) -> checks.Row:
@@ -39,6 +47,59 @@ def gapcheck_row(kind: str, outcome: str, day: str = DAY, held: int = 24, **over
         measures = {"kind": kind} | dict.fromkeys(
             (c for c in COLUMNS[len(checks.CORE):] if c != "kind"))
     return checks.Row("gapcheck", f"{kind} {day}", outcome, "", measures | over)
+
+
+VERIFY = gapfill.CHECK_COLUMNS["gapverify"]
+ERAS = eras.CHECK_COLUMNS
+AT = datetime(2026, 8, 21, 6, 0, tzinfo=timezone.utc)   # one nightly's own clock
+
+
+def verify_row(kind: str, outcome: str, **over) -> checks.Row:
+    """One gapverify-shaped row. Its INCONCLUSIVE form is the producer's own -
+    `dict.fromkeys(...)` over every measure, so `day` is NULL with the rest - and `over` is
+    what a test uses to break exactly one of those conventions on purpose."""
+    if outcome == checks.INCONCLUSIVE:
+        measures = dict.fromkeys(VERIFY[len(checks.CORE):]) | {"kind": kind}
+    else:
+        measures = {"kind": kind, "day": DAY, "filled_hour": "03", "captured_hour": "09",
+                    "filled_rows": 900, "captured_rows": 1000, "filled_keys": 90,
+                    "captured_keys": 100, "row_ratio": 0.9, "key_ratio": 0.9,
+                    "schema": "superset"}
+    return checks.Row("gapverify", kind, outcome, "", measures | over)
+
+
+def verify_batch(root: Path, rows: list[checks.Row], at: datetime = AT) -> list[Path]:
+    """The MAPPED producer's real shape: one batch PER POD, minutes apart (orch 06)."""
+    return [checks.write(root, "gapverify", [r], VERIFY, at=at + timedelta(minutes=i))
+            for i, r in enumerate(rows)]
+
+
+def cold_row(kind: str, outcome: str, differing: int | None = 0) -> checks.Row:
+    return checks.Row("coldcheck", kind, outcome, "",
+                      {"kind": kind, "differing": differing})
+
+
+def eras_row(reader: str, kind: str, outcome: str, missing: str | None = "",
+             day: str | None = DAY) -> checks.Row:
+    return checks.Row("eras", f"{reader} {kind}", outcome, "",
+                      {"reader": reader, "kind": kind, "day": day,
+                       "era_cols": ",".join(eras.ERA_COLS[kind]), "missing": missing})
+
+
+def eras_batch(root: Path, rows: list[checks.Row] | None = None) -> Path:
+    rows = rows if rows is not None else [eras_row(r, k, checks.OK)
+                                          for r in eras.READERS for k in eras.ERA_COLS]
+    return checks.write(root, "eras", rows, ERAS, at=AT)
+
+
+def every_producer(root: Path) -> None:
+    """A batch for every declared suite's producer - what a whole green nightly leaves on
+    disk, so a full gx.run() here is the whole report and not one page of it."""
+    full_batch(root)
+    verify_batch(root, [verify_row(k, checks.OK) for k in gapfill.KINDS])
+    checks.write(root, "coldcheck", [cold_row("vp", checks.OK)], cold.CHECK_COLUMNS, at=AT)
+    (root / "archive" / "vp").mkdir(parents=True, exist_ok=True)
+    eras_batch(root)
 
 
 def full_batch(root: Path, outcomes: dict[str, str] | None = None) -> Path:
@@ -88,8 +149,8 @@ def test_a_run_with_no_batch_on_disk_reports_could_not_check(tmp_path):
     INCONCLUSIVE and its rc is 2 - which on this declared gate is a `skipped` task rather
     than a red one (orch 07). Data Docs still build: an empty report is the honest one."""
     results, docs = gx.run(tmp_path)
-    assert [r.outcome for r in results] == [checks.INCONCLUSIVE]
-    assert results[0].inconclusive == ("<no batch>",) and not results[0].ok
+    assert [r.outcome for r in results] == [checks.INCONCLUSIVE] * len(gx.SUITES)
+    assert all(r.inconclusive == ("<no batch>",) and not r.ok for r in results)
     assert gx.rc(results) == 2
     assert (docs / "index.html").is_file()
 
@@ -148,7 +209,7 @@ def test_the_third_outcome_survives_the_adapter(tmp_path):
             gapcheck_row("subway_tu", checks.OK), gapcheck_row("subway_alerts", checks.OK)]
     path = checks.write(tmp_path, "gapcheck", rows, COLUMNS)
     ctx = gx.context(tmp_path / "docs")
-    (suite,) = gx.SUITES
+    suite = declared_suite(LIVE)
     result = gx.validate(ctx, suite, gx.rows(path, COLUMNS, suite.era))
 
     assert result.inconclusive == (f"alerts {DAY}",)
@@ -167,7 +228,7 @@ def test_a_batch_whose_only_red_is_a_not_run_check_is_inconclusive_not_failed(tm
     rows = [gapcheck_row(k, checks.INCONCLUSIVE if k == "alerts" else checks.OK)
             for k in gapfill.KINDS]
     path = checks.write(tmp_path, "gapcheck", rows, COLUMNS)
-    (suite,) = gx.SUITES
+    suite = declared_suite(LIVE)
     result = gx.validate(gx.context(tmp_path / "docs"), suite,
                          gx.rows(path, COLUMNS, suite.era))
     assert not result.failed and result.inconclusive == (f"alerts {DAY}",)
@@ -185,7 +246,7 @@ def test_the_unrecoverable_subway_positions_are_excluded_by_the_checks_own_kinds
     rows = [gapcheck_row(k, checks.OK) for k in gapfill.KINDS]
     rows.append(gapcheck_row("subway_vp", checks.OK, held=0))
     path = checks.write(tmp_path, "gapcheck", rows, COLUMNS)
-    (suite,) = gx.SUITES
+    suite = declared_suite(LIVE)
     result = gx.validate(gx.context(tmp_path / "docs"), suite, gx.rows(path, COLUMNS))
     assert result.outcome == checks.FAIL
     assert result.failed == (f"subway_vp {DAY}",)
@@ -201,7 +262,7 @@ def test_a_judged_row_that_carries_no_measure_fails_rather_than_passing_quietly(
     rows = [gapcheck_row(k, checks.OK) for k in gapfill.KINDS]
     rows[0] = gapcheck_row("vp", checks.OK, held=None)
     path = checks.write(tmp_path, "gapcheck", rows, COLUMNS)
-    (suite,) = gx.SUITES
+    suite = declared_suite(LIVE)
     result = gx.validate(gx.context(tmp_path / "docs"), suite, gx.rows(path, COLUMNS))
     assert result.outcome == checks.FAIL
     assert result.failed == (f"vp {DAY}",)
@@ -235,7 +296,7 @@ def test_an_inconclusive_row_never_makes_an_expectation_fail(tmp_path):
     rows = [gapcheck_row(k, checks.INCONCLUSIVE if k == "alerts" else checks.OK)
             for k in gapfill.KINDS]
     path = checks.write(tmp_path, "gapcheck", rows, COLUMNS)
-    (suite,) = gx.SUITES
+    suite = declared_suite(LIVE)
     result = gx.validate(gx.context(tmp_path / "docs"), suite,
                          gx.rows(path, COLUMNS, suite.era))
     assert result.failed == () and result.detail == ""
@@ -250,7 +311,7 @@ def test_the_suite_reads_the_producers_verdict_rather_than_recomputing_it(tmp_pa
     rows = [gapcheck_row(k, checks.FAIL if k == "vp" else checks.OK) for k in gapfill.KINDS]
     path = checks.write(tmp_path, "gapcheck", rows, COLUMNS)   # vp: fillable="", held=24
     assert json.loads(path.read_text().splitlines()[0])["fillable"] == ""
-    (suite,) = gx.SUITES
+    suite = declared_suite(LIVE)
     result = gx.validate(gx.context(tmp_path / "docs"), suite, gx.rows(path, COLUMNS))
     assert result.failed == (f"vp {DAY}",)
 
@@ -263,8 +324,11 @@ def test_data_docs_build_into_the_publish_target_and_are_publishable(tmp_path):
     reads, and the whole tree goes to `docs/**` on the PUBLIC host. So the tree has to
     satisfy the publisher's suffix ALLOWLIST - measured here rather than assumed, because a
     GX version that starts emitting something that is not a web payload would otherwise
-    fail in another session at publish time."""
-    full_batch(tmp_path)
+    fail in another session at publish time.
+
+    Every DECLARED suite's producer is seeded, so this is the whole green nightly's report
+    and not one page of it (orch 09 added three)."""
+    every_producer(tmp_path)
     results, docs = gx.run(tmp_path)
     assert docs == tmp_path / "gx" / "data_docs"
     assert (docs / "index.html").is_file()
@@ -310,7 +374,7 @@ def test_the_site_is_rebuilt_each_run_and_never_becomes_a_served_history(tmp_pat
     observe it. If a future GX starts leaving stale pages in a published tree, this is
     where it shows up."""
     full_batch(tmp_path)
-    (live,) = gx.SUITES
+    live = declared_suite(LIVE)
     retired = gx.Suite("retired-suite", "gapcheck", COLUMNS, live.expectations, era=live.era)
     gx.run(tmp_path, (live, retired))
     docs = gx.docs_dir(tmp_path)
@@ -342,8 +406,8 @@ def test_the_checkpoint_runs_after_every_producer_it_expects_on():
     actually reads rather than against a position, so adding a stage after it is fine and
     adding a PRODUCER after it is not."""
     order = [s.name for s in daily.STAGES]
-    produces = {"gapcheck", "coldcheck"} & set(order)
-    assert produces, "the declaration no longer holds a check producer this suite reads"
+    produces = {s.check for s in gx.SUITES} & set(order)
+    assert produces, "the declaration no longer holds a check producer these suites read"
     assert all(order.index(p) < order.index("gxcheck") for p in produces)
 
 
@@ -387,3 +451,253 @@ def test_the_extra_is_pinned_to_one_major_version():
     text = (ROOT / "pyproject.toml").read_text()
     assert 'gx = ["great-expectations>=1,<2"]' in text
     assert '"/opt/raincheck[gx]"' in (ROOT / "docker" / "Dockerfile").read_text()
+
+
+# --- orchestration 09: the run's batches are a SET -----------------------------------------
+
+def test_a_mapped_stage_writes_one_batch_per_pod_and_the_run_is_their_union(tmp_path):
+    """`gapverify` is MAPPED over `kind` since orch 06: five pods, five batches, five
+    disjoint subjects, minutes apart. `batch()` answers "the newest stamp", which here is
+    whichever kind's pod finished last - so reading it alone would judge one kind and
+    report NOTHING about the other four: not a gap, not a could-not-check, just rows that
+    were never in the frame. The run's rows are the union, and this is the rule this ticket
+    pinned."""
+    verify_batch(tmp_path, [verify_row(k, checks.OK) for k in gapfill.KINDS])
+    paths = gx.batches(tmp_path, "gapverify")
+    assert len(paths) == len(gapfill.KINDS)
+    assert gx.batch(tmp_path, "gapverify") == paths[0]      # the head of the same set
+    folded = gx.fold(paths, VERIFY, era="day")
+    assert {r["kind"] for r in folded} == set(gapfill.KINDS)
+
+
+def test_a_batch_from_a_run_that_is_over_never_answers_for_this_one(tmp_path):
+    """RUN_WINDOW is what makes the set a RUN rather than a history. A pod that did not run
+    tonight, leaving last night's `ok` in tonight's frame, is a false OK with a whole feed
+    behind it - and it would be invisible, because the row looks exactly like a fresh one."""
+    checks.write(tmp_path, "gapverify", [verify_row("vp", checks.OK)], VERIFY,
+                 at=AT - gx.RUN_WINDOW - timedelta(seconds=1))
+    checks.write(tmp_path, "gapverify", [verify_row("tu", checks.OK)], VERIFY, at=AT)
+    assert len(gx.batches(tmp_path, "gapverify")) == 1
+    assert {r["kind"] for r in gx.fold(gx.batches(tmp_path, "gapverify"), VERIFY)} == {"tu"}
+
+
+def test_the_later_stamp_wins_where_one_producer_rechecks_the_same_subject(tmp_path):
+    """The other half of the same rule, and the cold mirror's real shape: daily.coldcheck()
+    checks, re-pushes and re-checks, so two batches carry the SAME subject. Both are true
+    records; the later one is what happened last. Same fold, no special case."""
+    checks.write(tmp_path, "coldcheck", [cold_row("vp", checks.FAIL, 4)],
+                 cold.CHECK_COLUMNS, at=AT)
+    checks.write(tmp_path, "coldcheck", [cold_row("vp", checks.OK, 0)],
+                 cold.CHECK_COLUMNS, at=AT + timedelta(minutes=3))
+    (row,) = gx.fold(gx.batches(tmp_path, "coldcheck"), cold.CHECK_COLUMNS)
+    assert row["outcome"] == checks.OK and row["differing"] == 0
+
+
+# --- orchestration 09: fill fidelity -------------------------------------------------------
+
+@needs_gx
+def test_the_fidelity_band_is_the_modules_and_never_ticket_20s_measured_one(tmp_path):
+    """THE TRAP THIS TICKET EXISTS FOR. 0.85-1.2x is a measured RESULT from the backfill
+    work; `gapfill.ROW_BAND` / `KEY_BAND` are what `verify()` actually enforces, about an
+    order of magnitude looser. A ratio outside the MEASUREMENT and inside the BAND has to
+    pass here - a suite that failed it would be the real gate, and what passes would have
+    changed with no change to the module and no evidence for it."""
+    assert not 0.85 <= 3.0 <= 1.2                                  # outside the measurement
+    assert gapfill.ROW_BAND[0] <= 3.0 <= gapfill.ROW_BAND[1]       # inside the enforced band
+    assert gapfill.KEY_BAND[0] <= 3.0 <= gapfill.KEY_BAND[1]
+    verify_batch(tmp_path, [verify_row(k, checks.OK, row_ratio=3.0, key_ratio=3.0)
+                            for k in gapfill.KINDS])
+    results, _ = gx.run(tmp_path, (declared_suite("fill-fidelity"),))
+    assert results[0].outcome == checks.OK
+    assert set(results[0].ok) == set(gapfill.KINDS)
+
+
+@needs_gx
+def test_a_ratio_outside_the_modules_own_band_fails_and_names_the_kind(tmp_path):
+    """The other side of the same constant: 20x IS out of ROW_BAND, so the suite fails and
+    GX's own unexpected index names which kind - which is what the band expectation buys
+    over the verdict alone, on the page a human reads at 06:00."""
+    rows = [verify_row(k, checks.OK) for k in gapfill.KINDS]
+    rows[1] = verify_row("tu", checks.OK, row_ratio=20.0)
+    verify_batch(tmp_path, rows)
+    results, _ = gx.run(tmp_path, (declared_suite("fill-fidelity"),))
+    assert results[0].outcome == checks.FAIL and results[0].failed == ("tu",)
+
+
+@needs_gx
+def test_a_kind_with_no_pair_anywhere_is_held_out_and_the_short_batch_stays_green(tmp_path):
+    """The producer's REAL inconclusive: no filled hour with an archiver hour on the same
+    day, so every measure is NULL and `day` is NULL with them. Held out of the frame, kept
+    on its own bucket - and the four expectations left looking at four rows instead of five
+    all still pass, which is only true because every one of them is PER-ROW."""
+    rows = [verify_row(k, checks.OK) for k in gapfill.KINDS]
+    rows[2] = verify_row("alerts", checks.INCONCLUSIVE)
+    verify_batch(tmp_path, rows)
+    results, _ = gx.run(tmp_path, (declared_suite("fill-fidelity"),))
+    assert results[0].failed == () and results[0].inconclusive == ("alerts",)
+    assert results[0].outcome == checks.INCONCLUSIVE and gx.rc(results) == 2
+
+
+@needs_gx
+def test_a_kind_inconclusive_on_a_day_it_named_is_a_failure_not_a_third_outcome(tmp_path):
+    """THE ACCEPTANCE ROW. `verify()` goes INCONCLUSIVE for exactly one reason and NULLs
+    every measure when it does, so a row that names a day and still could not judge it is a
+    kind that went inconclusive on a day which HAS a comparable pair: the pair-finding
+    broke. That is a defect, so it FAILS - and it leaves the could-not-check bucket when it
+    does, because a subject cannot be both.
+
+    No expectation can make this claim: the row is held out of the frame before any
+    expectation sees it. It is made in the suite's own code, over the whole batch."""
+    rows = [verify_row(k, checks.OK) for k in gapfill.KINDS]
+    rows[0] = verify_row("vp", checks.INCONCLUSIVE, day=DAY)
+    verify_batch(tmp_path, rows)
+    results, _ = gx.run(tmp_path, (declared_suite("fill-fidelity"),))
+    assert results[0].failed == ("vp",)
+    assert "vp" not in results[0].inconclusive and "vp" not in results[0].ok
+    assert results[0].outcome == checks.FAIL
+    assert "pair-finding broke" in results[0].detail
+
+
+@needs_gx
+def test_a_kind_whose_pod_wrote_no_batch_at_all_is_inconclusive_and_never_ok(tmp_path):
+    """Five pods, four batches: the fifth kind was never checked. Nothing in the frame can
+    say so - there is no row to be unexpected - so the batch claim says it, as a
+    could-not-check and not as a pass."""
+    verify_batch(tmp_path, [verify_row(k, checks.OK) for k in gapfill.KINDS[:-1]])
+    results, _ = gx.run(tmp_path, (declared_suite("fill-fidelity"),))
+    assert results[0].inconclusive == (f"<no batch: {gapfill.KINDS[-1]}>",)
+    assert results[0].outcome == checks.INCONCLUSIVE and not results[0].failed
+
+
+# --- orchestration 09: the cold mirror reports and never gates -----------------------------
+
+@needs_gx
+def test_a_mirror_gap_is_reported_and_never_gates_the_nightly(tmp_path):
+    """Ticket 18's placement, which this suite does not get to change on the side.
+    `daily.coldcheck()` re-pushes once and warns (rc 0) because what survives a re-push is
+    the EC2 box's own overlapping capture - different bytes for an object that is PRESENT.
+    An expectation on `outcome` here would route that into gx.rc() and out through the
+    gxcheck GATE, making GX the hard gate the module deliberately is not. So: the counts
+    are reported, and the suite is green."""
+    checks.write(tmp_path, "coldcheck",
+                 [cold_row("vp", checks.FAIL, 5), cold_row("tu", checks.OK, 0)],
+                 cold.CHECK_COLUMNS, at=AT)
+    for kind in ("vp", "tu"):
+        (tmp_path / "archive" / kind).mkdir(parents=True)
+    results, _ = gx.run(tmp_path, (declared_suite("cold-mirror"),))
+    assert results[0].outcome == checks.OK and gx.rc(results) == 0
+    assert "mirror drift REPORTED, not gated" in results[0].detail and "vp 5" in results[0].detail
+
+
+@needs_gx
+def test_a_judged_cold_row_that_counted_nothing_is_a_failure(tmp_path):
+    """`differing` is NULL, never 0, on every could-not-check path - and those rows are not
+    in this frame. So a row claiming to have been judged while carrying no count is a
+    producer that started publishing a measurement it never took. The not-null is the only
+    thing in front of it: a between-expectation counts nulls as MISSING and succeeds."""
+    (tmp_path / "archive" / "vp").mkdir(parents=True)
+    checks.write(tmp_path, "coldcheck", [cold_row("vp", checks.OK, None)],
+                 cold.CHECK_COLUMNS, at=AT)
+    results, _ = gx.run(tmp_path, (declared_suite("cold-mirror"),))
+    assert results[0].outcome == checks.FAIL and results[0].failed == ("vp",)
+
+
+@needs_gx
+def test_every_archive_prefix_has_a_row_or_the_mirror_was_never_asked(tmp_path):
+    """ONE ROW PER TOP-LEVEL `archive/` PREFIX, read off disk through `cold.kinds()` - the
+    producer's own function, so the row set grows with a new kind instead of being pinned
+    to five names in a suite. A prefix with no row is a slice of Bronze nobody compared,
+    which is a false OK with a whole feed behind it, and it is a claim about a MISSING row -
+    no expectation can be asked about one."""
+    for kind in ("vp", "subway_tu"):
+        (tmp_path / "archive" / kind).mkdir(parents=True)
+    checks.write(tmp_path, "coldcheck", [cold_row("vp", checks.OK, 0)],
+                 cold.CHECK_COLUMNS, at=AT)
+    results, _ = gx.run(tmp_path, (declared_suite("cold-mirror"),))
+    assert results[0].failed == ("<no row: subway_tu>",)
+    assert results[0].outcome == checks.FAIL
+
+
+@needs_gx
+def test_a_remote_that_was_never_listed_is_could_not_check_and_never_clean(tmp_path):
+    """The unconfigured / aws-non-zero paths: every row INCONCLUSIVE with a NULL count.
+    They are all held out, so nothing is judged - and a suite with nothing judged is not a
+    pass. rc 2, which on the gxcheck gate is a `skipped` task rather than a red one."""
+    (tmp_path / "archive" / "vp").mkdir(parents=True)
+    checks.write(tmp_path, "coldcheck", [cold_row("vp", checks.INCONCLUSIVE, None)],
+                 cold.CHECK_COLUMNS, at=AT)
+    results, _ = gx.run(tmp_path, (declared_suite("cold-mirror"),))
+    assert results[0].outcome == checks.INCONCLUSIVE and not results[0].ok
+    assert results[0].inconclusive == ("vp",) and gx.rc(results) == 2
+
+
+# --- orchestration 09: schema eras ---------------------------------------------------------
+
+@needs_gx
+def test_a_reader_that_dropped_an_era_column_is_named_by_column_presence(tmp_path):
+    """A reader that forgets to union fails SILENTLY, with the ROW COUNT still correct - so
+    the check asserts the columns are PRESENT and this suite expects on that, never on a
+    count. `missing` is the producer's own rendering of it and `outcome` is its verdict."""
+    rows = [eras_row(r, k, checks.OK) for r in eras.READERS for k in eras.ERA_COLS]
+    rows[0] = eras_row("duck", "vp", checks.FAIL, missing="header_ts")
+    eras_batch(tmp_path, rows)
+    results, _ = gx.run(tmp_path, (declared_suite("schema-eras"),))
+    assert results[0].outcome == checks.FAIL and results[0].failed == ("duck vp",)
+
+
+@needs_gx
+def test_four_rows_every_run_is_a_batch_claim_and_never_an_expectation(tmp_path):
+    """Every declared (reader, kind) pair gets a row on EVERY path, inconclusive included -
+    so a short batch is a reader nobody looked at, not one that could not check. The four
+    are the product of `eras.READERS` and `eras.ERA_COLS`, read from the module, so a fifth
+    reader is covered the day it is declared."""
+    want = {f"{r} {k}" for r in eras.READERS for k in eras.ERA_COLS}
+    assert len(want) == 4
+    eras_batch(tmp_path, [eras_row(r, k, checks.OK) for r in eras.READERS
+                          for k in eras.ERA_COLS][:-1])
+    results, _ = gx.run(tmp_path, (declared_suite("schema-eras"),))
+    assert results[0].outcome == checks.FAIL
+    assert results[0].failed == ("<no row: spark tu>",)
+
+
+@needs_gx
+def test_a_day_of_null_is_could_not_check_and_must_not_read_as_a_pass(tmp_path):
+    """No date dir mixed part schemas, so a union reader is indistinguishable from a narrow
+    one and the run proved nothing. Same false-OK class as gapverify with no pair: held
+    out, reported as its own bucket, never green."""
+    eras_batch(tmp_path, [eras_row(r, k, checks.INCONCLUSIVE, missing=None, day=None)
+                          for r in eras.READERS for k in eras.ERA_COLS])
+    results, _ = gx.run(tmp_path, (declared_suite("schema-eras"),))
+    assert results[0].outcome == checks.INCONCLUSIVE and not results[0].ok
+    assert len(results[0].inconclusive) == 4 and gx.rc(results) == 2
+
+
+# --- orchestration 09: the declaration -----------------------------------------------------
+
+def test_the_three_suites_are_appended_and_expect_on_their_producers_own_columns():
+    """Adding a suite is appending one `Suite` and nothing else. Each names a producer that
+    exists and carries THAT producer's own CHECK_COLUMNS constant, never a literal list -
+    the batch is asserted against it on read, so a producer that changes shape is a loud
+    refusal here rather than a suite quietly expecting on columns that moved."""
+    mine = {"fill-fidelity": ("gapverify", gapfill.CHECK_COLUMNS["gapverify"]),
+            "cold-mirror": ("coldcheck", cold.CHECK_COLUMNS),
+            "schema-eras": ("eras", eras.CHECK_COLUMNS)}
+    for name, (check, columns) in mine.items():
+        suite = declared_suite(name)
+        assert (suite.check, suite.columns) == (check, columns)
+        assert " " not in suite.name          # a Data Docs page and a URL segment
+    names = [s.name for s in gx.SUITES]
+    assert len(names) == len(set(names)), f"two suites share a name: {names}"
+
+
+def test_the_era_check_is_declared_where_its_batch_can_be_read_this_run():
+    """This ticket's placement call. `eras` PRODUCES a check batch, so it stands in front of
+    the one stage that reads batches; it READS Bronze, so it stands behind the one stage
+    that writes any. And it is a GATE with an argv: both of its non-verdicts are
+    INCONCLUSIVE - no mixed-schema day, or no JVM on this box - and `make` exits 2 for any
+    recipe failure, which would flatten that into "the recipe broke"."""
+    order = [s.name for s in daily.STAGES]
+    (stage,) = [s for s in daily.STAGES if s.name == "eras"]
+    assert stage.retry == "gate" and stage.argv == ("eras",) and not stage.soft
+    assert stage.fanout is None and stage.reduces is None
+    assert order.index("gapfill") < order.index("eras") < order.index("gxcheck")

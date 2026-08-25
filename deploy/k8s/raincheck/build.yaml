@@ -116,7 +116,7 @@ metadata:
   name: raincheck-spark
   namespace: raincheck
   annotations:
-    raincheck.io/stages: "events (one pod per Service date), gold (single reduce behind them), precip (MRMS months are UTC)"
+    raincheck.io/stages: "events (one pod per Service date), gold (single reduce behind them), precip (MRMS months are UTC), eras (opens the mergeSchema readers, so it needs the JVM shape)"
     # MEASURED on the cluster 2026-08-24, not copied from the Mac. An events-shaped run
     # (5,597,465 Bronze VP rows -> 1,354,911 rows through events.py's coalesce(1)
     # sortWithinPartitions write) on a 2 vCPU / 8 GiB Graviton2 burst node:

@@ -84,19 +84,43 @@ def test_the_nightly_names_no_stage_and_builds_no_task_by_hand():
     assert spelled == ["report"], f"the nightly names its own stages: {spelled}"
 
 
-@pytest.mark.parametrize("absent", ["coldgaps", "eras"])
+@pytest.mark.parametrize("absent", ["coldgaps"])
 def test_what_is_deliberately_not_in_the_nightly_is_not_in_the_nightly(absent):
     """`coldgaps` covers Mac-era subway positions nobody can recover, so it would page every
-    morning forever. `eras` is a real check whose PLACE is ticket 09's call, which is why
-    ticket 01 left it out of the declaration. (`gold` was on this list until ticket 06: it
-    was the reduce INSIDE daily.build, and it became a stage of its own the moment `events`
-    became one pod per Service date, which is the one thing that cannot share it.)
+    morning forever. (Two names have LEFT this list rather than being kept off it: `gold` at
+    ticket 06 - it was the reduce inside daily.build and became a stage of its own the moment
+    `events` became one pod per Service date - and `eras` at ticket 09, whose whole job was to
+    make that placement call. Both arrived here the way every stage does, by being added to
+    the declaration, with no edit to the DAG file.)
 
     Asserted against the DECLARATION and not by grepping the DAG file: this file's own prose
     has to be able to NAME what it is keeping out, and a grep that cannot tell a warning from
     a task can never pass (notify 01 measured that shape). What stops a hand-added task is
     the test above - the only task id spelled anywhere in the nightly is `report`."""
     assert absent not in [s["name"] for s in declared()]
+
+
+def test_the_era_check_is_a_gate_in_the_jvm_shape_in_front_of_the_checkpoint():
+    """Orchestration 09's placement call, as the three things it had to be.
+
+    A GATE WITH AN ARGV, so `skip_rc()` maps its rc 2 onto a `skipped` task: both of its
+    non-verdicts are INCONCLUSIVE - no date dir mixes part schemas, or this box has no JVM -
+    and GNU make exits 2 for ANY recipe failure, so a check reached through `make` cannot
+    tell "could not check" from "the recipe broke".
+
+    THE SPARK SHAPE, from the table's own annotation: `spark_columns` opens the mergeSchema
+    readers, and a 250m/512Mi pod is not where a JVM goes.
+
+    AND BEHIND ITS INPUTS, IN FRONT OF ITS READER: it reads Bronze, so it stands behind the
+    stage that writes any; it PRODUCES a check batch, so it stands in front of `gxcheck`,
+    which orch 08 put last on purpose. A batch written after gxcheck is a run behind."""
+    names = [s["name"] for s in declared()]
+    (stage,) = [s for s in declared() if s["name"] == "eras"]
+    assert stage["retry"] == "gate" and stage["argv"] == ("eras",)
+    assert raincheck_stage.command(stage) == ["python", "-m", "raincheck.eras"]
+    assert raincheck_stage.skip_rc(stage) == daily.INCONCLUSIVE_RC
+    assert raincheck_stage.shape_of("eras") == "raincheck-spark"
+    assert names.index("gapfill") < names.index("eras") < names.index("gxcheck")
 
 
 # --- a gate must be able to say INCONCLUSIVE --------------------------------------------

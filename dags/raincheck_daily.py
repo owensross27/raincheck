@@ -62,10 +62,11 @@ says which axes this runtime buys pods for.
   RUN reads `success` while the report task reads `skipped` and its log names the stage.
   The distinction lives on the TASK and in the rows, which is as far as Airflow goes.
 
-WHAT IS DELIBERATELY NOT HERE. `coldgaps` (the remote census over unrecoverable Mac-era
-subway positions: it would page forever about hours nobody can recover) and `make eras`
-(a check whose place in the nightly is ticket 09's call, which is why ticket 01 left it out
-of the declaration).
+WHAT IS DELIBERATELY NOT HERE. `coldgaps` - the remote census over unrecoverable Mac-era
+subway positions - which would page forever about hours nobody can recover. `eras` WAS on
+this list until ticket 09 made the call its ticket held: it is a declared stage now, second
+to last, and it arrived here the way every stage does - by being added to the declaration,
+with no edit to this file.
 """
 from __future__ import annotations
 
