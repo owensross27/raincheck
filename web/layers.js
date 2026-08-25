@@ -32,6 +32,7 @@
  *     geography is structurally impossible, not merely discouraged.
  */
 import { drawCells } from "./insight.js";
+import { drawBasemap } from "./basemap.js";
 
 // Fixed ramps. Ratio: diverging around 1.0 (red slower, blue faster), 0.5 .. 1.2 always.
 export const RATIO_STOPS = [[0.5, "#7f0000"], [0.65, "#d7301f"], [0.8, "#fc8d59"], [0.9, "#fdd49e"],
@@ -84,6 +85,17 @@ const GATE = {
  * requirement, not a degraded mode.
  */
 export const LAYERS = [
+  // frontend2 02. The ground under the ground: ONE PMTiles archive, read by range request,
+  // whose style layers are spliced in above `bg` and below all twelve (see basemap.js).
+  // `map: []` until it loads, because its layer ids come from the vendored style and not
+  // from this file; a failed fetch leaves it empty and the page falls back to `bg`.
+  // Its source is HEAD-ed, not fetched: an age must not cost 52 MB to learn, and the tiles
+  // themselves are read by MapLibre's own protocol, which reports no headers to us.
+  { id: "basemap", name: "Ground: basemap", gate: null, fill: false, open: true,
+    map: [], owed: null,
+    srcs: [{ k: "tiles/nyc.pmtiles", url: "tiles/nyc.pmtiles", budget: null, head: true }],
+    draw: ([ok]) => drawBasemap(ok) },
+
   { id: "zones", name: "Ground: taxi zones", gate: null, fill: false, open: true,
     map: ["zones-fill", "zones-line"], owed: null,
     srcs: [{ k: "files/zones.geojson", url: "files/zones.geojson", budget: null }],
@@ -157,6 +169,11 @@ export const map = new maplibregl.Map({
   container: "map", center: [-73.93, 40.72], zoom: 10.1, attributionControl: false,
   style: {
     version: 8,
+    // frontend2 02: the basemap's labels. Declared HERE rather than set later because it is
+    // part of the frozen style, and it is a RELATIVE path - the bucket is the web/ tree, so
+    // the glyph range is same-origin and no third host is in the demo path (spec L). One
+    // fontstack, one range: basemap.js rewrites the vendored theme's three onto this file.
+    glyphs: "vendor/{fontstack}-{range}.pbf",
     sources: { zones: empty(), cells: empty(), impact: empty(), locate: empty(),
                live: empty(), hist: empty(), fn: empty(), mta: empty() },
     layers: [

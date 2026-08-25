@@ -226,8 +226,63 @@ def test_a_family_whose_writer_has_not_shipped_refuses_by_naming_its_writer(tmp_
 
 
 def test_an_unknown_family_lists_the_real_ones(tmp_path):
-    with pytest.raises(publish.Refused, match="docs, history, insight, live, site"):
+    with pytest.raises(publish.Refused, match="docs, history, insight, live, site, tiles"):
         publish.plan("everything", tmp_path)
+
+
+# --- frontend2 02: the basemap archive, its own family -------------------------------------
+
+def test_the_basemap_is_its_own_family_and_never_a_site_key(tmp_path):
+    """`web/tiles/` is gitignored and the archive is never committed: it is built by an
+    operator running `make basemap` and moves on its own cadence, while `site` moves with
+    every page deploy. Publishing them together would either strand the page behind a 52 MB
+    rebuild or republish a basemap nobody changed.
+    MUTATION KILLED: folding `nyc.pmtiles` into the `site` file list (which would also make
+    `make publish FAMILY=site` refuse on a checkout that has never run `make basemap`, since
+    a family is all-or-none), or pointing `tiles` at `web/` instead of `web/tiles/`."""
+    fam = publish.FAMILIES["tiles"]
+    assert fam.files == ("nyc.pmtiles",) and fam.prefix == "tiles/"
+    assert fam.cache == publish.RARE_CACHE and not fam.gated
+    assert fam.cadence == "deploy-time" and "make basemap" in fam.writer
+    assert "nyc.pmtiles" not in publish.FAMILIES["site"].files
+    assert fam.src().name == "tiles" and fam.src().parent == publish.WEB
+
+    tiles = tmp_path / "tiles"
+    tiles.mkdir()
+    (tiles / "nyc.pmtiles").write_bytes(b"PMTiles\x03")
+    [item] = publish.plan("tiles", tiles)
+    assert item.key == "tiles/nyc.pmtiles"
+    assert item.content_type == "application/octet-stream"
+    assert item.cache == publish.RARE_CACHE
+
+
+def test_a_missing_basemap_refuses_by_naming_who_builds_it(tmp_path):
+    """The archive is gitignored, so a fresh checkout has none - and the operator reading
+    the refusal needs the command, not a stack trace."""
+    with pytest.raises(publish.Refused) as exc:
+        publish.plan("tiles", tmp_path / "tiles")
+    assert "incomplete" in str(exc.value) and "nyc.pmtiles" in str(exc.value)
+
+
+def test_the_allowlist_widened_by_two_web_payload_formats_and_not_by_a_category(tmp_path):
+    """Rule 2 is an ALLOWLIST so that a bulk or protobuf endpoint cannot be created by
+    accident. frontend2 02 added `.pmtiles` (the basemap archive) and `.pbf` (one font glyph
+    range - the same category as the `.woff`/`.otf` faces already there, and the only way
+    MapLibre can draw a label). Neither widens the refusal the rule exists for, and this
+    test asserts BOTH halves: the two new formats pass, and the formats rule 2 names by
+    name are still refused.
+    MUTATION KILLED: adding `.pb`, `.parquet` or `.gz` alongside them, or swapping the
+    allowlist for a denylist (which would have to predict every bulk format)."""
+    assert {".pmtiles", ".pbf"} <= publish.PUBLISHABLE
+    for suffix in (".pb", ".parquet", ".tar", ".gz", ".zip", ".db", ".csv"):
+        assert suffix not in publish.PUBLISHABLE, suffix
+    # and the refusal still fires on a real staged tree, not just on the constant
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "index.html").write_text("<html>")
+    (docs / "vehicles.pb").write_bytes(b"\x00")
+    with pytest.raises(publish.Refused, match="not a publishable web payload"):
+        publish.plan("docs", docs)
 
 
 # --- rule 3, and the page's half of STALE (text assertions; the browser check is in the log)
