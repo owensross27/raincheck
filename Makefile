@@ -8,7 +8,7 @@ export TZ := UTC
 export RAINCHECK_ARCHIVE_ROOT RAINCHECK_BRONZE_GB TRANSITLAND_API_KEY
 PY := .venv/bin/python
 
-.PHONY: warm ref nbp features picks precip-hourly precip-cell schedule events gold baseline gates slice test topics flood-obs flood-spine flood-coastal precip-flood-era flood-labels flood-matrix flood-fits flood-exposure flood-replication flood-live
+.PHONY: warm ref nbp features picks precip-hourly precip-cell schedule events gold baseline gates slice test topics flood-obs flood-spine flood-coastal precip-flood-era flood-labels flood-matrix flood-fits flood-exposure flood-detector flood-replication flood-live
 
 topics:  ## recreate the two bus topics to spec C - DESTRUCTIVE: drops retained Kafka messages (Bronze keeps the record)
 	$(PY) -m raincheck.topics
@@ -104,6 +104,16 @@ flood-fits:  ## two L2 logistic fits + 4 baselines + the headline gate -> resear
 # the one file the detector loads. Byte-identical on a rebuild, so re-running is free.
 flood-exposure:  ## flood_matrix x flood-09-fits x flood_coastal -> gold/flood_exposure + the coefficient JSON
 	$(PY) -m raincheck.flood_exposure $(if $(CENSUS),--census)
+
+# --- flood-build ticket 11: the detector constants artifact -------------------------
+# The SECOND in-repo artifact. Reads nothing derived and builds no table: every value is
+# either a frozen rule or is read from the module that already owns it (flood_live's
+# budgets and query strings, flood_alerts' remove-water family), so the file cannot drift
+# from the code that fetches. detector_version is a sha1 over the DECISION-bearing keys
+# only, so it is byte-identical on a rebuild and a reworded note never rolls a live Window.
+# The canary is a live HEAD against NODD: SKIP_CANARY=1 for an offline build.
+flood-detector:  ## the frozen detector rules -> research/flood-11-detector.json (+ live MRMS pattern canary)
+	$(PY) -m raincheck.flood_detect $(if $(SKIP_CANARY),--skip-canary)
 
 # --- flood-build ticket 18: the outer replication -----------------------------------
 # The 311-threshold and label-radius sweeps, which redefine the event universe and so cannot

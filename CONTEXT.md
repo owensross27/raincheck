@@ -144,6 +144,24 @@ neither and sit out of the contrast; frozen hours are counted apart. The cutoffs
 are analysis parameters, always swept.
 _Avoid_: rainy, raining, precipitating
 
+**Window**:
+The stretch of rain the live detector scores over: (anchor, now], where the anchor is the
+most recent 21:00 America/New_York boundary whose three preceding Hours were citywide dry.
+It is the same instant flood_spine's calendar window_start names for an event, reached by
+observation instead of by calendar, so a live feature vector and an offline one describe
+the same thing. Found by a stateless backward walk each cycle — no memory of the last one,
+hard cap six days — and the Hour stamped AT the anchor is antecedent, never in the Window.
+_Avoid_: session, storm, episode, event (which is the offline, calendar-dated object)
+
+**Tier**:
+What the detector publishes about a Unit in an active Window: NONE, ELEVATED (top 10%) or
+HIGH (top 2%) of the within-kind rank of the CURRENT live score vector, gated on the Unit's
+own Cell having taken at least 2.0 mm this Window and on the city actively raining, and
+latched until the Window rolls. A rank, never a probability and never a depth. The
+cutpoints are PROVISIONAL until the replay harness measures per-event false-positive
+volume; the alternative is that v1 ships the rank with no tier at all.
+_Avoid_: alert, warning, severity, risk level, score (which is the raw linear predictor)
+
 **Live table**:
 A thin Hive-Parquet table under `data/live/` written by the streaming job or the
 live-precip job: raw rows plus stateless enrichment (Cell, Zone, latest complete
