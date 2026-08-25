@@ -47,3 +47,7 @@ two export files do not exist yet, and measured two things you inherit:
   for a second fill channel.
 - **A budget constant is what graduates its freshness row from AGE to FRESH/STALE.** Ship
   one and the page reads a verdict; ship none and it honestly reports an age.
+
+## Forward-context from DESTINATION-PLAN.md (copied verbatim by the WAVE 5 GATE PART 2, 2026-08-25, from this ticket's summary line in waves/wave-3-plus.md)
+
+**FROM DESTINATION-PLAN (2026-08-25):** you are the ONLY editor of `live_loop.py`/`flood_truth.py` in wave 7 (flood-build 20 was held to wave 8 for that reason); where `impact.json` lives in `publish.FAMILIES` is your call — frontend 05 froze the filename, not the family. Route-grain attribution is NOT yours: flood-build 21 owns it (descriptive v1); your Cell-grain caveats (median event day indistinguishable; only the tail reads) are inherited by it verbatim.

@@ -77,3 +77,7 @@ must never roll a live Window and clear every latched flag. `detector_version` i
 **`01197991471f`**. Also: `cycle()` now emits H3 Cell ids as HEX strings
 (`fd.hexcell`) because an int64 past 2^53 cannot cross JSON — irrelevant to your
 subscriptions, which are `bus_stop`/`complex` only, but it is what a shared payload carries.
+
+## Forward-context from DESTINATION-PLAN.md (copied verbatim by the WAVE 5 GATE PART 2, 2026-08-25, from this ticket's summary line in waves/wave-3-plus.md)
+
+**FROM DESTINATION-PLAN (2026-08-25), one line:** flood-build 20 (wave 8) adds a `design_storm` bracket to the flood export. It is DISPLAY, never a tier, and your decision function never reads it — the tier vocabulary stays `fd.TIERS`.

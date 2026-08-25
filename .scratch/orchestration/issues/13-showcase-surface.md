@@ -234,3 +234,7 @@ nightly whose only red is an inconclusive gate reads `success` at the run level 
 NOT CHECK — a suite that could not run, e.g. no batch on disk or the optional extra absent —
 and never "nothing to do". Source the verdict from the `report` task's lines, or from the
 check rows.
+
+## Forward-context from DESTINATION-PLAN.md (copied verbatim by the WAVE 5 GATE PART 2, 2026-08-25, from this ticket's summary line in waves/wave-3-plus.md)
+
+**FROM DESTINATION-PLAN (2026-08-25), one line:** two more static families reach the host — `files/geo/**` (flood-build 19 / frontend2 03) and `files/summary/**` (frontend2 04) — both listed in `index.json` automatically; the showcase links them when they exist and re-describes neither.

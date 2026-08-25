@@ -181,3 +181,7 @@ check-row PRODUCER.** Decide before writing the suite. Note the foundation gives
 third option the ticket text does not name: a suite whose batch does not exist reports
 INCONCLUSIVE with `<no batch>` rather than failing or passing, so "the producer is not built
 yet" is a state the surface can already carry honestly.
+
+## Forward-context from DESTINATION-PLAN.md (copied verbatim by the WAVE 5 GATE PART 2, 2026-08-25, from this ticket's summary line in waves/wave-3-plus.md)
+
+**FROM DESTINATION-PLAN (2026-08-25) — TWO NEW CHECK-ROW PRODUCERS ARE COMING, and the second lands after you.** flood-build 19 (wave 6, same wave as you) emits batch `stormwater_extent` (polygon counts per scenario x category, the zip sha) — expect on it if its entry exists when you write; flood-build 21a (wave 7) emits `route_flood` — NOT yours; write it forward to orch 13 or a later suite ticket rather than reopening this one. Both are Mac-runnable `make` targets, not nightly stages, until the wave-8 gate registers 21b.

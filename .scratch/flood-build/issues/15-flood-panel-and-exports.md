@@ -237,3 +237,7 @@ wording; each was refuted with reasoning I checked and agree with.
 
 **Test count 84. Mutation rounds: 18/18 RED on the first pass, plus 4/4 RED on the review
 fixes, pristine control green both times.**
+
+## Forward-context from DESTINATION-PLAN.md (copied verbatim by the WAVE 5 GATE PART 2, 2026-08-25, from this ticket's summary line in waves/wave-3-plus.md)
+
+**FROM DESTINATION-PLAN (2026-08-25) — TWO THINGS LAND ON YOUR EXPORT LATER, BOTH ADDITIVE.** (1) flood-build 20 (wave 8) adds `design_storm: {rate_in_hr, bracket}` per Cell to the UNGATED file inside YOUR tick — leave the writer extensible (one dict per Cell, absent-never-null). (2) The `publish.FAMILIES` entry you add is one of THREE added in wave 6 (yours, flood-build 19's `geo`, frontend2 02's `tiles`) — distinct dict entries, the gate unions them; do NOT bump `contract.CONTRACT`.

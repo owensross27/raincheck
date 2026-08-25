@@ -81,3 +81,7 @@ Units is each query's own rule, and the two existing queries answer it from diff
 authorities (history = F05's `LABEL_KINDS`, score = F10's table membership), which is why
 an entrance has a history and no score. If your area answer needs to say "this asset is
 not scored", read that membership rather than re-typing a kind list.
+
+## Forward-context from DESTINATION-PLAN.md (copied verbatim by the WAVE 5 GATE PART 2, 2026-08-25, from this ticket's summary line in waves/wave-3-plus.md)
+
+**FROM DESTINATION-PLAN (2026-08-25), one line:** after flood-build 19 (wave 6) `silver/stormwater_extent` exists (scenario x horizon x category polygons). A scenario-as-area parameter for `assets_in_area` is a POSSIBLE later addition, not built here and not owed — Cell stays the only area key in v1.

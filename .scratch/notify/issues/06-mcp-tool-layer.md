@@ -104,3 +104,7 @@ The tool takes ONE argument, `asset_id`, the same name `events_for_asset` takes 
   re-wording five sentences. **No complex-grain skill claim in any tool description**: the
   complex number is an aggregate of doorway scores and the independent complex set caught
   1 of 118.
+
+## Forward-context from DESTINATION-PLAN.md (copied verbatim by the WAVE 5 GATE PART 2, 2026-08-25, from this ticket's summary line in waves/wave-3-plus.md)
+
+**FROM DESTINATION-PLAN (2026-08-25), one line:** the static `files/summary/**` (frontend2 04, wave 8) is where an agent asks "where flooded recently / which complexes / how many routes"; a tool description MAY point at it later. Not built here; the four tools stay exactly four.

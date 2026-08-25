@@ -185,3 +185,7 @@ id (asserted by a test), so one file holding both is a merge, not a reconciliati
 - **An absent `surge_margin_ft` is not a zero.** 404 Units have no point elevation behind
   them and carry the `no_surge_margin` flag; the key is simply not there. A zero margin
   means the water is AT the doorway, so writing 0.0 there inverts the meaning.
+
+## Forward-context from DESTINATION-PLAN.md (copied verbatim by the WAVE 5 GATE PART 2, 2026-08-25, from this ticket's summary line in waves/wave-3-plus.md)
+
+**FROM DESTINATION-PLAN (2026-08-25):** frontend2 04 (wave 8) adds a SIBLING family `summary` (`files/summary/{recent,complexes,routes}.json` — aggregates over `flood_events`/`flood_labels`/`gold/route_flood`). It shares your public-lineage rule and your byte-identical rule and touches nothing under `files/history/**`. Nothing new is owed by you.
