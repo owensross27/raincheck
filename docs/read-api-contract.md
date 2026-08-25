@@ -37,6 +37,14 @@ cadences, so a sync would publish a gated payload and republish a stale one.
 | `history` | `files/history/**` | per spine rebuild | `public, max-age=300` | one file per asset |
 | `docs` | `docs/**` | per Airflow run | `public, max-age=300` | Great Expectations Data Docs |
 
+**`docs/**` is the CURRENT run's report, not an archive of runs.** The nightly's `gxcheck`
+stage rebuilds the whole Data Docs site every run (orchestration ticket 08), so a
+validation page's URL contains that run's timestamp and will not exist tomorrow. Link to
+`docs/index.html`, which is stable, and never bookmark a validation page. The tree is a
+static site in the ordinary sense - HTML, CSS, images and `.otf` font faces - and it
+carries check-RESULT rows only: counts, dates, kinds, hour labels and ratios. No feed row
+reaches it, which is what makes it publishable at all.
+
 **Publish order inside a family is load-bearing.** `files/live.geojson` lands before
 `files/meta.json`, because meta carries the freshness the page reads: a publisher that
 dies mid-pair must leave a fresh fleet under an old meta (reads STALE — safe), never the
