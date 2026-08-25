@@ -52,3 +52,27 @@ declaration. Map by expanding that loop; write no second graph.
   the fan-out with a manual run of a smoke-shaped DAG, never by unpausing the nightly.
 - **A DAG change is an IMAGE BUILD**: `scripts/cloud-image.sh` (both tags) plus both pins
   committed. There is no git-sync.
+
+## From the wave-4 gate (2026-08-25) — the image pin is a SINGLE-WRITER resource this wave
+
+`scripts/cloud-image.sh` rewrites the tag in `deploy/k8s/kustomization.yaml`'s `images:`
+transformer AND both `images.airflow` / `images.pod_template` sites in
+`deploy/airflow/values.yaml`. Wave 4 landed cleanly partly by luck — its gate MEASURED
+that `dags/` and `kustomization.yaml` were touched by orch 05 alone, so the
+images:-transformer merge trap never fired. **Wave 5 runs orchestration tickets 06, 07 and
+08 in parallel.** Two branches that each build an image write different shas into the same
+three sites, every landing conflicts, and the last pin to land silently leaves the other
+branch's image unreferenced.
+
+**So: BUILD an image in your worktree if you need to prove your work on the cluster, but
+do NOT commit the pin rewrite.** Revert those three sites before committing and name the
+sha you proved against in your RUN LOG entry. The wave gate does one image build over the
+landed tree and commits the pin once. Tests do not force a bump — they require only a bare
+hex sha and the two `-airflow` sites agreeing, which the existing pin `d801b1462dee`
+(landed on master at `b056ecb`) already satisfies.
+
+The other files this wave's three orchestration tickets share, so you can shape your diff
+to be unionable: `src/raincheck/daily.py`'s `STAGES` tuple (06 adds `gold`, 08 adds a
+checkpoint stage) · the literal step list asserted at `tests/test_daily.py:240-241` ·
+`dags/raincheck_daily.py` and `dags/raincheck_stage.py` · `tests/test_dag_nightly.py`.
+Assert PROPERTIES, not literal lists, wherever you can.

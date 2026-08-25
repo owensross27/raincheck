@@ -103,3 +103,33 @@ Columns, exactly: `asset_id` · `kind` (`bus_stop`|`complex`|`cell`) · `model_i
   aggregate of doorway scores; the independent complex set caught 1 of 118 positives.
 - **A Cell's `asset_id` is `cell:<h3 hex>`** and already matches notify 02's frozen hex-string
   boundary rule — no int64 crosses anything.
+
+## From frontend 06's landing (2026-08-25, `frontend06-discovery-contract`, `8bd82db`) — your stamps reach a PUBLISHED document
+
+`query.versions(con, root)`'s own docstring names this ticket: "`score_version` /
+`model_id` join this when F10's scores are read (ticket 03), which is why score is absent
+here rather than null." What changed underneath that sentence is that `versions()` now has
+a **second consumer on the public read surface**: `src/raincheck/contract.py`'s `index()`
+calls it to stamp `files/index.json`, the discovery document written by the same
+`make export` run as the insight trio and published LAST in the `insight` family.
+
+So the moment you add `score_version` / `model_id` to `versions()`, the published
+`index.json` carries them too. Three consequences:
+
+- **No `contract.CONTRACT` bump is owed.** `contract.PROMISE[1]` freezes a set of
+  `(family, key, content type)` triples — the discoverable SURFACE — not payload internals.
+  Adding keys inside a document that is already promised does not break the subset check.
+  (The contract's own named limit says exactly this: it cannot see payload-internal
+  changes, which is why every key carries a `schema` pointer instead.)
+- **Keep the ABSENT-never-null convention.** An unresolvable stamp is a MISSING key beside
+  a reason, never a null — `index.json` renders that as `versions_unresolved`, and a
+  consumer refuses on the missing key rather than reading a placeholder. Do not introduce a
+  null-valued stamp to make a shape uniform.
+- **No wall clock.** `index.json` and the per-asset history payloads are both required to
+  re-export byte-identically; a stamp resolved from a clock would break both.
+
+Read `docs/read-api-contract.md` before changing the shape of `versions()` — it is the
+written contract that document is published under, and its stamps paragraph describes
+exactly these keys. Your own cost MUST (resolve the stamps ONCE and reuse one connection —
+`query()` re-resolves them on every call, 0.097 s of a 0.115 s call) is unchanged and
+unaffected by any of this.
