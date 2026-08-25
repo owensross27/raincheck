@@ -7,8 +7,8 @@ the same day is a no-op.
 
   gapfill    the Bronze hours the archiver slept through, from gtfsrt.io (ticket 20)
   gapverify  those filled hours against their archiver neighbours (20). Exits 2 -
-             INCONCLUSIVE - for a kind with no filled/captured pair to compare (02);
-             daily's own semantics are unchanged, so that counts as a failed stage
+             INCONCLUSIVE - for a kind with no filled/captured pair to compare (02), and
+             the job counts that apart from a failure and exits 2 for it (ticket 07)
   gapcheck   what is still missing, per kind x closed day. Strictly AFTER the fill (20):
              the newest day or two legitimately fail until gtfsrt.io publishes them, and
              that exit 1 is the actionable signal - never allowlist it (gapfill.DEAD is
@@ -25,9 +25,11 @@ the same day is a no-op.
   prune      live date=/hour= dirs past the 48 h horizon (stream.prune, spec J)
 
 Every stage runs even when an earlier one failed - a red gapcheck must not cost the day's
-build - and the job exits 1 naming the stages that failed. The standing pieces run as
-their own make targets, so the Makefile stays the one place that knows JAVA_HOME, TZ=UTC
-and the .env credentials.
+build - and the job exits 1 naming the stages that failed, or INCONCLUSIVE_RC naming the
+ones that could not check. Three outcomes, never two: a check that did not run tells you
+nothing about the data, and reporting it as either a pass or a gap sends someone hunting a
+phantom (ticket 07). The standing pieces run as their own make targets, so the Makefile
+stays the one place that knows JAVA_HOME, TZ=UTC and the .env credentials.
 
 Run: make daily   (python -m raincheck.daily)
 One stage: python -m raincheck.daily <stage>   - the form every task pod of the
@@ -48,6 +50,12 @@ from raincheck import paths
 from raincheck.paths import REPO, data_root
 
 WINDOW_DAYS = 14  # spec K: the gap scan is bounded
+# The rc a stage exits with when it COULD NOT CHECK - checks.rc()'s own third value
+# (1 any row failed, else 2 any row is inconclusive, else 0). A literal and not an
+# import: raincheck_stage.py READS this file (the DAG image has no raincheck package)
+# and can only literal_eval what it finds. tests/test_daily.py pins it against
+# checks.rc() of a real INCONCLUSIVE row, so the two cannot drift apart quietly.
+INCONCLUSIVE_RC = 2  # orchestration ticket 07
 TAIL_H = 10       # UTC hours of D+1 a service day's Legs run into (03:00 local, either regime)
 SILVER = ("leg_hours", "events")
 PART = "part-00000.parquet"
@@ -70,8 +78,10 @@ class Stage(NamedTuple):
                                # not a preference: GNU make exits 2 for ANY recipe failure,
                                # so a module rc of 1 arrives as 2 and INCONCLUSIVE stops
                                # being distinguishable from broken (orch 03, measured both
-                               # ways). main() below never reads this - it is already in
-                               # process, and its own any-non-zero rule is unchanged
+                               # ways). BOTH runtimes read it now (ticket 07): call() runs
+                               # this process instead of the make target, so a gate's rc is
+                               # the module's here too, and the DAG maps INCONCLUSIVE_RC to
+                               # a skipped task with skip_on_exit_code
 
 
 STAGES = (
@@ -87,6 +97,21 @@ STAGES = (
 )
 
 FAILED_STATES = ("failed", "upstream_failed")  # Airflow's, for report() below
+# Airflow's rendering of a stage that could not check (ticket 07). A task state carries no
+# rc: the operator maps the pod's own INCONCLUSIVE_RC onto `skipped` (KubernetesPodOperator's
+# skip_on_exit_code), which is the only terminal state Airflow has that is neither success
+# nor failure. This is a RENDERING - the persisted batch under <root>/checks/check=<name>/
+# is the record.
+INCONCLUSIVE_STATES = ("skipped",)
+# ...and it counts as one only ON A GATE, which is where the mapping was wired (the DAG
+# gives skip_on_exit_code to gates alone, for the same reason). `skipped` is ALSO what a
+# zero-length dynamic expansion lands in - "there was nothing to do" (ticket 06) - so
+# reading every skip as "could not check" would report a quiet morning with no service day
+# to build as an inconclusive nightly, every quiet morning. Same guard on the driver's own
+# rc: a gate's 2 is a verdict, but `precip` returns a make rc straight out, where 2 only
+# ever means the recipe broke. Both are the conflation this ticket exists to prevent,
+# pointing the other way.
+GATES = frozenset(s.name for s in STAGES if s.retry == "gate")
 
 
 def run(target: str, **var: str) -> int:
@@ -221,15 +246,24 @@ def prune_live(root: Path) -> None:
     stream.prune(root)
 
 
-def stage(name: str, fn) -> bool:
+def stage(name: str, fn) -> int:
+    """Run one step and return its rc in checks.rc()'s vocabulary - 0 ok, INCONCLUSIVE_RC
+    could not check, anything else failed. `name` is the expanded step's name, whose first
+    word is its stage's. A crash is a FAILURE and never an inconclusive: a stage that died
+    told us nothing it could persist a row about."""
     t0, err = time.monotonic(), None
     try:
         rc = fn() or 0
     except (Exception, SystemExit) as e:  # a module's own loud exit ends its stage, not the job
         rc, err = 1, e
-    print(f"daily: {name} {'FAILED' if rc else 'ok'} in {time.monotonic() - t0:.0f}s"
+    if rc == INCONCLUSIVE_RC and name.split()[0] not in GATES:
+        rc = 1   # only a GATE's rc is a verdict; precip hands back a make rc, whose 2 only
+                 # ever means the recipe broke. Collapsed HERE so the line and the summary
+                 # cannot say different things about the same stage.
+    label = "ok" if not rc else ("INCONCLUSIVE" if rc == INCONCLUSIVE_RC else "FAILED")
+    print(f"daily: {name} {label} in {time.monotonic() - t0:.0f}s"
           + (f" - {err}" if err else ""), flush=True)
-    return not rc
+    return rc
 
 
 def resolve(ref: str) -> Callable:
@@ -239,12 +273,33 @@ def resolve(ref: str) -> Callable:
     return getattr(import_module(mod), attr)
 
 
+def spawn(argv: tuple[str, ...]) -> int:
+    """This stage as its OWN PROCESS, the way a task pod runs it - `python -m raincheck.<argv>`
+    on this interpreter, in the repo, inheriting the env `make daily` exported."""
+    print(f"daily: + python -m raincheck.{argv[0]} {' '.join(argv[1:])}", flush=True)
+    return subprocess.call([sys.executable, "-m", f"raincheck.{argv[0]}", *argv[1:]], cwd=REPO)
+
+
 def call(s: Stage, ctx: dict):
     """Run one stage's entrypoint, handing it only the ctx values its own signature names.
-    That binding is why the runtime below dispatches without naming a single stage."""
+    That binding is why the runtime below dispatches without naming a single stage.
+
+    EVERY rc that leaves here is the MODULE's own number, which is what lets main() below
+    read INCONCLUSIVE_RC as a verdict rather than as a broken recipe (ticket 07):
+
+      a stage with an `argv` runs that process, so its rc is the module's - and a GATE
+      always carries one, because GNU make exits 2 for ANY recipe failure and a gate
+      reached through make cannot say "could not check" apart from "broke" (orch 03,
+      measured both ways). The DAG's task pods run exactly this command; now so does this
+      runtime, so the two cannot disagree about a verdict either.
+
+      a bare make target's rc is NOT the module's, so its 2 is collapsed to 1 here. It
+      means "some recipe failed", and reading it as INCONCLUSIVE is that conflation
+      inverted - a broken transport stage reported as a check that could not run.
+    """
     kind, _, ref = s.entrypoint.partition(":")
     if kind == "make":
-        return run(ref)
+        return spawn(s.argv) if s.argv else (1 if run(ref) else 0)
     fn = resolve(ref)
     return fn(**{p: ctx[p] for p in signature(fn).parameters})
 
@@ -263,13 +318,26 @@ def steps(ctx: dict, axes: dict) -> list[tuple[str, Callable, bool]]:
     return out
 
 
-def verdict(failed: list[str]) -> None:
+def verdict(failed: list[str], inconclusive: list[str] = ()) -> None:
     """The job's last line, and the ONE place it is written. `make daily` exits with it
     after running the stages itself; the DAG's report task prints the SAME sentence from
     Airflow's own record of a run whose stages were pods. Two copies of it is how the two
-    runtimes start disagreeing about what a nightly failure reads like."""
+    runtimes start disagreeing about what a nightly failure reads like.
+
+    THREE outcomes, counted apart, and the exit code is checks.rc()'s own rule - 1 if
+    anything failed, else INCONCLUSIVE_RC if anything could not check, else 0 (ticket 07).
+    A real gap outranks a not-run check, so an inconclusive beside a failure still exits 1
+    and its names are still printed; neither list is ever inflated by the other. A run that
+    only could not check must not exit like a run that broke - that is the conflation five
+    incidents bought the rule against - and it must not exit 0 either."""
+    if inconclusive:
+        print(f"daily: INCONCLUSIVE - {', '.join(inconclusive)} (could not check; nothing is "
+              "known about that data either way - the rows under <root>/checks/ are the "
+              "record, and this line is only a rendering of them)", flush=True)
     if failed:
         sys.exit(f"daily: FAILED - {', '.join(failed)} (every stage ran; see above)")
+    if inconclusive:
+        sys.exit(INCONCLUSIVE_RC)
     print("daily: OK", flush=True)
 
 
@@ -291,7 +359,7 @@ def report(crumbs: str) -> None:
     rows = sorted(json.loads(crumbs),
                   key=lambda r: (order.get(r["task_id"], len(order)), r["task_id"],
                                  r.get("map_index", -1)))
-    failed = []
+    failed, inconclusive = [], []
     for r in rows:
         name = r["task_id"] if r.get("map_index", -1) < 0 else f"{r['task_id']} {r['map_index']}"
         broke = r["state"] in FAILED_STATES
@@ -300,9 +368,13 @@ def report(crumbs: str) -> None:
         # five incidents bought the rule against.
         outcome = "FAILED" if broke else ("ok" if r["state"] == "success" else r["state"])
         print(f"daily: {name} {outcome} in {r.get('duration') or 0:.0f}s", flush=True)
-        if broke and r["task_id"] not in soft:
+        if r["task_id"] in soft:
+            continue
+        if broke:
             failed.append(name)
-    verdict(failed)
+        elif r["state"] in INCONCLUSIVE_STATES and r["task_id"] in GATES:
+            inconclusive.append(name)
+    verdict(failed, inconclusive)
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -323,8 +395,13 @@ def main(argv: list[str] | None = None) -> None:
         if not todo:
             sys.exit(f"daily: {args[0]} is not a declared stage "
                      f"({', '.join(s.name for s in STAGES)})")
-    failed = [name for name, fn, soft in todo if not stage(name, fn) and not soft]
-    verdict(failed)
+    failed, inconclusive = [], []
+    for name, fn, soft in todo:
+        rc = stage(name, fn)
+        if not rc or soft:       # a soft stage joins neither list, exactly as in report()
+            continue
+        (inconclusive if rc == INCONCLUSIVE_RC else failed).append(name)
+    verdict(failed, inconclusive)
 
 
 if __name__ == "__main__":

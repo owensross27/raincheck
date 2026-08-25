@@ -51,11 +51,23 @@ def seeded(tmp_path, monkeypatch):
     return tmp_path, built
 
 
+def stub_stages(monkeypatch, made: list, rc=lambda name: 0) -> None:
+    """Stub BOTH seams a stage reaches the outside through, recording each under the STAGE's
+    own name: `run` is the make target, and `spawn` is the module a GATE runs as its own
+    process (ticket 07 - GNU make exits 2 for any recipe failure, so a gate reached through
+    make cannot report INCONCLUSIVE apart from broken). A test that stubs only `run` shells
+    out for real on every gate."""
+    by_argv = {s.argv: s.name for s in daily.STAGES if s.argv}
+    monkeypatch.setattr(daily, "run", lambda target, **var: made.append(target) or rc(target))
+    monkeypatch.setattr(daily, "spawn", lambda argv: (lambda name: made.append(name) or rc(name))(
+        by_argv[tuple(argv)]))
+
+
 @pytest.fixture()
 def stubs(monkeypatch):
-    """Record the make targets and the built days instead of shelling out / starting a JVM."""
+    """Record the stages instead of shelling out / starting a JVM."""
     made, days = [], []
-    monkeypatch.setattr(daily, "run", lambda target, **var: made.append(target) or 0)
+    stub_stages(monkeypatch, made)
     monkeypatch.setattr(daily, "build", lambda root, closed: days.extend(daily.gaps(root, closed)))
     return made, days
 
@@ -135,7 +147,7 @@ def test_gapfill_runs_before_gapcheck(seeded, stubs):
 def test_a_red_stage_still_leaves_the_job_running_and_exits_1(seeded, monkeypatch):
     days = []
     monkeypatch.setattr(daily, "build", lambda root, closed: days.extend(daily.gaps(root, closed)))
-    monkeypatch.setattr(daily, "run", lambda target, **var: int(target == "gapcheck"))
+    stub_stages(monkeypatch, [], lambda name: int(name == "gapcheck"))
     with pytest.raises(SystemExit, match="gapcheck"):
         daily.main()
     assert days == [day(2), day(0)]  # the newest day or two fail gapcheck every morning
@@ -145,8 +157,7 @@ def test_coldcheck_repushes_once_then_warns(seeded, monkeypatch, capsys):
     """Mismatches that survive a re-push are the box's overlapping capture (19), not loss."""
     made = []
     monkeypatch.setattr(daily, "build", lambda root, closed: None)
-    monkeypatch.setattr(daily, "run", lambda target, **var: made.append(target) or
-                        int(target == "coldcheck"))
+    stub_stages(monkeypatch, made, lambda name: int(name == "coldcheck"))
     daily.main()  # exits 0: coldcheck never fails the job
     assert made.count("coldcheck") == 2 and made.count("coldpush") == 2
     assert "coldgaps" in capsys.readouterr().out  # the loss check the warning points at
@@ -244,6 +255,104 @@ def test_the_driver_names_its_steps_from_the_declaration(seeded):
 def test_a_soft_stage_that_fails_does_not_fail_the_job(seeded, monkeypatch):
     """coldcheck is soft in the declaration, not just by returning 0 from inside itself."""
     monkeypatch.setattr(daily, "build", lambda root, closed: None)
-    monkeypatch.setattr(daily, "run", lambda target, **var: 0)
+    stub_stages(monkeypatch, [])
     monkeypatch.setattr(daily, "coldcheck", lambda: 1)
     daily.main()  # no SystemExit
+
+
+# --- the third outcome (orchestration ticket 07) ---------------------------------------
+#
+# A check that could not run tells you nothing about the data. Reporting that as a pass
+# hides a real gap and reporting it as a failure sends someone hunting a phantom, so the
+# driver counts it apart and exits apart. The pinned property is a NEGATIVE one: no path
+# through here renders INCONCLUSIVE as failed, and none renders it as ok.
+
+
+def test_the_inconclusive_rc_is_the_check_vocabularys_own_number():
+    """`INCONCLUSIVE_RC` is a literal in the declaration because raincheck_stage.py READS
+    that file (the DAG image has no raincheck package to import from). Derived here from a
+    real Row through checks.rc() rather than compared to a 2, so the copy cannot drift:
+    move the rule in checks.py and this goes red instead of the nightly going quiet."""
+    from raincheck import checks
+
+    could_not = checks.Row("gapverify", "vp", checks.INCONCLUSIVE, "no pair to compare")
+    a_gap = checks.Row("gapcheck", "vp 2026-08-15", checks.FAIL, "3 hours missing")
+    assert daily.INCONCLUSIVE_RC == checks.rc([could_not])
+    assert daily.INCONCLUSIVE_RC != checks.rc([a_gap]) != checks.rc([])
+    # and a batch that could not check does not become a gap by standing next to one
+    assert checks.rc([could_not, a_gap]) == checks.rc([a_gap])
+
+
+def test_a_gate_that_could_not_check_exits_apart_from_one_that_found_a_gap(capsys):
+    """The whole ticket in one assertion: three rcs in, three different endings out."""
+    ends = {}
+    for rc, names in ((0, ([], [])), (1, (["gapcheck"], [])), (2, ([], ["gapverify"]))):
+        try:
+            daily.verdict(*names)
+            ends[rc] = 0
+        except SystemExit as e:
+            ends[rc] = 1 if isinstance(e.code, str) else e.code
+    assert ends == {0: 0, 1: 1, 2: daily.INCONCLUSIVE_RC}
+    assert len(set(ends.values())) == 3
+
+
+def test_an_inconclusive_beside_a_failure_is_still_a_failure_and_still_named(capsys):
+    """checks.rc()'s own precedence: a real gap outranks a not-run check. But the exit
+    line must not swallow the names - neither list is inflated by the other."""
+    with pytest.raises(SystemExit) as exit:
+        daily.verdict(["gapcheck"], ["gapverify"])
+    assert str(exit.value) == "daily: FAILED - gapcheck (every stage ran; see above)"
+    out = capsys.readouterr().out
+    assert "INCONCLUSIVE - gapverify" in out and "gapcheck" not in out
+
+
+def test_a_gate_runs_its_module_so_make_cannot_flatten_its_verdict(monkeypatch):
+    """GNU make exits 2 for ANY recipe failure (orch 03, measured), so a gate reached
+    through `make` reports a module rc of 1 as 2. Every gate declares the same argv its
+    task pod runs, and this runtime runs THAT - which is what makes the rc below a
+    verdict rather than "some recipe broke"."""
+    spawned = []
+    monkeypatch.setattr(daily, "spawn", lambda argv: spawned.append(argv) or 2)
+    monkeypatch.setattr(daily, "run", lambda t, **v: pytest.fail(f"{t} reached through make"))
+    gate = next(s for s in daily.STAGES if s.name == "gapverify")
+    assert daily.call(gate, {}) == daily.INCONCLUSIVE_RC
+    assert spawned == [("gapfill", "verify")]
+    for s in daily.STAGES:
+        if s.retry == "gate":
+            assert s.argv, f"{s.name} is a gate with no process form"
+
+
+def test_a_bare_make_targets_two_is_a_broken_recipe_and_never_an_inconclusive(monkeypatch):
+    """The conflation inverted, and the one this rendering could newly cause. A transport
+    stage has no argv and goes through make, whose 2 means "a recipe failed" - reading it
+    as "could not check" would file a broken gapfill as a quiet morning."""
+    monkeypatch.setattr(daily, "run", lambda target, **var: 2)
+    transport = next(s for s in daily.STAGES if s.entrypoint.startswith("make:") and not s.argv)
+    assert daily.call(transport, {}) == 1
+
+
+def test_the_job_counts_a_gate_that_could_not_check_apart_from_a_failure(seeded, monkeypatch):
+    """End to end through main(): a gate exiting 2 lands in the inconclusive list, exits
+    with INCONCLUSIVE_RC and never appears as FAILED."""
+    root, _ = seeded
+    monkeypatch.setattr(daily, "build", lambda root, closed: None)
+    monkeypatch.setattr(daily, "precip", lambda month: 0)
+    stub_stages(monkeypatch, [], lambda name: daily.INCONCLUSIVE_RC * (name == "gapverify"))
+    with pytest.raises(SystemExit) as exit:
+        daily.main()
+    assert exit.value.code == daily.INCONCLUSIVE_RC
+
+
+def test_a_py_stage_that_returns_a_make_rc_is_a_failure_and_never_an_inconclusive(
+        seeded, monkeypatch, capsys):
+    """`precip` hands back `run()`'s rc unchanged, and GNU make exits 2 for ANY recipe
+    failure - so a broken precip arrives looking exactly like a gate that could not check.
+    Only a declared GATE's 2 is a verdict; everything else's is a failure."""
+    root, _ = seeded
+    monkeypatch.setattr(daily, "build", lambda root, closed: None)
+    stub_stages(monkeypatch, [], lambda name: 0)
+    monkeypatch.setattr(daily, "run", lambda target, **var: 2 * target.startswith("precip"))
+    with pytest.raises(SystemExit) as exit:
+        daily.main()
+    assert "daily: FAILED - precip" in str(exit.value)
+    assert "INCONCLUSIVE" not in capsys.readouterr().out
