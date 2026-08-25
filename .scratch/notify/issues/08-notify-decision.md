@@ -65,3 +65,15 @@ Unit's own Cell must have taken >= 2.0 mm this Window, and the city must be acti
 **THE MODEL TIER CAN REFUSE ITSELF.** `fd.skew(art, table_score_version)` compares the
 artifact's `score_version` against the table you read, and an ABSENT stamp refuses. A refused
 cycle must send nothing, not a last-good tier.
+
+### CORRECTED (same day, `d5e11f3`) — an adversarial review moved two artifact keys
+
+`fd.TIERS` and the module constants are unchanged, so your vocabulary is unchanged. What
+moved: **the tier NAME list and the cutpoint prose are now under `display`, not under
+`cutpoints`** — `display.tiers`, `display.tier_labels`, `display.cutpoint_basis`,
+`display.cutpoints_confirmed_by`; `cutpoints` is now `{ELEVATED, HIGH, provisional}`.
+`display` is deliberately OUT of `detector_version`, for flood 10's reason: renaming a tier
+must never roll a live Window and clear every latched flag. `detector_version` is
+**`01197991471f`**. Also: `cycle()` now emits H3 Cell ids as HEX strings
+(`fd.hexcell`) because an int64 past 2^53 cannot cross JSON — irrelevant to your
+subscriptions, which are `bus_stop`/`complex` only, but it is what a shared payload carries.
