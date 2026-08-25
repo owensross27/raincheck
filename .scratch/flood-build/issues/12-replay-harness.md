@@ -206,3 +206,198 @@ wording; each was refuted with reasoning I checked and agree with.
 
 **Test count 84. Mutation rounds: 18/18 RED on the first pass, plus 4/4 RED on the review
 fixes, pristine control green both times.**
+
+---
+
+## DONE 2026-08-25 — the replay ran, and the verdict is [YOU]-Ross's
+
+Branch `flood12-replay-harness`, worktree `/Users/ross/raincheck-wt/flood12`.
+`make flood-replay` -> `src/raincheck/flood_replay.py` + `research/flood-12-replay.{json,md}`.
+**This build did NOT touch `research/flood-11-detector.json`.** `cutpoints.provisional` is
+still `true`, `confirmed_by` is untouched and `detector_version` is still `01197991471f`
+— a test asserts the module cannot even name that path. Recording the verdict is Ross's
+act and it bumps the digest by design, which rolls every open Window (`fd.rolled`).
+
+### What ran
+
+195 AORC-era union events (`day_start.year <= 2025`; 2026 has no AORC year, so its 11
+events are out of this universe by arithmetic, not by choice). **133 replayed with full
+evaluation** — the ones `gold/flood_matrix` has rows for — and **62 walk-only** (44
+coastal, 17 mixed, 1 snowmelt: the fit universe is pluvial-only, and `density_311_3y` is a
+per-(Cell, event) covariate the matrix build derives, so scoring them would be a REBUILD,
+not a replay). **4,326 hourly cycles** through `fd.cycle` with the state chained exactly
+as `live_loop` chains it, over the offline event window `(window_start, window_end]`.
+
+**Excluded AND counted:** 4,250 cycles OK / **76 INSUFFICIENT_DATA** / **0 WINDOW_CAPPED**
+(the six-day cap never fired on AORC). Three events carry the insufficient cycles
+(2010-10-01, 2011-08-01, 2013-09-02) and **one — 2011-08-01 — has no OK cycle at all** and
+contributes nothing to any number here. Those same three are the only events with no
+signed feature delta, because no cycle of theirs had a live Window covering the calendar
+`window_start`.
+
+**Every OK cycle reported `coverage 1.0` and `unforced_cells 168`, and NOT ONE reported
+HOLES.** That is the dark-Cell MUST paying off, visibly: had those 168 permanently dark
+AORC Cells been counted as holes rather than as UNFORCED, all 4,250 cycles would have read
+HOLES and the whole replay would have published the degrade state.
+
+### The Window walk corroborates flood 11 independently
+
+**90 of 169 events with citywide rain land exactly on the offline `window_start`**; day
+deltas `-1: 58 · -2: 4 · -3: 3 · 0: 90 · +1: 10 · +2: 1 · no anchor: 3`. flood 11 measured
+`89 of 166`, `-1: 56 · -2: 4 · -3: 3 · 0: 89 · +1: 10 · +2: 1 · insufficient: 3` — the same
+shape on a slightly larger denominator (this universe includes the non-pluvial AORC-era
+events). **Nothing was "fixed" to make the two agree**; a test asserts the calendar window
+is never substituted for the live anchor.
+
+**The signed live-minus-offline deltas say the same thing from the other side.** Over
+175,630 Cells and 130 events the median of event medians is **0.0000 for all three
+terms** — the arithmetic is exact and most events reproduce the offline features to the
+digit. The disagreement is concentrated where the theory says it must be: 28 events have a
+POSITIVE median `log1p_precip_total_mm` (a longer live Window is a larger total by
+construction) and 29 have a NEGATIVE median `log1p_antecedent_mm_24h` (an earlier anchor
+freezes the antecedent block earlier). 6 / 6 on the max term.
+
+### THE FP TABLE — what the provisional cutpoints would have cost
+
+Readout: the UNION of tiers over an event's cycles, which is what a subscriber received.
+Reading only the standing set at `window_end` would have measured the morning after the
+storm — Ida's last replayed cycle stands at **zero** flags with 264 mm in its peak Cell,
+because the Window had already rolled.
+
+| grain | rows | positives | base | tier | flagged | alert rate | TP | FP | POD | precision | CSI/base |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| cell | 179,683 | 6,554 | 3.648% | ELEVATED+ | 23,342 | 12.99% | 2,660 | **20,682** | 0.406 | 11.40% (3.12x) | 2.68 |
+| cell | | | | HIGH | 5,159 | 2.87% | 896 | **4,263** | 0.137 | 17.37% (4.76x) | 2.27 |
+| bus_stop | 502,756 | 2,831 | 0.563% | ELEVATED+ | 76,165 | 15.15% | 1,032 | **75,133** | 0.365 | 1.35% (2.41x) | 2.35 |
+| bus_stop | | | | HIGH | 14,521 | 2.89% | 370 | **14,151** | 0.131 | 2.55% (4.53x) | 3.87 |
+| complex | 43,089 | 118 | 0.274% | ELEVATED+ | 5,214 | 12.10% | 29 | **5,185** | 0.246 | 0.56% (2.03x) | 2.00 |
+| complex | | | | HIGH | 956 | 2.22% | 5 | **951** | 0.042 | 0.52% (1.91x) | 1.71 |
+
+**flood 09's pooled out-of-fold decisions, NOT superseded** (one global cut, location-
+blocked): cell 5.66% -> 2,297 TP / **7,881 FP**, POD 0.351, precision 22.6% (**6.19x**);
+point **1.11% -> 381 TP / 8,295 FP**, POD 0.095, precision 4.39% (**8.57x**).
+
+**The base-rate rule is applied and it matters here** (flood 18). The detector publishes no
+entrance row, so its point universe is **bus stops** (502,756 rows, base 0.563%) while
+flood 09's `per_event.point` is `fit_point` = bus stops AND entrances (783,351 rows, base
+0.512%). Every rate above is divided by its own base rate; the Cell universe is identical
+on both sides and needs no such care.
+
+**WHERE THE ALERT BUDGET GOES — the finding a pooled row cannot show.** Quartiles of 33
+events by positives:
+
+* **Cell, top quartile (the events with the most flooding):** this cut alarms at **16.64%
+  for POD 0.379**; flood 09's fitted cut reaches **POD 0.436 at 5.66%**. Three times the
+  alarms and it catches LESS.
+* **Cell, bottom quartile:** **1,514 false alarms for 11 hits**, against flood 09's **38
+  for 0**.
+* **bus_stop, top quartile:** 18.73% for POD 0.366 against flood 09's 0.116 — real POD,
+  bought with **69,005 FP against 8,093**.
+* **bus_stop, bottom quartile: 0 flags.** The two gates (own Cell >= 2.0 mm, citywide
+  active) do shut: 96 of 133 events flag no bus stop at all, and 28 flag nothing anywhere.
+
+The mechanism is structural, not a tuning miss: **a within-kind rank re-normalises to the
+current vector every cycle, so it spends the same ~10% of the city on a storm that floods
+nothing as on one that floods everywhere.** The eta vector knows this storm is bigger; the
+rank throws that away by construction. A single global cut does the opposite.
+
+### THE RADAR-ONLY-vs-AORC RATIO — measured, and it is a CHAIN
+
+**A direct measurement is impossible on this root and that is arithmetic, not effort:
+`src=aorc` ends 2025-12-31, `src=mrms` begins 2026-07-31, and the asset asserts the
+overlap is ZERO hours.** The pair that IS on disk has never been compared before:
+
+* **RadarOnly / Pass2 = 0.933** on **8,549 wet paired Cell-hours over 83 hours**
+  (`live/precip_cell`, deduped to the newest `fetched_at`, against
+  `silver/precip_cell_hourly/src=mrms`). All-pairs 0.938; median pair ratio 0.937. Both
+  sides go through the SAME area-weighted `ref/cell_pixel` crosswalk with the same
+  weight-sum guard, so this is the product, not the averaging.
+* Pass2 / AORC = **[0.86, 0.92]**, flood 06's band via `flood_fits.SCALE_BAND`, read and
+  not re-measured.
+* **RadarOnly / AORC = [0.803, 0.859].** **RadarOnly runs 14-20% LOW against the forcing
+  the model was fitted on, so `gates.own_cell_window_mm` = 2.0 mm of RAW RadarOnly is
+  CONSERVATIVE** — a Cell needs marginally more true rain to raise a flag. flood 11 hoped
+  for that direction and it holds.
+* **Limit, stated:** one storm carries the wet pairs (2026-08-23, plus two hours on
+  08-24). The mass-carrying hours run ~0.90 and the near-dry hours run above 1.0. This is
+  a first measurement of the product ratio, not a climatology of it, and it still applies
+  no band to anything.
+
+### THE QUESTION, VERBATIM: "cutpoints confirmed, or v1 ships rank-only"
+
+**RECOMMENDATION: v1 ships rank-only.** Four measured reasons, in order of weight.
+
+1. **The cutpoints are the only unfitted number in the chain, and the replay says they
+   cost more than the fitted one buys.** 10% / 2% within kind were chosen a priori;
+   flood 09's 1.11% was the CSI-maximising cut transferred as an alert rate. At every
+   grain and every cut the provisional rank is less efficient than that one operating
+   point: precision lift 3.12x vs 6.19x at Cell grain, 2.41x vs 8.57x at point grain.
+   Confirming would bless an unfitted cut with a measurement that shows it losing.
+2. **It spends the budget on the wrong events.** POD 0.379 against 0.436 on the Cell
+   quartile with the most flooding, while alarming three times as often; 1,514 false
+   alarms for 11 hits on the quartile with the least. Trust in a flood product is built
+   on the big events, and this cut under-covers exactly those.
+3. **At complex grain a tier is a claim the artifact refuses to make.** ELEVATED+ would
+   badge 5,214 complex-events for 29 hits (precision 0.56%) on a grain whose own
+   disclaimer records 1 of 118 independent positives caught. `display.no_complex_skill_
+   claim` and a complex badge cannot both ship.
+4. **The rank is the part that IS validated, and rank-only costs nothing downstream.**
+   flood 18 measured that ranks survive the base-rate moves that reverse raw-CSI
+   orderings; the cutpoints were never in that evidence. notify 08's box already requires
+   its policy to survive the tiers vanishing, and flood 15 reads `cutpoints.provisional`
+   at render time — so rank-only blocks nothing in wave 6.
+
+**The honest counter-case, so the call can be overruled with open eyes.** If a badge must
+ship in v1, **HIGH alone at CELL grain** is the only cut this measurement supports: 2.87%
+alert rate, 896 hits, **4,263 false alarms — fewer in absolute terms than flood 09's own
+7,881** — precision 17.37%, lift 4.76x against the fitted cut's 6.19x. It should not be
+extended to bus stops (2.55% precision, 38 false alarms per hit) and must not be extended
+to complexes. ELEVATED is not defensible at any grain on these numbers.
+
+**Either way `detector_version` bumps and every open Window rolls. That is correct and it
+is the point.** notify 08 and flood 15 read the outcome from
+`research/flood-11-detector.json` at run time; nobody re-types it.
+
+### Four limits of this replay, named rather than buried
+
+1. **The revision log is UNEXERCISED: 0 revisions across 4,250 cycles.** AORC is a
+   reanalysis and never revises its series, so `fd.revisions` and the
+   "a downward revision never clears a flag" rule got no live exercise here. The live
+   RadarOnly product DOES revise. That path is tested only by flood 11's unit tests.
+2. **The winter gate ran on a SUBSTITUTED observation.** Live it consumes flood 14's
+   Central Park (KNYC) reading and there is no KNYC history on this root, so the replay
+   passes the citywide MEDIAN AORC `t2m_c` for the hour. 20 events had at least one
+   suppressed cycle. The alternative — passing nothing — would fall back to the calendar
+   and suppress every snowmelt-month event whether or not it was freezing.
+3. **62 of 195 AORC-era events are walk-only** (above). Their Window walks are in the
+   `window_agreement` numbers; none of their units are in any skill number.
+4. **The forcing ratio rests on one storm** (above).
+
+### For whoever replays this function next (notify 11, wave 7)
+
+    from raincheck import flood_replay as fr, flood_detect as fd, duck
+    evs  = fr.events(con, root)              # AORC-era events; `in_matrix` False = walk-only
+    wet  = fr.citywide(con, root, lo, hi)    # {hour_end: wet Cell COUNT}, the WHOLE grid
+    temp = fr.temps(con, root, lo, hi)       # {hour_end: citywide median t2m_c}
+    byh  = fr.cell_rows(con, root, lo, hi)   # {hour_end: [row]}, NULL rows KEPT
+    us   = fr.units(con, root, event_id)     # gold/flood_matrix's rows + `flooded`
+    r    = fr.replay(ev, wet, temp, byh, us, art, det, score_version)
+    rows = fr.slice_rows(byh, anchor, now)   # a LIST — cycle() reads it TWICE
+
+**A TRAP WORTH THE WHOLE TICKET: `fd.cycle` iterates `cell_hours` TWICE** — once for the
+newest stamp, then again inside `window_features`. Hand it a generator and the first pass
+exhausts it, the Window comes back with **no Cells, coverage 1.0 and nothing flagged**, and
+it is indistinguishable from a quiet night. It cost this build one wrong 54-cycle table
+before the trace showed Ida flagging zero units with 264 mm on the ground.
+
+**Tests: `tests/test_flood_replay.py`, 38 defs; `tests/test_flood_detect.py` unchanged at
+84. Mutation round 14/14 RED, pristine control green before and after.** The first round
+lied — zsh does not word-split an unquoted `$VAR`, so `git checkout -- $PATHS` treated the
+whole string as one pathspec, the restore was a silent no-op and mutants accumulated; the
+pristine control caught it (TRAPS already carries that shape from orch 04). The harness now
+uses a zsh ARRAY, refuses a dirty tree, snapshots from git, `git clean`s as well as checks
+out, asserts `git status --porcelain` is EMPTY after every restore, and exports
+`PYTHONDONTWRITEBYTECODE=1`. Two survivors were closed rather than explained: folding
+ELEVATED into the HIGH row (the two rows are nested and NOT equal), and reading the standing
+set at `window_end` instead of the union over cycles (`r["end_flagged"]` is published so
+that claim can be checked rather than believed).
