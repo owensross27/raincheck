@@ -17,6 +17,7 @@ The bucket IS the `web/` tree, so the page's relative paths work unchanged:
     files/live.geojson · files/meta.json            30 s             family `live`   GATED
     files/history/**                                per spine rebuild  family `history`
     docs/**                                         per Airflow run  family `docs`
+    showcase/**                                     per landing      family `showcase`
 
 **Families are explicit file lists, not directory syncs, and that is load-bearing.** The
 live pair and the insight trio are written into the same `web/files/` directory by two
@@ -152,6 +153,15 @@ FAMILIES: dict[str, Family] = {
     "docs": Family(
         cadence="per Airflow run", writer="the GX checkpoint's Data Docs task [orch 08]",
         src=lambda: data_root() / "gx" / "data_docs", prefix="docs/"),
+    "showcase": Family(
+        # A TREE and not a file list, which is what makes the artifacts inside it this
+        # writer's to name: `make showcase` renders the walkthrough, the task graph and one
+        # recorded run, and a fourth artifact later owes no contract bump (frontend 06's
+        # subset rule). Its own family rather than a corner of `site` because the writer and
+        # the cadence are different ones - `site` is deploy-time and hand-vendored, this
+        # re-renders whenever the declaration moves or a run is recorded.
+        cadence="per landing or recorded run", writer="`make showcase` [orch 13]",
+        src=lambda: WEB / "showcase", prefix="showcase/"),
     "history": Family(
         cadence="per spine rebuild", writer="`make export`'s static query surface [notify 05]",
         src=lambda: WEB / "files" / "history", prefix="files/history/"),

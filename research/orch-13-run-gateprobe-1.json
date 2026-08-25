@@ -1,0 +1,122 @@
+{
+  "run": {
+    "dag_id": "raincheck_gateprobe",
+    "run_id": "gateprobe-1",
+    "label": "probe",
+    "started": "2026-08-25T19:25:02.657385Z",
+    "ended": "2026-08-25T19:29:37.758732Z",
+    "wall_seconds": 275.1
+  },
+  "source": {
+    "kind": "the run's own Airflow task logs",
+    "states": "derived from each log's ending; see raincheck.showcase._state"
+  },
+  "instances": [
+    {
+      "task_id": "done",
+      "map_index": -1,
+      "tries": 1,
+      "started": "2026-08-25T19:29:29.768737Z",
+      "ended": "2026-08-25T19:29:37.758732Z",
+      "seconds": 8.0,
+      "state": "success",
+      "exit_code": null
+    },
+    {
+      "task_id": "gate_rc1",
+      "map_index": -1,
+      "tries": 1,
+      "started": "2026-08-25T19:29:07.726468Z",
+      "ended": "2026-08-25T19:29:19.940889Z",
+      "seconds": 12.2,
+      "state": "failed",
+      "exit_code": 1
+    },
+    {
+      "task_id": "gate_rc2",
+      "map_index": -1,
+      "tries": 1,
+      "started": "2026-08-25T19:28:56.593986Z",
+      "ended": "2026-08-25T19:29:04.381668Z",
+      "seconds": 7.8,
+      "state": "skipped",
+      "exit_code": 2
+    },
+    {
+      "task_id": "mapped_a",
+      "map_index": 0,
+      "tries": 1,
+      "started": "2026-08-25T19:25:56.191208Z",
+      "ended": "2026-08-25T19:27:46.653282Z",
+      "seconds": 110.5,
+      "state": "success",
+      "exit_code": null
+    },
+    {
+      "task_id": "mapped_a",
+      "map_index": 1,
+      "tries": 1,
+      "started": "2026-08-25T19:26:04.954966Z",
+      "ended": "2026-08-25T19:27:47.606898Z",
+      "seconds": 102.7,
+      "state": "success",
+      "exit_code": null
+    },
+    {
+      "task_id": "mapped_a",
+      "map_index": 2,
+      "tries": 1,
+      "started": "2026-08-25T19:27:23.632678Z",
+      "ended": "2026-08-25T19:27:49.982267Z",
+      "seconds": 26.3,
+      "state": "success",
+      "exit_code": null
+    },
+    {
+      "task_id": "plan_a",
+      "map_index": -1,
+      "tries": 1,
+      "started": "2026-08-25T19:25:02.657385Z",
+      "ended": "2026-08-25T19:25:50.607335Z",
+      "seconds": 47.9,
+      "state": "success",
+      "exit_code": null
+    },
+    {
+      "task_id": "plan_empty",
+      "map_index": -1,
+      "tries": 1,
+      "started": "2026-08-25T19:28:27.309215Z",
+      "ended": "2026-08-25T19:28:35.497992Z",
+      "seconds": 8.2,
+      "state": "success",
+      "exit_code": null
+    },
+    {
+      "task_id": "reduce",
+      "map_index": -1,
+      "tries": 1,
+      "started": "2026-08-25T19:28:39.844851Z",
+      "ended": "2026-08-25T19:28:52.115951Z",
+      "seconds": 12.3,
+      "state": "success",
+      "exit_code": null
+    }
+  ],
+  "totals": {
+    "instances": 9,
+    "pods": 18,
+    "task_seconds": 335.9,
+    "widest_map": 3
+  },
+  "verdict": {
+    "lines": [],
+    "source": null,
+    "reason": "this run declares no report task, so it writes no daily verdict line at all; the per-instance states are its whole record"
+  },
+  "serial_baseline": {
+    "seconds": 1928,
+    "service_days": 7,
+    "steady_seconds_per_day": 275
+  }
+}

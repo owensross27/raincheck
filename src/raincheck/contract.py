@@ -91,6 +91,7 @@ SCHEMA = {
     "files/meta.json": "src/raincheck/live_export.py",
     "files/history/**": "src/raincheck/query.py (events_for_asset, mode='public')",
     "docs/**": "Great Expectations Data Docs (orchestration ticket 08)",
+    "showcase/**": "src/raincheck/showcase.py (orchestration ticket 13)",
 }
 
 

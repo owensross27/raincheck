@@ -268,6 +268,11 @@ export:  ## insight files from Gold -> web/files (make export [GATE=0.30] sweeps
 web:  ## serve web/ with the stdlib server (make web [PORT=8000]); nothing needs Range requests
 	$(PY) -m http.server $(or $(PORT),8000) --directory web
 
+# --- orchestration ticket 13: the showcase surface ---------------------------------
+.PHONY: showcase
+showcase:  ## the portfolio surface -> web/showcase (make showcase [LOGS=<airflow log dir> LABEL=probe|shadow|nightly])
+	$(PY) -m raincheck.showcase $(if $(LOGS),--logs $(LOGS) --label $(LABEL))
+
 # --- ticket 14: the live export loop (foreground, 30 s, Ctrl-C stops it) -----------
 .PHONY: live-export
 live-export:  ## live.geojson + meta.json every 30 s (make live-export [SOURCE=bronze] [ONCE=1])
@@ -299,5 +304,5 @@ inboundaudit:  ## cluster security groups vs deploy/cloud/inbound-allowlist.yaml
 # failure - but MEASURED: make flattens any recipe failure to its own rc 2, so anything
 # that has to tell "gated" from "broken" calls the module, never this target.
 .PHONY: publish
-publish:  ## publish one payload family to the public static host (make publish FAMILY=site|insight|live|docs|history [DRY=1])
+publish:  ## publish one payload family to the public static host (make publish FAMILY=site|insight|live|docs|history|showcase [DRY=1])
 	$(PY) -m raincheck.publish --family $(FAMILY) $(if $(DRY),--dry-run)
