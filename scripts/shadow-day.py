@@ -107,22 +107,45 @@ SHADOW = prefix()                                     # s3a://bucket/prefix, the
 S3 = "s3://" + SHADOW.split("//", 1)[1]               # the same tree, the aws CLI spelling
 
 
+def credentials() -> None:
+    """The cold token, under the names DuckDB's own credential chain reads, so that
+    `parity.compare` can open the shadow side at all. The Makefile does this for `make
+    coldpush`; a script make may not run has to do it itself. Set on the ENVIRONMENT and
+    never on a command line - argv is world-readable in `ps`, which is the rule cold.py
+    follows and the reason the aws calls below inherit rather than carry."""
+    os.environ.setdefault("AWS_DEFAULT_REGION", "auto")   # R2 rejects real region names
+    for cold, aws_name in (("RAINCHECK_COLD_KEY_ID", "AWS_ACCESS_KEY_ID"),
+                           ("RAINCHECK_COLD_SECRET", "AWS_SECRET_ACCESS_KEY"),
+                           ("RAINCHECK_COLD_ENDPOINT", "AWS_ENDPOINT_URL")):
+        value = os.environ.get(cold) or ENV.get(cold, "")
+        if value and not os.environ.get(aws_name):
+            os.environ[aws_name] = value
+
+
 def aws(*args: str) -> subprocess.CompletedProcess:
-    """The cold credentials go through the environment, never argv (argv is world-readable
-    in `ps`) - the same rule cold.py follows."""
-    env = {**os.environ, "AWS_DEFAULT_REGION": "auto",
-           "AWS_ACCESS_KEY_ID": os.environ.get("RAINCHECK_COLD_KEY_ID")
-           or ENV.get("RAINCHECK_COLD_KEY_ID", ""),
-           "AWS_SECRET_ACCESS_KEY": os.environ.get("RAINCHECK_COLD_SECRET")
-           or ENV.get("RAINCHECK_COLD_SECRET", "")}
     return subprocess.run(["aws", "s3", "--endpoint-url", ENDPOINT, *args],
-                          capture_output=True, text=True, env=env)
+                          capture_output=True, text=True)
+
+
+def plain() -> dict:
+    """The environment WITHOUT the R2 token, for everything that talks to real AWS or runs
+    a stage locally.
+
+    Measured the hard way: credentials() puts the Cloudflare keys under the AWS_* names,
+    because that is the only chain DuckDB's httpfs reads - and kubeconfig's `aws eks
+    get-token` reads exactly the same names, so every kubectl call in this process tree
+    came back `You must be logged in to the server (Unauthorized)` with a perfectly valid
+    cluster in front of it. The same names also flip `spark.py` onto its s3a branch, which
+    is not the shape a LOCAL Mac build runs in. One scrub, both problems."""
+    return {k: v for k, v in os.environ.items()
+            if k not in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
+                         "AWS_ENDPOINT_URL", "AWS_DEFAULT_REGION")}
 
 
 def airflow(*args: str) -> str:
     p = subprocess.run(["kubectl", "exec", "-n", "raincheck", "deploy/airflow-scheduler",
                         "-c", "scheduler", "--", "airflow", *args],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, env=plain())
     if p.returncode:
         fail(2, f"airflow {' '.join(args)}: {p.stderr.strip()[-400:]}")
     return p.stdout
@@ -130,8 +153,18 @@ def airflow(*args: str) -> str:
 
 def rows(out: str) -> list[dict]:
     """The CLI writes structured logging onto stdout beside its own output, so the JSON is
-    carved out rather than parsed off line 1."""
-    return json.loads(out[out.index("["):out.rindex("]") + 1])
+    carved out rather than parsed off line 1 - and the carve cannot be "from the first
+    bracket", because those log lines are `... [info ] setup plugin ...` and the first
+    bracket is theirs. Try each opening bracket in turn against the last closing one; the
+    first that parses IS the payload, and an Airflow that printed no JSON at all raises
+    here rather than reading as an empty result set."""
+    end = out.rindex("]") + 1 if "]" in out else 0
+    for start in (i for i, c in enumerate(out) if c == "["):
+        try:
+            return json.loads(out[start:end])
+        except json.JSONDecodeError:
+            continue
+    fail(2, f"no JSON in the airflow CLI output: {out.strip()[-400:]}")
 
 
 def spans(days: list[str]) -> list[tuple[str, str]]:
@@ -154,6 +187,38 @@ def stage(days: list[str]) -> None:
             fail(2, f"staging {rel}: {p.stderr.strip()[-300:]}")
         print(f"shadow-day: staged {rel} ({len(p.stdout.splitlines())} object(s) copied)",
               flush=True)
+
+
+def reconcile(rows: list[dict]) -> list[str]:
+    """Replace, from the MAC'S OWN Bronze, every input partition where the mirror is not
+    what the Mac reads.
+
+    MEASURED 2026-08-25 and it is not a mirror defect: `s3://<bucket>/archive` is a UNION
+    of this Mac's capture and the EC2 capture box's overlapping capture of the same feed
+    (ticket 19), and `coldcheck` syncs `--size-only`, so whichever pushed an hour first
+    keeps it. The two versions hold the SAME feed messages - identical in every column and
+    even identical in file size - and differ only in `fetched_at`, each poller's own fetch
+    instant. That is not cosmetic: `enrich` orders on it and `events` derives the TU churn
+    features (pred_first_horizon_s, pred_err_10min_s, pred_range_s, pred_n_changes) from
+    it, so a day built off the box's copy legitimately differs from the Mac's.
+
+    A shadow asks whether two RUNTIMES agree, so the inputs are pinned to one capture and
+    the difference is recorded rather than tolerated. `rm` before `sync`: an upload skips a
+    destination object of the same size whose timestamp is newer, which every server-side
+    copy here is."""
+    fixed = []
+    for row in rows:
+        base = row["a"].split(f"{S3}/", 1)[1]
+        for part in row["differing"]:
+            rel = f"{base}/{part}" if part else base
+            aws("rm", "--recursive", "--quiet", f"{S3}/{rel}")
+            p = aws("sync", str(MAC / rel) + "/", f"{S3}/{rel}/", "--no-progress")
+            if p.returncode:
+                fail(2, f"reconciling {rel}: {p.stderr.strip()[-300:]}")
+            fixed.append(rel)
+    print(f"shadow-day: reconciled {len(fixed)} input partition(s) the capture box also "
+          f"holds - the shadow reads THIS Mac's Bronze, not the union", flush=True)
+    return fixed
 
 
 def clear(days: list[str]) -> None:
@@ -196,17 +261,20 @@ def cluster(days: list[str]) -> dict:
     print(f"shadow-day: triggered {DAG_ID} {run_id}", flush=True)
     deadline = time.monotonic() + DEADLINE_S
     while True:
+        # The RUN's state first, and the tasks' second. A mapped task's instances appear as
+        # the expansion happens, so a poll that lands between two of them sees a set of task
+        # rows that are all terminal while the run is nowhere near over.
+        run = next((r for r in rows(airflow("dags", "list-runs", DAG_ID, "-o", "json"))
+                    if r["run_id"] == run_id), None)
         states = rows(airflow("tasks", "states-for-dag-run", DAG_ID, run_id, "-o", "json"))
         live = [r for r in states if r["state"] in (None, "", "queued", "running",
                                                     "scheduled", "up_for_retry", "deferred")]
-        if states and not live:
+        if run and run["state"] in ("success", "failed") and not live:
             break
         if time.monotonic() > deadline:
             fail(2, f"{run_id} still running after {DEADLINE_S}s: "
                     f"{[(r['task_id'], r['state']) for r in live]}")
         time.sleep(POLL_S)
-    run = next(r for r in rows(airflow("dags", "list-runs", DAG_ID, "-o", "json"))
-               if r["run_id"] == run_id)
     tally: dict[str, list[str]] = {}
     for r in states:
         tally.setdefault(r["task_id"], []).append(r["state"])
@@ -219,7 +287,7 @@ def mac(days: list[str]) -> dict[str, int]:
     """The identical commands the pods run, in the identical process form: since ticket 07
     a declared stage with an argv runs as its own process on `make daily` too."""
     link_local()
-    env = {**os.environ, "RAINCHECK_ARCHIVE_ROOT": str(LOCAL)}
+    env = {**plain(), "RAINCHECK_ARCHIVE_ROOT": str(LOCAL)}
     out = {}
     for day in days:
         out[day] = subprocess.call([sys.executable, "-m", "raincheck.daily", "events", day],
@@ -235,8 +303,9 @@ def compare(remote: str, local: Path) -> dict:
     try:
         report = parity.compare(remote, str(local))
     except Exception as e:                      # unreadable side: could not check, never ok
-        return {"a": remote, "b": str(local), "ok": None, "detail": f"INCONCLUSIVE: {e}"}
-    return {"a": remote, "b": str(local), "ok": report.ok,
+        return {"a": remote, "b": str(local), "ok": None, "differing": None,
+                "detail": f"INCONCLUSIVE: {e}"}
+    return {"a": remote, "b": str(local), "ok": report.ok, "differing": report.differing,
             "rows": {p: report.a[p][0] for p in sorted(report.a)},
             "sha": {p: report.a[p][1][:12] for p in sorted(report.a)},
             "detail": report.lines()[-1] if report.ok else str(report)}
@@ -247,6 +316,7 @@ def main(argv: list[str]) -> int:
         fail(2, "usage: scripts/shadow-day.py DAY [DAY ...]")
     if not (BUCKET and ENDPOINT):
         fail(2, "RAINCHECK_COLD_BUCKET / _ENDPOINT are unset - see .env")
+    credentials()
     days = sorted(argv)
 
     stage(days)
@@ -254,10 +324,16 @@ def main(argv: list[str]) -> int:
               for kind, d in spans(days)]
     for row in inputs:
         print(f"shadow-day: INPUT {row['a']}: {row['detail'].splitlines()[-1]}", flush=True)
-    if not all(row["ok"] for row in inputs):
-        fail(2, "the two sides do not read the same Bronze, so nothing downstream would be "
-                "a statement about the runtimes. Push the missing hours (make coldpush) or "
-                "pick another day.")
+    fixed = reconcile([r for r in inputs if not r["ok"]])
+    for rel in fixed:                       # re-proved one partition at a time, not the lot
+        again = compare(f"{S3}/{rel}", MAC / rel)
+        if not again["ok"]:
+            fail(2, f"{rel} still differs after reconciling: {again['detail']}")
+    if any(row["differing"] is None or (not row["ok"] and not row["differing"])
+           for row in inputs):
+        fail(2, "an input partition is missing on one side, which reconciling cannot fix - "
+                "the two sides would not read the same Bronze, so nothing downstream would "
+                "be a statement about the runtimes. Run `make coldpush` and try again.")
 
     clear(days)
     run = cluster(days)
@@ -284,7 +360,8 @@ def main(argv: list[str]) -> int:
         ok = all(c["ok"] for c in content) and outcome["ok"]
         entries.append({"day": day, "recorded_utc": datetime.now(timezone.utc).isoformat(),
                         "run_id": run["run_id"], "shadow_root": SHADOW, "mac_root": str(LOCAL),
-                        "content": content, "outcome": outcome, "inputs_equal": True,
+                        "content": content, "outcome": outcome,
+                        "inputs_equal": True, "inputs_reconciled": fixed,
                         "clean": ok})
         worst = max(worst, 0 if ok else 1)
         print(f"\nshadow-day: {day} {'CLEAN' if ok else 'NOT CLEAN'}", flush=True)

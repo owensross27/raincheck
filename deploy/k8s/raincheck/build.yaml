@@ -35,6 +35,17 @@ metadata:
     raincheck.io/stages: "gapfill, gapverify, gapcheck, coldpush, coldcheck, prune, gxcheck"
 template:
   metadata:
+    # MEASURED 2026-08-25 (orch 11's first shadow run): without this, Karpenter CONSOLIDATES
+    # THE NODE OUT FROM UNDER A RUNNING STAGE POD. The burst pool is
+    # `WhenEmptyOrUnderutilized` with `consolidateAfter: 1m` - right for reclaiming a
+    # finished build fast, and fatal to a seven-minute one: as the short tasks of a fan-out
+    # finish, their node looks underutilized and a still-building `events` pod is evicted
+    # ("Evicted pod: Underutilized" -> SIGKILL -> exit 137, which reads exactly like an
+    # OOMKill and is not one). Karpenter does not voluntarily disrupt a node whose pods
+    # carry this annotation, and it costs nothing here: these pods are `restartPolicy:
+    # Never` and live minutes, so the node is consolidatable again the moment one exits.
+    annotations:
+      karpenter.sh/do-not-disrupt: "true"
     labels:
       app.kubernetes.io/name: raincheck
       raincheck.io/shape: stage
@@ -135,6 +146,17 @@ metadata:
     # timing one is the conservative direction.
 template:
   metadata:
+    # MEASURED 2026-08-25 (orch 11's first shadow run): without this, Karpenter CONSOLIDATES
+    # THE NODE OUT FROM UNDER A RUNNING STAGE POD. The burst pool is
+    # `WhenEmptyOrUnderutilized` with `consolidateAfter: 1m` - right for reclaiming a
+    # finished build fast, and fatal to a seven-minute one: as the short tasks of a fan-out
+    # finish, their node looks underutilized and a still-building `events` pod is evicted
+    # ("Evicted pod: Underutilized" -> SIGKILL -> exit 137, which reads exactly like an
+    # OOMKill and is not one). Karpenter does not voluntarily disrupt a node whose pods
+    # carry this annotation, and it costs nothing here: these pods are `restartPolicy:
+    # Never` and live minutes, so the node is consolidatable again the moment one exits.
+    annotations:
+      karpenter.sh/do-not-disrupt: "true"
     labels:
       app.kubernetes.io/name: raincheck
       raincheck.io/shape: spark
