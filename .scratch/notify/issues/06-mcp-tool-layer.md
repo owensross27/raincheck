@@ -108,3 +108,63 @@ The tool takes ONE argument, `asset_id`, the same name `events_for_asset` takes 
 ## Forward-context from DESTINATION-PLAN.md (copied verbatim by the WAVE 5 GATE PART 2, 2026-08-25, from this ticket's summary line in waves/wave-3-plus.md)
 
 **FROM DESTINATION-PLAN (2026-08-25), one line:** the static `files/summary/**` (frontend2 04, wave 8) is where an agent asks "where flooded recently / which complexes / how many routes"; a tool description MAY point at it later. Not built here; the four tools stay exactly four.
+
+## Inherited from notify 04 (landed 2026-08-25, branch `notify04-area-queries`) — your other two tools exist, so all FOUR are built
+
+    query("assets_in_area", {"cells": ["882a1072c1fffff", ...]}, root, mode=...) -> dict
+    query("assets_in_area", {"bbox": [west, south, east, north]}, root, mode=...) -> dict
+
+    {"query": "assets_in_area", "mode": "public",
+     "area":   {"cells": ["<h3 hex>", ...], "n_cells": N, "bbox"?: [w, s, e, n]},
+     "n_assets": N,
+     "assets": [{asset_id, kind, name?, cell, complex_id?, n_events, last_event_id?}, ...],
+     "reason"?: "no assets in this area",          # only when the list is empty
+     "versions": {assets_version, spine_version, label_version, score_version?}}
+
+    query("obs_near", {"asset_id": "stn:611", "radius_m": 500}, root, mode="local") -> dict
+    query("obs_near", {"lon": -73.98, "lat": 40.75, "radius_m": 500}, root, mode="local")
+
+    {"query": "obs_near", "mode": "local",
+     "point":  {lon, lat, radius_m, asset_id?},    # asset_id only when you gave one
+     "n_observations": N,
+     "observations": [{source, source_id, ts_utc, obs_ts_kind, cell?, depth_mm?, text?,
+                       distance_m}, ...],          # NEAREST FIRST
+     "versions": {...}}
+
+**The tool argument names, which is the row your checklist actually binds:** `cells`,
+`bbox`, `asset_id`, `lon`, `lat`, `radius_m`. `cells` is a list of H3 HEX STRINGS (a lone
+string is accepted as a one-element list); giving both `cells` and `bbox` unions them.
+`radius_m` defaults to 500 and `assets_in_area` has no default at all — one of `cells` or
+`bbox` is required (`missing_param` names `cells|bbox`).
+
+- **`REASONS` IS STILL UNCHANGED** — eight names, the same eight notify 02 froze. Ticket 04
+  RAISED the two that were waiting: `area_too_large` (an area past `query.CELL_CAP` = 64
+  Cells, or a radius past `query.RADIUS_CAP_M` = 2,000 m; the detail carries the count and
+  the cap so an agent can retry smaller) and `restricted_source` (`obs_near` in `public`).
+  Both are now documented in `docs/read-api-contract.md`. A ninth name is still owed to
+  nobody: an UNBUILT table refuses as `version_unresolved` naming the table.
+- **`obs_near` is the ONE tool your `local` flag changes**, and it changes it to a refusal,
+  not to a smaller payload: in `public` it raises `restricted_source` BEFORE it looks at any
+  other argument, so a hosted server learns nothing from the shape of a later error. The
+  other three answer identically in both modes. Say that in its description — an agent that
+  reads "local only" as "richer when local" will keep retrying.
+- **Cell ids cross as H3 HEX STRINGS in BOTH directions.** The int64 is refused by name
+  rather than accepted, because a JSON reader using doubles has already corrupted
+  613229535722209279 by the time it reaches the tool. An agent that got a Cell from
+  `events_for_asset`'s `asset.cell` can pass it straight back into `cells`.
+- **Cell is the only area key, permanently in v1**: no polygon parameter (a caller holding
+  one resolves it to Cells itself), and no Zone anywhere — a Zone is a presentation overlay
+  resolved through the static Cell-to-Zone lookup at serving time. `assets_in_zone` and
+  `obs_in_polygon` raise `unknown_query` and a test pins that they stay unregistered. **The
+  tools stay exactly four.**
+- **Size, measured on the real root 2026-08-25:** a 2.2 km bbox (7 Cells) is 242 assets /
+  35 KB / 0.31 s; the WORST case the cap allows (the 64 densest Cells) is 3,573 assets /
+  519 KB / 0.15 s. `obs_near` at Times Square is 187 rows / 35 KB at 500 m and 1,177 rows /
+  217 KB at the 2,000 m cap. Nothing here approaches the ~2 MB `events_for_asset` warning
+  above, but an area answer is still the biggest thing three of your four tools return.
+- **Stations never appear in an area answer.** They are Carriers; `events_for_asset` refuses
+  them and names the complex, so listing one with a count would publish a number for an
+  asset that cannot be asked for it. The complex at the same doorway is listed and answers.
+  `n_events` is exactly the history `events_for_asset` would return for that asset (complex
+  rollup included), and a test pins the two to agree — so an agent can filter an area to the
+  flooded assets without a second call per asset.

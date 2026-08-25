@@ -81,3 +81,12 @@ subscriptions, which are `bus_stop`/`complex` only, but it is what a shared payl
 ## Forward-context from DESTINATION-PLAN.md (copied verbatim by the WAVE 5 GATE PART 2, 2026-08-25, from this ticket's summary line in waves/wave-3-plus.md)
 
 **FROM DESTINATION-PLAN (2026-08-25), one line:** flood-build 20 (wave 8) adds a `design_storm` bracket to the flood export. It is DISPLAY, never a tier, and your decision function never reads it — the tier vocabulary stays `fd.TIERS`.
+
+## From notify 04 (landed 2026-08-25) — one line, and it is a "do not"
+
+`query.QUERIES` now holds four names (`assets_in_area` / `obs_near` joined the two you
+already knew), and **none of them belongs inside your pure function**: the decision reads
+no table, no file and no clock, so "how many other assets in this Cell are flagged" is a
+RENDERER's question (notify 09) answered by calling `assets_in_area` outside the decision —
+never a read smuggled into it. If a policy constant ever wants an area (a per-Cell blast
+fuse, say), it arrives as a NUMBER in the frozen policy artifact, computed by the caller.
