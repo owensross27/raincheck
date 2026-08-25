@@ -11,7 +11,8 @@ lives OUTSIDE the cluster, so it is not cluster ingress and draws no security-gr
 The bucket IS the `web/` tree, so the page's relative paths work unchanged:
 
     index.html · app.js · app.css · vendor/*        deploy-time      family `site`
-    files/cells.geojson · headline · zones          per build        family `insight`
+    files/cells.geojson · headline · zones ·
+      files/index.json                             per build        family `insight`
     files/live.geojson · files/meta.json            30 s             family `live`   GATED
     files/history/**                                per spine rebuild  family `history`
     docs/**                                         per Airflow run  family `docs`
@@ -129,11 +130,17 @@ FAMILIES: dict[str, Family] = {
     "insight": Family(
         cadence="per build", writer="`make export` behind the daily build",
         src=lambda: WEB / "files", prefix="files/",
-        # written all-three-or-none by one export run: cells.geojson carries per-window and
+        # written all-four-or-none by one export run: cells.geojson carries per-window and
         # per-storm-hour PROPERTIES, so it is per-build output and not, as the spec table
         # had it, a deploy-time rarity. Publishing it with the page would strand the map's
         # colours a build behind its own headline numbers.
-        files=("cells.geojson", "headline.json", "zones.geojson")),
+        # index.json goes LAST for the same reason meta.json does in the live pair: it is
+        # the file a consumer reads to learn what the other three are and which universe
+        # stamped them, so a publisher that dies mid-family must leave an OLD contract over
+        # new payloads (a consumer re-reads and finds them), never a new contract over old
+        # ones. It is `insight` rather than a family of its own because it is written by
+        # the same run, on the same cadence, by the same writer - frontend 06.
+        files=("cells.geojson", "headline.json", "zones.geojson", "index.json")),
     "docs": Family(
         cadence="per Airflow run", writer="the GX checkpoint's Data Docs task [orch 08]",
         src=lambda: data_root() / "gx" / "data_docs", prefix="docs/"),

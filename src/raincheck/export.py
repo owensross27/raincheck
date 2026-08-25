@@ -10,6 +10,11 @@ marked outputs to `web/files/`:
                   the median-Cell companion, n_legs / n_cells / n_cells_hidden and the
                   chord band as a numeric pair
   zones.geojson   the 263 TLC taxi zones, simplified: the ground layer
+  index.json      the static read API's discovery document (frontend 06): every family
+                  with its keys, content types, schema pointers, cadence and cache
+                  semantics, plus the `contract` integer a consumer refuses on. Rendered
+                  by raincheck.contract, not by the SQL, and staged with the other three
+                  so it never lands alone naming payloads that are not there.
 
 The SQL is the contract; this module only supplies the two variables (data root, the
 swept interval-width gate), splits the text on its `-- @@out <file>` markers and writes
@@ -23,7 +28,7 @@ import argparse
 import json
 from pathlib import Path
 
-from raincheck import duck
+from raincheck import contract, duck
 from raincheck.paths import REPO, data_root
 
 SQL = REPO / "web" / "export.sql"
@@ -53,9 +58,16 @@ def run(root: Path, out_dir: Path, gate_width: float = GATE_WIDTH) -> dict[str, 
     # all three files or none: a run that died on the third query would otherwise leave
     # web/files holding two fresh files beside one stale one, and the page would render a
     # cell layer and a ground layer from different builds with nothing to show for it
-    staged = []
+    texts = []
     for name, query in queries:
         (text,) = con.execute(query).fetchone()
+        texts.append((name, text))
+    # index.json rides the same all-or-none staging: it NAMES the three files beside it
+    # and carries the stamps of the universe that answered, so a run that published it
+    # alone would hand a consumer a fresh contract over stale payloads.
+    texts.append((contract.NAME, contract.text(con, root)))
+    staged = []
+    for name, text in texts:
         tmp = out_dir / (name + ".tmp")
         tmp.write_text(text)
         staged.append((name, tmp))
@@ -67,6 +79,9 @@ def report(written: dict[str, Path]) -> None:
     gate that empties the map must be visible here, never quietly loosened."""
     for name, path in written.items():
         print(f"  {name}: {path.stat().st_size / 1024:.0f} KB")
+    idx = json.loads(written[contract.NAME].read_text())
+    print(f"{contract.NAME}: contract {idx['contract']}, {len(idx['families'])} families, "
+          f"versions {idx.get('versions') or idx['versions_unresolved']}")
     cells = json.loads(written["cells.geojson"].read_text())
     print(f"cells.geojson: {len(cells['features'])} footprint Cells")
     head = json.loads(written["headline.json"].read_text())
