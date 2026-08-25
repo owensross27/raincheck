@@ -29,7 +29,7 @@ resources:
 images:
   - name: raincheck
     newName: 384555717200.dkr.ecr.us-east-1.amazonaws.com/raincheck
-    newTag: d801b1462dee
+    newTag: 2396b26f00b0
 configMapGenerator:
   - name: raincheck-topics
     namespace: kafka
