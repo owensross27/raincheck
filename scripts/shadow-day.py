@@ -1,0 +1,307 @@
+#!/usr/bin/env python3
+"""One shadow day: build it on BOTH runtimes, then prove they agree (orchestration 11).
+
+The cutover gate is "the cluster builds the same data the Mac builds, N clean days
+running". This script is one such day (or several at once - the cluster maps over them),
+and it is the ENDING the shadow DAG deliberately does not have: a shadow's verdict is a
+statement about TWO runtimes, and no task inside one of them can see the other.
+
+  1  STAGE the day's inputs into the shadow root - a server-side copy inside the archive
+     bucket, so no bytes cross the wire and the live tree is never written.
+  2  PROVE THE INPUTS ARE THE SAME on both sides, with `raincheck.parity` and per Bronze
+     partition. Without this the output comparison is a statement about the cold mirror,
+     not about the two runtimes: a day whose mirror is a part behind would DIFFER for a
+     reason that has nothing to do with Airflow.
+  3  CLEAR both sides' outputs for those days. This is cloud 13's trap, encoded: its first
+     comparison ran a fresh remote build against a Mac partition built two days earlier
+     and reported 1,469,145 vs 1,354,911 rows - 16 gapfill parts had landed in between,
+     and it reads exactly like a broken writer. BUILD BOTH SIDES, THEN COMPARE. Neither
+     side may be an artifact that was already lying there.
+  4  RUN THE CLUSTER SIDE: trigger raincheck_shadow, wait, read the task states. The DAG's
+     own plan pod decides which days to build by scanning the shadow root, so step 3 is
+     also what makes the days it finds be exactly the days asked for.
+  5  RUN THE MAC SIDE: `python -m raincheck.daily events D` per day and the reduce behind
+     them - the identical commands the pods run - into a LOCAL shadow root whose inputs
+     are symlinks to the Mac's own tree. Symmetric with the cluster on purpose: `gold`
+     rolls a month out of whatever Silver its root holds, so a reduce over the Mac's full
+     August could never equal a reduce over the two days the shadow staged.
+  6  RECORD THE TWO PROOFS per day - content equality per partition, and outcome equality
+     between the two runtimes - as one entry in research/orch-11-shadow.json.
+
+Parity is CONTENT equality (rows + a sha over the rows), never bytes: parquet-mr permutes
+footer encoding across JVM sessions, and the two sides are two sessions by construction.
+Comparison logic lives in `raincheck.parity` and is not re-implemented here.
+
+  scripts/shadow-day.py DAY [DAY ...]
+Exit: 0 every day clean - 1 a day differs - 2 INCONCLUSIVE (a step could not be run)
+Env: RAINCHECK_SHADOW_ROOT (the Mac side's scratch root, default ~/raincheck-shadow),
+     RAINCHECK_ARCHIVE_ROOT (the Mac's real tree, default <repo>/data), and the
+     RAINCHECK_COLD_* credentials from .env.
+"""
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO / "src"))
+
+DAG_ID = "raincheck_shadow"
+SHADOW_DAG = REPO / "dags" / "raincheck_shadow.py"
+LEDGER = REPO / "research" / "orch-11-shadow.json"
+# The Bronze kinds `events` reads (date IN (D, D+1)), and the reference tables its
+# schedule join needs. Both are READ off the shadow root by the pods, so both have to be
+# there before a plan pod can call the day buildable.
+KINDS = ("vp", "tu")
+REFS = ("trips", "trip_stops", "stops", "service_days")
+# What a shadow day is compared on. The mapped index's own two tables, and the reduce's -
+# always at the PARTITION level: `parity.compare` on a table root lists every partition
+# the other side does not hold as missing, so a table-level compare of a two-day shadow
+# against a full Mac tree can never be `ok` and says nothing when it is not.
+SILVER = ("events", "leg_hours")
+GOLD = ("cell_hour_speed", "cell_hour_route")
+POLL_S = 20
+DEADLINE_S = 3600
+
+
+def fail(rc: int, message: str):
+    print(f"shadow-day: {message}", file=sys.stderr)
+    raise SystemExit(rc)
+
+
+def dotenv() -> dict:
+    """The Makefile's `-include .env`, for a script make cannot run: `make` may not shell
+    out to a cluster-only tool (tests/test_cloud_cost.py), and this one drives kubectl."""
+    out = {}
+    for line in (REPO / ".env").read_text().splitlines() if (REPO / ".env").exists() else []:
+        if (m := re.match(r"\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*)$", line)):
+            out[m.group(1)] = m.group(2).strip().strip('"').strip("'")
+    return out
+
+
+ENV = dotenv()
+BUCKET = os.environ.get("RAINCHECK_COLD_BUCKET") or ENV.get("RAINCHECK_COLD_BUCKET", "")
+ENDPOINT = os.environ.get("RAINCHECK_COLD_ENDPOINT") or ENV.get("RAINCHECK_COLD_ENDPOINT", "")
+MAC = Path(os.environ.get("RAINCHECK_ARCHIVE_ROOT") or ENV.get("RAINCHECK_ARCHIVE_ROOT")
+           or REPO / "data")
+LOCAL = Path(os.environ.get("RAINCHECK_SHADOW_ROOT") or Path.home() / "raincheck-shadow")
+
+
+def prefix() -> str:
+    """The shadow root, read out of the DAG that writes it - one spelling, and the two
+    sides of the comparison cannot drift apart into two different trees."""
+    m = re.search(r'(?m)^SHADOW = "(s3a?://[^"]+)"', SHADOW_DAG.read_text())
+    if not m:
+        fail(2, f"no SHADOW root declared in {SHADOW_DAG}")
+    root = m.group(1)
+    if root.split("//", 1)[1].strip("/").count("/") == 0:
+        fail(2, f"{root} is a bucket root, not a shadow prefix - it is the cold mirror")
+    return root
+
+
+SHADOW = prefix()                                     # s3a://bucket/prefix, the DAG's own
+S3 = "s3://" + SHADOW.split("//", 1)[1]               # the same tree, the aws CLI spelling
+
+
+def aws(*args: str) -> subprocess.CompletedProcess:
+    """The cold credentials go through the environment, never argv (argv is world-readable
+    in `ps`) - the same rule cold.py follows."""
+    env = {**os.environ, "AWS_DEFAULT_REGION": "auto",
+           "AWS_ACCESS_KEY_ID": os.environ.get("RAINCHECK_COLD_KEY_ID")
+           or ENV.get("RAINCHECK_COLD_KEY_ID", ""),
+           "AWS_SECRET_ACCESS_KEY": os.environ.get("RAINCHECK_COLD_SECRET")
+           or ENV.get("RAINCHECK_COLD_SECRET", "")}
+    return subprocess.run(["aws", "s3", "--endpoint-url", ENDPOINT, *args],
+                          capture_output=True, text=True, env=env)
+
+
+def airflow(*args: str) -> str:
+    p = subprocess.run(["kubectl", "exec", "-n", "raincheck", "deploy/airflow-scheduler",
+                        "-c", "scheduler", "--", "airflow", *args],
+                       capture_output=True, text=True)
+    if p.returncode:
+        fail(2, f"airflow {' '.join(args)}: {p.stderr.strip()[-400:]}")
+    return p.stdout
+
+
+def rows(out: str) -> list[dict]:
+    """The CLI writes structured logging onto stdout beside its own output, so the JSON is
+    carved out rather than parsed off line 1."""
+    return json.loads(out[out.index("["):out.rindex("]") + 1])
+
+
+def spans(days: list[str]) -> list[tuple[str, str]]:
+    """(kind, date) for every Bronze partition a day is built from: `events` reads
+    date IN (D, D+1), because a Leg that started on D can still be running at 03:00."""
+    dates = sorted({d for day in days for d in
+                    (day, (date.fromisoformat(day) + timedelta(days=1)).isoformat())})
+    return [(kind, d) for kind in KINDS for d in dates]
+
+
+def stage(days: list[str]) -> None:
+    """Server-side, inside one bucket: no bytes cross the wire and the source is the cold
+    mirror the Mac's own coldpush wrote. `sync` and not `cp`, so re-running a shadow day
+    is free."""
+    todo = [(f"archive/{kind}/date={d}",) for kind, d in spans(days)]
+    todo += [("ref",)] + [(f"silver/{t}",) for t in REFS]
+    for (rel,) in todo:
+        p = aws("sync", f"s3://{BUCKET}/{rel}", f"{S3}/{rel}", "--no-progress")
+        if p.returncode:
+            fail(2, f"staging {rel}: {p.stderr.strip()[-300:]}")
+        print(f"shadow-day: staged {rel} ({len(p.stdout.splitlines())} object(s) copied)",
+              flush=True)
+
+
+def clear(days: list[str]) -> None:
+    """Neither side may be an artifact that was already lying there (cloud 13's trap), and
+    on the cluster side this is also what makes the plan pod find exactly these days."""
+    import shutil
+
+    for day in days:
+        for table in SILVER:
+            aws("rm", "--recursive", "--quiet", f"{S3}/silver/{table}/service_date={day}")
+            shutil.rmtree(LOCAL / "silver" / table / f"service_date={day}", ignore_errors=True)
+    for month in sorted({d[:7] for d in days}):
+        for table in GOLD:
+            aws("rm", "--recursive", "--quiet", f"{S3}/gold/{table}/month={month}")
+            shutil.rmtree(LOCAL / "gold" / table / f"month={month}", ignore_errors=True)
+    print(f"shadow-day: cleared {len(days)} day(s) on both sides - both are built from "
+          "scratch below", flush=True)
+
+
+def link_local() -> None:
+    """The Mac side's root: its OUTPUTS are its own, its INPUTS are the Mac's real tree by
+    symlink. Nothing is copied and nothing under the live tree is written - `events` and
+    `gold` only ever write silver/{events,leg_hours} and gold/, which are real directories
+    here."""
+    (LOCAL / "silver").mkdir(parents=True, exist_ok=True)
+    for name, target in [("archive", MAC / "archive"), ("ref", MAC / "ref")] + \
+            [(f"silver/{t}", MAC / "silver" / t) for t in REFS]:
+        link = LOCAL / name
+        if not link.is_symlink():
+            link.symlink_to(target)
+        elif link.readlink() != target:
+            fail(2, f"{link} points at {link.readlink()}, not {target}")
+
+
+def cluster(days: list[str]) -> dict:
+    """Trigger the shadow DAG and wait. The run id names the days it was asked for, so the
+    record and the Airflow row can always be lined up afterwards."""
+    run_id = f"shadow-{days[0]}-{len(days)}d-{datetime.now(timezone.utc):%H%M%S}"
+    airflow("dags", "trigger", DAG_ID, "-r", run_id)
+    print(f"shadow-day: triggered {DAG_ID} {run_id}", flush=True)
+    deadline = time.monotonic() + DEADLINE_S
+    while True:
+        states = rows(airflow("tasks", "states-for-dag-run", DAG_ID, run_id, "-o", "json"))
+        live = [r for r in states if r["state"] in (None, "", "queued", "running",
+                                                    "scheduled", "up_for_retry", "deferred")]
+        if states and not live:
+            break
+        if time.monotonic() > deadline:
+            fail(2, f"{run_id} still running after {DEADLINE_S}s: "
+                    f"{[(r['task_id'], r['state']) for r in live]}")
+        time.sleep(POLL_S)
+    run = next(r for r in rows(airflow("dags", "list-runs", DAG_ID, "-o", "json"))
+               if r["run_id"] == run_id)
+    tally: dict[str, list[str]] = {}
+    for r in states:
+        tally.setdefault(r["task_id"], []).append(r["state"])
+    print(f"shadow-day: {run_id} {run['state']} - "
+          + ", ".join(f"{t}={'/'.join(s)}" for t, s in sorted(tally.items())), flush=True)
+    return {"run_id": run_id, "state": run["state"], "tasks": tally}
+
+
+def mac(days: list[str]) -> dict[str, int]:
+    """The identical commands the pods run, in the identical process form: since ticket 07
+    a declared stage with an argv runs as its own process on `make daily` too."""
+    link_local()
+    env = {**os.environ, "RAINCHECK_ARCHIVE_ROOT": str(LOCAL)}
+    out = {}
+    for day in days:
+        out[day] = subprocess.call([sys.executable, "-m", "raincheck.daily", "events", day],
+                                   cwd=REPO, env=env)
+    out["gold"] = subprocess.call(
+        [sys.executable, "-m", "raincheck.daily", "gold", json.dumps(days)], cwd=REPO, env=env)
+    return out
+
+
+def compare(remote: str, local: Path) -> dict:
+    from raincheck import parity
+
+    try:
+        report = parity.compare(remote, str(local))
+    except Exception as e:                      # unreadable side: could not check, never ok
+        return {"a": remote, "b": str(local), "ok": None, "detail": f"INCONCLUSIVE: {e}"}
+    return {"a": remote, "b": str(local), "ok": report.ok,
+            "rows": {p: report.a[p][0] for p in sorted(report.a)},
+            "sha": {p: report.a[p][1][:12] for p in sorted(report.a)},
+            "detail": report.lines()[-1] if report.ok else str(report)}
+
+
+def main(argv: list[str]) -> int:
+    if not argv:
+        fail(2, "usage: scripts/shadow-day.py DAY [DAY ...]")
+    if not (BUCKET and ENDPOINT):
+        fail(2, "RAINCHECK_COLD_BUCKET / _ENDPOINT are unset - see .env")
+    days = sorted(argv)
+
+    stage(days)
+    inputs = [compare(f"{S3}/archive/{kind}/date={d}", MAC / "archive" / kind / f"date={d}")
+              for kind, d in spans(days)]
+    for row in inputs:
+        print(f"shadow-day: INPUT {row['a']}: {row['detail'].splitlines()[-1]}", flush=True)
+    if not all(row["ok"] for row in inputs):
+        fail(2, "the two sides do not read the same Bronze, so nothing downstream would be "
+                "a statement about the runtimes. Push the missing hours (make coldpush) or "
+                "pick another day.")
+
+    clear(days)
+    run = cluster(days)
+    rcs = mac(days)
+
+    entries, worst = [], 0
+    for day in days:
+        content = [compare(f"{S3}/silver/{t}/service_date={day}",
+                           LOCAL / "silver" / t / f"service_date={day}") for t in SILVER]
+        content += [compare(f"{S3}/gold/{t}/month={day[:7]}",
+                            LOCAL / "gold" / t / f"month={day[:7]}") for t in GOLD]
+        # PROOF 2, and it is independent of every sha above: the two runtimes' own record
+        # of what happened. A build that wrote the right bytes and reported a failure, or
+        # reported success on a day it never expanded to, is a cutover defect the digests
+        # cannot see. The cluster's record is Airflow's task states; the Mac's is the rc
+        # daily.py exits with, in checks.rc()'s own vocabulary.
+        cluster_ok = (run["state"] == "success"
+                      and len(run["tasks"].get("events", [])) == len(days)
+                      and set(run["tasks"].get("events", [])) == {"success"}
+                      and run["tasks"].get("gold") == ["success"])
+        outcome = {"cluster": run["tasks"], "cluster_ok": cluster_ok,
+                   "mac_rc": rcs[day], "mac_gold_rc": rcs["gold"],
+                   "ok": bool(cluster_ok and rcs[day] == 0 and rcs["gold"] == 0)}
+        ok = all(c["ok"] for c in content) and outcome["ok"]
+        entries.append({"day": day, "recorded_utc": datetime.now(timezone.utc).isoformat(),
+                        "run_id": run["run_id"], "shadow_root": SHADOW, "mac_root": str(LOCAL),
+                        "content": content, "outcome": outcome, "inputs_equal": True,
+                        "clean": ok})
+        worst = max(worst, 0 if ok else 1)
+        print(f"\nshadow-day: {day} {'CLEAN' if ok else 'NOT CLEAN'}", flush=True)
+        for c in content:
+            print(f"  content {c['a'].rsplit('/', 2)[-2]}/{c['a'].rsplit('/', 1)[-1]}: "
+                  f"{'EQUAL' if c['ok'] else c['detail']}", flush=True)
+        print(f"  outcome cluster={'ok' if cluster_ok else run['tasks']} "
+              f"mac rc={rcs[day]} gold rc={rcs['gold']}", flush=True)
+
+    ledger = json.loads(LEDGER.read_text()) if LEDGER.exists() else []
+    LEDGER.parent.mkdir(parents=True, exist_ok=True)
+    LEDGER.write_text(json.dumps(ledger + entries, indent=1) + "\n")
+    clean = sum(e["clean"] for e in ledger + entries)
+    print(f"\nshadow-day: recorded {len(entries)} day(s) in {LEDGER} "
+          f"({clean} clean day(s) on the ledger)", flush=True)
+    return worst
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

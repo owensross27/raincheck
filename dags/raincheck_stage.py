@@ -45,6 +45,10 @@ REPO = "/opt/raincheck"          # where the image installs the repo, editable
 # file out of it (PodDefaults.XCOM_MOUNT_PATH + return.json, cncf-kubernetes 10.17.1). A
 # task can be expanded only over an XCom, so this is where a plan lands (ticket 06).
 XCOM = "/airflow/xcom/return.json"
+# The one env var that decides WHICH TREE a stage reads and writes. The placement table
+# binds it to the pod's own staging volume; a shadow run (orchestration ticket 11) rebinds
+# it, and nothing else about the pod moves.
+ROOT_ENV = "RAINCHECK_ARCHIVE_ROOT"
 
 
 def make(target: str, **variables: str) -> list[str]:
@@ -210,7 +214,31 @@ def argv_of(item: str) -> list[str]:
     return [item]
 
 
-def stage_task(task_id: str, shape: str, command: list[str], items=None, **kwargs):
+def at_root(spec: dict, root: str) -> dict:
+    """The same pod, pointed at a different data root - the ONE difference a shadow run is
+    allowed to have from the nightly (orchestration ticket 11).
+
+    A shadow that wrote where the Mac writes would be two writers on one Bronze, which is a
+    data event and not an experiment, so the shadow's whole safety story is this one
+    variable. It is rewritten IN PLACE, on every container the table gave the pod, and the
+    rewrite is asserted: a table that stopped binding the root would otherwise leave the
+    shadow silently building into the default tree, which is the one outcome that must be
+    impossible. The init step travels with it on purpose - it is `ref` delivery, and ref
+    belongs under whichever root the stage is about to read (an object-store root already
+    holds it, which that step answers for itself).
+    """
+    moved = 0
+    for container in spec["spec"].get("initContainers", []) + spec["spec"]["containers"]:
+        for var in container.get("env", []):
+            if var["name"] == ROOT_ENV:
+                var["value"], moved = root, moved + 1
+    if not moved:
+        raise RuntimeError(f"no container of this shape binds {ROOT_ENV}, so a shadow run "
+                           f"would build into the default tree; see {PLACEMENT}")
+    return spec
+
+
+def stage_task(task_id: str, shape: str, command: list[str], items=None, root=None, **kwargs):
     """A KubernetesPodOperator that fills in the COMMAND on `shape` and nothing else.
 
     `items` (ticket 06) is an XComArg holding one axis's items: the task becomes ONE POD PER
@@ -218,10 +246,14 @@ def stage_task(task_id: str, shape: str, command: list[str], items=None, **kwarg
     times over - a mapped stage is not a new kind of pod, and the two shapes stay two - and
     a task is TWO burst pods (the executor's worker and this), so an expansion to N days is
     2N Karpenter decisions. An expansion to ZERO is a skipped task, which is exactly what a
-    morning with nothing to build should look like."""
+    morning with nothing to build should look like.
+
+    `root` (ticket 11) rebinds the data root and nothing else - see at_root()."""
     from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 
     spec = pod(shape)
+    if root:
+        spec = at_root(spec, root)
     if items is not None:
         return KubernetesPodOperator.partial(
             **_task(task_id, spec, command, **kwargs)).expand(arguments=items.map(argv_of))
