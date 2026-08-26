@@ -6,5 +6,5 @@ docs/
 research/
 tests/
 .env
-*.pyc
-__pycache__/
+**/*.pyc
+**/__pycache__/
