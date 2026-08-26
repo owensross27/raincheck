@@ -15,18 +15,18 @@ on disk and sha256-pinned at `features.SW_ZIP_SHA256`.
 (research resolved 2026-08-22 — the service, the licence and the categories are settled and
 were NOT re-researched).
 
-**Status:** in-progress
+**Status:** DONE 2026-08-25 — branch `floodbuild19-stormwater-extents`, `5208e31`, +46 tests, 22/22 mutants killed, `features_version` unmoved (`6b6f61e0…` both sides)
 
-- [ ] `silver/stormwater_extent/` — one row per polygon: `scenario` · `horizon` ·
+- [x] `silver/stormwater_extent/` — one row per polygon: `scenario` · `horizon` ·
       `rain_in_hr` · `category` · `poly` · `geometry` · `src_asof` · `zip_sha256`
-- [ ] the `.gdb`s open through the same code path `features.flood_parts()` uses, and the
+- [x] the `.gdb`s open through the same code path `features.flood_parts()` uses, and the
       33.8 MB sha256 is checked ONCE per run (`features.stormwater_zip`)
-- [ ] `features_version` does not move — asserted before and after every real-root build
-- [ ] `not_analyzed` is its own category, never absence
-- [ ] `make geo` exports the CURRENT-sea-level scenarios only (D3)
-- [ ] publish family `geo`, `contract.PROMISE` unbumped, documented in `docs/read-api-contract.md`
-- [ ] a `checks.Row` batch `stormwater_extent` under `<root>/checks/check=stormwater_extent/`
-- [ ] the attribution string, for frontend2 03 to render
+- [x] `features_version` does not move — asserted before and after every real-root build
+- [x] `not_analyzed` is its own category, never absence
+- [x] `make geo` exports the CURRENT-sea-level scenarios only (D3) — **ONE file today**: `stormwater-moderate.geojson`, 4,607,370 raw bytes. `-limited` is blocked on an unreadable source (§1) and `-extreme` has no current horizon (§2)
+- [x] publish family `geo`, `contract.PROMISE` unbumped, documented in `docs/read-api-contract.md`
+- [x] a `checks.Row` batch `stormwater_extent` under `<root>/checks/check=stormwater_extent/`
+- [x] the attribution string, for frontend2 03 to render
 
 ---
 
