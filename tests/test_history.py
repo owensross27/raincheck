@@ -332,6 +332,24 @@ def test_the_manifest_is_built_by_calling_the_registered_query_functions():
     assert set(history.QUERIES) <= set(q.QUERIES)
 
 
+def test_the_sweep_covers_every_cell_however_the_cap_batches_them(root, manifest,
+                                                                  monkeypatch):
+    """The fixture's six Cells fit in ONE batch at the real cap, so no fixture this size can
+    tell a correct sweep from one that walks the first batch and stops — a mutation that
+    stepped the range by the whole city while the slice still took CELL_CAP survived exactly
+    that gap, and on the real root it would have silently dropped most of NYC. Drive the cap
+    down until the batching is real, and require the same answer at every width."""
+    con = duck.connect()
+    cells, _ = history.registry(con, root)
+    assert len(cells) > 2, "a one-batch fixture cannot discriminate any batching bug"
+    full = [a["asset_id"] for a in history.flooded(con, root, cells)]
+    for cap in (1, 2, 3, len(cells) - 1, len(cells)):
+        monkeypatch.setattr(q, "CELL_CAP", cap)
+        assert [a["asset_id"] for a in history.flooded(con, root, cells)] == full, cap
+    con.close()
+    assert full == sorted(f["properties"]["asset_id"] for f in manifest["features"])
+
+
 def test_the_sweep_respects_the_seams_own_area_cap():
     """`CELL_CAP` exists so a tool call cannot ask for the city by accident. This walks it
     in bounded batches rather than around it — a renderer that raised the cap for itself
