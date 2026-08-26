@@ -155,7 +155,12 @@ real mailbox); do the same, and keep handles out of any published artifact — e
 notify 11 publishes comes from `Decision.summary()` or `Message.asset_kind`.
 
 **THE 2023-09-29 EVENT YOUR LINE NAMES IS IN THE SUBSET** and it replays through the
-detector's own walk with no hand-built state: `nr.inputs(con, root, ev)` returns
-`(wet, temp, by_hour, units)` for one event exactly as flood 12 reads them, and
-`nr.replay(ev, wet, temp, by_hour, us, art, det, score_version, chains)` walks it. Both
-are two lines from a rehearsal.
+detector's own walk with no hand-built state: `notify_replay.inputs(con, root, ev)`
+returns `(wet, temp, by_hour, units)` for one event exactly as flood 12 reads them, and
+`notify_replay.replay(ev, wet, temp, by_hour, us, art, det, score_version, chains)`
+walks it. Both are two lines from a rehearsal.
+
+**NAMES, so this file does not end up with two `nr`s:** notify 09 ships
+`raincheck.notify_render` and this ticket ships `raincheck.notify_replay`. Both read
+naturally as `nr`. Spell them out here — every module name in this block is written in
+full for that reason.
