@@ -239,13 +239,25 @@ real observations including the MTA alert row; `--lokal` refuses to start with t
 line. Payload sizes an agent pays on every session: **instructions 2,399 B + descriptions
 1,549 / 2,251 / 1,884 / 1,840 B = 9,923 B total.**
 
-**MUTATION ROUND: 20 mutations, ALL 20 DIE**, pristine control green either end. The
-harness lied on its first run — zsh does not word-split an unquoted `$VAR`, so the restore
-was a silent no-op and mutations accumulated (orch 04's trap, named in TRAPS and hit
-anyway); the pristine control caught it at 24 failed / 8 passed. Rerun with a real array.
-Two genuine survivors then: `server()`'s duplicate default mode (fixed by deletion) and an
-UNUSED `from raincheck import duck`, which creates no `Name` node at all — the import test
-now pins the names the imports BIND, not only the modules they name.
+**MUTATION ROUND: 22 mutations, ALL 22 DIE**, pristine control green at both ends.
+`PYTHONDONTWRITEBYTECODE=1`, snapshot from git, refuse a dirty tree, prove the mutant
+landed, restore with `checkout` + `clean` and assert the status is EMPTY.
+**THE HARNESS LIED ON ITS FIRST RUN** — zsh does not word-split an unquoted `$VAR`, so
+`git checkout -- $PATHS` was a silent no-op, mutations ACCUMULATED and every row after the
+first was confounded while still looking like a table of failures (orch 04's trap, named
+in TRAPS and hit anyway). **The pristine control caught it at 24 failed / 8 passed**,
+which is the entire reason to print one. Re-run with a real zsh array.
+**THREE GENUINE SURVIVORS, all three fixed:**
+1. **`server()` carried a SECOND copy of "public is the default"** and nothing exercised
+   it — `main()` always passes a mode and nobody else called it — so flipping it to
+   `local` stayed green. **Deleted rather than tested**: `mode` is required there now, so
+   there is no constant left to flip.
+2. **An UNUSED `from raincheck import duck` creates no `Name` node at all**, so the
+   identifier scan could not see it. The dispatch-only test now pins the names the imports
+   BIND, not only the modules they name.
+3. **`assert "[mcp]" not in dockerfile_text` PASSES ON `[gx,mcp]`** — the exact edit it
+   exists to forbid. The test now parses the bracket group and requires the extras to be
+   exactly `{gx}`. Sibling of "anchor a mutation-check on the KEY, not on the string".
 
 **THE SDK IS AN OPTIONAL EXTRA AND THE IMAGE MUST NOT GAIN IT.** `mcp = ["mcp>=2.1,<3"]`,
 imported only inside `server()`, so a tree without it still imports the module and runs
