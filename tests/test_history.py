@@ -211,6 +211,27 @@ def test_one_file_per_manifest_entry_and_no_file_for_anybody_else(built, manifes
     assert rep["assets"] == len(listed) and rep["files"] == len(listed) + 1
 
 
+def test_the_report_sizes_the_click_and_not_only_the_biggest_object(built, capsys):
+    """The manifest is the biggest file in the real tree and it is the WRONG number for a
+    page budget: it is loaded once, and what a reader pays per interaction is ONE per-asset
+    fetch. Measured on the real root those are 1,458,148 B and 21,994 B — 66x apart, so a
+    budget written against the wrong one is not a rounding error. (On this fixture the
+    manifest is the smaller of the two, which is exactly why the report carries both rather
+    than whichever happens to win.)"""
+    out, rep = built
+    click, size = rep["largest_click"]
+    assert click != history.MANIFEST
+    assert size == max(p.stat().st_size for p in out.iterdir()
+                       if p.name != history.MANIFEST) == (out / click).stat().st_size
+    assert rep["manifest_bytes"] == (out / history.MANIFEST).stat().st_size
+    assert rep["bytes"] == sum(p.stat().st_size for p in out.iterdir())
+    history.report(rep)
+    printed = capsys.readouterr().out
+    for expected in (f"{rep['files']} files", f"{rep['bytes']:,} bytes",
+                     f"{history.INSIGHT_BYTES:,}", click, "RAW bytes"):
+        assert expected in printed, expected
+
+
 def test_a_file_is_the_merge_of_the_two_public_answers(built, root):
     """`events_for_asset` and `exposure_of` return an IDENTICAL `asset` block and identical
     stamps for one id, so one file holds both without reconciling anything. Asserted here
@@ -377,11 +398,35 @@ def test_make_exports_own_run_writes_the_tree_on_the_batch_path(root, tmp_path, 
 
 def test_the_tree_never_rides_the_thirty_second_live_tick():
     """`make export` is the spine's BATCH path. The 30 s loop publishes the live pair and
-    the flood panel; adding thousands of seam calls to it would be a different ticket and a
-    dead pod."""
+    the flood panel; 8,000 seam calls on a 30 s tick is a dead pod.
+
+    Anchored on the IMPORT and not on the word: a docstring in any of those modules is free
+    to say "flood history", and a source-text search would then read the prose that explains
+    the rule as a violation of it."""
     for module in ("live_loop", "live_export", "flood_panel"):
-        text = (REPO / "src" / "raincheck" / f"{module}.py").read_text()
-        assert "history" not in text.replace("flood history", ""), module
+        tree = ast.parse((REPO / "src" / "raincheck" / f"{module}.py").read_text())
+        names = {alias.name for n in ast.walk(tree) if isinstance(n, ast.Import)
+                 for alias in n.names}
+        names |= {f"{n.module}.{a.name}" for n in ast.walk(tree)
+                  if isinstance(n, ast.ImportFrom) and n.module for a in n.names}
+        assert not any(n.split(".")[-1] == "history" for n in names), module
+
+
+def test_the_swap_never_leaves_the_family_missing(root, tmp_path):
+    """The staged tree goes in with ONE rename and the old one comes out with another, so
+    the only reachable states are old and new. A delete-then-rename would leave `publish
+    --family history` looking at nothing for as long as an 8,000-file delete takes."""
+    src = Path(history.__file__).read_text()
+    swap = src[src.index("staging.replace(out_dir)") - 400:]
+    assert "out_dir.replace(" in swap, "the old tree must be renamed aside, not deleted"
+    con = duck.connect()
+    out = tmp_path / history.DIR
+    history.build(con, root, out)
+    history.build(con, root, out)          # and a rebuild over a populated tree works
+    con.close()
+    assert (out / history.MANIFEST).is_file()
+    assert not list(tmp_path.glob(f"{history.DIR}{history.STAGING}"))
+    assert not list(tmp_path.glob(f"{history.DIR}{history.PREVIOUS}"))
 
 
 def test_the_page_reads_the_manifest_at_the_url_frontend_05_froze():

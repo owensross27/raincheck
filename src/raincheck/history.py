@@ -69,6 +69,7 @@ PUBLIC = query.MODES[0]
 DIR = "history"                    # under web/files/, matching publish.FAMILIES["history"]
 MANIFEST = "manifest.geojson"      # frozen by frontend 05: the page's LAYERS table reads it
 STAGING = ".staging"               # sibling of DIR; swapped in whole, or not at all
+PREVIOUS = ".old"                  # where the tree being replaced waits out the swap
 COORD_DP = 5                       # ~1.1 m, the precision web/export.sql publishes geometry at
 # The comparison point the spec names: the insight surface as shipped, three files,
 # MEASURED 2026-08-23. No ticket may take the DuckDB-over-R2 escalation path without
@@ -182,12 +183,26 @@ def build(con, root: Path, out_dir: Path) -> dict:
         (staging / f"{a['asset_id']}.json").write_text(
             json.dumps(payload(con, root, a["asset_id"], stamps), **JSON) + "\n")
 
-    shutil.rmtree(out_dir, ignore_errors=True)
+    # TWO renames, not a delete-then-rename: removing 8,000-odd files takes SECONDS, and
+    # for every one of them `web/files/history/` would not exist at all - a concurrent
+    # `make publish FAMILY=history` would refuse an empty tree, and a crash in that window
+    # would leave nothing where the previous tree used to be. Renaming the old tree aside
+    # first means the only reachable states are the old tree and the new one.
+    old = out_dir.with_name(out_dir.name + PREVIOUS)
+    shutil.rmtree(old, ignore_errors=True)
+    if out_dir.exists():
+        out_dir.replace(old)
     staging.replace(out_dir)
+    shutil.rmtree(old, ignore_errors=True)
     sizes = {p.name: p.stat().st_size for p in sorted(out_dir.iterdir())}
+    clicks = {k: v for k, v in sizes.items() if k != MANIFEST}
     return {"assets": len(assets), "files": len(sizes), "bytes": sum(sizes.values()),
             "manifest_bytes": sizes[MANIFEST],
-            "largest": max(sizes.items(), key=lambda kv: (kv[1], kv[0]))}
+            "largest": max(sizes.items(), key=lambda kv: (kv[1], kv[0])),
+            # the manifest is the biggest object here and it is NOT the number a page
+            # budget is written against: the page loads it ONCE and then fetches one
+            # per-asset file per click. Size the click on the tail, never on a median.
+            "largest_click": max(clicks.items(), key=lambda kv: (kv[1], kv[0]))}
 
 
 def report(rep: dict) -> None:
@@ -197,6 +212,11 @@ def report(rep: dict) -> None:
     if not rep:
         return
     name, size = rep["largest"]
+    click, click_bytes = rep["largest_click"]
     print(f"  {DIR}/: {rep['files']} files, {rep['bytes']:,} bytes "
           f"({rep['bytes'] / INSIGHT_BYTES:.1f}x the {INSIGHT_BYTES:,}-byte insight "
-          f"surface), manifest {rep['manifest_bytes']:,} B, largest {name} {size:,} B")
+          f"surface), largest {name} {size:,} B, "
+          f"manifest {rep['manifest_bytes']:,} B (loaded once), "
+          f"worst click {click} {click_bytes:,} B")
+    print("  RAW bytes: nothing in this repo sets Content-Encoding, so a gzip figure "
+          "would be a claim about an unverified edge behaviour [KNOWN TRAPS]")

@@ -93,7 +93,8 @@ SCHEMA = {
     "files/flood-meta.json": "src/raincheck/flood_panel.py",
     "files/flood-mta.json": "src/raincheck/flood_panel.py",
     "files/flood-mta-meta.json": "src/raincheck/flood_panel.py",
-    "files/history/**": "src/raincheck/query.py (events_for_asset, mode='public')",
+    "files/history/**": "src/raincheck/history.py (notify 05: a manifest plus one file "
+                        "per asset, rendered over query.py in mode='public')",
     "files/geo/**": "src/raincheck/stormwater_extent.py (flood-build 19)",
     "docs/**": "Great Expectations Data Docs (orchestration ticket 08)",
     "showcase/**": "src/raincheck/showcase.py (orchestration ticket 13)",

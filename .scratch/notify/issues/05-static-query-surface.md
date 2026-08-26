@@ -6,16 +6,16 @@ number rather than a guess. Spec: section 3; SEAM Q.
 
 **Blocked by:** 03.
 
-**Status:** ready-for-agent
+**Status:** DONE 2026-08-26 (branch `notify05-static-history`) — see the close-out at the bottom
 
-- [ ] `make export` writes a manifest listing every asset with at least one attached event (id, kind, event count), plus one file per listed asset holding its history and its exposure
-- [ ] an asset absent from the manifest is renderable as "no events on record" without any request
-- [ ] the exporter is a renderer: it calls the query function in `public` mode once per manifest entry and contains no joins of its own
-- [ ] the run prints file count, total bytes and largest single file — the comparison point is today's shipped insight surface, 2,606,072 bytes across three files (measured 2026-08-23); no ticket may take the DuckDB-over-R2 escalation path without this number
-- [ ] re-export is byte-identical: every aggregate ordered, every number explicitly rounded, writes staged and replaced atomically, all files or none
-- [ ] no null values anywhere in the written files, asserted by parsing them back from disk
-- [ ] the export ships on the spine's cadence through the batch path and never on the 30 s live tick
-- [ ] if the measured file count proves unwieldy for the static host, sharding by asset kind and H3 prefix changes this renderer alone and touches no query
+- [x] `make export` writes a manifest listing every asset with at least one attached event (id, kind, event count), plus one file per listed asset holding its history and its exposure
+- [x] an asset absent from the manifest is renderable as "no events on record" without any request
+- [x] the exporter is a renderer: it calls the query function in `public` mode once per manifest entry and contains no joins of its own
+- [x] the run prints file count, total bytes and largest single file — the comparison point is today's shipped insight surface, 2,606,072 bytes across three files (measured 2026-08-23); no ticket may take the DuckDB-over-R2 escalation path without this number
+- [x] re-export is byte-identical: every aggregate ordered, every number explicitly rounded, writes staged and replaced atomically, all files or none
+- [x] no null values anywhere in the written files, asserted by parsing them back from disk
+- [x] the export ships on the spine's cadence through the batch path and never on the 30 s live tick
+- [x] if the measured file count proves unwieldy for the static host, sharding by asset kind and H3 prefix changes this renderer alone and touches no query
 
 
 ## Inherited from notify 02 (landed 2026-08-24, branch `notify02-query-core`, 13a93ab)
@@ -53,7 +53,11 @@ never null), `jsonable(v)`, `cell_id(int)`, `sources(source_mix)`, `holes(n)`,
   `root` fixture — extend that fixture rather than cutting a second one.
 
 **notify 02 measured your surface so you do not have to guess** (real root, 60-asset
-sample, 2026-08-24): **7,955 assets have history**; a `public` payload is **mean 1,373 B,
+sample, 2026-08-24): **7,955 assets have history** — **CORRECTED BY MEASUREMENT
+2026-08-26: it is 8,146. 7,955 counts assets that own a LABEL ROW; the manifest lists
+what `events_for_asset` ANSWERS for, and a complex answers for its entrances too, so
+complexes are 285 and not 94. Both numbers are right about different questions and the
+query's one is the one a click sees. See the close-out.**; a `public` payload is **mean 1,373 B,
 median 746 B, max 7,625 B → ~10.9 MB across 7,955 files**. Bytes are the same order of
 magnitude as today's 2,606,072-byte insight surface, so static-host territory holds on
 size; the FILE COUNT is the part that may break the host's sync, which is exactly the
@@ -71,7 +75,7 @@ Frontend 02 built the flood-history marker layer against the real `ref/assets JO
 gold/flood_labels` and the real `query('events_for_asset', mode='public')`, over all 7,955
 assets. It confirms frontend 01's coordinate MUST and adds two things:
 
-- [ ] **The manifest must carry `name` as well as `lon`/`lat`.** `ref/assets` names only
+- [x] **The manifest must carry `name` as well as `lon`/`lat`.** `ref/assets` names only
   stops and complexes — **a `cell`-kind asset has `name = NULL`** — and the most-flooded
   assets are exactly the Cells, so a manifest of id+kind+count+lon/lat renders the literal
   word "null" at the TOP of any ranked list. Re-measured over all 7,955 assets in ONE
@@ -81,7 +85,7 @@ assets. It confirms frontend 01's coordinate MUST and adds two things:
   Freeze the whole key set here: `asset_id, kind, n_events, lon, lat, name` — and note
   `query.py:167`'s `ASSET_COLUMNS` uses `asset_id`, never `id`, so the spec's prose "id"
   should not become a literal key.
-- [ ] **Size the CLICK on the tail, not on the random-sample median.** notify 02's recorded
+- [x] **Size the CLICK on the tail, not on the random-sample median.** notify 02's recorded
   "median 746 B / max 7,625 B" came from a 60-asset RANDOM sample. Cutting the TOP 40 by
   event count — same code path, same `mode="public"` — gives median 10,057 B and **max
   23,444 B** (`cell:882a1062d5fffff`, 73 events): about 3x the recorded max. The 746 B
@@ -146,9 +150,12 @@ run. Consumers date every payload from its own HTTP response (`Date` − `Last-M
 `asset` and `versions` are IDENTICAL to the ones `events_for_asset` returns for the same
 id (asserted by a test), so one file holding both is a merge, not a reconciliation.
 
-- **928 OF YOUR 7,955 MANIFEST ASSETS HAVE NO EXPOSURE ROW, and they are all entrances.**
+- **928 OF YOUR MANIFEST ASSETS HAVE NO EXPOSURE ROW, and they are all entrances.**
   Measured on the real root: the assets with history are 5,657 bus stops + 1,276 Cells +
-  94 complexes + **928 entrances**, and every entrance publishes a history and NO score
+  94 complexes + **928 entrances** — **the 928 is EXACT and confirmed on the shipped tree;
+  the complex figure is not: 94 own a label row, 285 have a history through the rollup,
+  and all 8,146 - 928 = 7,218 non-entrance assets are scored (2026-08-26)** — and every
+  entrance publishes a history and NO score
   (its score exists only inside its complex's max — that is the Unit/Carrier rule). So
   "its history and its exposure" is not a blind pairing: `exposure_of` raises
   `QueryError("not_a_scored_unit", asset_id=…, kind="entrance", ask="<complex asset_id>")`
@@ -221,3 +228,54 @@ but one of them is a precompute you could ship and the other you must never call
   discipline, and `docs/read-api-contract.md` now says so on the host's own contract page.
 - **Cell ids cross as H3 HEX STRINGS** (`asset.cell` is already that string), the int64 is
   refused by name, and `area_too_large` names the cap (`query.CELL_CAP` = 64 Cells).
+
+
+## DONE 2026-08-26 — branch `notify05-static-history`
+
+`src/raincheck/history.py` renders `web/files/history/` on `make export`'s batch run;
+`src/raincheck/export.py`'s `main()` calls it (13 added lines, `run()` untouched so
+frontend2 03's staging refactor does not collide); `tests/test_history.py` is +32.
+
+**THE KEY SET, AS SHIPPED — SIX:** `asset_id, kind, n_events` as Feature properties,
+`lon, lat` as the Point geometry, `name` as a property that is **ABSENT on all 1,276
+Cells**. Never `id`.
+
+**THE COUNT IS 8,146, NOT 7,955, AND THE DIFFERENCE IS THE COMPLEX ROLLUP.** 5,657 bus
+stops + 1,276 Cells + 928 entrances are all EXACT; complexes are **285**, because
+`events_for_asset` answers a complex for itself AND its child entrances while 7,955
+counted assets holding a label ROW (94 complexes do). The manifest has to be what a click
+returns, so 285 is the right number here. Verified two ways: `stn:409` in the test fixture
+carries no label of its own and returns a real history, and on the real root the seam's
+answer is EQUAL — asset for asset, count for count — to the same question asked as one
+direct join.
+
+**MEASURED ON THE REAL ROOT (2026-08-26), one clean uncontended run:**
+
+| | |
+|---|---|
+| files | **8,147** (1 manifest + 8,146 per-asset) |
+| total | **14,174,355 B** = 5.4x the 2,606,072-byte insight surface |
+| manifest | **1,458,148 B raw**, 138,524 gz — loaded ONCE |
+| per-asset | median **1,138 B**, mean 1,561 B, **max 21,994 B** (`cell:882a1062d5fffff`, 73 events) |
+| no exposure key | **928**, every one an entrance |
+
+**THE FILE-COUNT DECISION: FLAT, NO SHARDS, and the escape stays open.** 8,147 objects is
+nothing for R2's keyspace and nothing for `publish.plan()`'s `rglob`. What the count
+actually costs is the SERIAL PUT loop, and sharding by kind or H3 prefix moves the same
+object count into more directories without touching that. So the tree is flat
+(`files/history/<asset_id>.json`, the id verbatim) and resharding remains what the spec
+says it is: a change to this renderer alone, one f-string, no query touched.
+
+**THE COST FIX, RE-MEASURED HERE:** through `query()` a call is **176.5 ms**; on one
+connection with the stamps resolved once, both queries together are **48.6 ms per asset**
+— **7.3x**, and the whole tree builds in **{WALL}**. The box's 12x is `exposure_of` alone
+(the cheap half); `events_for_asset` is 45.6 of those 48.6 ms and is dominated by the
+seam's per-call `create_view` + `rglob`, not by the stamps. No cache of any kind was
+added.
+
+**WHAT WAS DELIBERATELY NOT DONE.** `publish` still PUTs one object at a time, so this
+tree is 8,147 serial PUTs per spine rebuild. **NOT fixed here: `publish.py` has one editor
+this wave and it is flood 17.** The named `ponytail:` upgrade in that module (parallelise
+the TREE families, leave the ordered live pair alone) is still the right fix and is now
+priced against a real object count. `query.QUERIES` was NOT touched either — notify 06
+wraps exactly four tools this wave.
