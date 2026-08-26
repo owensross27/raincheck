@@ -446,5 +446,1463 @@
    "archive/tu/date=2026-08-24/hour=23"
   ],
   "clean": true
+ },
+ {
+  "day": "2026-08-12",
+  "recorded_utc": "2026-08-26T13:37:13.521333+00:00",
+  "run_id": "shadow-2026-08-12-6d-125210",
+  "shadow_root": "s3a://raincheck-bronze/shadow",
+  "mac_root": "/Users/ross/raincheck-shadow",
+  "content": [
+   {
+    "a": "s3://raincheck-bronze/shadow/silver/events/service_date=2026-08-12",
+    "b": "/Users/ross/raincheck-shadow/silver/events/service_date=2026-08-12",
+    "ok": true,
+    "differing": [],
+    "rows": {
+     "": 1531377
+    },
+    "sha": {
+     "": "fca3d20296b5"
+    },
+    "detail": "EQUAL: 1 partitions match, 0 differ, 0 only in A, 0 only in B"
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/silver/leg_hours/service_date=2026-08-12",
+    "b": "/Users/ross/raincheck-shadow/silver/leg_hours/service_date=2026-08-12",
+    "ok": false,
+    "differing": [
+     ""
+    ],
+    "rows": {
+     "": 123988
+    },
+    "sha": {
+     "": "125007740db2"
+    },
+    "detail": "DIFFERS         same 123988 rows, sha 125007740db2 vs 1a3da2e20d2e\nNOT EQUAL: 0 partitions match, 1 differ, 0 only in A, 0 only in B",
+    "columns": {
+     "": {
+      "dist_m_sum": {
+       "rows": 25371,
+       "type": "DOUBLE",
+       "float": true,
+       "max_rel": 1.0031795363768596e-15
+      }
+     }
+    },
+    "ok_within_tolerance": true
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/gold/cell_hour_speed/month=2026-08",
+    "b": "/Users/ross/raincheck-shadow/gold/cell_hour_speed/month=2026-08",
+    "ok": false,
+    "differing": [
+     ""
+    ],
+    "rows": {
+     "": 832130
+    },
+    "sha": {
+     "": "c4d1ba36c817"
+    },
+    "detail": "DIFFERS         same 832130 rows, sha c4d1ba36c817 vs f86e351018ab\nNOT EQUAL: 0 partitions match, 1 differ, 0 only in A, 0 only in B",
+    "columns": {
+     "": {
+      "dist_m_sum": {
+       "rows": 192469,
+       "type": "DOUBLE",
+       "float": true,
+       "max_rel": 1.240682968014509e-15
+      }
+     }
+    },
+    "ok_within_tolerance": true
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/gold/cell_hour_route/month=2026-08",
+    "b": "/Users/ross/raincheck-shadow/gold/cell_hour_route/month=2026-08",
+    "ok": true,
+    "differing": [],
+    "rows": {
+     "": 1147180
+    },
+    "sha": {
+     "": "84f1c95c9ee0"
+    },
+    "detail": "EQUAL: 1 partitions match, 0 differ, 0 only in A, 0 only in B"
+   }
+  ],
+  "outcome": {
+   "cluster": {
+    "gold": [
+     "success"
+    ],
+    "plan_service_date": [
+     "success"
+    ],
+    "events": [
+     "success",
+     "success",
+     "success",
+     "success",
+     "success",
+     "success"
+    ],
+    "disabled": [
+     "success"
+    ]
+   },
+   "cluster_ok": true,
+   "mac_rc": 0,
+   "mac_gold_rc": 0,
+   "ok": true
+  },
+  "inputs_equal": true,
+  "inputs_reconciled": [
+   "archive/vp/date=2026-08-15/hour=13",
+   "archive/vp/date=2026-08-15/hour=17",
+   "archive/vp/date=2026-08-15/hour=18",
+   "archive/vp/date=2026-08-15/hour=19",
+   "archive/vp/date=2026-08-15/hour=20",
+   "archive/vp/date=2026-08-15/hour=21",
+   "archive/vp/date=2026-08-15/hour=22",
+   "archive/vp/date=2026-08-15/hour=23",
+   "archive/vp/date=2026-08-16/hour=13",
+   "archive/vp/date=2026-08-16/hour=14",
+   "archive/vp/date=2026-08-16/hour=15",
+   "archive/vp/date=2026-08-16/hour=19",
+   "archive/vp/date=2026-08-16/hour=20",
+   "archive/vp/date=2026-08-16/hour=21",
+   "archive/vp/date=2026-08-16/hour=22",
+   "archive/vp/date=2026-08-16/hour=23",
+   "archive/vp/date=2026-08-17/hour=00",
+   "archive/vp/date=2026-08-17/hour=01",
+   "archive/vp/date=2026-08-17/hour=02",
+   "archive/vp/date=2026-08-17/hour=03",
+   "archive/vp/date=2026-08-17/hour=04",
+   "archive/vp/date=2026-08-17/hour=05",
+   "archive/vp/date=2026-08-17/hour=06",
+   "archive/vp/date=2026-08-17/hour=07",
+   "archive/vp/date=2026-08-17/hour=08",
+   "archive/vp/date=2026-08-17/hour=09",
+   "archive/vp/date=2026-08-17/hour=10",
+   "archive/vp/date=2026-08-17/hour=11",
+   "archive/vp/date=2026-08-17/hour=12",
+   "archive/vp/date=2026-08-17/hour=13",
+   "archive/vp/date=2026-08-17/hour=14",
+   "archive/vp/date=2026-08-17/hour=15",
+   "archive/vp/date=2026-08-17/hour=16",
+   "archive/vp/date=2026-08-17/hour=17",
+   "archive/vp/date=2026-08-17/hour=18",
+   "archive/vp/date=2026-08-17/hour=19",
+   "archive/vp/date=2026-08-17/hour=20",
+   "archive/vp/date=2026-08-17/hour=21",
+   "archive/vp/date=2026-08-17/hour=22",
+   "archive/vp/date=2026-08-17/hour=23",
+   "archive/vp/date=2026-08-18/hour=00",
+   "archive/vp/date=2026-08-18/hour=01",
+   "archive/vp/date=2026-08-18/hour=02",
+   "archive/vp/date=2026-08-18/hour=03",
+   "archive/vp/date=2026-08-18/hour=04",
+   "archive/vp/date=2026-08-18/hour=05",
+   "archive/vp/date=2026-08-18/hour=06",
+   "archive/vp/date=2026-08-18/hour=07",
+   "archive/vp/date=2026-08-18/hour=08",
+   "archive/vp/date=2026-08-18/hour=09",
+   "archive/vp/date=2026-08-18/hour=10",
+   "archive/vp/date=2026-08-18/hour=11",
+   "archive/vp/date=2026-08-18/hour=12",
+   "archive/vp/date=2026-08-18/hour=13",
+   "archive/vp/date=2026-08-18/hour=14",
+   "archive/vp/date=2026-08-18/hour=15",
+   "archive/vp/date=2026-08-18/hour=16",
+   "archive/vp/date=2026-08-18/hour=17",
+   "archive/vp/date=2026-08-18/hour=18",
+   "archive/vp/date=2026-08-18/hour=19",
+   "archive/vp/date=2026-08-18/hour=20",
+   "archive/vp/date=2026-08-18/hour=21",
+   "archive/vp/date=2026-08-18/hour=22",
+   "archive/vp/date=2026-08-18/hour=23",
+   "archive/tu/date=2026-08-15/hour=13",
+   "archive/tu/date=2026-08-15/hour=17",
+   "archive/tu/date=2026-08-15/hour=18",
+   "archive/tu/date=2026-08-15/hour=19",
+   "archive/tu/date=2026-08-15/hour=20",
+   "archive/tu/date=2026-08-15/hour=21",
+   "archive/tu/date=2026-08-15/hour=22",
+   "archive/tu/date=2026-08-15/hour=23",
+   "archive/tu/date=2026-08-16/hour=13",
+   "archive/tu/date=2026-08-16/hour=14",
+   "archive/tu/date=2026-08-16/hour=19",
+   "archive/tu/date=2026-08-16/hour=20",
+   "archive/tu/date=2026-08-16/hour=21",
+   "archive/tu/date=2026-08-16/hour=22",
+   "archive/tu/date=2026-08-16/hour=23",
+   "archive/tu/date=2026-08-17/hour=00",
+   "archive/tu/date=2026-08-17/hour=01",
+   "archive/tu/date=2026-08-17/hour=02",
+   "archive/tu/date=2026-08-17/hour=03",
+   "archive/tu/date=2026-08-17/hour=04",
+   "archive/tu/date=2026-08-17/hour=05",
+   "archive/tu/date=2026-08-17/hour=06",
+   "archive/tu/date=2026-08-17/hour=07",
+   "archive/tu/date=2026-08-17/hour=08",
+   "archive/tu/date=2026-08-17/hour=09",
+   "archive/tu/date=2026-08-17/hour=10",
+   "archive/tu/date=2026-08-17/hour=11",
+   "archive/tu/date=2026-08-17/hour=12",
+   "archive/tu/date=2026-08-17/hour=13",
+   "archive/tu/date=2026-08-17/hour=14",
+   "archive/tu/date=2026-08-17/hour=15",
+   "archive/tu/date=2026-08-17/hour=16",
+   "archive/tu/date=2026-08-17/hour=17",
+   "archive/tu/date=2026-08-17/hour=18",
+   "archive/tu/date=2026-08-17/hour=19",
+   "archive/tu/date=2026-08-17/hour=20",
+   "archive/tu/date=2026-08-17/hour=21",
+   "archive/tu/date=2026-08-17/hour=22",
+   "archive/tu/date=2026-08-17/hour=23",
+   "archive/tu/date=2026-08-18/hour=00",
+   "archive/tu/date=2026-08-18/hour=01",
+   "archive/tu/date=2026-08-18/hour=02",
+   "archive/tu/date=2026-08-18/hour=03",
+   "archive/tu/date=2026-08-18/hour=04",
+   "archive/tu/date=2026-08-18/hour=05",
+   "archive/tu/date=2026-08-18/hour=06",
+   "archive/tu/date=2026-08-18/hour=07",
+   "archive/tu/date=2026-08-18/hour=08",
+   "archive/tu/date=2026-08-18/hour=09",
+   "archive/tu/date=2026-08-18/hour=10",
+   "archive/tu/date=2026-08-18/hour=11",
+   "archive/tu/date=2026-08-18/hour=12",
+   "archive/tu/date=2026-08-18/hour=13",
+   "archive/tu/date=2026-08-18/hour=14",
+   "archive/tu/date=2026-08-18/hour=15",
+   "archive/tu/date=2026-08-18/hour=16",
+   "archive/tu/date=2026-08-18/hour=17",
+   "archive/tu/date=2026-08-18/hour=18",
+   "archive/tu/date=2026-08-18/hour=19",
+   "archive/tu/date=2026-08-18/hour=20",
+   "archive/tu/date=2026-08-18/hour=21",
+   "archive/tu/date=2026-08-18/hour=22",
+   "archive/tu/date=2026-08-18/hour=23"
+  ],
+  "clean": true
+ },
+ {
+  "day": "2026-08-13",
+  "recorded_utc": "2026-08-26T13:37:34.424300+00:00",
+  "run_id": "shadow-2026-08-12-6d-125210",
+  "shadow_root": "s3a://raincheck-bronze/shadow",
+  "mac_root": "/Users/ross/raincheck-shadow",
+  "content": [
+   {
+    "a": "s3://raincheck-bronze/shadow/silver/events/service_date=2026-08-13",
+    "b": "/Users/ross/raincheck-shadow/silver/events/service_date=2026-08-13",
+    "ok": true,
+    "differing": [],
+    "rows": {
+     "": 1533943
+    },
+    "sha": {
+     "": "c90de59f266b"
+    },
+    "detail": "EQUAL: 1 partitions match, 0 differ, 0 only in A, 0 only in B"
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/silver/leg_hours/service_date=2026-08-13",
+    "b": "/Users/ross/raincheck-shadow/silver/leg_hours/service_date=2026-08-13",
+    "ok": false,
+    "differing": [
+     ""
+    ],
+    "rows": {
+     "": 123895
+    },
+    "sha": {
+     "": "43010f148b16"
+    },
+    "detail": "DIFFERS         same 123895 rows, sha 43010f148b16 vs d8a9040908c9\nNOT EQUAL: 0 partitions match, 1 differ, 0 only in A, 0 only in B",
+    "columns": {
+     "": {
+      "dist_m_sum": {
+       "rows": 26202,
+       "type": "DOUBLE",
+       "float": true,
+       "max_rel": 8.950344392760088e-16
+      }
+     }
+    },
+    "ok_within_tolerance": true
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/gold/cell_hour_speed/month=2026-08",
+    "b": "/Users/ross/raincheck-shadow/gold/cell_hour_speed/month=2026-08",
+    "ok": false,
+    "differing": [
+     ""
+    ],
+    "rows": {
+     "": 832130
+    },
+    "sha": {
+     "": "c4d1ba36c817"
+    },
+    "detail": "DIFFERS         same 832130 rows, sha c4d1ba36c817 vs f86e351018ab\nNOT EQUAL: 0 partitions match, 1 differ, 0 only in A, 0 only in B",
+    "columns": {
+     "": {
+      "dist_m_sum": {
+       "rows": 192469,
+       "type": "DOUBLE",
+       "float": true,
+       "max_rel": 1.240682968014509e-15
+      }
+     }
+    },
+    "ok_within_tolerance": true
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/gold/cell_hour_route/month=2026-08",
+    "b": "/Users/ross/raincheck-shadow/gold/cell_hour_route/month=2026-08",
+    "ok": true,
+    "differing": [],
+    "rows": {
+     "": 1147180
+    },
+    "sha": {
+     "": "84f1c95c9ee0"
+    },
+    "detail": "EQUAL: 1 partitions match, 0 differ, 0 only in A, 0 only in B"
+   }
+  ],
+  "outcome": {
+   "cluster": {
+    "gold": [
+     "success"
+    ],
+    "plan_service_date": [
+     "success"
+    ],
+    "events": [
+     "success",
+     "success",
+     "success",
+     "success",
+     "success",
+     "success"
+    ],
+    "disabled": [
+     "success"
+    ]
+   },
+   "cluster_ok": true,
+   "mac_rc": 0,
+   "mac_gold_rc": 0,
+   "ok": true
+  },
+  "inputs_equal": true,
+  "inputs_reconciled": [
+   "archive/vp/date=2026-08-15/hour=13",
+   "archive/vp/date=2026-08-15/hour=17",
+   "archive/vp/date=2026-08-15/hour=18",
+   "archive/vp/date=2026-08-15/hour=19",
+   "archive/vp/date=2026-08-15/hour=20",
+   "archive/vp/date=2026-08-15/hour=21",
+   "archive/vp/date=2026-08-15/hour=22",
+   "archive/vp/date=2026-08-15/hour=23",
+   "archive/vp/date=2026-08-16/hour=13",
+   "archive/vp/date=2026-08-16/hour=14",
+   "archive/vp/date=2026-08-16/hour=15",
+   "archive/vp/date=2026-08-16/hour=19",
+   "archive/vp/date=2026-08-16/hour=20",
+   "archive/vp/date=2026-08-16/hour=21",
+   "archive/vp/date=2026-08-16/hour=22",
+   "archive/vp/date=2026-08-16/hour=23",
+   "archive/vp/date=2026-08-17/hour=00",
+   "archive/vp/date=2026-08-17/hour=01",
+   "archive/vp/date=2026-08-17/hour=02",
+   "archive/vp/date=2026-08-17/hour=03",
+   "archive/vp/date=2026-08-17/hour=04",
+   "archive/vp/date=2026-08-17/hour=05",
+   "archive/vp/date=2026-08-17/hour=06",
+   "archive/vp/date=2026-08-17/hour=07",
+   "archive/vp/date=2026-08-17/hour=08",
+   "archive/vp/date=2026-08-17/hour=09",
+   "archive/vp/date=2026-08-17/hour=10",
+   "archive/vp/date=2026-08-17/hour=11",
+   "archive/vp/date=2026-08-17/hour=12",
+   "archive/vp/date=2026-08-17/hour=13",
+   "archive/vp/date=2026-08-17/hour=14",
+   "archive/vp/date=2026-08-17/hour=15",
+   "archive/vp/date=2026-08-17/hour=16",
+   "archive/vp/date=2026-08-17/hour=17",
+   "archive/vp/date=2026-08-17/hour=18",
+   "archive/vp/date=2026-08-17/hour=19",
+   "archive/vp/date=2026-08-17/hour=20",
+   "archive/vp/date=2026-08-17/hour=21",
+   "archive/vp/date=2026-08-17/hour=22",
+   "archive/vp/date=2026-08-17/hour=23",
+   "archive/vp/date=2026-08-18/hour=00",
+   "archive/vp/date=2026-08-18/hour=01",
+   "archive/vp/date=2026-08-18/hour=02",
+   "archive/vp/date=2026-08-18/hour=03",
+   "archive/vp/date=2026-08-18/hour=04",
+   "archive/vp/date=2026-08-18/hour=05",
+   "archive/vp/date=2026-08-18/hour=06",
+   "archive/vp/date=2026-08-18/hour=07",
+   "archive/vp/date=2026-08-18/hour=08",
+   "archive/vp/date=2026-08-18/hour=09",
+   "archive/vp/date=2026-08-18/hour=10",
+   "archive/vp/date=2026-08-18/hour=11",
+   "archive/vp/date=2026-08-18/hour=12",
+   "archive/vp/date=2026-08-18/hour=13",
+   "archive/vp/date=2026-08-18/hour=14",
+   "archive/vp/date=2026-08-18/hour=15",
+   "archive/vp/date=2026-08-18/hour=16",
+   "archive/vp/date=2026-08-18/hour=17",
+   "archive/vp/date=2026-08-18/hour=18",
+   "archive/vp/date=2026-08-18/hour=19",
+   "archive/vp/date=2026-08-18/hour=20",
+   "archive/vp/date=2026-08-18/hour=21",
+   "archive/vp/date=2026-08-18/hour=22",
+   "archive/vp/date=2026-08-18/hour=23",
+   "archive/tu/date=2026-08-15/hour=13",
+   "archive/tu/date=2026-08-15/hour=17",
+   "archive/tu/date=2026-08-15/hour=18",
+   "archive/tu/date=2026-08-15/hour=19",
+   "archive/tu/date=2026-08-15/hour=20",
+   "archive/tu/date=2026-08-15/hour=21",
+   "archive/tu/date=2026-08-15/hour=22",
+   "archive/tu/date=2026-08-15/hour=23",
+   "archive/tu/date=2026-08-16/hour=13",
+   "archive/tu/date=2026-08-16/hour=14",
+   "archive/tu/date=2026-08-16/hour=19",
+   "archive/tu/date=2026-08-16/hour=20",
+   "archive/tu/date=2026-08-16/hour=21",
+   "archive/tu/date=2026-08-16/hour=22",
+   "archive/tu/date=2026-08-16/hour=23",
+   "archive/tu/date=2026-08-17/hour=00",
+   "archive/tu/date=2026-08-17/hour=01",
+   "archive/tu/date=2026-08-17/hour=02",
+   "archive/tu/date=2026-08-17/hour=03",
+   "archive/tu/date=2026-08-17/hour=04",
+   "archive/tu/date=2026-08-17/hour=05",
+   "archive/tu/date=2026-08-17/hour=06",
+   "archive/tu/date=2026-08-17/hour=07",
+   "archive/tu/date=2026-08-17/hour=08",
+   "archive/tu/date=2026-08-17/hour=09",
+   "archive/tu/date=2026-08-17/hour=10",
+   "archive/tu/date=2026-08-17/hour=11",
+   "archive/tu/date=2026-08-17/hour=12",
+   "archive/tu/date=2026-08-17/hour=13",
+   "archive/tu/date=2026-08-17/hour=14",
+   "archive/tu/date=2026-08-17/hour=15",
+   "archive/tu/date=2026-08-17/hour=16",
+   "archive/tu/date=2026-08-17/hour=17",
+   "archive/tu/date=2026-08-17/hour=18",
+   "archive/tu/date=2026-08-17/hour=19",
+   "archive/tu/date=2026-08-17/hour=20",
+   "archive/tu/date=2026-08-17/hour=21",
+   "archive/tu/date=2026-08-17/hour=22",
+   "archive/tu/date=2026-08-17/hour=23",
+   "archive/tu/date=2026-08-18/hour=00",
+   "archive/tu/date=2026-08-18/hour=01",
+   "archive/tu/date=2026-08-18/hour=02",
+   "archive/tu/date=2026-08-18/hour=03",
+   "archive/tu/date=2026-08-18/hour=04",
+   "archive/tu/date=2026-08-18/hour=05",
+   "archive/tu/date=2026-08-18/hour=06",
+   "archive/tu/date=2026-08-18/hour=07",
+   "archive/tu/date=2026-08-18/hour=08",
+   "archive/tu/date=2026-08-18/hour=09",
+   "archive/tu/date=2026-08-18/hour=10",
+   "archive/tu/date=2026-08-18/hour=11",
+   "archive/tu/date=2026-08-18/hour=12",
+   "archive/tu/date=2026-08-18/hour=13",
+   "archive/tu/date=2026-08-18/hour=14",
+   "archive/tu/date=2026-08-18/hour=15",
+   "archive/tu/date=2026-08-18/hour=16",
+   "archive/tu/date=2026-08-18/hour=17",
+   "archive/tu/date=2026-08-18/hour=18",
+   "archive/tu/date=2026-08-18/hour=19",
+   "archive/tu/date=2026-08-18/hour=20",
+   "archive/tu/date=2026-08-18/hour=21",
+   "archive/tu/date=2026-08-18/hour=22",
+   "archive/tu/date=2026-08-18/hour=23"
+  ],
+  "clean": true
+ },
+ {
+  "day": "2026-08-14",
+  "recorded_utc": "2026-08-26T13:37:55.158757+00:00",
+  "run_id": "shadow-2026-08-12-6d-125210",
+  "shadow_root": "s3a://raincheck-bronze/shadow",
+  "mac_root": "/Users/ross/raincheck-shadow",
+  "content": [
+   {
+    "a": "s3://raincheck-bronze/shadow/silver/events/service_date=2026-08-14",
+    "b": "/Users/ross/raincheck-shadow/silver/events/service_date=2026-08-14",
+    "ok": true,
+    "differing": [],
+    "rows": {
+     "": 1527819
+    },
+    "sha": {
+     "": "405e220f5a7a"
+    },
+    "detail": "EQUAL: 1 partitions match, 0 differ, 0 only in A, 0 only in B"
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/silver/leg_hours/service_date=2026-08-14",
+    "b": "/Users/ross/raincheck-shadow/silver/leg_hours/service_date=2026-08-14",
+    "ok": false,
+    "differing": [
+     ""
+    ],
+    "rows": {
+     "": 123333
+    },
+    "sha": {
+     "": "635d4841c338"
+    },
+    "detail": "DIFFERS         same 123333 rows, sha 635d4841c338 vs b51fcecc44cb\nNOT EQUAL: 0 partitions match, 1 differ, 0 only in A, 0 only in B",
+    "columns": {
+     "": {
+      "dist_m_sum": {
+       "rows": 30299,
+       "type": "DOUBLE",
+       "float": true,
+       "max_rel": 1.110276813179935e-15
+      }
+     }
+    },
+    "ok_within_tolerance": true
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/gold/cell_hour_speed/month=2026-08",
+    "b": "/Users/ross/raincheck-shadow/gold/cell_hour_speed/month=2026-08",
+    "ok": false,
+    "differing": [
+     ""
+    ],
+    "rows": {
+     "": 832130
+    },
+    "sha": {
+     "": "c4d1ba36c817"
+    },
+    "detail": "DIFFERS         same 832130 rows, sha c4d1ba36c817 vs f86e351018ab\nNOT EQUAL: 0 partitions match, 1 differ, 0 only in A, 0 only in B",
+    "columns": {
+     "": {
+      "dist_m_sum": {
+       "rows": 192469,
+       "type": "DOUBLE",
+       "float": true,
+       "max_rel": 1.240682968014509e-15
+      }
+     }
+    },
+    "ok_within_tolerance": true
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/gold/cell_hour_route/month=2026-08",
+    "b": "/Users/ross/raincheck-shadow/gold/cell_hour_route/month=2026-08",
+    "ok": true,
+    "differing": [],
+    "rows": {
+     "": 1147180
+    },
+    "sha": {
+     "": "84f1c95c9ee0"
+    },
+    "detail": "EQUAL: 1 partitions match, 0 differ, 0 only in A, 0 only in B"
+   }
+  ],
+  "outcome": {
+   "cluster": {
+    "gold": [
+     "success"
+    ],
+    "plan_service_date": [
+     "success"
+    ],
+    "events": [
+     "success",
+     "success",
+     "success",
+     "success",
+     "success",
+     "success"
+    ],
+    "disabled": [
+     "success"
+    ]
+   },
+   "cluster_ok": true,
+   "mac_rc": 0,
+   "mac_gold_rc": 0,
+   "ok": true
+  },
+  "inputs_equal": true,
+  "inputs_reconciled": [
+   "archive/vp/date=2026-08-15/hour=13",
+   "archive/vp/date=2026-08-15/hour=17",
+   "archive/vp/date=2026-08-15/hour=18",
+   "archive/vp/date=2026-08-15/hour=19",
+   "archive/vp/date=2026-08-15/hour=20",
+   "archive/vp/date=2026-08-15/hour=21",
+   "archive/vp/date=2026-08-15/hour=22",
+   "archive/vp/date=2026-08-15/hour=23",
+   "archive/vp/date=2026-08-16/hour=13",
+   "archive/vp/date=2026-08-16/hour=14",
+   "archive/vp/date=2026-08-16/hour=15",
+   "archive/vp/date=2026-08-16/hour=19",
+   "archive/vp/date=2026-08-16/hour=20",
+   "archive/vp/date=2026-08-16/hour=21",
+   "archive/vp/date=2026-08-16/hour=22",
+   "archive/vp/date=2026-08-16/hour=23",
+   "archive/vp/date=2026-08-17/hour=00",
+   "archive/vp/date=2026-08-17/hour=01",
+   "archive/vp/date=2026-08-17/hour=02",
+   "archive/vp/date=2026-08-17/hour=03",
+   "archive/vp/date=2026-08-17/hour=04",
+   "archive/vp/date=2026-08-17/hour=05",
+   "archive/vp/date=2026-08-17/hour=06",
+   "archive/vp/date=2026-08-17/hour=07",
+   "archive/vp/date=2026-08-17/hour=08",
+   "archive/vp/date=2026-08-17/hour=09",
+   "archive/vp/date=2026-08-17/hour=10",
+   "archive/vp/date=2026-08-17/hour=11",
+   "archive/vp/date=2026-08-17/hour=12",
+   "archive/vp/date=2026-08-17/hour=13",
+   "archive/vp/date=2026-08-17/hour=14",
+   "archive/vp/date=2026-08-17/hour=15",
+   "archive/vp/date=2026-08-17/hour=16",
+   "archive/vp/date=2026-08-17/hour=17",
+   "archive/vp/date=2026-08-17/hour=18",
+   "archive/vp/date=2026-08-17/hour=19",
+   "archive/vp/date=2026-08-17/hour=20",
+   "archive/vp/date=2026-08-17/hour=21",
+   "archive/vp/date=2026-08-17/hour=22",
+   "archive/vp/date=2026-08-17/hour=23",
+   "archive/vp/date=2026-08-18/hour=00",
+   "archive/vp/date=2026-08-18/hour=01",
+   "archive/vp/date=2026-08-18/hour=02",
+   "archive/vp/date=2026-08-18/hour=03",
+   "archive/vp/date=2026-08-18/hour=04",
+   "archive/vp/date=2026-08-18/hour=05",
+   "archive/vp/date=2026-08-18/hour=06",
+   "archive/vp/date=2026-08-18/hour=07",
+   "archive/vp/date=2026-08-18/hour=08",
+   "archive/vp/date=2026-08-18/hour=09",
+   "archive/vp/date=2026-08-18/hour=10",
+   "archive/vp/date=2026-08-18/hour=11",
+   "archive/vp/date=2026-08-18/hour=12",
+   "archive/vp/date=2026-08-18/hour=13",
+   "archive/vp/date=2026-08-18/hour=14",
+   "archive/vp/date=2026-08-18/hour=15",
+   "archive/vp/date=2026-08-18/hour=16",
+   "archive/vp/date=2026-08-18/hour=17",
+   "archive/vp/date=2026-08-18/hour=18",
+   "archive/vp/date=2026-08-18/hour=19",
+   "archive/vp/date=2026-08-18/hour=20",
+   "archive/vp/date=2026-08-18/hour=21",
+   "archive/vp/date=2026-08-18/hour=22",
+   "archive/vp/date=2026-08-18/hour=23",
+   "archive/tu/date=2026-08-15/hour=13",
+   "archive/tu/date=2026-08-15/hour=17",
+   "archive/tu/date=2026-08-15/hour=18",
+   "archive/tu/date=2026-08-15/hour=19",
+   "archive/tu/date=2026-08-15/hour=20",
+   "archive/tu/date=2026-08-15/hour=21",
+   "archive/tu/date=2026-08-15/hour=22",
+   "archive/tu/date=2026-08-15/hour=23",
+   "archive/tu/date=2026-08-16/hour=13",
+   "archive/tu/date=2026-08-16/hour=14",
+   "archive/tu/date=2026-08-16/hour=19",
+   "archive/tu/date=2026-08-16/hour=20",
+   "archive/tu/date=2026-08-16/hour=21",
+   "archive/tu/date=2026-08-16/hour=22",
+   "archive/tu/date=2026-08-16/hour=23",
+   "archive/tu/date=2026-08-17/hour=00",
+   "archive/tu/date=2026-08-17/hour=01",
+   "archive/tu/date=2026-08-17/hour=02",
+   "archive/tu/date=2026-08-17/hour=03",
+   "archive/tu/date=2026-08-17/hour=04",
+   "archive/tu/date=2026-08-17/hour=05",
+   "archive/tu/date=2026-08-17/hour=06",
+   "archive/tu/date=2026-08-17/hour=07",
+   "archive/tu/date=2026-08-17/hour=08",
+   "archive/tu/date=2026-08-17/hour=09",
+   "archive/tu/date=2026-08-17/hour=10",
+   "archive/tu/date=2026-08-17/hour=11",
+   "archive/tu/date=2026-08-17/hour=12",
+   "archive/tu/date=2026-08-17/hour=13",
+   "archive/tu/date=2026-08-17/hour=14",
+   "archive/tu/date=2026-08-17/hour=15",
+   "archive/tu/date=2026-08-17/hour=16",
+   "archive/tu/date=2026-08-17/hour=17",
+   "archive/tu/date=2026-08-17/hour=18",
+   "archive/tu/date=2026-08-17/hour=19",
+   "archive/tu/date=2026-08-17/hour=20",
+   "archive/tu/date=2026-08-17/hour=21",
+   "archive/tu/date=2026-08-17/hour=22",
+   "archive/tu/date=2026-08-17/hour=23",
+   "archive/tu/date=2026-08-18/hour=00",
+   "archive/tu/date=2026-08-18/hour=01",
+   "archive/tu/date=2026-08-18/hour=02",
+   "archive/tu/date=2026-08-18/hour=03",
+   "archive/tu/date=2026-08-18/hour=04",
+   "archive/tu/date=2026-08-18/hour=05",
+   "archive/tu/date=2026-08-18/hour=06",
+   "archive/tu/date=2026-08-18/hour=07",
+   "archive/tu/date=2026-08-18/hour=08",
+   "archive/tu/date=2026-08-18/hour=09",
+   "archive/tu/date=2026-08-18/hour=10",
+   "archive/tu/date=2026-08-18/hour=11",
+   "archive/tu/date=2026-08-18/hour=12",
+   "archive/tu/date=2026-08-18/hour=13",
+   "archive/tu/date=2026-08-18/hour=14",
+   "archive/tu/date=2026-08-18/hour=15",
+   "archive/tu/date=2026-08-18/hour=16",
+   "archive/tu/date=2026-08-18/hour=17",
+   "archive/tu/date=2026-08-18/hour=18",
+   "archive/tu/date=2026-08-18/hour=19",
+   "archive/tu/date=2026-08-18/hour=20",
+   "archive/tu/date=2026-08-18/hour=21",
+   "archive/tu/date=2026-08-18/hour=22",
+   "archive/tu/date=2026-08-18/hour=23"
+  ],
+  "clean": true
+ },
+ {
+  "day": "2026-08-15",
+  "recorded_utc": "2026-08-26T13:38:13.878307+00:00",
+  "run_id": "shadow-2026-08-12-6d-125210",
+  "shadow_root": "s3a://raincheck-bronze/shadow",
+  "mac_root": "/Users/ross/raincheck-shadow",
+  "content": [
+   {
+    "a": "s3://raincheck-bronze/shadow/silver/events/service_date=2026-08-15",
+    "b": "/Users/ross/raincheck-shadow/silver/events/service_date=2026-08-15",
+    "ok": true,
+    "differing": [],
+    "rows": {
+     "": 1161087
+    },
+    "sha": {
+     "": "57d501717c12"
+    },
+    "detail": "EQUAL: 1 partitions match, 0 differ, 0 only in A, 0 only in B"
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/silver/leg_hours/service_date=2026-08-15",
+    "b": "/Users/ross/raincheck-shadow/silver/leg_hours/service_date=2026-08-15",
+    "ok": false,
+    "differing": [
+     ""
+    ],
+    "rows": {
+     "": 97312
+    },
+    "sha": {
+     "": "979567579da8"
+    },
+    "detail": "DIFFERS         same 97312 rows, sha 979567579da8 vs 3ed8f9d37f31\nNOT EQUAL: 0 partitions match, 1 differ, 0 only in A, 0 only in B",
+    "columns": {
+     "": {
+      "dist_m_sum": {
+       "rows": 25249,
+       "type": "DOUBLE",
+       "float": true,
+       "max_rel": 1.050367605639832e-15
+      }
+     }
+    },
+    "ok_within_tolerance": true
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/gold/cell_hour_speed/month=2026-08",
+    "b": "/Users/ross/raincheck-shadow/gold/cell_hour_speed/month=2026-08",
+    "ok": false,
+    "differing": [
+     ""
+    ],
+    "rows": {
+     "": 832130
+    },
+    "sha": {
+     "": "c4d1ba36c817"
+    },
+    "detail": "DIFFERS         same 832130 rows, sha c4d1ba36c817 vs f86e351018ab\nNOT EQUAL: 0 partitions match, 1 differ, 0 only in A, 0 only in B",
+    "columns": {
+     "": {
+      "dist_m_sum": {
+       "rows": 192469,
+       "type": "DOUBLE",
+       "float": true,
+       "max_rel": 1.240682968014509e-15
+      }
+     }
+    },
+    "ok_within_tolerance": true
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/gold/cell_hour_route/month=2026-08",
+    "b": "/Users/ross/raincheck-shadow/gold/cell_hour_route/month=2026-08",
+    "ok": true,
+    "differing": [],
+    "rows": {
+     "": 1147180
+    },
+    "sha": {
+     "": "84f1c95c9ee0"
+    },
+    "detail": "EQUAL: 1 partitions match, 0 differ, 0 only in A, 0 only in B"
+   }
+  ],
+  "outcome": {
+   "cluster": {
+    "gold": [
+     "success"
+    ],
+    "plan_service_date": [
+     "success"
+    ],
+    "events": [
+     "success",
+     "success",
+     "success",
+     "success",
+     "success",
+     "success"
+    ],
+    "disabled": [
+     "success"
+    ]
+   },
+   "cluster_ok": true,
+   "mac_rc": 0,
+   "mac_gold_rc": 0,
+   "ok": true
+  },
+  "inputs_equal": true,
+  "inputs_reconciled": [
+   "archive/vp/date=2026-08-15/hour=13",
+   "archive/vp/date=2026-08-15/hour=17",
+   "archive/vp/date=2026-08-15/hour=18",
+   "archive/vp/date=2026-08-15/hour=19",
+   "archive/vp/date=2026-08-15/hour=20",
+   "archive/vp/date=2026-08-15/hour=21",
+   "archive/vp/date=2026-08-15/hour=22",
+   "archive/vp/date=2026-08-15/hour=23",
+   "archive/vp/date=2026-08-16/hour=13",
+   "archive/vp/date=2026-08-16/hour=14",
+   "archive/vp/date=2026-08-16/hour=15",
+   "archive/vp/date=2026-08-16/hour=19",
+   "archive/vp/date=2026-08-16/hour=20",
+   "archive/vp/date=2026-08-16/hour=21",
+   "archive/vp/date=2026-08-16/hour=22",
+   "archive/vp/date=2026-08-16/hour=23",
+   "archive/vp/date=2026-08-17/hour=00",
+   "archive/vp/date=2026-08-17/hour=01",
+   "archive/vp/date=2026-08-17/hour=02",
+   "archive/vp/date=2026-08-17/hour=03",
+   "archive/vp/date=2026-08-17/hour=04",
+   "archive/vp/date=2026-08-17/hour=05",
+   "archive/vp/date=2026-08-17/hour=06",
+   "archive/vp/date=2026-08-17/hour=07",
+   "archive/vp/date=2026-08-17/hour=08",
+   "archive/vp/date=2026-08-17/hour=09",
+   "archive/vp/date=2026-08-17/hour=10",
+   "archive/vp/date=2026-08-17/hour=11",
+   "archive/vp/date=2026-08-17/hour=12",
+   "archive/vp/date=2026-08-17/hour=13",
+   "archive/vp/date=2026-08-17/hour=14",
+   "archive/vp/date=2026-08-17/hour=15",
+   "archive/vp/date=2026-08-17/hour=16",
+   "archive/vp/date=2026-08-17/hour=17",
+   "archive/vp/date=2026-08-17/hour=18",
+   "archive/vp/date=2026-08-17/hour=19",
+   "archive/vp/date=2026-08-17/hour=20",
+   "archive/vp/date=2026-08-17/hour=21",
+   "archive/vp/date=2026-08-17/hour=22",
+   "archive/vp/date=2026-08-17/hour=23",
+   "archive/vp/date=2026-08-18/hour=00",
+   "archive/vp/date=2026-08-18/hour=01",
+   "archive/vp/date=2026-08-18/hour=02",
+   "archive/vp/date=2026-08-18/hour=03",
+   "archive/vp/date=2026-08-18/hour=04",
+   "archive/vp/date=2026-08-18/hour=05",
+   "archive/vp/date=2026-08-18/hour=06",
+   "archive/vp/date=2026-08-18/hour=07",
+   "archive/vp/date=2026-08-18/hour=08",
+   "archive/vp/date=2026-08-18/hour=09",
+   "archive/vp/date=2026-08-18/hour=10",
+   "archive/vp/date=2026-08-18/hour=11",
+   "archive/vp/date=2026-08-18/hour=12",
+   "archive/vp/date=2026-08-18/hour=13",
+   "archive/vp/date=2026-08-18/hour=14",
+   "archive/vp/date=2026-08-18/hour=15",
+   "archive/vp/date=2026-08-18/hour=16",
+   "archive/vp/date=2026-08-18/hour=17",
+   "archive/vp/date=2026-08-18/hour=18",
+   "archive/vp/date=2026-08-18/hour=19",
+   "archive/vp/date=2026-08-18/hour=20",
+   "archive/vp/date=2026-08-18/hour=21",
+   "archive/vp/date=2026-08-18/hour=22",
+   "archive/vp/date=2026-08-18/hour=23",
+   "archive/tu/date=2026-08-15/hour=13",
+   "archive/tu/date=2026-08-15/hour=17",
+   "archive/tu/date=2026-08-15/hour=18",
+   "archive/tu/date=2026-08-15/hour=19",
+   "archive/tu/date=2026-08-15/hour=20",
+   "archive/tu/date=2026-08-15/hour=21",
+   "archive/tu/date=2026-08-15/hour=22",
+   "archive/tu/date=2026-08-15/hour=23",
+   "archive/tu/date=2026-08-16/hour=13",
+   "archive/tu/date=2026-08-16/hour=14",
+   "archive/tu/date=2026-08-16/hour=19",
+   "archive/tu/date=2026-08-16/hour=20",
+   "archive/tu/date=2026-08-16/hour=21",
+   "archive/tu/date=2026-08-16/hour=22",
+   "archive/tu/date=2026-08-16/hour=23",
+   "archive/tu/date=2026-08-17/hour=00",
+   "archive/tu/date=2026-08-17/hour=01",
+   "archive/tu/date=2026-08-17/hour=02",
+   "archive/tu/date=2026-08-17/hour=03",
+   "archive/tu/date=2026-08-17/hour=04",
+   "archive/tu/date=2026-08-17/hour=05",
+   "archive/tu/date=2026-08-17/hour=06",
+   "archive/tu/date=2026-08-17/hour=07",
+   "archive/tu/date=2026-08-17/hour=08",
+   "archive/tu/date=2026-08-17/hour=09",
+   "archive/tu/date=2026-08-17/hour=10",
+   "archive/tu/date=2026-08-17/hour=11",
+   "archive/tu/date=2026-08-17/hour=12",
+   "archive/tu/date=2026-08-17/hour=13",
+   "archive/tu/date=2026-08-17/hour=14",
+   "archive/tu/date=2026-08-17/hour=15",
+   "archive/tu/date=2026-08-17/hour=16",
+   "archive/tu/date=2026-08-17/hour=17",
+   "archive/tu/date=2026-08-17/hour=18",
+   "archive/tu/date=2026-08-17/hour=19",
+   "archive/tu/date=2026-08-17/hour=20",
+   "archive/tu/date=2026-08-17/hour=21",
+   "archive/tu/date=2026-08-17/hour=22",
+   "archive/tu/date=2026-08-17/hour=23",
+   "archive/tu/date=2026-08-18/hour=00",
+   "archive/tu/date=2026-08-18/hour=01",
+   "archive/tu/date=2026-08-18/hour=02",
+   "archive/tu/date=2026-08-18/hour=03",
+   "archive/tu/date=2026-08-18/hour=04",
+   "archive/tu/date=2026-08-18/hour=05",
+   "archive/tu/date=2026-08-18/hour=06",
+   "archive/tu/date=2026-08-18/hour=07",
+   "archive/tu/date=2026-08-18/hour=08",
+   "archive/tu/date=2026-08-18/hour=09",
+   "archive/tu/date=2026-08-18/hour=10",
+   "archive/tu/date=2026-08-18/hour=11",
+   "archive/tu/date=2026-08-18/hour=12",
+   "archive/tu/date=2026-08-18/hour=13",
+   "archive/tu/date=2026-08-18/hour=14",
+   "archive/tu/date=2026-08-18/hour=15",
+   "archive/tu/date=2026-08-18/hour=16",
+   "archive/tu/date=2026-08-18/hour=17",
+   "archive/tu/date=2026-08-18/hour=18",
+   "archive/tu/date=2026-08-18/hour=19",
+   "archive/tu/date=2026-08-18/hour=20",
+   "archive/tu/date=2026-08-18/hour=21",
+   "archive/tu/date=2026-08-18/hour=22",
+   "archive/tu/date=2026-08-18/hour=23"
+  ],
+  "clean": true
+ },
+ {
+  "day": "2026-08-16",
+  "recorded_utc": "2026-08-26T13:38:31.278614+00:00",
+  "run_id": "shadow-2026-08-12-6d-125210",
+  "shadow_root": "s3a://raincheck-bronze/shadow",
+  "mac_root": "/Users/ross/raincheck-shadow",
+  "content": [
+   {
+    "a": "s3://raincheck-bronze/shadow/silver/events/service_date=2026-08-16",
+    "b": "/Users/ross/raincheck-shadow/silver/events/service_date=2026-08-16",
+    "ok": true,
+    "differing": [],
+    "rows": {
+     "": 1035086
+    },
+    "sha": {
+     "": "87825b181f40"
+    },
+    "detail": "EQUAL: 1 partitions match, 0 differ, 0 only in A, 0 only in B"
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/silver/leg_hours/service_date=2026-08-16",
+    "b": "/Users/ross/raincheck-shadow/silver/leg_hours/service_date=2026-08-16",
+    "ok": false,
+    "differing": [
+     ""
+    ],
+    "rows": {
+     "": 90943
+    },
+    "sha": {
+     "": "b0dada6316da"
+    },
+    "detail": "DIFFERS         same 90943 rows, sha b0dada6316da vs 6cf214298a4e\nNOT EQUAL: 0 partitions match, 1 differ, 0 only in A, 0 only in B",
+    "columns": {
+     "": {
+      "dist_m_sum": {
+       "rows": 20992,
+       "type": "DOUBLE",
+       "float": true,
+       "max_rel": 1.1419411815781446e-15
+      }
+     }
+    },
+    "ok_within_tolerance": true
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/gold/cell_hour_speed/month=2026-08",
+    "b": "/Users/ross/raincheck-shadow/gold/cell_hour_speed/month=2026-08",
+    "ok": false,
+    "differing": [
+     ""
+    ],
+    "rows": {
+     "": 832130
+    },
+    "sha": {
+     "": "c4d1ba36c817"
+    },
+    "detail": "DIFFERS         same 832130 rows, sha c4d1ba36c817 vs f86e351018ab\nNOT EQUAL: 0 partitions match, 1 differ, 0 only in A, 0 only in B",
+    "columns": {
+     "": {
+      "dist_m_sum": {
+       "rows": 192469,
+       "type": "DOUBLE",
+       "float": true,
+       "max_rel": 1.240682968014509e-15
+      }
+     }
+    },
+    "ok_within_tolerance": true
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/gold/cell_hour_route/month=2026-08",
+    "b": "/Users/ross/raincheck-shadow/gold/cell_hour_route/month=2026-08",
+    "ok": true,
+    "differing": [],
+    "rows": {
+     "": 1147180
+    },
+    "sha": {
+     "": "84f1c95c9ee0"
+    },
+    "detail": "EQUAL: 1 partitions match, 0 differ, 0 only in A, 0 only in B"
+   }
+  ],
+  "outcome": {
+   "cluster": {
+    "gold": [
+     "success"
+    ],
+    "plan_service_date": [
+     "success"
+    ],
+    "events": [
+     "success",
+     "success",
+     "success",
+     "success",
+     "success",
+     "success"
+    ],
+    "disabled": [
+     "success"
+    ]
+   },
+   "cluster_ok": true,
+   "mac_rc": 0,
+   "mac_gold_rc": 0,
+   "ok": true
+  },
+  "inputs_equal": true,
+  "inputs_reconciled": [
+   "archive/vp/date=2026-08-15/hour=13",
+   "archive/vp/date=2026-08-15/hour=17",
+   "archive/vp/date=2026-08-15/hour=18",
+   "archive/vp/date=2026-08-15/hour=19",
+   "archive/vp/date=2026-08-15/hour=20",
+   "archive/vp/date=2026-08-15/hour=21",
+   "archive/vp/date=2026-08-15/hour=22",
+   "archive/vp/date=2026-08-15/hour=23",
+   "archive/vp/date=2026-08-16/hour=13",
+   "archive/vp/date=2026-08-16/hour=14",
+   "archive/vp/date=2026-08-16/hour=15",
+   "archive/vp/date=2026-08-16/hour=19",
+   "archive/vp/date=2026-08-16/hour=20",
+   "archive/vp/date=2026-08-16/hour=21",
+   "archive/vp/date=2026-08-16/hour=22",
+   "archive/vp/date=2026-08-16/hour=23",
+   "archive/vp/date=2026-08-17/hour=00",
+   "archive/vp/date=2026-08-17/hour=01",
+   "archive/vp/date=2026-08-17/hour=02",
+   "archive/vp/date=2026-08-17/hour=03",
+   "archive/vp/date=2026-08-17/hour=04",
+   "archive/vp/date=2026-08-17/hour=05",
+   "archive/vp/date=2026-08-17/hour=06",
+   "archive/vp/date=2026-08-17/hour=07",
+   "archive/vp/date=2026-08-17/hour=08",
+   "archive/vp/date=2026-08-17/hour=09",
+   "archive/vp/date=2026-08-17/hour=10",
+   "archive/vp/date=2026-08-17/hour=11",
+   "archive/vp/date=2026-08-17/hour=12",
+   "archive/vp/date=2026-08-17/hour=13",
+   "archive/vp/date=2026-08-17/hour=14",
+   "archive/vp/date=2026-08-17/hour=15",
+   "archive/vp/date=2026-08-17/hour=16",
+   "archive/vp/date=2026-08-17/hour=17",
+   "archive/vp/date=2026-08-17/hour=18",
+   "archive/vp/date=2026-08-17/hour=19",
+   "archive/vp/date=2026-08-17/hour=20",
+   "archive/vp/date=2026-08-17/hour=21",
+   "archive/vp/date=2026-08-17/hour=22",
+   "archive/vp/date=2026-08-17/hour=23",
+   "archive/vp/date=2026-08-18/hour=00",
+   "archive/vp/date=2026-08-18/hour=01",
+   "archive/vp/date=2026-08-18/hour=02",
+   "archive/vp/date=2026-08-18/hour=03",
+   "archive/vp/date=2026-08-18/hour=04",
+   "archive/vp/date=2026-08-18/hour=05",
+   "archive/vp/date=2026-08-18/hour=06",
+   "archive/vp/date=2026-08-18/hour=07",
+   "archive/vp/date=2026-08-18/hour=08",
+   "archive/vp/date=2026-08-18/hour=09",
+   "archive/vp/date=2026-08-18/hour=10",
+   "archive/vp/date=2026-08-18/hour=11",
+   "archive/vp/date=2026-08-18/hour=12",
+   "archive/vp/date=2026-08-18/hour=13",
+   "archive/vp/date=2026-08-18/hour=14",
+   "archive/vp/date=2026-08-18/hour=15",
+   "archive/vp/date=2026-08-18/hour=16",
+   "archive/vp/date=2026-08-18/hour=17",
+   "archive/vp/date=2026-08-18/hour=18",
+   "archive/vp/date=2026-08-18/hour=19",
+   "archive/vp/date=2026-08-18/hour=20",
+   "archive/vp/date=2026-08-18/hour=21",
+   "archive/vp/date=2026-08-18/hour=22",
+   "archive/vp/date=2026-08-18/hour=23",
+   "archive/tu/date=2026-08-15/hour=13",
+   "archive/tu/date=2026-08-15/hour=17",
+   "archive/tu/date=2026-08-15/hour=18",
+   "archive/tu/date=2026-08-15/hour=19",
+   "archive/tu/date=2026-08-15/hour=20",
+   "archive/tu/date=2026-08-15/hour=21",
+   "archive/tu/date=2026-08-15/hour=22",
+   "archive/tu/date=2026-08-15/hour=23",
+   "archive/tu/date=2026-08-16/hour=13",
+   "archive/tu/date=2026-08-16/hour=14",
+   "archive/tu/date=2026-08-16/hour=19",
+   "archive/tu/date=2026-08-16/hour=20",
+   "archive/tu/date=2026-08-16/hour=21",
+   "archive/tu/date=2026-08-16/hour=22",
+   "archive/tu/date=2026-08-16/hour=23",
+   "archive/tu/date=2026-08-17/hour=00",
+   "archive/tu/date=2026-08-17/hour=01",
+   "archive/tu/date=2026-08-17/hour=02",
+   "archive/tu/date=2026-08-17/hour=03",
+   "archive/tu/date=2026-08-17/hour=04",
+   "archive/tu/date=2026-08-17/hour=05",
+   "archive/tu/date=2026-08-17/hour=06",
+   "archive/tu/date=2026-08-17/hour=07",
+   "archive/tu/date=2026-08-17/hour=08",
+   "archive/tu/date=2026-08-17/hour=09",
+   "archive/tu/date=2026-08-17/hour=10",
+   "archive/tu/date=2026-08-17/hour=11",
+   "archive/tu/date=2026-08-17/hour=12",
+   "archive/tu/date=2026-08-17/hour=13",
+   "archive/tu/date=2026-08-17/hour=14",
+   "archive/tu/date=2026-08-17/hour=15",
+   "archive/tu/date=2026-08-17/hour=16",
+   "archive/tu/date=2026-08-17/hour=17",
+   "archive/tu/date=2026-08-17/hour=18",
+   "archive/tu/date=2026-08-17/hour=19",
+   "archive/tu/date=2026-08-17/hour=20",
+   "archive/tu/date=2026-08-17/hour=21",
+   "archive/tu/date=2026-08-17/hour=22",
+   "archive/tu/date=2026-08-17/hour=23",
+   "archive/tu/date=2026-08-18/hour=00",
+   "archive/tu/date=2026-08-18/hour=01",
+   "archive/tu/date=2026-08-18/hour=02",
+   "archive/tu/date=2026-08-18/hour=03",
+   "archive/tu/date=2026-08-18/hour=04",
+   "archive/tu/date=2026-08-18/hour=05",
+   "archive/tu/date=2026-08-18/hour=06",
+   "archive/tu/date=2026-08-18/hour=07",
+   "archive/tu/date=2026-08-18/hour=08",
+   "archive/tu/date=2026-08-18/hour=09",
+   "archive/tu/date=2026-08-18/hour=10",
+   "archive/tu/date=2026-08-18/hour=11",
+   "archive/tu/date=2026-08-18/hour=12",
+   "archive/tu/date=2026-08-18/hour=13",
+   "archive/tu/date=2026-08-18/hour=14",
+   "archive/tu/date=2026-08-18/hour=15",
+   "archive/tu/date=2026-08-18/hour=16",
+   "archive/tu/date=2026-08-18/hour=17",
+   "archive/tu/date=2026-08-18/hour=18",
+   "archive/tu/date=2026-08-18/hour=19",
+   "archive/tu/date=2026-08-18/hour=20",
+   "archive/tu/date=2026-08-18/hour=21",
+   "archive/tu/date=2026-08-18/hour=22",
+   "archive/tu/date=2026-08-18/hour=23"
+  ],
+  "clean": true
+ },
+ {
+  "day": "2026-08-17",
+  "recorded_utc": "2026-08-26T13:38:50.929741+00:00",
+  "run_id": "shadow-2026-08-12-6d-125210",
+  "shadow_root": "s3a://raincheck-bronze/shadow",
+  "mac_root": "/Users/ross/raincheck-shadow",
+  "content": [
+   {
+    "a": "s3://raincheck-bronze/shadow/silver/events/service_date=2026-08-17",
+    "b": "/Users/ross/raincheck-shadow/silver/events/service_date=2026-08-17",
+    "ok": true,
+    "differing": [],
+    "rows": {
+     "": 1550834
+    },
+    "sha": {
+     "": "46b3767bc714"
+    },
+    "detail": "EQUAL: 1 partitions match, 0 differ, 0 only in A, 0 only in B"
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/silver/leg_hours/service_date=2026-08-17",
+    "b": "/Users/ross/raincheck-shadow/silver/leg_hours/service_date=2026-08-17",
+    "ok": false,
+    "differing": [
+     ""
+    ],
+    "rows": {
+     "": 123736
+    },
+    "sha": {
+     "": "575eea099406"
+    },
+    "detail": "DIFFERS         same 123736 rows, sha 575eea099406 vs 625a20c239de\nNOT EQUAL: 0 partitions match, 1 differ, 0 only in A, 0 only in B",
+    "columns": {
+     "": {
+      "dist_m_sum": {
+       "rows": 25922,
+       "type": "DOUBLE",
+       "float": true,
+       "max_rel": 8.523824483177759e-16
+      }
+     }
+    },
+    "ok_within_tolerance": true
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/gold/cell_hour_speed/month=2026-08",
+    "b": "/Users/ross/raincheck-shadow/gold/cell_hour_speed/month=2026-08",
+    "ok": false,
+    "differing": [
+     ""
+    ],
+    "rows": {
+     "": 832130
+    },
+    "sha": {
+     "": "c4d1ba36c817"
+    },
+    "detail": "DIFFERS         same 832130 rows, sha c4d1ba36c817 vs f86e351018ab\nNOT EQUAL: 0 partitions match, 1 differ, 0 only in A, 0 only in B",
+    "columns": {
+     "": {
+      "dist_m_sum": {
+       "rows": 192469,
+       "type": "DOUBLE",
+       "float": true,
+       "max_rel": 1.240682968014509e-15
+      }
+     }
+    },
+    "ok_within_tolerance": true
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/gold/cell_hour_route/month=2026-08",
+    "b": "/Users/ross/raincheck-shadow/gold/cell_hour_route/month=2026-08",
+    "ok": true,
+    "differing": [],
+    "rows": {
+     "": 1147180
+    },
+    "sha": {
+     "": "84f1c95c9ee0"
+    },
+    "detail": "EQUAL: 1 partitions match, 0 differ, 0 only in A, 0 only in B"
+   }
+  ],
+  "outcome": {
+   "cluster": {
+    "gold": [
+     "success"
+    ],
+    "plan_service_date": [
+     "success"
+    ],
+    "events": [
+     "success",
+     "success",
+     "success",
+     "success",
+     "success",
+     "success"
+    ],
+    "disabled": [
+     "success"
+    ]
+   },
+   "cluster_ok": true,
+   "mac_rc": 0,
+   "mac_gold_rc": 0,
+   "ok": true
+  },
+  "inputs_equal": true,
+  "inputs_reconciled": [
+   "archive/vp/date=2026-08-15/hour=13",
+   "archive/vp/date=2026-08-15/hour=17",
+   "archive/vp/date=2026-08-15/hour=18",
+   "archive/vp/date=2026-08-15/hour=19",
+   "archive/vp/date=2026-08-15/hour=20",
+   "archive/vp/date=2026-08-15/hour=21",
+   "archive/vp/date=2026-08-15/hour=22",
+   "archive/vp/date=2026-08-15/hour=23",
+   "archive/vp/date=2026-08-16/hour=13",
+   "archive/vp/date=2026-08-16/hour=14",
+   "archive/vp/date=2026-08-16/hour=15",
+   "archive/vp/date=2026-08-16/hour=19",
+   "archive/vp/date=2026-08-16/hour=20",
+   "archive/vp/date=2026-08-16/hour=21",
+   "archive/vp/date=2026-08-16/hour=22",
+   "archive/vp/date=2026-08-16/hour=23",
+   "archive/vp/date=2026-08-17/hour=00",
+   "archive/vp/date=2026-08-17/hour=01",
+   "archive/vp/date=2026-08-17/hour=02",
+   "archive/vp/date=2026-08-17/hour=03",
+   "archive/vp/date=2026-08-17/hour=04",
+   "archive/vp/date=2026-08-17/hour=05",
+   "archive/vp/date=2026-08-17/hour=06",
+   "archive/vp/date=2026-08-17/hour=07",
+   "archive/vp/date=2026-08-17/hour=08",
+   "archive/vp/date=2026-08-17/hour=09",
+   "archive/vp/date=2026-08-17/hour=10",
+   "archive/vp/date=2026-08-17/hour=11",
+   "archive/vp/date=2026-08-17/hour=12",
+   "archive/vp/date=2026-08-17/hour=13",
+   "archive/vp/date=2026-08-17/hour=14",
+   "archive/vp/date=2026-08-17/hour=15",
+   "archive/vp/date=2026-08-17/hour=16",
+   "archive/vp/date=2026-08-17/hour=17",
+   "archive/vp/date=2026-08-17/hour=18",
+   "archive/vp/date=2026-08-17/hour=19",
+   "archive/vp/date=2026-08-17/hour=20",
+   "archive/vp/date=2026-08-17/hour=21",
+   "archive/vp/date=2026-08-17/hour=22",
+   "archive/vp/date=2026-08-17/hour=23",
+   "archive/vp/date=2026-08-18/hour=00",
+   "archive/vp/date=2026-08-18/hour=01",
+   "archive/vp/date=2026-08-18/hour=02",
+   "archive/vp/date=2026-08-18/hour=03",
+   "archive/vp/date=2026-08-18/hour=04",
+   "archive/vp/date=2026-08-18/hour=05",
+   "archive/vp/date=2026-08-18/hour=06",
+   "archive/vp/date=2026-08-18/hour=07",
+   "archive/vp/date=2026-08-18/hour=08",
+   "archive/vp/date=2026-08-18/hour=09",
+   "archive/vp/date=2026-08-18/hour=10",
+   "archive/vp/date=2026-08-18/hour=11",
+   "archive/vp/date=2026-08-18/hour=12",
+   "archive/vp/date=2026-08-18/hour=13",
+   "archive/vp/date=2026-08-18/hour=14",
+   "archive/vp/date=2026-08-18/hour=15",
+   "archive/vp/date=2026-08-18/hour=16",
+   "archive/vp/date=2026-08-18/hour=17",
+   "archive/vp/date=2026-08-18/hour=18",
+   "archive/vp/date=2026-08-18/hour=19",
+   "archive/vp/date=2026-08-18/hour=20",
+   "archive/vp/date=2026-08-18/hour=21",
+   "archive/vp/date=2026-08-18/hour=22",
+   "archive/vp/date=2026-08-18/hour=23",
+   "archive/tu/date=2026-08-15/hour=13",
+   "archive/tu/date=2026-08-15/hour=17",
+   "archive/tu/date=2026-08-15/hour=18",
+   "archive/tu/date=2026-08-15/hour=19",
+   "archive/tu/date=2026-08-15/hour=20",
+   "archive/tu/date=2026-08-15/hour=21",
+   "archive/tu/date=2026-08-15/hour=22",
+   "archive/tu/date=2026-08-15/hour=23",
+   "archive/tu/date=2026-08-16/hour=13",
+   "archive/tu/date=2026-08-16/hour=14",
+   "archive/tu/date=2026-08-16/hour=19",
+   "archive/tu/date=2026-08-16/hour=20",
+   "archive/tu/date=2026-08-16/hour=21",
+   "archive/tu/date=2026-08-16/hour=22",
+   "archive/tu/date=2026-08-16/hour=23",
+   "archive/tu/date=2026-08-17/hour=00",
+   "archive/tu/date=2026-08-17/hour=01",
+   "archive/tu/date=2026-08-17/hour=02",
+   "archive/tu/date=2026-08-17/hour=03",
+   "archive/tu/date=2026-08-17/hour=04",
+   "archive/tu/date=2026-08-17/hour=05",
+   "archive/tu/date=2026-08-17/hour=06",
+   "archive/tu/date=2026-08-17/hour=07",
+   "archive/tu/date=2026-08-17/hour=08",
+   "archive/tu/date=2026-08-17/hour=09",
+   "archive/tu/date=2026-08-17/hour=10",
+   "archive/tu/date=2026-08-17/hour=11",
+   "archive/tu/date=2026-08-17/hour=12",
+   "archive/tu/date=2026-08-17/hour=13",
+   "archive/tu/date=2026-08-17/hour=14",
+   "archive/tu/date=2026-08-17/hour=15",
+   "archive/tu/date=2026-08-17/hour=16",
+   "archive/tu/date=2026-08-17/hour=17",
+   "archive/tu/date=2026-08-17/hour=18",
+   "archive/tu/date=2026-08-17/hour=19",
+   "archive/tu/date=2026-08-17/hour=20",
+   "archive/tu/date=2026-08-17/hour=21",
+   "archive/tu/date=2026-08-17/hour=22",
+   "archive/tu/date=2026-08-17/hour=23",
+   "archive/tu/date=2026-08-18/hour=00",
+   "archive/tu/date=2026-08-18/hour=01",
+   "archive/tu/date=2026-08-18/hour=02",
+   "archive/tu/date=2026-08-18/hour=03",
+   "archive/tu/date=2026-08-18/hour=04",
+   "archive/tu/date=2026-08-18/hour=05",
+   "archive/tu/date=2026-08-18/hour=06",
+   "archive/tu/date=2026-08-18/hour=07",
+   "archive/tu/date=2026-08-18/hour=08",
+   "archive/tu/date=2026-08-18/hour=09",
+   "archive/tu/date=2026-08-18/hour=10",
+   "archive/tu/date=2026-08-18/hour=11",
+   "archive/tu/date=2026-08-18/hour=12",
+   "archive/tu/date=2026-08-18/hour=13",
+   "archive/tu/date=2026-08-18/hour=14",
+   "archive/tu/date=2026-08-18/hour=15",
+   "archive/tu/date=2026-08-18/hour=16",
+   "archive/tu/date=2026-08-18/hour=17",
+   "archive/tu/date=2026-08-18/hour=18",
+   "archive/tu/date=2026-08-18/hour=19",
+   "archive/tu/date=2026-08-18/hour=20",
+   "archive/tu/date=2026-08-18/hour=21",
+   "archive/tu/date=2026-08-18/hour=22",
+   "archive/tu/date=2026-08-18/hour=23"
+  ],
+  "clean": true
  }
 ]
