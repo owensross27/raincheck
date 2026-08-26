@@ -21,6 +21,7 @@ import pytest
 
 from raincheck import notify_mcp as nm, query as q
 
+ROOT = Path(__file__).parents[1]
 FIXTURES = Path(__file__).parent / "fixtures"
 LAYOUT = {"assets": ("ref", "assets"), "events": ("silver", "flood_events"),
           "obs": ("silver", "flood_obs"), "labels": ("gold", "flood_labels"),
@@ -413,6 +414,18 @@ def test_the_caps_and_the_default_come_from_the_seams_constants():
     assert f"default\n{q.RADIUS_M:.0f} m, capped at {q.RADIUS_CAP_M:.0f} m" in near
 
 
+def test_obs_near_names_every_source_and_every_clock_kind():
+    """DERIVED from `flood_obs`' own vocabularies, so a sixth source cannot land with the
+    description still claiming five. The module itself imports neither -- only this test
+    does, because the module is dispatch-only."""
+    from raincheck import flood_obs as fo
+    text = nm.DESCRIPTIONS["obs_near"]
+    for source in fo.SOURCES:
+        assert f"`{source}`" in text, source
+    for kind in fo.OBS_TS_KIND:
+        assert f"`{kind}`" in text, kind
+
+
 def test_obs_near_says_local_only_means_refused_and_not_thinner():
     text = nm.DESCRIPTIONS["obs_near"]
     assert "LOCAL ONLY, AND THAT MEANS REFUSED, NOT THINNER." in text
@@ -461,6 +474,28 @@ def test_server_has_no_second_copy_of_the_default_mode():
     so there is no constant left to flip."""
     assert inspect.signature(nm.tools).parameters["mode"].default == q.MODES[0] == "public"
     assert inspect.signature(nm.server).parameters["mode"].default is inspect.Parameter.empty
+
+
+def test_the_extra_is_pinned_to_one_major_version():
+    """1.x's server class is `mcp.server.fastmcp.FastMCP`; 2.x renamed it to
+    `mcp.server.mcpserver.MCPServer` and the v1 path now raises outright, so an unpinned
+    extra would someday resolve a tree this module cannot import. The gx extra's rule,
+    applied to the second optional dependency this repo has.
+
+    DELIBERATELY NOT IN THE IMAGE: `docker/Dockerfile` installs `[gx]` and must NOT gain
+    `[mcp]` -- no pod runs this server, and the image is not this ticket's to rewrite."""
+    assert 'mcp = ["mcp>=2.1,<3"]' in (ROOT / "pyproject.toml").read_text()
+    assert "[mcp]" not in (ROOT / "docker" / "Dockerfile").read_text()
+
+
+def test_no_module_but_this_one_imports_the_sdk_and_this_one_does_it_lazily():
+    """The sibling of gx's rule: the SDK is optional, so a pipeline module that imported
+    it would make a serving-side dependency a build-side one."""
+    offenders = [p.name for p in (ROOT / "src" / "raincheck").glob("*.py")
+                 if p.name != "notify_mcp.py" and "mcp" in p.read_text()]
+    assert not offenders, offenders
+    assert not [ln for ln in SOURCE.splitlines()
+                if ln.startswith(("import mcp", "from mcp"))]
 
 
 def test_nothing_in_this_ticket_opens_a_port():
