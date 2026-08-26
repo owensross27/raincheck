@@ -388,6 +388,24 @@ geo:  ## the current-sea-level extents + the route lines -> web/files/geo/*.geoj
 	$(PY) -m raincheck.stormwater_extent --geo
 	$(PY) -m raincheck.export --geo
 
+# --- flood-build 21a: route flood attribution ---------------------------------------
+# `gold/route_flood`, one row per (route_id, direction_id): Cells crossed, Cells
+# flood-prone, share of route length inside DEP's current-sea-level extent, flood events
+# on the route's Cells. DESCRIPTIVE, and DOWNSTREAM of the labels - it feeds no model, and
+# the module asserts features/matrix/score/detector_version unmoved on both sides.
+# NOT a `daily.STAGES` member: registering it is flood-build 21b, a WAVE 8 GATE step (the
+# three-part diff is on .scratch/flood-build/issues/21-route-flood-attribution.md). Until
+# then run it by hand, AFTER `make gold`.
+# rc 2 is its designed steady state - two of DEP's three scenarios have no current-sea-level
+# source - and GNU make flattens any recipe failure to its own 2, so read the batch under
+# <root>/checks/check=route_flood/ or invoke the module to tell "could not read" from "broke".
+.PHONY: flood-route flood-route-exhibit
+flood-route:  ## route x flood-extent attribution -> gold/route_flood + check rows (flood-build 21a)
+	$(PY) -m raincheck.flood_route
+
+flood-route-exhibit:  ## the ONE measured exhibit -> research/flood-21-route-exhibit.{md,json} (reads only)
+	$(PY) -m raincheck.flood_route --exhibit
+
 # --- ticket 14: the live export loop (foreground, 30 s, Ctrl-C stops it) -----------
 .PHONY: live-export
 live-export:  ## live.geojson + meta.json every 30 s (make live-export [SOURCE=bronze] [ONCE=1])
