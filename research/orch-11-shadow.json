@@ -1,0 +1,450 @@
+[
+ {
+  "day": "2026-08-22",
+  "recorded_utc": "2026-08-26T00:42:46.865869+00:00",
+  "run_id": "shadow-2026-08-22-2d-001357",
+  "shadow_root": "s3a://raincheck-bronze/shadow",
+  "mac_root": "/Users/ross/raincheck-shadow",
+  "content": [
+   {
+    "a": "s3://raincheck-bronze/shadow/silver/events/service_date=2026-08-22",
+    "b": "/Users/ross/raincheck-shadow/silver/events/service_date=2026-08-22",
+    "ok": true,
+    "differing": [],
+    "rows": {
+     "": 750226
+    },
+    "sha": {
+     "": "357063ed2a40"
+    },
+    "detail": "EQUAL: 1 partitions match, 0 differ, 0 only in A, 0 only in B"
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/silver/leg_hours/service_date=2026-08-22",
+    "b": "/Users/ross/raincheck-shadow/silver/leg_hours/service_date=2026-08-22",
+    "ok": false,
+    "differing": [
+     ""
+    ],
+    "rows": {
+     "": 72087
+    },
+    "sha": {
+     "": "4e5fabb9779a"
+    },
+    "detail": "DIFFERS         same 72087 rows, sha 4e5fabb9779a vs 93afa84a77e2\nNOT EQUAL: 0 partitions match, 1 differ, 0 only in A, 0 only in B"
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/gold/cell_hour_speed/month=2026-08",
+    "b": "/Users/ross/raincheck-shadow/gold/cell_hour_speed/month=2026-08",
+    "ok": false,
+    "differing": [
+     ""
+    ],
+    "rows": {
+     "": 160990
+    },
+    "sha": {
+     "": "0ed855680956"
+    },
+    "detail": "DIFFERS         same 160990 rows, sha 0ed855680956 vs 58b227cda566\nNOT EQUAL: 0 partitions match, 1 differ, 0 only in A, 0 only in B"
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/gold/cell_hour_route/month=2026-08",
+    "b": "/Users/ross/raincheck-shadow/gold/cell_hour_route/month=2026-08",
+    "ok": true,
+    "differing": [],
+    "rows": {
+     "": 243283
+    },
+    "sha": {
+     "": "a10f371932b8"
+    },
+    "detail": "EQUAL: 1 partitions match, 0 differ, 0 only in A, 0 only in B"
+   }
+  ],
+  "outcome": {
+   "cluster": {
+    "gold": [
+     "success"
+    ],
+    "disabled": [
+     "success"
+    ],
+    "events": [
+     "success",
+     "success"
+    ],
+    "plan_service_date": [
+     "success"
+    ]
+   },
+   "cluster_ok": true,
+   "mac_rc": 0,
+   "mac_gold_rc": 0,
+   "ok": true
+  },
+  "inputs_equal": true,
+  "inputs_reconciled": [
+   "archive/vp/date=2026-08-24/hour=13",
+   "archive/vp/date=2026-08-24/hour=14",
+   "archive/vp/date=2026-08-24/hour=15",
+   "archive/vp/date=2026-08-24/hour=23",
+   "archive/tu/date=2026-08-24/hour=13",
+   "archive/tu/date=2026-08-24/hour=14",
+   "archive/tu/date=2026-08-24/hour=15",
+   "archive/tu/date=2026-08-24/hour=23"
+  ],
+  "clean": false
+ },
+ {
+  "day": "2026-08-23",
+  "recorded_utc": "2026-08-26T00:42:55.393903+00:00",
+  "run_id": "shadow-2026-08-22-2d-001357",
+  "shadow_root": "s3a://raincheck-bronze/shadow",
+  "mac_root": "/Users/ross/raincheck-shadow",
+  "content": [
+   {
+    "a": "s3://raincheck-bronze/shadow/silver/events/service_date=2026-08-23",
+    "b": "/Users/ross/raincheck-shadow/silver/events/service_date=2026-08-23",
+    "ok": true,
+    "differing": [],
+    "rows": {
+     "": 1027536
+    },
+    "sha": {
+     "": "5124bcae3c84"
+    },
+    "detail": "EQUAL: 1 partitions match, 0 differ, 0 only in A, 0 only in B"
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/silver/leg_hours/service_date=2026-08-23",
+    "b": "/Users/ross/raincheck-shadow/silver/leg_hours/service_date=2026-08-23",
+    "ok": false,
+    "differing": [
+     ""
+    ],
+    "rows": {
+     "": 91357
+    },
+    "sha": {
+     "": "eaf3e761b64c"
+    },
+    "detail": "DIFFERS         same 91357 rows, sha eaf3e761b64c vs 87b2e0a258e9\nNOT EQUAL: 0 partitions match, 1 differ, 0 only in A, 0 only in B"
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/gold/cell_hour_speed/month=2026-08",
+    "b": "/Users/ross/raincheck-shadow/gold/cell_hour_speed/month=2026-08",
+    "ok": false,
+    "differing": [
+     ""
+    ],
+    "rows": {
+     "": 160990
+    },
+    "sha": {
+     "": "0ed855680956"
+    },
+    "detail": "DIFFERS         same 160990 rows, sha 0ed855680956 vs 58b227cda566\nNOT EQUAL: 0 partitions match, 1 differ, 0 only in A, 0 only in B"
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/gold/cell_hour_route/month=2026-08",
+    "b": "/Users/ross/raincheck-shadow/gold/cell_hour_route/month=2026-08",
+    "ok": true,
+    "differing": [],
+    "rows": {
+     "": 243283
+    },
+    "sha": {
+     "": "a10f371932b8"
+    },
+    "detail": "EQUAL: 1 partitions match, 0 differ, 0 only in A, 0 only in B"
+   }
+  ],
+  "outcome": {
+   "cluster": {
+    "gold": [
+     "success"
+    ],
+    "disabled": [
+     "success"
+    ],
+    "events": [
+     "success",
+     "success"
+    ],
+    "plan_service_date": [
+     "success"
+    ]
+   },
+   "cluster_ok": true,
+   "mac_rc": 0,
+   "mac_gold_rc": 0,
+   "ok": true
+  },
+  "inputs_equal": true,
+  "inputs_reconciled": [
+   "archive/vp/date=2026-08-24/hour=13",
+   "archive/vp/date=2026-08-24/hour=14",
+   "archive/vp/date=2026-08-24/hour=15",
+   "archive/vp/date=2026-08-24/hour=23",
+   "archive/tu/date=2026-08-24/hour=13",
+   "archive/tu/date=2026-08-24/hour=14",
+   "archive/tu/date=2026-08-24/hour=15",
+   "archive/tu/date=2026-08-24/hour=23"
+  ],
+  "clean": false
+ },
+ {
+  "day": "2026-08-22",
+  "recorded_utc": "2026-08-26T01:20:47.316589+00:00",
+  "run_id": "shadow-2026-08-22-2d-005138",
+  "shadow_root": "s3a://raincheck-bronze/shadow",
+  "mac_root": "/Users/ross/raincheck-shadow",
+  "content": [
+   {
+    "a": "s3://raincheck-bronze/shadow/silver/events/service_date=2026-08-22",
+    "b": "/Users/ross/raincheck-shadow/silver/events/service_date=2026-08-22",
+    "ok": false,
+    "differing": [
+     ""
+    ],
+    "rows": {
+     "": 750226
+    },
+    "sha": {
+     "": "90f788d5b2da"
+    },
+    "detail": "DIFFERS         same 750226 rows, sha 90f788d5b2da vs 357063ed2a40\nNOT EQUAL: 0 partitions match, 1 differ, 0 only in A, 0 only in B",
+    "columns": {
+     "": {
+      "schedule_relationship": {
+       "rows": 10,
+       "type": "VARCHAR",
+       "float": false
+      }
+     }
+    },
+    "ok_within_tolerance": false
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/silver/leg_hours/service_date=2026-08-22",
+    "b": "/Users/ross/raincheck-shadow/silver/leg_hours/service_date=2026-08-22",
+    "ok": false,
+    "differing": [
+     ""
+    ],
+    "rows": {
+     "": 72087
+    },
+    "sha": {
+     "": "4e5fabb9779a"
+    },
+    "detail": "DIFFERS         same 72087 rows, sha 4e5fabb9779a vs 93afa84a77e2\nNOT EQUAL: 0 partitions match, 1 differ, 0 only in A, 0 only in B",
+    "columns": {
+     "": {
+      "dist_m_sum": {
+       "rows": 16773,
+       "type": "DOUBLE",
+       "float": true,
+       "max_rel": 1.240682968014509e-15
+      }
+     }
+    },
+    "ok_within_tolerance": true
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/gold/cell_hour_speed/month=2026-08",
+    "b": "/Users/ross/raincheck-shadow/gold/cell_hour_speed/month=2026-08",
+    "ok": false,
+    "differing": [
+     ""
+    ],
+    "rows": {
+     "": 160990
+    },
+    "sha": {
+     "": "0ed855680956"
+    },
+    "detail": "DIFFERS         same 160990 rows, sha 0ed855680956 vs 58b227cda566\nNOT EQUAL: 0 partitions match, 1 differ, 0 only in A, 0 only in B",
+    "columns": {
+     "": {
+      "dist_m_sum": {
+       "rows": 38984,
+       "type": "DOUBLE",
+       "float": true,
+       "max_rel": 1.240682968014509e-15
+      }
+     }
+    },
+    "ok_within_tolerance": true
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/gold/cell_hour_route/month=2026-08",
+    "b": "/Users/ross/raincheck-shadow/gold/cell_hour_route/month=2026-08",
+    "ok": true,
+    "differing": [],
+    "rows": {
+     "": 243283
+    },
+    "sha": {
+     "": "a10f371932b8"
+    },
+    "detail": "EQUAL: 1 partitions match, 0 differ, 0 only in A, 0 only in B"
+   }
+  ],
+  "outcome": {
+   "cluster": {
+    "plan_service_date": [
+     "success"
+    ],
+    "events": [
+     "success",
+     "success"
+    ],
+    "disabled": [
+     "success"
+    ],
+    "gold": [
+     "success"
+    ]
+   },
+   "cluster_ok": true,
+   "mac_rc": 0,
+   "mac_gold_rc": 0,
+   "ok": true
+  },
+  "inputs_equal": true,
+  "inputs_reconciled": [
+   "archive/vp/date=2026-08-24/hour=13",
+   "archive/vp/date=2026-08-24/hour=14",
+   "archive/vp/date=2026-08-24/hour=15",
+   "archive/vp/date=2026-08-24/hour=23",
+   "archive/tu/date=2026-08-24/hour=13",
+   "archive/tu/date=2026-08-24/hour=14",
+   "archive/tu/date=2026-08-24/hour=15",
+   "archive/tu/date=2026-08-24/hour=23"
+  ],
+  "clean": false
+ },
+ {
+  "day": "2026-08-23",
+  "recorded_utc": "2026-08-26T01:21:01.027177+00:00",
+  "run_id": "shadow-2026-08-22-2d-005138",
+  "shadow_root": "s3a://raincheck-bronze/shadow",
+  "mac_root": "/Users/ross/raincheck-shadow",
+  "content": [
+   {
+    "a": "s3://raincheck-bronze/shadow/silver/events/service_date=2026-08-23",
+    "b": "/Users/ross/raincheck-shadow/silver/events/service_date=2026-08-23",
+    "ok": true,
+    "differing": [],
+    "rows": {
+     "": 1027536
+    },
+    "sha": {
+     "": "5124bcae3c84"
+    },
+    "detail": "EQUAL: 1 partitions match, 0 differ, 0 only in A, 0 only in B"
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/silver/leg_hours/service_date=2026-08-23",
+    "b": "/Users/ross/raincheck-shadow/silver/leg_hours/service_date=2026-08-23",
+    "ok": false,
+    "differing": [
+     ""
+    ],
+    "rows": {
+     "": 91357
+    },
+    "sha": {
+     "": "eaf3e761b64c"
+    },
+    "detail": "DIFFERS         same 91357 rows, sha eaf3e761b64c vs 87b2e0a258e9\nNOT EQUAL: 0 partitions match, 1 differ, 0 only in A, 0 only in B",
+    "columns": {
+     "": {
+      "dist_m_sum": {
+       "rows": 22342,
+       "type": "DOUBLE",
+       "float": true,
+       "max_rel": 1.1013568567965224e-15
+      }
+     }
+    },
+    "ok_within_tolerance": true
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/gold/cell_hour_speed/month=2026-08",
+    "b": "/Users/ross/raincheck-shadow/gold/cell_hour_speed/month=2026-08",
+    "ok": false,
+    "differing": [
+     ""
+    ],
+    "rows": {
+     "": 160990
+    },
+    "sha": {
+     "": "0ed855680956"
+    },
+    "detail": "DIFFERS         same 160990 rows, sha 0ed855680956 vs 58b227cda566\nNOT EQUAL: 0 partitions match, 1 differ, 0 only in A, 0 only in B",
+    "columns": {
+     "": {
+      "dist_m_sum": {
+       "rows": 38984,
+       "type": "DOUBLE",
+       "float": true,
+       "max_rel": 1.240682968014509e-15
+      }
+     }
+    },
+    "ok_within_tolerance": true
+   },
+   {
+    "a": "s3://raincheck-bronze/shadow/gold/cell_hour_route/month=2026-08",
+    "b": "/Users/ross/raincheck-shadow/gold/cell_hour_route/month=2026-08",
+    "ok": true,
+    "differing": [],
+    "rows": {
+     "": 243283
+    },
+    "sha": {
+     "": "a10f371932b8"
+    },
+    "detail": "EQUAL: 1 partitions match, 0 differ, 0 only in A, 0 only in B"
+   }
+  ],
+  "outcome": {
+   "cluster": {
+    "plan_service_date": [
+     "success"
+    ],
+    "events": [
+     "success",
+     "success"
+    ],
+    "disabled": [
+     "success"
+    ],
+    "gold": [
+     "success"
+    ]
+   },
+   "cluster_ok": true,
+   "mac_rc": 0,
+   "mac_gold_rc": 0,
+   "ok": true
+  },
+  "inputs_equal": true,
+  "inputs_reconciled": [
+   "archive/vp/date=2026-08-24/hour=13",
+   "archive/vp/date=2026-08-24/hour=14",
+   "archive/vp/date=2026-08-24/hour=15",
+   "archive/vp/date=2026-08-24/hour=23",
+   "archive/tu/date=2026-08-24/hour=13",
+   "archive/tu/date=2026-08-24/hour=14",
+   "archive/tu/date=2026-08-24/hour=15",
+   "archive/tu/date=2026-08-24/hour=23"
+  ],
+  "clean": true
+ }
+]
