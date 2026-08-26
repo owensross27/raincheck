@@ -264,6 +264,28 @@ def test_the_ask_hint_points_at_an_asset_that_really_answers(built, root):
     assert q.query("exposure_of", {"asset_id": ask}, root)["exposure"]["score_index"] > 0
 
 
+def test_any_exposure_refusal_is_recorded_by_name_and_never_swallowed(root, tmp_path,
+                                                                       monkeypatch):
+    """`reason` is the machine-readable name and `detail` is OPAQUE — one reason reaches a
+    caller from `versions()` and from `view()` in two different detail vocabularies, so a
+    renderer that assumed a key would raise on half of them. This reads `reason` and only
+    `detail.get("ask")`, and a refusal that is NOT `not_a_scored_unit` still lands as a
+    named absence rather than as a dead export or an invented score."""
+    def refuse(con, r, params, mode):
+        raise q.QueryError("version_unresolved", root=str(r), error="IO Error: ...")
+    monkeypatch.setitem(q.QUERIES, "exposure_of", refuse)
+    con = duck.connect()
+    history.build(con, root, tmp_path / history.DIR)
+    con.close()
+    for path in (tmp_path / history.DIR).iterdir():
+        if path.name == history.MANIFEST:
+            continue
+        doc = json.loads(path.read_text())
+        assert "exposure" not in doc
+        assert doc["exposure_unavailable"] == {"reason": "version_unresolved"}
+        assert None not in leaves(doc)
+
+
 def test_no_written_file_holds_a_null_anywhere_parsed_back_from_disk(built):
     out, _ = built
     for path in out.iterdir():
@@ -328,12 +350,26 @@ def test_no_wall_clock_reaches_any_written_file():
 def test_the_renderer_reaches_the_flood_tables_only_through_the_query_seam():
     """The ticket's own acceptance row. F05 owns the attachment and `events_for_asset` owns
     the complex rollup; a second copy of either would drift between the map and the model."""
-    calls = {n.func.attr for n in ast.walk(ast.parse(SOURCE))
+    tree = ast.parse(SOURCE)
+    calls = [n for n in ast.walk(tree)
              if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
-             and isinstance(n.func.value, ast.Name) and n.func.value.id == "query"}
-    assert calls <= {"view", "pack", "cell_id", "versions"}
-    for name in ("flood_labels", "flood_events", "flood_obs", "flood_exposure"):
-        assert name not in SOURCE, f"{name} is the seam's to read, not this module's"
+             and isinstance(n.func.value, ast.Name) and n.func.value.id == "query"]
+    assert {c.func.attr for c in calls} <= {"view", "pack", "cell_id", "versions"}
+
+    # THE table claim, anchored on the CALL and not on the word: this module's own docstring
+    # names `gold/flood_exposure` in order to explain why it never opens it, and a
+    # source-text search reads that sentence as the violation (the trap flood 17 hit, and
+    # the reason this assertion was rewritten). `query.view(con, root, *parts, ...)` is the
+    # ONE way any table is opened here, so collect the parts it is handed.
+    opened = {tuple(a.value for a in c.args[2:]) for c in calls if c.func.attr == "view"}
+    assert opened == {("ref", "assets")}, opened
+
+    imports = {a.name for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names}
+    imports |= {f"{n.module}:{a.asname or a.name}" for n in ast.walk(tree)
+                if isinstance(n, ast.ImportFrom) and n.module for a in n.names}
+    # the names it BINDS, not only the modules it names: an unused `from raincheck import
+    # duck` is invisible to an identifier walk [KNOWN TRAPS, notify 06]
+    assert not [i for i in imports if i.startswith("raincheck") and i != "raincheck:query"]
 
 
 def test_no_sql_in_this_module_joins_anything(manifest):
