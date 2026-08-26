@@ -142,7 +142,14 @@ def payload(con, root: Path, asset_id: str, stamps: dict) -> dict:
     the `exposure` key entirely (absent, never null - a zero score would be a lie) and
     carries the refusal's own `ask` so a reader can follow it to the complex that does
     answer. `ask` is itself absent where there is nothing to ask (a ref Cell outside F10's
-    fit set has no parent)."""
+    fit set has no parent).
+
+    ANY refusal is recorded BY NAME rather than swallowed or re-worded, and the catch is
+    deliberately not narrowed to `not_a_scored_unit`: a half-built `gold/flood_exposure`
+    should cost this tree its scores and say why on every file, not kill an export whose
+    histories are all fine. `detail` is read as OPAQUE - only `.get("ask")` - because one
+    reason arrives from `versions()` and `view()` in two different detail vocabularies and
+    a renderer that assumed a key would raise on half of them [KNOWN TRAPS, notify 06]."""
     doc = {"queries": list(QUERIES), "mode": PUBLIC,
            **query.QUERIES["events_for_asset"](con, root, {"asset_id": asset_id}, PUBLIC)}
     try:

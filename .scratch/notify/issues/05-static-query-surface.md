@@ -258,6 +258,8 @@ direct join.
 | manifest | **1,458,148 B raw**, 138,524 gz — loaded ONCE |
 | per-asset | median **1,138 B**, mean 1,561 B, **max 21,994 B** (`cell:882a1062d5fffff`, 73 events) |
 | no exposure key | **928**, every one an entrance |
+| no `name` | **1,276**, every one a Cell |
+| build | **436.2 s (7.27 min)**, clean; a second full build is **BYTE-IDENTICAL across all 8,147 files** |
 
 **THE FILE-COUNT DECISION: FLAT, NO SHARDS, and the escape stays open.** 8,147 objects is
 nothing for R2's keyspace and nothing for `publish.plan()`'s `rglob`. What the count
@@ -268,7 +270,7 @@ says it is: a change to this renderer alone, one f-string, no query touched.
 
 **THE COST FIX, RE-MEASURED HERE:** through `query()` a call is **176.5 ms**; on one
 connection with the stamps resolved once, both queries together are **48.6 ms per asset**
-— **7.3x**, and the whole tree builds in **{WALL}**. The box's 12x is `exposure_of` alone
+— **7.3x**, and the whole tree builds in **436.2 s (7.27 min)**, measured clean and uncontended on the real root. The box's 12x is `exposure_of` alone
 (the cheap half); `events_for_asset` is 45.6 of those 48.6 ms and is dominated by the
 seam's per-call `create_view` + `rglob`, not by the stamps. No cache of any kind was
 added.
