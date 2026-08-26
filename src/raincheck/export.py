@@ -21,6 +21,14 @@ swept interval-width gate), splits the text on its `-- @@out <file>` markers and
 what each final SELECT returns. Re-export is byte-identical (every aggregate ordered,
 every number explicitly rounded), so the files diff cleanly as evidence artifacts.
 
+The same RUN also writes the static history surface - `files/history/`, a manifest of
+every asset with a flood record and one file per listed asset [notify 05]. It is rendered
+by `raincheck.history` over SEAM Q and not by this SQL, so it hangs off main() as its own
+all-or-none unit rather than off run(): the two are different publish families on
+different cadences, and a history tree that could not be built must not withhold an
+insight build that could. This is the BATCH path and the only path - nothing here ever
+runs on the 30 s live tick.
+
 Run: make export            (python -m raincheck.export)
      make export GATE=0.5   (sweep the interval-width gate)
 """
@@ -28,7 +36,7 @@ import argparse
 import json
 from pathlib import Path
 
-from raincheck import contract, duck
+from raincheck import contract, duck, history
 from raincheck.paths import REPO, data_root
 
 SQL = REPO / "web" / "export.sql"
@@ -104,6 +112,10 @@ def main() -> None:
     root = data_root()
     print(f"export: root={root} gate={args.gate} -> {args.out}", flush=True)
     report(run(root, args.out, args.gate))
+    # notify 05, on this same batch run: its own connection, its own staged tree, and its
+    # own refusal - a root with no flood universe leaves the tree unwritten and says so
+    # rather than failing the export that just succeeded.
+    history.report(history.build(duck.connect(), root, args.out / history.DIR))
 
 
 if __name__ == "__main__":
