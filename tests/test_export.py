@@ -637,7 +637,15 @@ SHAPES = {
     "S1": ("B41", 0, "LINESTRING (-73.96986 40.78208, -73.96741 40.77422)"),
     "S2": ("B41", 1, "LINESTRING (-74.0100 40.9070, -74.0080 40.9090)"),
     "S3": ("Q99", 0, "LINESTRING (-74.0095 40.9075, -74.0087 40.9085)"),
+    # S4 GRAZES: it approaches CP1 from outside along the outward bisector of one hexagon
+    # vertex and ENDS on that vertex, so ST_Intersection returns a POINT and never a line.
+    # It exists because the real snapshot cannot discriminate that case at all - measured
+    # 2026-08-26, all 24,265 dumped parts over the real shapes x Cells are LINESTRINGs - so
+    # without it the LINESTRING filter is an unobservable guard, and an unobservable guard
+    # is one nobody can tell from dead code (orch 08's rmtree, deleted for exactly that).
+    "S4": ("B41", 0, "LINESTRING (-73.96591 40.79101, -73.96788698273323 40.786544974433205)"),
 }
+GRAZER = "S4"
 
 
 def seed_geo(root: Path) -> None:
@@ -734,7 +742,7 @@ def test_a_route_feature_is_one_cell_crossing_and_its_ids_cross_as_strings(geo_e
     r = routes(files)
     assert files["routes.geojson"]["type"] == "FeatureCollection"
     # S1 crosses both Central Park Cells; S2 and S3 sit inside the un-zoned one
-    assert {sid for sid, _ in r} == set(SHAPES)
+    assert {sid for sid, _ in r} == set(SHAPES) - {GRAZER}, "a graze is not a crossing"
     assert {c for _, c in r} == {CP1, CP2, NOZ}
     assert ("S1", CP1) in r and ("S1", CP2) in r
     assert len(r) == len(files["routes.geojson"]["features"]), "(shape_id, cell) is unique"
@@ -849,11 +857,41 @@ def test_the_route_segments_tile_their_shape(geo_exported):
         (m,) = con.execute(f"SELECT {metres}", [json.dumps(f["geometry"])]).fetchone()
         got[f["properties"]["shape_id"]] = got.get(f["properties"]["shape_id"], 0.0) + m
     for sid, (_, _, wkt) in SHAPES.items():
+        if sid == GRAZER:
+            continue                       # a graze has no crossing to add up
         (want,) = con.execute(
             "SELECT ST_Length(ST_Transform(ST_GeomFromText(?), 'OGC:CRS84', 'EPSG:32618'))",
             [wkt]).fetchone()
         assert abs(got[sid] - want) / want < 0.02, f"{sid}: {got[sid]:.1f} m of {want:.1f} m"
     con.close()
+
+
+def test_a_shape_that_only_grazes_a_cell_produces_no_feature(geo_exported):
+    """`ST_Intersection` of a line and a Cell polygon returns whatever the clip leaves, and
+    a line that touches a convex hexagon vertex without entering leaves a POINT. A POINT in
+    a `line` layer is DRAWN AS NOTHING, with no error anywhere - the same silent class
+    flood-build 19 hit when ST_Collect over reduced parts handed MapLibre three
+    GEOMETRYCOLLECTIONs. So the dump is filtered to LINESTRINGs and a graze produces no
+    feature at all, which is also the honest answer: touching a Cell is not crossing it.
+
+    THE FIXTURE IS THE TEST HERE, and it had to be built on purpose: measured 2026-08-26,
+    all 24,265 dumped parts over the REAL shapes x Cells are LINESTRINGs, so the production
+    snapshot cannot discriminate this guard from dead code. S4 can.
+    MUTATION KILLED: dropping the `ST_GeometryType(d.geom) = 'LINESTRING'` filter, which
+    emits an invisible feature carrying real properties into the layer."""
+    import duckdb
+
+    files, root, _ = geo_exported
+    con = duckdb.connect()
+    con.execute("LOAD spatial")
+    cp1 = CELLS[CP1][2]
+    kind, = con.execute("SELECT ST_GeometryType(ST_Intersection(ST_GeomFromText(?), "
+                        "ST_GeomFromText(?)))", [SHAPES[GRAZER][2], cp1]).fetchone()
+    assert kind == "POINT", "the fixture stopped grazing - it no longer tests anything"
+    con.close()
+    assert GRAZER not in {f["properties"]["shape_id"]
+                          for f in files["routes.geojson"]["features"]}
+    assert "ST_GeometryType(d.geom) = 'LINESTRING'" in export.GEO_SQL.read_text()
 
 
 def test_the_scenario_manifest_is_derived_from_the_table_and_names_the_writers_own_files(geo_exported):
