@@ -36,8 +36,15 @@ from raincheck import flood_route as fr
 from raincheck import stormwater_extent as se
 from raincheck.schedule import GEOD
 
-REAL = os.environ.get("RAINCHECK_ARCHIVE_ROOT")
-real_root = pytest.mark.skipif(not REAL, reason="RAINCHECK_ARCHIVE_ROOT is not the main root")
+# Resolve the root the way every other real-root canary does (paths.data_root() honours
+# RAINCHECK_ARCHIVE_ROOT and falls back to the repo's data/), and skip on the UNIVERSE
+# being absent rather than on the variable being unset — keyed on the env var alone these
+# five could never run on the main checkout, where the root is the default. [wave-7 gate]
+from raincheck.paths import data_root as _data_root
+
+_ROOT = os.environ.get("RAINCHECK_ARCHIVE_ROOT") or str(_data_root())
+REAL = _ROOT if any(Path(_ROOT, "gold", "flood_labels").rglob("*.parquet")) else ""
+real_root = pytest.mark.skipif(not REAL, reason="no built flood universe on this root")
 
 # A 4 x 1 strip of 0.01-degree Cells at latitude 40.70, west to east. Everything below is
 # placed by hand inside it, so no assertion here is testing the identity element.
