@@ -25,10 +25,10 @@ consumer can learn the whole surface without a human in the loop.
 
 ## The families
 
-Ten, each an EXPLICIT file list or an explicit prefix. Never a directory sync — the
-insight files, the live pair and the two flood pairs are written into one directory by
-three writers on three cadences, so a sync would publish a gated payload and republish a
-stale one.
+Eleven, each an EXPLICIT file list or an explicit prefix. Never a directory sync — the
+insight files, the live pair, the two flood pairs and the two impact overlays are written
+into one directory by three writers on three cadences, so a sync would publish a gated
+payload and republish a stale one.
 
 | family | keys | cadence | Cache-Control | notes |
 |---|---|---|---|---|
@@ -38,6 +38,7 @@ stale one.
 | `live` | `files/live.geojson`, `files/meta.json` | 30 s | `no-cache` | **GATED, dark** — see below |
 | `flood` | `files/flood.json`, `files/flood-meta.json` | 30 s loop, skips unless the forcing advanced | `no-cache` | the flood panel's OPEN side: the FloodNet tier, the CO-OPS coastal chips and the 311/USGS/AORC-derived exposure. Both or neither; the meta goes LAST |
 | `flood-mta` | `files/flood-mta.json`, `files/flood-mta-meta.json` | 30 s loop, skips unless the forcing advanced | `no-cache` | **GATED, dark** — the alert-derived tier alone, on the same gate side as `live.geojson` |
+| `impact` | `files/impact.json`, `files/impact-subway.json` | 30 s loop, skips unless the forcing advanced | `no-cache` | **GATED, dark** — flood-build 17's two impact overlays, bus at Cell grain and subway at complex grain. Both VP/TU-derived, so both sit with `live.geojson`. No meta: each states its own hour, budget and staleness inline |
 | `history` | `files/history/**` | per spine rebuild | `public, max-age=300` | one file per asset |
 | `docs` | `docs/**` | per Airflow run | `public, max-age=300` | Great Expectations Data Docs |
 | `showcase` | `showcase/**` | per landing or recorded run | `public, max-age=300` | the walkthrough, the task graph and one recorded run [orch 13] |
@@ -54,6 +55,36 @@ over a payload that is not there. The staleness budgets a consumer needs to turn
 into a verdict ride in `budgets_s` on both metas (precip 5400 fresh / 10800 down, FloodNet
 600, CO-OPS 1800, NWS alerts 900, KNYC observation 7200 — all seconds, all derived from
 `research/flood-11-detector.json`). Every human-readable string is under `strings`.
+
+**`impact` IS CONSEQUENCE, NEVER CAUSE, AND EVERY PAYLOAD SAYS SO.** Both overlays carry
+`label` — *impact - never a detector input* — at the top level AND inside `strings`,
+because a consequence layer drawn beside a cause layer is exactly what a reader merges by
+accident. Nothing in either file feeds the flood model, the exposure fit or any tier.
+
+They are a THIRD family rather than two more keys on `flood-mta`. Both are gated for the
+same reason the alert tier is — `files/impact.json` is `gold/cell_hour_speed` <- VP and
+`files/impact-subway.json` is `archive/subway_tu` — but an alert chip and a Cell-grain
+Speed read have different freshness, different budgets and different readers, and one meta
+over both would have reported whichever was written last. They carry no meta at all:
+`staleness` (dated at the READER, against `budgets_s`) and the hour they describe ride
+inside each file, and the page fetches exactly one file per layer.
+
+**Both are GREY today, and that is the render the measurement earns rather than a gap.**
+`files/impact.json` keys its Cells by the H3 HEX STRING — the same spelling
+`files/cells.geojson` and `flood.json`'s `cells` use, so all three join without a lookup —
+and emits `ratio` only where a CAPTURE-ERA hour-of-week baseline exists with at least two
+same-weekday days behind it. The two baseline partitions on disk are the 2021 and 2023
+backfill windows, and a live Speed over a 2021 baseline is a claim about five years of
+route change rather than about rain, so no `ratio` key is written and MapLibre's
+`["!", ["has", p]]` paints the Cell grey. `files/impact-subway.json` offers `rel` — the
+complex against the citywide median of the SAME hour of the SAME feed — and not an
+absolute drop rate, because the stop-row-disappearance inference has never been
+level-compared against an independent source; `level_check` states the overlapping-day
+count it measured. The head of the Cell grain is also SPARSE: the newest closed hour
+usually carries a few dozen Cells against more than a thousand in a dense midday hour, so
+each file states `n_cells` and `densest_cells` for the hour it actually read, and the
+caveat that a near-empty map is a thin hour and not a quiet city is `strings.caveats`,
+not a footnote.
 
 **`files/geo/**` is DEP's design-storm flood extents, and it is a PLANNING map.** One
 `stormwater-<scenario>.geojson` per rainfall scenario, written by `make geo` out of

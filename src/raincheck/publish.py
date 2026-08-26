@@ -19,6 +19,8 @@ The bucket IS the `web/` tree, so the page's relative paths work unchanged:
     files/flood.json · files/flood-meta.json        30 s loop        family `flood`
     files/flood-mta.json ·
       files/flood-mta-meta.json                     30 s loop        family `flood-mta` GATED
+    files/impact.json ·
+      files/impact-subway.json                      30 s loop        family `impact`    GATED
     files/history/**                                per spine rebuild  family `history`
     files/geo/**                                    per ref rebuild  family `geo`
     docs/**                                         per Airflow run  family `docs`
@@ -49,6 +51,14 @@ alone and is gated with `live.geojson`. A single family could not do this: `gate
 property of a family, and one shared meta file is exactly what would have taken the
 FloodNet tier down with the bus data. Each is payload-first / meta-LAST for the same
 reason the live pair is.
+
+`impact` (flood-build 17) is the THIRD family the same tick writes and the second on the
+gated side: its two overlays are VP/TU-derived, so they sit with `live.geojson`, but they
+are not the alert tier and do not share its meta - a Cell-grain Speed read and an alert
+chip have different freshness and different budgets, and one meta over both would report
+whichever was written last. It carries NO meta of its own on purpose: each overlay states
+its own hour, budget and staleness inline, and the page's layer row fetches exactly one
+file. Its keys are `flood_overlay.FILES`, pinned to that module by tests/test_publish.py.
 
 **Publish order inside the live family is load-bearing too.** live.geojson goes first and
 meta.json goes LAST, because the page reads freshness out of meta.json: a publisher that
@@ -194,6 +204,17 @@ FAMILIES: dict[str, Family] = {
         writer="the flood tick in the live Deployment [flood 15]",
         src=lambda: WEB / "files", prefix="files/",
         files=("flood-mta.json", "flood-mta-meta.json"),
+        cache=NO_CACHE, gated=True),
+    # flood-build 17's two impact overlays. GATED because both are VP/TU-derived - the bus
+    # overlay's lineage is gold/cell_hour_speed <- VP and the subway overlay's is
+    # archive/subway_tu - so they belong on the same side of the lineage gate as the live
+    # fleet, not on the open side with the FloodNet tier. Written by the SAME tick as the
+    # two flood families and carrying the same cycle_id.
+    "impact": Family(
+        cadence="30 s loop (skips unless the forcing advanced)",
+        writer="the flood tick in the live Deployment [flood-build 17]",
+        src=lambda: WEB / "files", prefix="files/",
+        files=("impact.json", "impact-subway.json"),
         cache=NO_CACHE, gated=True),
     "docs": Family(
         cadence="per Airflow run", writer="the GX checkpoint's Data Docs task [orch 08]",

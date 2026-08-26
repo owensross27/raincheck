@@ -454,3 +454,72 @@ def test_the_insight_family_never_sweeps_up_the_flood_payloads(web, flood_files)
     keys = {i.key for i in publish.plan("insight", web / "files")}
     assert not any("flood" in k for k in keys)
 
+
+
+# --- flood-build 17: the impact overlays, the third family on the gated side -------------
+
+@pytest.fixture
+def impact_files(tmp_path):
+    from raincheck import flood_overlay
+    for name in flood_overlay.FILES:
+        (tmp_path / name).write_text("{}")
+    return tmp_path
+
+
+def test_the_impact_overlays_are_gated_because_their_lineage_is_vp_and_tu(impact_files):
+    """Not a panel split and not a taste: `files/impact.json` is gold/cell_hour_speed <- VP
+    and `files/impact-subway.json` is archive/subway_tu, so both sit on the same side of
+    the lineage gate as live.geojson. Nothing here may reach the OPEN flood family."""
+    from raincheck import flood_overlay
+    fam = publish.FAMILIES[flood_overlay.FAMILY]
+    assert fam.gated is True and fam.cache == publish.NO_CACHE
+    assert fam.files == flood_overlay.FILES     # pinned to the writer, never a second copy
+    with pytest.raises(publish.GateClosed):
+        publish.plan(flood_overlay.FAMILY, impact_files)
+
+
+def test_the_impact_family_carries_no_meta_and_that_is_deliberate(impact_files, gate_open):
+    """Each overlay states its own hour, budget and staleness inline and the page fetches
+    exactly one file per layer, so a second document would be a freshness claim nothing
+    reads. The all-or-none rule still holds."""
+    from raincheck import flood_overlay
+    keys = [i.key for i in publish.plan(flood_overlay.FAMILY, impact_files)]
+    assert keys == ["files/impact.json", "files/impact-subway.json"]
+    assert not any(k.endswith("-meta.json") for k in keys)
+    (impact_files / flood_overlay.SUBWAY_FILE).unlink()
+    with pytest.raises(publish.Refused, match="incomplete"):
+        publish.plan(flood_overlay.FAMILY, impact_files)
+
+
+def test_the_insight_family_never_sweeps_up_the_impact_overlays(web, impact_files):
+    """Six writers now share web/files/. A family names its files."""
+    from raincheck import flood_overlay
+    for name in flood_overlay.FILES:
+        (web / "files" / name).write_text("{}")
+    keys = {i.key for i in publish.plan("insight", web / "files")}
+    assert not any("impact" in k for k in keys)
+
+
+def test_the_contract_document_recounts_the_families_rather_than_naming_a_number():
+    """`docs/read-api-contract.md` states the family count IN PROSE, and a numeral edited
+    by hand is a numeral that stops being true the next time a family lands. The expected
+    word is DERIVED from publish.FAMILIES here, so the doc cannot pass by mirroring
+    itself."""
+    words = {9: "Nine", 10: "Ten", 11: "Eleven", 12: "Twelve", 13: "Thirteen"}
+    doc = (REPO / contract.DOC).read_text()
+    expected = words[len(publish.FAMILIES)]
+    assert f"\n{expected}, each an EXPLICIT file list" in doc, (
+        f"the contract document counts the families in prose and there are now "
+        f"{len(publish.FAMILIES)} - recount it, never edit the numeral by hand")
+
+
+def test_every_published_key_names_where_its_shape_is_written():
+    """contract.SCHEMA is the fourth edit site beside publish.py, the document and this
+    file. A key with no schema pointer is a key a consumer has to reverse-engineer."""
+    from raincheck import flood_overlay
+    for key in (f"files/{n}" for n in flood_overlay.FILES):
+        assert "flood_overlay" in contract.SCHEMA[key]
+    named = {k for k, _, _ in ((f, k, t) for f, k, t in contract.surface())}
+    missing = [k for k in named
+               if not k.endswith("**") and k.startswith("files/") and k not in contract.SCHEMA]
+    assert not missing, f"no schema pointer for {missing}"

@@ -126,27 +126,41 @@ def test_the_writer_emits_two_families_split_by_lineage(ida, uni, det, art):
     with bus data. The split is by LINEAGE, so it has to be two FAMILIES: `gated` is a
     property of a family, and one family cannot be on two sides of a gate."""
     _, docs = render(ida, uni, det, art)
-    assert set(docs) == set(fp.FILES[fp.UNGATED] + fp.FILES[fp.GATED])
+    # flood-build 17 added a third family to the same tick; the set is DERIVED from the
+    # family table so a fourth needs no edit here, and the lineage of each is asserted.
+    assert set(docs) == {n for f in fp.ORDER for n in fp.FILES[f]}
     assert docs["flood.json"]["lineage"] == "ungated"
     assert docs["flood-mta.json"]["lineage"] == "mta-alerts"
+    assert {docs[n]["lineage"] for n in fp.FILES[fp.IMPACT]} == {"mta-vehicles"}
     assert publish.FAMILIES[fp.UNGATED].gated is False
     assert publish.FAMILIES[fp.GATED].gated is True
+    assert publish.FAMILIES[fp.IMPACT].gated is True
 
 
 def test_the_filenames_are_the_ones_the_page_already_fetches():
     """frontend 05 froze these because a chassis cannot read a URL that does not exist;
     the page's LAYERS table names them today. Landing different ones is a page edit."""
     page = (Path(publish.__file__).parents[2] / "web" / "layers.js").read_text()
-    for name in ("flood.json", "flood-mta.json"):
+    for name in ("flood.json", "flood-mta.json", "impact.json"):
         assert f'"files/{name}"' in page, f"web/layers.js does not fetch files/{name}"
+    # files/impact-subway.json is flood-build 17's second overlay and the page has no
+    # layer for it yet - frontend 08 lands one. It is deliberately NOT asserted here.
 
 
 def test_one_cycle_id_across_the_whole_set(ida, uni, det, art):
-    """Four files, two families, one tick. A reader that finds two different cycle_ids is
-    looking at a torn set and can say so."""
+    """Six files, three families, one tick. A reader that finds two different cycle_ids is
+    looking at a torn set and can say so.
+
+    `detector_version` is a different matter and stops at the flood families ON PURPOSE:
+    flood-build 17's overlays are IMPACT, never a detector output, and stamping a detector
+    version on them would invite exactly the merge their label exists to forbid."""
     _, docs = render(ida, uni, det, art)
     assert len({d["cycle_id"] for d in docs.values()}) == 1
-    assert len({d["detector_version"] for d in docs.values()}) == 1
+    flood = fp.FILES[fp.UNGATED] + fp.FILES[fp.GATED]
+    assert len({docs[n]["detector_version"] for n in flood}) == 1
+    for name in fp.FILES[fp.IMPACT]:
+        assert "detector_version" not in docs[name]
+        assert docs[name]["label"] == "impact - never a detector input"
 
 
 def test_the_meta_goes_last_in_each_family():
@@ -157,6 +171,10 @@ def test_the_meta_goes_last_in_each_family():
         assert publish.FAMILIES[fam].files == fp.FILES[fam]
         assert publish.FAMILIES[fam].files[-1].endswith("-meta.json")
         assert not publish.FAMILIES[fam].files[0].endswith("-meta.json")
+    # `impact` has no meta at all (flood-build 17): each overlay states its own hour,
+    # budget and staleness inline, so there is no document to put last.
+    assert publish.FAMILIES[fp.IMPACT].files == fp.FILES[fp.IMPACT]
+    assert not any(n.endswith("-meta.json") for n in fp.FILES[fp.IMPACT])
 
 
 def test_the_ungated_side_carries_nothing_mta_derived(ida, uni, det, art):
@@ -516,8 +534,14 @@ def test_a_gated_family_is_a_designed_state_logged_once(tmp_path, capsys):
     for _ in range(3):
         got = fp.ship(tmp_path, prev)
         prev = got
-    assert got[fp.GATED] == "gated"
-    assert capsys.readouterr().out.count("publish gated") == 1
+    assert got[fp.GATED] == "gated" and got[fp.IMPACT] == "gated"
+    # once PER GATED FAMILY, and then never again while the condition stands. Two of the
+    # three families are gated now (flood-build 17's overlays are VP/TU-derived), and each
+    # names itself - a shared line could not say which side went quiet.
+    out = capsys.readouterr().out
+    gated = [f for f in fp.ORDER if publish.FAMILIES[f].gated]
+    assert out.count("publish gated") == len(gated) == 2
+    assert all(f"flood-panel: {f} publish gated" in out for f in gated)
 
 
 def test_the_ungated_family_is_not_gated_by_the_mta_terms(tmp_path):
