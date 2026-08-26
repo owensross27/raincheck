@@ -19,6 +19,14 @@ Ross decided; the filenames are frontend 05's, already fetched by web/layers.js)
         exposure - Cells and flagged point Units. Nothing MTA-derived may appear here.
     files/flood-mta.json + files/flood-mta-meta.json family `flood-mta`  GATED
         the MTA alert tier alone, on the same gate side as live.geojson.
+    files/impact.json + files/impact-subway.json     family `impact`     GATED
+        flood-build 17's two IMPACT overlays - bus Speed at Cell grain, subway service at
+        complex grain. Both VP/TU-derived, so both gated; a third family rather than two
+        more keys on `flood-mta` because an alert chip and a Cell-grain Speed read have
+        nothing in common but their gate. They are written by `flood_overlay`, which this
+        module calls once per work cycle - `flood_overlay` NEVER imports back, and it
+        never imports `flood_impact` either (subwaydata numbers stay local; the reason is
+        in its docstring and `release_check` asserts the rule for this module).
 
 The split is by LINEAGE, not by panel. One meta shared between them is what frontend 01
 measured as wrong: the MTA terms gate would withhold the FloodNet tier - which contains
@@ -27,7 +35,10 @@ not split the FILE: publish moves whole objects, so this is the writer's shape.
 
 Each family is payload-FIRST, meta-LAST, for cloud 09's reason: a publisher that dies
 between them must leave an OLD meta over a new payload (a consumer re-reads and finds it),
-never a fresh meta over a payload that is not there. Subway impact numbers
+never a fresh meta over a payload that is not there. `impact` has no meta at all and that
+is deliberate rather than an omission: each overlay states its own hour, budget and
+staleness inline, and the page fetches exactly one file per layer, so a second document
+would be a freshness claim nothing reads. Subway impact numbers
 (`flood_impact`, subwaydata.nyc, no published licence) are LOCAL ONLY and this module
 never imports them - `release_check` asserts it.
 
@@ -59,14 +70,24 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from raincheck import duck, flood_detect as fd, flood_exposure as fe
-from raincheck import flood_live as fl, flood_truth as ft, live_export, publish
+from raincheck import flood_live as fl, flood_overlay as fo, flood_truth as ft
+from raincheck import live_export, publish
 from raincheck.paths import as_root, data_root
 from raincheck.query import pack
 
-# The two families and their keys, in PUBLISH ORDER. Payload first, meta LAST.
-UNGATED, GATED = "flood", "flood-mta"
+# The families and their keys, in PUBLISH ORDER. Payload first, meta LAST.
+#
+# flood-build 17 added a THIRD, `impact`, rather than appending its two overlays to
+# `flood-mta`: the alert tier and the impact overlays are gated for the same reason but
+# they are not the same payload, they are read by different layers, and one meta over both
+# would put the alert tier's freshness on a Cell-grain Speed read. Its keys and its
+# all-or-none rule live in `flood_overlay`; this module owns only the writing and the
+# publish order, exactly as it does for its own two.
+UNGATED, GATED, IMPACT = "flood", "flood-mta", fo.FAMILY
 FILES = {UNGATED: ("flood.json", "flood-meta.json"),
-         GATED: ("flood-mta.json", "flood-mta-meta.json")}
+         GATED: ("flood-mta.json", "flood-mta-meta.json"),
+         IMPACT: fo.FILES}
+ORDER = (UNGATED, GATED, IMPACT)
 
 # THE BUDGETS THE PAGE READS. Frontend 02 counted nine sources on the running map and
 # exactly three carrying a frozen budget; these are the five this ticket owed, and every
@@ -533,8 +554,8 @@ def _mta_geojson(tier: dict) -> dict:
 
 
 def payloads(read: dict, uni: dict, truth: dict, coastal: dict | None, winter: dict | None,
-             det: dict, art: dict, now: datetime) -> dict:
-    """The four documents this cycle publishes, keyed by file name.
+             det: dict, art: dict, now: datetime, impact: dict | None = None) -> dict:
+    """The six documents this cycle publishes, keyed by file name.
 
     ONE cycle_id across the set, so a reader can tell a torn set from a coherent one.
     `provisional` is read from the artifact HERE, at render time, every cycle: flood 12
@@ -592,6 +613,10 @@ def payloads(read: dict, uni: dict, truth: dict, coastal: dict | None, winter: d
                     geojson=_mta_geojson(mta)),
     }
     return _prune({
+        # flood 17's two, rendered from the same `now` so all six carry one cycle_id.
+        # `impact=None` renders the honest DOWN pair rather than dropping the keys: a
+        # family is all-or-none at publish time.
+        **fo.docs(impact, now),
         "flood.json": ungated,
         "flood-meta.json": meta | {"lineage": "ungated", "counts": {
             "cells": len(cells), "units_flagged": len(flagged),
@@ -630,22 +655,22 @@ def _ts(s) -> datetime | None:
 # ---- writing, publishing, logging ------------------------------------------------------
 
 def write(out_dir: Path, docs: dict) -> None:
-    """Both families, payload first and meta LAST, each swapped atomically into place."""
+    """Every family, payload first and meta LAST, each swapped atomically into place."""
     out_dir.mkdir(parents=True, exist_ok=True)
-    for family in (UNGATED, GATED):
+    for family in ORDER:
         for name in FILES[family]:
             live_export.swap(out_dir / name, json.dumps(docs[name], default=str))
 
 
 def ship(out_dir: Path, prev: dict) -> dict:
-    """Publish both families. Returns {family: word} for the loop's state and the log line.
+    """Publish every family. Returns {family: word} for the loop's state and the log line.
 
     Cloud 05's failure policy, copied unchanged: an outage is a FIELD, never a stopped
     loop. `GateClosed` (cloud 09 rc 3) is a DESIGNED state - the MTA terms are unverified,
     so the gated pair is written locally and not published - and is logged on CHANGE only,
     because 2,880 identical lines a day would bury the tick that actually failed."""
     out = {}
-    for family in (UNGATED, GATED):
+    for family in ORDER:
         try:
             out[family] = f"published {len(publish.publish(family, src=out_dir))}"
         except publish.GateClosed as exc:
@@ -770,7 +795,12 @@ def _tick(con, root, out_dir, prev, now, detector, det_art, stamp, ship_) -> dic
                   "rain gate is not evaluated", flush=True)
             placed = {}
     truth = ft.truth(root, now, wet_cells(rows, now) if placed else None, placed or None)
-    docs = payloads(read, uni, truth, coastal, winter, det_art, art, now)
+    # flood 17's two overlays ride THIS tick rather than standing a second call up beside
+    # it in `live_loop.cycle()` - one process, one clock, one warm connection, and one
+    # `now`, so the impact files cannot age apart from the tiers they sit next to. It
+    # never raises: each side comes back with its own `state`, DOWN included.
+    impact = fo.read(con, root, now)
+    docs = payloads(read, uni, truth, coastal, winter, det_art, art, now, impact)
     write(out_dir, docs)
     full = stamp != prev.get("stamp")
     key = _truth_key(truth)
@@ -778,6 +808,7 @@ def _tick(con, root, out_dir, prev, now, detector, det_art, stamp, ship_) -> dic
     return {"skipped": False, "at": now, "stamp": stamp, "read": read, "art": art,
             "det": det_art, "uni": uni, "index": index, "cell_of": placed,
             "truth_key": key, "counts": docs["flood-meta.json"]["counts"],
+            "impact": impact,
             "window": read["window"]["state"], "skew": read["skew"]["model_tier"],
             "publish": ship_(out_dir, prev.get("publish")), "error": None}
 
@@ -790,7 +821,8 @@ def line(state: dict) -> str:
     c = state.get("counts") or {}
     return (f"flood window={state.get('window')} skew={state.get('skew')} "
             f"flagged={c.get('units_flagged')} fn={c.get('floodnet_detected')} "
-            f"publish={(state.get('publish') or {}).get(UNGATED)}")
+            f"publish={(state.get('publish') or {}).get(UNGATED)} "
+            f"{fo.line(state.get('impact'))}")
 
 
 def main() -> None:
@@ -803,12 +835,12 @@ def main() -> None:
     root = data_root()
     now = datetime.now(timezone.utc)
     con = duck.connect()
-    skip = (lambda out_dir, prev: {UNGATED: "not published", GATED: "not published"})
+    skip = (lambda out_dir, prev: {f: "not published" for f in ORDER})
     state = tick(con, root, args.out, None, now, ship_=skip if args.no_publish else None)
     print(line(state), flush=True)
     if state.get("error"):
         raise SystemExit(1)
-    for name in FILES[UNGATED] + FILES[GATED]:
+    for name in [n for f in ORDER for n in FILES[f]]:
         print(f"  {args.out / name}  {(args.out / name).stat().st_size} B")
 
 

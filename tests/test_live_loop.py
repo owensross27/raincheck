@@ -173,3 +173,48 @@ def test_the_flood_tick_reports_itself_on_the_one_log_line(con, tmp_path, monkey
     monkeypatch.setattr(live_loop.flood_panel, "tick", lambda *a, **k: {"skipped": True})
     states, _ = run(con, tmp_path, monkeypatch)
     assert "flood=skipped" in live_loop.line(states[0])
+
+
+# --- flood-build 17: the impact overlays MERGED INTO that same tick ----------------------
+
+def test_the_impact_overlays_add_no_second_call_to_this_cycle(con, tmp_path, monkeypatch):
+    """flood 17's two overlays ride flood 15's tick, which rides this loop. There is still
+    exactly ONE flood call per cycle and exactly one `flood` field on state: a second call
+    here would be a second clock and a second warm connection for the same 30 s, which is
+    the thing this module exists to prevent."""
+    import ast
+    from pathlib import Path
+
+    calls = [n for n in ast.walk(ast.parse(Path(live_loop.__file__).read_text()))
+             if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+             and n.func.attr == "tick"]
+    assert len(calls) == 1, "cycle() must call the flood tick once and only once"
+    src = Path(live_loop.__file__).read_text()
+    assert "flood_overlay" not in src, (
+        "the overlays are merged into flood_panel.tick, never called from this loop")
+
+
+def test_the_overlays_report_themselves_on_the_one_log_line(con, tmp_path, monkeypatch):
+    """One line per tick is the supervision surface; a layer nobody can see on it is a
+    layer nobody notices going dark."""
+    monkeypatch.setattr(live_loop.flood_panel, "tick", lambda *a, **k: {
+        "skipped": False, "counts": {}, "window": "OK", "skew": "ok",
+        "impact": {"bus": {"state": "no_baseline", "n_cells": 19},
+                   "subway": {"state": "ok", "n_complexes": 438}}})
+    states, _ = run(con, tmp_path, monkeypatch)
+    line = live_loop.line(states[0])
+    assert "impact bus=no_baseline/19 subway=ok/438" in line
+
+
+def test_a_broken_overlay_read_never_reaches_this_loop(con, tmp_path, monkeypatch):
+    """The overlays are a garnish on the panel. `flood_overlay.read` catches per side, so
+    a dead Gold table costs a grey layer and nothing else - the fleet still exports and
+    still publishes. (That the exception is swallowed AT the read is pinned next door, in
+    test_flood_overlay.py; here the claim is only that this loop never sees it.)"""
+    from raincheck import flood_overlay
+
+    monkeypatch.setattr(flood_overlay, "bus",
+                        lambda *a: (_ for _ in ()).throw(RuntimeError("gold is gone")))
+    states, calls = run(con, tmp_path, monkeypatch)
+    assert len(calls["publish"]) == 1 and states[0]["publish"] == "published 2"
+    assert "gold is gone" not in live_loop.line(states[0])
