@@ -121,7 +121,7 @@ recomputed); ref/assets resolves the id.
 
 TAKES {{asset_id}} -- the same argument name events_for_asset takes.
 
-HOW TO READ THE NUMBERS, because three of them are easy to misreport:
+HOW TO READ THE NUMBERS, because most of them are easy to misreport:
 - `score_index` is the RANK WITHIN THIS ASSET'S KIND, bounded (0, 1]. It is the
   human-facing number, and it is only comparable against assets of the same `asset.kind`
   -- the three Units at 1.0 are one bus stop, one complex and one Cell.
@@ -181,8 +181,11 @@ standing at the same doorway is listed and answers for them.
 {VERSIONS_LINE}""",
 
     "obs_near": f"""\
-The raw flood OBSERVATIONS near a point, NEAREST FIRST -- 311 reports, FloodNet sensor
-readings, MTA alert rows, storm inundation extents.
+The raw flood OBSERVATIONS near a point, NEAREST FIRST. Every source silver/flood_obs
+holds, spelled as the payload spells them: `311` (service requests), `floodnet` (sensor
+incidents, the only source carrying `depth_mm`), `mta_alert` (alert rows), `usgs_hwm`
+(high-water marks) and `sandy` (inundation extent polygons). `obs_ts_kind` says which
+clock a row's `ts_utc` is on: `incident`, `report` or `alert`.
 
 LOCAL ONLY, AND THAT MEANS REFUSED, NOT THINNER. In `public` this refuses with
 `restricted_source` BEFORE it reads any other argument, because it returns observation
