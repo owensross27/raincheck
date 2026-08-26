@@ -111,3 +111,46 @@ number), `window.state`, `staleness` per source with its budget in `budgets_s`
 `files/flood-meta.json` (open) and `files/flood-mta.json` + `files/flood-mta-meta.json`
 (GATED with `live.geojson`). The human-facing value is the RANK — never an eta, never a
 probability, and `make release-check` fails if one appears.
+
+## FROM notify 09 (2026-08-26, branch `notify09-message-render`, `d9e2e0a`) — THE RENDERER EXISTS
+
+**THE EXACT SIGNATURE YOU CALL INSIDE `live_loop.cycle()`:**
+
+    from raincheck import notify_render as nr
+    body: bytes = nr.render(m)                       # m is one `nd.Message` from d.messages
+    # or, passing the deployment facts rather than setting the module constants:
+    body = nr.render(m, panel_url=..., unsubscribe_to=...)
+
+`render(m: nd.Message, *, panel_url: str | None = None, unsubscribe_to: str | None = None)
+-> bytes`. One plain-text RFC 5322 message, `policy=SMTP` (CRLF), `Content-Transfer-
+Encoding: 8bit`. It is PURE: no clock, no socket, no database, no data root — it reads
+only `research/flood-11-detector.json` and `research/flood-10-coefficients.json`, both
+committed, both cheap (0.035 ms for the detector artifact), so calling it once per message
+inside the 30 s tick costs nothing you need to cache.
+
+**MUSTs this puts on you.**
+
+- **IT RENDERS NO `From`, NO `Date` AND NO `Message-ID` — those are YOURS**, and leaving
+  them out is exactly what makes the same Message render the same bytes. Add them at the
+  send, beside the SES identity. A test asserts they are absent, so adding them inside the
+  renderer goes red.
+- **`nr.PANEL_URL` AND `nr.UNSUBSCRIBE_TO` ARE BOTH `None` AND `render()` REFUSES UNTIL
+  THEY ARE SET.** They are [YOU] deployment facts this repo does not hold: no public URL
+  exists anywhere in the tree (the bucket + custom domain are still open) and v1 has no
+  unsubscribe mailbox (no endpoint, spec section 9). A `ValueError` naming both is the
+  FIRST thing your dry-run will hit; that is the design, not a bug — a message with a dead
+  link and a bouncing `List-Unsubscribe` is worse than one that was never rendered. Set
+  them for real or pass them; **`tests/test_notify_render.py::test_the_deployment_facts_
+  are_unset_in_the_tree` is the tripwire that goes red when you do, and updating it is part
+  of that commit.**
+- **A DROP IS NEVER RENDERED.** `Decision.drops` is a ledger, not a queue — render
+  `d.messages` and nothing else, and log `d.summary()` (counts only, no handle).
+- **THE RENDERER REFUSES A MALFORMED MESSAGE RATHER THAN RENDERING SOMETHING ODD**: a naive
+  `m.now`, a branch outside `nd.BRANCHES`, a tier message whose tier is not a notifying
+  one, a watch message carrying a tier or no `top_n`, an empty token. Those all raise
+  `ValueError` inside your cycle, so wrap the render the way F15's tick wraps its reads —
+  a message that cannot be rendered must not stall the panel beside it.
+- **ASSERT ON THE DECODED BODY, NOT THE RAW BYTES, IF YOU ASSERT AT ALL:**
+  `email.message_from_bytes(body, policy=email.policy.SMTP).get_content()`. (The claims DO
+  survive verbatim in the bytes today, because the transfer encoding is 8bit precisely so
+  they do — but the decode is what stays true if that ever changes.)

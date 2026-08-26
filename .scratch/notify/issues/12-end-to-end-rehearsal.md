@@ -42,3 +42,64 @@ Two fixture traps this ticket already paid for, so you do not have to:
 The rehearsal's own end state is unchanged: `ns.unsubscribe(con, token)` then a SQL
 read-back of `subscriptions` (0 rows) against a throwaway db — the token in every message
 is `Message.unsubscribe_token`, the handle's own.
+
+## FROM notify 09 (2026-08-26, branch `notify09-message-render`, `d9e2e0a`) — THE STRINGS YOU ASSERT
+
+The rehearsal asserts the message COUNT and the rendered STRINGS. Here is the frozen list,
+and the rule that governs all of it: **every CLAIM in a rendered message is READ from the
+two committed artifacts through `flood_panel.strings(det, art)`, so assert against THAT
+call (or against the artifact JSON), never against a string you type into the rehearsal.**
+`nr.strings()` returns exactly that dict.
+
+**How to get the text at all:**
+
+    body = nr.render(m, panel_url=..., unsubscribe_to=...)          # -> bytes
+    text = email.message_from_bytes(body, policy=email.policy.SMTP).get_content()
+
+**THE LIST, every entry present in every rendered message unless marked:**
+
+1. `flood_panel.OPERATING_TRUTH` — VERBATIM, and the independent side is
+   `release_check.frozen_string()` (notify 01's own ticket file), which is what
+   `make release-check` compares against. `x in render(x)` is a mirror-pin; do not write one.
+2. `det["estimand"]` (`flooded_reported`) and `det["estimand_note"]`.
+3. `det["display"]["within_cell"]` and `det["display"]["cutpoint_basis"]`.
+4. `det["display"]["window_interval"]` (`(anchor, now]`), with `m.anchor` and
+   `m.now.isoformat()` under it.
+5. `art["gate"]["panel_strings"]` — all three of `headline`, `release`, `caveat`,
+   PRE-SELECTED by flood 10's gate. Never choose between the alternates.
+6. `m.no_skill_claim` — **on exactly the complex-grain messages and NOWHERE else.** It is
+   on the MESSAGE, not looked up by kind, so a rehearsal that asserts it by kind is
+   asserting a different rule than the one that ships.
+7. `det["cutpoints_note"]` — **only where a tier is claimed** (the tier branch). Absent
+   from a watch message, and asserted absent.
+8. `m.score_version`, `m.detector_version`, `m.window_id`, `m.unsubscribe_token`,
+   `m.asset_id`.
+9. `nr.HANDLER` = `notify_store.unsubscribe(con, token)`, plus `not instant` and
+   `not one-click`.
+
+**THE ABSENCES, which are half the rehearsal:**
+
+- **The retired claim, and the test for it is a TRAP.** The string exists NOWHERE in the
+  repo, so a rehearsal that QUOTES it becomes the grep hit that fails `make release-check`
+  row 5. **Build the needle at runtime from fragments** and prove it is the right sentence
+  against `release_check.RETIRED` (a regex, for this same reason).
+  `tests/test_notify_render.py::_needle` is the working shape — copy it.
+- **The word `None` appears in no rendered message.** `m.tier` is `None` on the branch that
+  ships; this row is what catches a headline that read it.
+- **`display.cutpoints_confirmed_by`** ("flood-build ticket 12") is AUDIT and must not
+  reach a subscriber — printing it reads as a confirmation that has not happened.
+- **No second-scale urgency**: `1-2 min`, `minute`, `second`, `live now`, `as it happens`,
+  `immediately`.
+- **No observed water**: `water was observed`, `we observed`, `is flooded`, `is flooding`,
+  `observed flooding`. **Write the barred list AROUND the frozen string** — notify 01's
+  sentence contains `an observation of water`, so a naive grep for that phrase fails on the
+  honesty string itself.
+- **No `List-Unsubscribe-Post` header** (RFC 8058 one-click; v1's removal is an operator
+  running a function).
+
+**ONE STRING ON F15's LIST HAS NO VERBATIM TO REUSE — do not assert it.** The
+reporting-propensity sentence exists in NO module and NO artifact (measured 2026-08-26:
+`grep -rn 'propensity|report more|rank higher for that reason' src/ research/*.json web/`
+returns nothing). It lives only in the two flood specs' claims bullets, written with an
+ellipsis. notify 09 deliberately did not invent it — a message must not be the only
+surface in the project making a claim the panel does not make.
