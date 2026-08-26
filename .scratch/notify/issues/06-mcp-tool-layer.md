@@ -7,16 +7,16 @@ SEAM Q.
 
 **Blocked by:** 04.
 
-**Status:** ready-for-agent
+**Status:** DONE 2026-08-26 (branch `notify06-mcp-tools`)
 
-- [ ] a read-only stdio MCP server exposes exactly four tools — `events_for_asset`, `exposure_of`, `assets_in_area`, `obs_near` — with the query function's own argument names
-- [ ] the server is dispatch-only: validate, select mode, call, return; no query logic lives in it
-- [ ] each tool description names the tables it reads and the version stamps it returns, so an agent choosing between tools has the vocabulary in front of it
-- [ ] the server defaults to `public`; `local` requires an explicit flag at startup, and a hosted server may never set it
-- [ ] no SQL-passthrough tool exists — permanently, not deferred
-- [ ] typed errors (`unknown_asset`, `not_a_scored_unit`, `area_too_large`, `restricted_source`, `version_unresolved`) reach the caller by name, never as a bare traceback
-- [ ] the MCP SDK is pinned in `pyproject.toml`; tests assert that each tool dispatches to its query name with the arguments it received, and nothing tests the protocol itself
-- [ ] the server runs locally against local parquet; nothing in this ticket opens a port
+- [x] a read-only stdio MCP server exposes exactly four tools — `events_for_asset`, `exposure_of`, `assets_in_area`, `obs_near` — with the query function's own argument names
+- [x] the server is dispatch-only: validate, select mode, call, return; no query logic lives in it
+- [x] each tool description names the tables it reads and the version stamps it returns, so an agent choosing between tools has the vocabulary in front of it
+- [x] the server defaults to `public`; `local` requires an explicit flag at startup, and a hosted server may never set it
+- [x] no SQL-passthrough tool exists — permanently, not deferred
+- [x] typed errors (`unknown_asset`, `not_a_scored_unit`, `area_too_large`, `restricted_source`, `version_unresolved`) reach the caller by name, never as a bare traceback
+- [x] the MCP SDK is pinned in `pyproject.toml`; tests assert that each tool dispatches to its query name with the arguments it received, and nothing tests the protocol itself
+- [x] the server runs locally against local parquet; nothing in this ticket opens a port
 
 
 ## Inherited from notify 02 (landed 2026-08-24, branch `notify02-query-core`, 13a93ab)
@@ -168,3 +168,102 @@ string is accepted as a one-element list); giving both `cells` and `bbox` unions
   `n_events` is exactly the history `events_for_asset` would return for that asset (complex
   rollup included), and a test pins the two to agree — so an agent can filter an area to the
   flooded assets without a second call per asset.
+
+
+## DONE 2026-08-26 — what shipped, measured
+
+**`src/raincheck/notify_mcp.py` + `tests/test_notify_mcp.py` + the `pyproject.toml` pin.**
+Branch `notify06-mcp-tools`, worktree `/Users/ross/raincheck-wt/notify06`. Test delta
+**+37**, recounted by `def test_` against this branch's OWN merge base `5dc7666`
+(1305 -> 1342); collected == def count, no parametrize.
+
+**THE FOUR TOOLS AND THE ARGUMENT NAMES THEY BIND** — the SDK derives each tool's JSON
+Schema from the Python signature, so these ARE the schema property names and cannot drift
+into a translation layer:
+
+    events_for_asset(asset_id)
+    exposure_of(asset_id)
+    assets_in_area(cells=None, bbox=None)
+    obs_near(asset_id=None, lon=None, lat=None, radius_m=None)
+
+`nm.tools(root, mode)` returns them as plain callables and `set(tools()) == set(
+query.QUERIES)` is asserted, so a fifth query cannot be wrapped by accident and the four
+cannot be renamed apart. **THE TOOLS STAY EXACTLY FOUR.**
+
+**DISPATCH ONLY, AND IT IS PINNED ON THE AST RATHER THAN ON THE SOURCE TEXT.** Every tool
+is one line: `query.query(name, query.pack(**params), data_root, mode)`. `pack` drops what
+was not given, so an omitted argument is ABSENT rather than an explicit null — which is
+what lets the SEAM apply its own `radius_m` default and raise its own `cells|bbox`
+refusal. **This layer holds no numeric copy of `RADIUS_M`, `RADIUS_CAP_M` or `CELL_CAP`**
+(asserted over the module's own numeric literals); the descriptions interpolate them from
+`query`. The module's docstrings NAME `sql`, `environ` and `port` in order to forbid them,
+so every source-shape test walks the AST — a text grep read its own prose as the violation
+on the first run, which is flood 17's and notify 01's trap exactly.
+
+**REFUSALS ARE DATA, NOT PROTOCOL ERRORS.** A `QueryError` comes back as
+`{"query", "mode", "error": {"reason", "detail"}}` and the MCP result carries
+`is_error=False` — it is an answer that says no, which is what an agent can act on.
+`detail` is kept whole under its own key because `restricted_source`'s detail carries
+`query` AND `mode` of its own and splatting it would shadow the envelope. **`QueryError`
+is the ONLY exception caught**; a `ValueError` propagates and is asserted to.
+**No ninth reason was added and none was needed** — the wrapper raises nothing of its own,
+so its whole vocabulary is `query.REASONS`' frozen eight. Five of them were driven for
+real against the fixture root: `unknown_asset`, `not_a_scored_unit`, `missing_param`,
+`area_too_large`, `restricted_source` — and `version_unresolved` is driven too.
+
+**A FINDING WORTH CARRYING: `version_unresolved` ARRIVES IN TWO DIFFERENT DETAIL SHAPES.**
+Both were driven against roots whose one table is an EMPTY DIRECTORY (the "a table is a
+PART FILE, not a folder" case notify 03 hit). A STAMPED table (`gold/flood_labels`) fails
+inside `versions()`, whose blanket `except Exception` carries **`{root, error}`** — the raw
+DuckDB IOException text, **no `table` key at all**. A table only a query reads
+(`silver/flood_obs`) fails inside `view()`, which was written for exactly this case and
+carries a clean **`{table, root}`**. So an agent — or a renderer — writing a recovery rule
+on `error.detail.table` gets a `KeyError` on half the cases. **Not normalised here: this
+layer is dispatch-only and the shape is `query`'s to decide.** Both are pinned by
+`test_an_unbuilt_table_refuses_as_version_unresolved_and_not_as_a_traceback`.
+
+**MODE, AND THE ONE THING THAT MAKES `obs_near` SAFE.** `public` is the default;
+`local` comes from the `--local` flag on the command line and from nothing else — **no
+environment variable is read**, asserted on the AST, because an env var is exactly what a
+hosting platform sets by accident. `server()` deliberately has NO default mode: a mutation
+round flipped its second copy of "public is the default" to `local` and nothing went red,
+so the mirror was deleted rather than tested. **`obs_near` called in `public` with NO
+ARGUMENTS AT ALL still refuses `restricted_source`**, which is the ordering measured
+rather than read.
+
+**MEASURED FOR REAL AGAINST THE SDK, twice, not just unit-tested.** `mcp==2.1.1` in a
+throwaway venv at `/private/tmp/n06mcp` (nothing installed into the repo venv): a real
+stdio handshake against `python -m raincheck.notify_mcp` reports server `raincheck`,
+**4 tools**, and `obs_near` refusing in public; the same command with `--local` returns 2
+real observations including the MTA alert row; `--lokal` refuses to start with the usage
+line. Payload sizes an agent pays on every session: **instructions 2,399 B + descriptions
+1,549 / 2,251 / 1,884 / 1,840 B = 9,923 B total.**
+
+**MUTATION ROUND: 20 mutations, ALL 20 DIE**, pristine control green either end. The
+harness lied on its first run — zsh does not word-split an unquoted `$VAR`, so the restore
+was a silent no-op and mutations accumulated (orch 04's trap, named in TRAPS and hit
+anyway); the pristine control caught it at 24 failed / 8 passed. Rerun with a real array.
+Two genuine survivors then: `server()`'s duplicate default mode (fixed by deletion) and an
+UNUSED `from raincheck import duck`, which creates no `Name` node at all — the import test
+now pins the names the imports BIND, not only the modules they name.
+
+**THE SDK IS AN OPTIONAL EXTRA AND THE IMAGE MUST NOT GAIN IT.** `mcp = ["mcp>=2.1,<3"]`,
+imported only inside `server()`, so a tree without it still imports the module and runs
+every one of the 37 tests — **the suite gains no skip family from this ticket.** Pinned to
+major 2 deliberately: 1.x's server class is `mcp.server.fastmcp.FastMCP`, 2.x renamed it
+to `mcp.server.mcpserver.MCPServer` and the v1 import path now raises outright, so a `>=1`
+pin would resolve a tree this module cannot import. `docker/Dockerfile` installs `[gx]`
+and is asserted NOT to install `[mcp]` — no pod runs this server.
+
+**WHAT I DID NOT BUILD, on purpose.** No `make` target (an MCP client spawns the command
+itself, and `python -m raincheck.notify_mcp` is that command); no `--data-root` flag
+(`RAINCHECK_ARCHIVE_ROOT` already redirects the root through `paths.data_root()`); no edit
+to `docs/read-api-contract.md`, whose "Typed refusals from the query seam" section already
+says the MCP tools hand these refusals to an agent verbatim.
+
+**ONE NAMED LIMIT.** The MCP layer's JSON Schema types `cells` as
+`array[string] | string | null`, so an int64 Cell id sent as a JSON NUMBER is rejected by
+the SDK's own validation rather than by `query.h3()` — which is the better outcome (the
+agent is told the type before it spends a call) but is not a named `missing_param`. The
+PYTHON dispatch layer has no such validation: `tools()["assets_in_area"](cells=613...)`
+reaches `h3()` and IS refused by name. Both behaviours are real; neither is a defect.
