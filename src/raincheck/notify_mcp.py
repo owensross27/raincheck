@@ -271,10 +271,15 @@ def mode_of(argv) -> str:
     return mode
 
 
-def server(data_root: Path | str | None = None, mode: str = q.MODES[0]):
+def server(data_root: Path | str | None, mode: str):
     """The MCP server, tools registered. The SDK is imported HERE and nowhere else, so a
     tree without it still imports this module, still runs every dispatch test, and says
     something useful if you try to serve.
+
+    `mode` IS REQUIRED and deliberately has no default: `tools()` holds the safe one and
+    `mode_of()` is the only thing that reads the world, and two copies of "public is the
+    default" is one copy too many -- a mutation round flipped this one to `local` and
+    nothing went red, because `main()` always passes a mode and nobody else was calling it.
 
     Argument schemas are the SDK's, derived from the four signatures above -- which is why
     the bound names (`asset_id`, `cells`, `bbox`, `lon`, `lat`, `radius_m`) are the query
@@ -291,7 +296,7 @@ def server(data_root: Path | str | None = None, mode: str = q.MODES[0]):
 
 def main(argv: list[str] | None = None) -> int:
     """stdio, and nothing else. No port is opened here and none is meant to be."""
-    server(mode=mode_of(sys.argv[1:] if argv is None else argv)).run()
+    server(None, mode_of(sys.argv[1:] if argv is None else argv)).run()
     return 0
 
 
