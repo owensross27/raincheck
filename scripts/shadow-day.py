@@ -66,6 +66,17 @@ SILVER = ("events", "leg_hours")
 GOLD = ("cell_hour_speed", "cell_hour_route")
 POLL_S = 20
 DEADLINE_S = 3600
+# The relative distance two runtimes' floating-point aggregates may sit apart and still be
+# the same number. MEASURED 2026-08-25 on the first clean shadow: `leg_hours.dist_m_sum` is
+# a distributed `sum()` of DOUBLEs, floating-point addition is NOT associative, and the two
+# runtimes split their input differently (`local[6]` over local files against `local[2]`
+# over s3a), so the last bit moves - **max relative difference 1.24e-15 over 16,773 of
+# 72,087 rows, i.e. one ULP**, and the whole-table total differs by 3e-8 in 2.2e8. A sha
+# over such a column therefore CANNOT match across two runtimes, ever, on correct data.
+# 1e-9 is six orders of magnitude above what was measured and far below any difference that
+# could mean something about a bus: anything wider is a real disagreement.
+FLOAT_TOL = 1e-9
+NUMERIC = ("DOUBLE", "FLOAT", "REAL", "DECIMAL")
 
 
 def fail(rc: int, message: str):
@@ -297,18 +308,74 @@ def mac(days: list[str]) -> dict[str, int]:
     return out
 
 
+def explain(con, a_files: list[str], b_files: list[str]) -> dict:
+    """WHICH columns two builds of one partition disagree on, and by how much.
+
+    Asked only when the shas differ, because a sha says THAT and never WHAT - and on a
+    float aggregate the answer is usually "the last bit", which is not a disagreement about
+    the data (see FLOAT_TOL). Key-free on purpose: a partition's natural key is not the same
+    from one table to the next, so each column is compared as a MULTISET (`except all` gives
+    the count) and its magnitude is bounded by pairing the two sides' SORTED values - a
+    one-ULP perturbation can only swap neighbours, so the pairwise distance stays an upper
+    bound on the per-row one."""
+    read = "read_parquet(?, union_by_name = true)"
+    schema = {r[0]: r[1] for r in
+              con.execute(f"DESCRIBE SELECT * FROM {read}", [a_files]).fetchall()}
+    out = {}
+    for name, kind in schema.items():
+        col = '"' + name.replace('"', '""') + '"'
+        n = con.execute(f"SELECT count(*) FROM (SELECT {col} FROM {read} EXCEPT ALL "
+                        f"SELECT {col} FROM {read})", [a_files, b_files]).fetchone()[0]
+        if not n:
+            continue
+        row = {"rows": n, "type": kind, "float": kind.startswith(NUMERIC)}
+        if row["float"]:
+            paired = (f"SELECT max(abs(a.v - b.v) / nullif(abs(b.v), 0)) FROM "
+                      f"(SELECT {col} v, row_number() OVER (ORDER BY {col}) rn FROM {read}) a "
+                      f"JOIN (SELECT {col} v, row_number() OVER (ORDER BY {col}) rn FROM "
+                      f"{read}) b USING (rn)")
+            row["max_rel"] = con.execute(paired, [a_files, b_files]).fetchone()[0]
+        out[name] = row
+    return out
+
+
 def compare(remote: str, local: Path) -> dict:
+    """The content proof for ONE partition, exact first.
+
+    `parity.compare` is left exactly as the T17 gate uses it - one definition of equal, and
+    an exact one. What this adds is the SECOND question a shadow has to ask when the exact
+    answer is no: is the difference a disagreement about the data, or is it floating-point
+    addition being non-associative across two differently-partitioned runtimes? A partition
+    is `ok_within_tolerance` only if the row counts match, every differing column is a
+    floating-point one, and every one of them is inside FLOAT_TOL. A changed row count, a
+    string or integer column, or a float beyond the bound is a real difference and stays
+    one."""
     from raincheck import parity
 
     try:
         report = parity.compare(remote, str(local))
+        row = {"a": remote, "b": str(local), "ok": report.ok, "differing": report.differing,
+               "rows": {p: report.a[p][0] for p in sorted(report.a)},
+               "sha": {p: report.a[p][1][:12] for p in sorted(report.a)},
+               "detail": report.lines()[-1] if report.ok else str(report)}
+        if report.differing and not (report.only_in_a or report.only_in_b):
+            con = parity.connect(remote)
+            a, b = parity.partitions(remote, con), parity.partitions(str(local))
+            row["columns"] = {p: explain(con, a[p], b[p]) for p in report.differing}
+            row["ok_within_tolerance"] = all(
+                report.a[p][0] == report.b[p][0] and cols and all(
+                    c["float"] and c["max_rel"] is not None and c["max_rel"] <= FLOAT_TOL
+                    for c in cols.values())
+                for p, cols in row["columns"].items())
     except Exception as e:                      # unreadable side: could not check, never ok
         return {"a": remote, "b": str(local), "ok": None, "differing": None,
                 "detail": f"INCONCLUSIVE: {e}"}
-    return {"a": remote, "b": str(local), "ok": report.ok, "differing": report.differing,
-            "rows": {p: report.a[p][0] for p in sorted(report.a)},
-            "sha": {p: report.a[p][1][:12] for p in sorted(report.a)},
-            "detail": report.lines()[-1] if report.ok else str(report)}
+    return row
+
+
+def settled(row: dict) -> bool:
+    """Equal, or equal to within the floating-point bound this shadow states."""
+    return bool(row["ok"] or row.get("ok_within_tolerance"))
 
 
 def main(argv: list[str]) -> int:
@@ -324,6 +391,8 @@ def main(argv: list[str]) -> int:
               for kind, d in spans(days)]
     for row in inputs:
         print(f"shadow-day: INPUT {row['a']}: {row['detail'].splitlines()[-1]}", flush=True)
+    # Bronze is what the archiver wrote, not an aggregate of it, so the inputs are held to
+    # EXACT equality - the tolerance below is about a distributed sum and nothing else.
     fixed = reconcile([r for r in inputs if not r["ok"]])
     for rel in fixed:                       # re-proved one partition at a time, not the lot
         again = compare(f"{S3}/{rel}", MAC / rel)
@@ -357,7 +426,7 @@ def main(argv: list[str]) -> int:
         outcome = {"cluster": run["tasks"], "cluster_ok": cluster_ok,
                    "mac_rc": rcs[day], "mac_gold_rc": rcs["gold"],
                    "ok": bool(cluster_ok and rcs[day] == 0 and rcs["gold"] == 0)}
-        ok = all(c["ok"] for c in content) and outcome["ok"]
+        ok = all(settled(c) for c in content) and outcome["ok"]
         entries.append({"day": day, "recorded_utc": datetime.now(timezone.utc).isoformat(),
                         "run_id": run["run_id"], "shadow_root": SHADOW, "mac_root": str(LOCAL),
                         "content": content, "outcome": outcome,
@@ -366,8 +435,18 @@ def main(argv: list[str]) -> int:
         worst = max(worst, 0 if ok else 1)
         print(f"\nshadow-day: {day} {'CLEAN' if ok else 'NOT CLEAN'}", flush=True)
         for c in content:
+            if c["ok"]:
+                verdict = "EQUAL"
+            elif c.get("ok_within_tolerance"):
+                worst = max((col["max_rel"] or 0) for cols in c["columns"].values()
+                            for col in cols.values())
+                names = sorted({n for cols in c["columns"].values() for n in cols})
+                verdict = (f"EQUAL to {worst:.1e} relative on {', '.join(names)} "
+                           f"(floating-point sum order, bound {FLOAT_TOL:.0e})")
+            else:
+                verdict = c["detail"]
             print(f"  content {c['a'].rsplit('/', 2)[-2]}/{c['a'].rsplit('/', 1)[-1]}: "
-                  f"{'EQUAL' if c['ok'] else c['detail']}", flush=True)
+                  f"{verdict}", flush=True)
         print(f"  outcome cluster={'ok' if cluster_ok else run['tasks']} "
               f"mac rc={rcs[day]} gold rc={rcs['gold']}", flush=True)
 
