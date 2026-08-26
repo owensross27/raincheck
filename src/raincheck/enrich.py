@@ -144,14 +144,43 @@ def with_live_precip(df: DataFrame, root: Path, batch_ts: datetime) -> DataFrame
 # --- Passages (ticket 07 / ADR-0001, spec F) -------------------------------------------
 
 PASSAGE_KEY = ["vehicle_id", "trip_id", "start_date"]
+# Ping identity for Passages (ticket 06), spelled once so the total order below and any
+# future reader of it cannot drift apart.
+DEDUPE_KEY = ["vehicle_id", "ts", "stop_id", "lat", "lon"]
 
 
 def _dedupe(vp: DataFrame) -> DataFrame:
-    """Ping identity for Passages is (vehicle_id, ts, stop_id, lat, lon) (06)."""
-    # ponytail: the time axis is ts ordered by (ts, fetched_at); a live frozen-ts
-    # republish collapses to a zero-width bracket instead of walking the fetched_at
-    # axis - upgrade when live-era events land (archive fetched_at is NULL throughout)
-    return vp.dropDuplicates(["vehicle_id", "ts", "stop_id", "lat", "lon"])
+    """One Ping per DEDUPE_KEY, chosen by a TOTAL ORDER rather than arbitrarily.
+
+    This was `dropDuplicates(DEDUPE_KEY)`. Spark defines no winner among a group's
+    members, so wherever they DISAGREE about a non-key column the survivor follows shuffle
+    order - which differs between two runtimes and between two runs of the same code on
+    one box. A table built that way is not reproducible from its own inputs, and no "are
+    these two builds the same?" gate over it means anything on the days it bites: orch 11's
+    shadow built 2026-08-22 twice from identical Bronze and got EQUAL once and 10 differing
+    rows of 750,226 (`schedule_relationship`) the next time.
+
+    `fetched_at` first, because the earliest fetch of a Ping is already what the rest of
+    this module prefers - `legs()` picks it explicitly and both Passage windows order on
+    it - then every remaining column in NAME order, so what is pinned is the surviving ROW
+    and not merely the columns today's consumers happen to read. Sorting the tie-breaks
+    matters: `vp` arrives through a mergeSchema union whose column ORDER is not a promise,
+    so an order built from `vp.columns` as given would itself vary.
+
+    Measured on this Mac's Bronze (orch 12, 2026-08-26), which is why the fix is not
+    scoped to the one column orch 11 saw move: EVERY tied group disagrees about
+    `fetched_at` - 16,127 groups on 2026-08-22 up to 296,361 on 2026-08-24, because two
+    pollers capture the same feed - while `schedule_relationship` disagrees on 0 groups on
+    2026-08-20/23/25 and 260,608 on 2026-08-24, and `trip_id` on 7-14 groups EVERY day.
+    Picking days with zero `schedule_relationship` ambiguity therefore cannot make a build
+    deterministic; only a total order can.
+    """
+    rest = [c for c in vp.columns if c not in DEDUPE_KEY]
+    order = ([c for c in rest if c == "fetched_at"]          # absent in a pre-live-era union
+             + sorted(c for c in rest if c != "fetched_at"))
+    rank = F.row_number().over(Window.partitionBy(*DEDUPE_KEY)
+                               .orderBy(*(F.col(c).asc_nulls_first() for c in order)))
+    return vp.withColumn("_rn", rank).where(F.col("_rn") == 1).drop("_rn")
 
 
 def passages_matched(vp: DataFrame, sched: DataFrame) -> DataFrame:

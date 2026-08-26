@@ -758,3 +758,72 @@ def test_cell_hour_route_idempotent_and_neighbour(gold_route, spark):
     gold.route(root, spark, "2024-03")
     assert sorted(gr_rows(root, "*", "month = '2024-03'"), key=str) == before
     assert snap() == nov  # dynamic overwrite touches only the rebuilt month
+
+
+# --- orchestration 12: the dedupe survivor is DETERMINED, not arbitrary ----------------
+# enrich._dedupe was `dropDuplicates(DEDUPE_KEY)`, which keeps whichever member of a tied
+# group shuffle order happened to put first - so `silver/events` was not reproducible from
+# its own inputs and orch 11's shadow measured the flip (2026-08-22: EQUAL on one pair of
+# runs, 10 differing rows of 750,226 on the next). These pin the replacement.
+
+DEDUPE_SCHEMA = ("vehicle_id string, trip_id string, route_id string, start_date string, "
+                 "schedule_relationship string, direction_id long, stop_id string, "
+                 "lat double, lon double, ts long, fetched_at long")
+# One tied group: same (vehicle_id, ts, stop_id, lat, lon), three members that DISAGREE
+# about every column a Passage reads. Planted worst-first, so an implementation that keeps
+# the first row it meets picks the wrong one - the "table in the wrong physical order"
+# fixture, because a byte-identical re-run proves nothing about an arbitrary choice.
+TIED = [
+    ("v1", "TC", "R3", "20260812", "ADDED",     1, "S1", 40.75, -73.95, 1000, 300),
+    ("v1", "TA", "R1", "20260812", "SCHEDULED", 0, "S1", 40.75, -73.95, 1000, 100),
+    ("v1", "TB", "R2", "20260812", "CANCELED",  1, "S1", 40.75, -73.95, 1000, 200),
+]
+# fetched_at first: 100 < 200 < 300, so the SECOND row planted is the survivor. Written as
+# a literal rather than derived from the module - a fixture computed from the rule under
+# test cannot see the rule move.
+TIED_WINNER = ("v1", "TA", "R1", "20260812", "SCHEDULED", 0, "S1", 40.75, -73.95, 1000, 100)
+
+
+def _survivor(spark, rows, schema=DEDUPE_SCHEMA, parts=1):
+    from raincheck.enrich import _dedupe
+
+    df = spark.createDataFrame(rows, schema).repartition(parts)
+    got = _dedupe(df).collect()
+    assert len(got) == 1, f"a tied group must collapse to one Ping, got {len(got)}"
+    return tuple(got[0][c] for c in schema.replace(",", " ").split()[::2])
+
+
+def test_dedupe_keeps_the_earliest_fetched_at_whatever_order_the_rows_arrive_in(spark):
+    """The whole surviving ROW is determined, and it is the same row under a different
+    physical layout - which is the half `dropDuplicates` never promised."""
+    assert _survivor(spark, TIED) == TIED_WINNER
+    assert _survivor(spark, list(reversed(TIED))) == TIED_WINNER
+    assert _survivor(spark, TIED, parts=3) == TIED_WINNER
+
+
+def test_dedupe_breaks_a_fetched_at_tie_on_the_remaining_columns_in_name_order(spark):
+    """`vp` reaches here through a mergeSchema union, whose column ORDER is not a promise -
+    so the tie-breaks are sorted by NAME. Same three members, same fetched_at, presented
+    under two different column orders: one answer, or the order is not total."""
+    same = [(v, t, r, s, sr, d, st, la, lo, ts, 100) for
+            (v, t, r, s, sr, d, st, la, lo, ts, _) in TIED]
+    # direction_id < route_id < schedule_relationship < start_date < trip_id by name, so
+    # direction_id decides: 0 wins, which is the "TA/R1/SCHEDULED" member.
+    assert _survivor(spark, same) == TIED_WINNER
+
+    flipped_schema = ("trip_id string, vehicle_id string, ts long, fetched_at long, "
+                      "stop_id string, lon double, lat double, direction_id long, "
+                      "start_date string, schedule_relationship string, route_id string")
+    flipped = [(t, v, ts, 100, st, lo, la, d, s, sr, r) for
+               (v, t, r, s, sr, d, st, la, lo, ts, _) in TIED]
+    got = _survivor(spark, flipped, flipped_schema)
+    assert dict(zip(flipped_schema.replace(",", " ").split()[::2], got)) == \
+        dict(zip(DEDUPE_SCHEMA.replace(",", " ").split()[::2], TIED_WINNER))
+
+
+def test_dedupe_prefers_a_null_fetched_at_because_the_order_is_nulls_first(spark):
+    """`asc_nulls_first`, the spelling `legs()` and both Passage windows already use: an
+    archive-era Ping with no fetch instant sorts before a live-era one, so a union of the
+    two eras cannot make the survivor depend on which era got shuffled first."""
+    rows = [TIED[0], (*TIED[1][:-1], None), TIED[2]]
+    assert _survivor(spark, rows) == (*TIED_WINNER[:-1], None)

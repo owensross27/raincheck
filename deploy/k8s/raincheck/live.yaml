@@ -105,9 +105,24 @@ spec:
               # NOT measured on this pod: the cluster is linux/arm64 and DuckDB sizes its
               # own default against the cgroup, so the first real run of this Deployment
               # should be watched.
-              memory: 512Mi     # measured peak ~500 MiB with the flood tick joined
+              # RAISED FROM 512Mi BY ORCH 12, on flood 17's measurement and not on a
+              # guess: the two impact overlays took the OVERLAY read from 348.8 -> 410.2
+              # MiB (three runs each, same machine, 2026-08-26), i.e. +61.4 MiB on a tick
+              # whose whole-loop peak flood 15 measured at ~500 MiB. 500 + 61 = ~561 MiB,
+              # which is OVER the 512Mi request - a scheduling fact rather than an OOMKill
+              # risk, since the limit below is untouched and still above it. flood 17
+              # measured it and could not act: `deploy/` is one editor per wave.
+              memory: 640Mi     # ~561 MiB measured peak (flood 15's 500 + flood 17's 61.4)
             limits:
-              memory: 768Mi     # ~1.5x the measured peak; unchanged since cloud 05
+              # UNCHANGED at ~1.37x the new measured peak (was ~1.5x of 500 MiB). Still the
+              # cloud 05 number. The margin that is NOT in this file: `duck.connect()` sets
+              # no `memory_limit`, so in a container DuckDB sizes itself against the NODE's
+              # RAM and not the cgroup - every measurement above was taken WITH an explicit
+              # limit and this pod runs without one. That fix is `src/raincheck/duck.py`,
+              # imported by every module in the repo, so it is not a `deploy/` change and
+              # orch 12 did not make it; it is in TRAPS and it is why the first real run of
+              # this Deployment is worth watching.
+              memory: 768Mi     # ~1.37x the measured peak; unchanged since cloud 05
           volumeMounts:
             - name: data
               mountPath: /data
