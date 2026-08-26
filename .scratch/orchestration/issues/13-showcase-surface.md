@@ -309,9 +309,29 @@ wide" checkbox is NOT ticked**: the widest map is measured into the record
 - [x] No published artifact contains feed payload — `run.json`'s instances are a frozen
       eight-field list (a test pins it), so no pod name, node address or log prose reaches
       the host; the Data Docs half is orch 08's structural argument, restated as a link
-- [ ] **One recorded run has an events map at least five Service dates wide** — NOT MET,
-      and it cannot be until a real nightly runs. The recorded run is the probe (3 wide);
-      per-task durations ARE exported. **Owner: orch 11's shadow, then orch 12.**
+- [x] **One recorded run has an events map at least five Service dates wide** — **MET
+      2026-08-26 by orch 12**, and measured from the logs rather than typed:
+      `research/orch-13-run-shadow-2026-08-12-6d-125210.json` has **`totals.widest_map` 6**
+      (9 task instances / 18 pods / 1365.9 s wall / 5705.9 s of task time), from
+      `raincheck_shadow` run `shadow-2026-08-12-6d-125210` — six real Service dates
+      (2026-08-12..08-17), one `events` pod each, all six `success`. `verdict.lines` is
+      eight `daily: OK`s taken from `daily.verdict()`, never from the DagRun state.
+      **RECORDED AS `--label shadow`, NOT `--label nightly`, and that was deliberate.**
+      orch 12's box said `--label nightly` "is the only label that lets the page drop its
+      width caveat". True, and it is the wrong label: this module refuses the substitution
+      in its own words (`showcase: --logs needs --label probe|shadow|nightly - a run that
+      is not a nightly must not be shown as one`), and `SCOPE["nightly"]` renders "This is
+      the nightly.", which a shadow is not.
+      **SO A DEFECT IS LEFT FOR YOU, and it is one line.** `page()` computes
+      `width = ("." if run["label"] == "nightly" and tot["widest_map"] >= 5 else ...)`, so
+      this record — six Service dates wide, from the nightly's own build shape over the
+      nightly's own gap scan — still prints "the fan-out at its declared width … is not
+      what this run shows", which is now FALSE. The caveat is keyed on the LABEL when the
+      claim it guards is about the WIDTH; `SCOPE[label]` already says separately what a
+      shadow is, so the two do not need to be welded together. The comment above it — "only
+      a real nightly's gap scan can produce five" — is what has been disproved: the shadow's
+      `plan_service_date` pod runs the identical `daily plan service_date` scan and produced
+      six. **Fix the predicate, not the label.**
 - [x] The serial baseline is stated next to it — `SERIAL = 1928 s / 7 service days /
       ~275 s/day`, on the page beside the run, with the reason both numbers travel together
 
