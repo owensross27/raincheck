@@ -137,3 +137,101 @@ superset of the local 12,607 / 6.24 GiB. `data/` went **11.94 GB -> 5.70 GB**.
 `data/live`, `data/checks`, `data/checkpoints` (tiny, and live state). `silver` / `gold` /
 `snapshots` / `alt` are DERIVED and rebuildable but cost the **1928 s serial baseline** to
 rebuild — reclaim only under real disk pressure, and say so if you do.
+
+---
+
+## FROM ORCH 12, THE CUTOVER (2026-08-26, branch `orch12-cutover`) — WHAT RETIRED AND WHAT DID NOT
+
+**NOTHING RETIRED. `com.raincheck.daily` IS STILL LOADED AND STILL OWNS THE NIGHTLY, and that
+is a measured decision rather than an unfinished one.** This is the ticket that was supposed to
+be your precondition; read this section before you plan the checklist, because the precondition
+is now SHARPER, not met.
+
+**THE ROLLBACK LINE WAS WRITTEN BEFORE ANY BOOT-OUT AND NO BOOT-OUT HAPPENED** (plist header,
+`~/Library/LaunchAgents/com.raincheck.daily.plist`):
+
+    stop     launchctl bootout gui/$(id -u)/com.raincheck.daily
+    restore  launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.raincheck.daily.plist
+    run now  launchctl kickstart -k gui/$(id -u)/com.raincheck.daily
+    status   launchctl print gui/$(id -u)/com.raincheck.daily
+
+`make daily` stays runnable either way — the agent's `ProgramArguments` IS
+`/usr/bin/make -C /Users/ross/raincheck daily`, so retiring the agent removes the SCHEDULE and
+not the escape hatch.
+
+### THE CUTOVER IS BLOCKED ON WRITERS, AND ORCH 12 MEASURED EXACTLY WHICH — RUN, NOT READ
+
+"Pointing the pods' root at the object store IS the cutover." Orch 12 pointed a root at
+`s3a://raincheck-bronze/orch12-probe` and ran every nightly stage's write path against it. **Four
+of the fourteen nightly tasks REFUSE a remote root today.** The failures are quoted from the
+runs, not inferred from the source:
+
+| nightly stage | site | what it does on `s3a://` |
+| --- | --- | --- |
+| `precip` | `precip.py:133` `pq.write_table(tmp)` | `NotImplementedError: write() is a local-filesystem operation …` |
+| `precip` | `precip.py:138` `tmp.replace(out)` | `NotImplementedError: replace() is a local-filesystem operation …` |
+| `precip` | `precip.py:236-237` `shutil.move` + `rmtree` | `TypeError: stat: path should be … not RemotePath` |
+| `gxcheck` | `gx.py:782-786` | `ValueError: gxcheck: Data Docs are POSIX-only and this root is an object store` |
+| `coldpush` | Makefile recipe, `aws s3 sync "$RAINCHECK_ARCHIVE_ROOT/archive" …` | `usage: aws s3 sync <LocalPath> <S3Uri>…  Error: Invalid argument type` |
+| `coldcheck` | `cold.py:35-40` `archive.is_dir()` | `NotImplementedError: is_dir() is a local-filesystem operation …` |
+
+**THREE CORRECTIONS TO THE WAVE-6 GATE'S FIVE-ROW TABLE, all of them measured here:**
+
+1. **`precip` is THREE sites, not one, and the hard one is not in the table.** The gate pinned
+   `precip.py:236-237` (`cell_hourly`, the `one_file` sibling shape, a two-line swap to
+   `paths.move`/`paths.rmtree`). The nightly ALSO runs `make precip-hourly SRC=mrms`, whose
+   `hourly_mrms()` writes each Pass2 hour with `pq.write_table` to a temp path and then
+   **`tmp.replace(out)`** — and `replace`/`rename` **must stay refusing** (cloud 13: an object
+   store has no atomic rename; that is the atomicity problem itself). So this one is not a swap,
+   it is a redesign onto cloud 09's DATA-FIRST/MARKER-LAST ordering. Budget for it.
+2. **`coldpush` and `coldcheck` are a FIFTH and SIXTH blocker and neither is on the gate's
+   list.** Neither needs "converting" — **both need RE-ASKING**, which is the question the gate
+   correctly routed here rather than assuming: with the root already the bucket, `coldpush` is a
+   bucket-to-itself sync and `coldcheck` proves `remote ⊆ remote`, which is vacuously true.
+   The honest replacement question is **`remote ⊇ a declared manifest`**, not a new threshold.
+3. **`ref.py:96-97`, `schedule.py:162-163` and `flood_obs.py:456-457` are NOT on the nightly
+   graph** (`make ref`, `make picks`/`schedule`, the flood build), so **the cutover does not need
+   them.** They are still yours — the four are the `one_file` sibling shape and the gate is right
+   that they convert together or not at all — but they do not gate the nightly. Also not needed
+   and also not on the list: `precip_live.py:123` `shutil.rmtree` (the CronJob, not a stage), and
+   `refpull` (the initContainer on both pod templates) which holds only a `.mkdir()` and is
+   therefore already remote-safe.
+
+**WHAT ORCH 12 DID NOT DO, DELIBERATELY: it did not start the conversion.** A half-converted root
+is worse than an unconverted one, and four refusing stages out of fourteen is not a cutover.
+
+### WHY THE NIGHTLY WAS NOT LEFT UNPAUSED ON `/staging`
+
+A task pod's `RAINCHECK_ARCHIVE_ROOT` is the `/staging` emptyDir on both templates, and **each
+task is its own pod, so each gets its OWN empty emptyDir** — `gapfill` fills scratch that
+`coldpush` never sees. That makes an unpaused nightly on this root harmless (verified: nothing
+it runs can reach real Bronze) but also **meaningless and not free**: `gapfill` re-downloads the
+whole `START = 2026-08-15`..yesterday window from gtfsrt.io into a 4Gi emptyDir on every one of
+its five mapped pods, every night, and throws it away.
+
+### WHAT IS ALREADY PROVEN, so your checklist does not re-prove it
+
+- **Content parity, seven clean days, two proofs each** — `research/orch-11-shadow.json`,
+  `sum(e["clean"] for e in ledger)`. That half of your gate is MET.
+- **The scheduler's clock** — see orch 12's RUN LOG entry for the first unpaused run's id and
+  `next_dagrun_logical_date`.
+- **`ref/` restore** is unchanged and still the one-liner in the section above.
+
+### WHAT YOUR CHECKLIST STILL HAS TO ANSWER, beyond the writers
+
+- **`gapverify` HAS BEEN STRUCTURALLY INCONCLUSIVE SINCE THE WAVE-6 RECLAIM, and it is not a
+  code defect.** It compares a gapfill-FILLED hour against an ARCHIVER hour **on the same day**;
+  the reclaim deleted every archiver hour, and gapfill only fills hours the archiver missed, so
+  the pair now exists only on a day the archiver was partly down. Measured on the 06:00 run of
+  2026-08-26: **5 of 5 kinds `inconclusive`, "no filled hour with an archiver hour on the same
+  day yet"**, and orch 09's `fill-fidelity` suite reports the same 5. A Mac-retirement gate that
+  wants fill fidelity as evidence has to plan for that, or it will read a permanent
+  could-not-check as a pass.
+- **`prune`'s subject does not exist on either side.** `stream.prune` sweeps `live/vp` and
+  `live/tu` (`stream.TOPIC`) past a 48 h horizon. On this Mac both hold only `_SUCCESS` — the
+  streaming workload runs nowhere, and `raincheck-stream` is still not applied to the cluster —
+  so `prune` is a verified no-op and the "newest hour still there" half of the 48 h claim is
+  **unprovable until something writes `live/`**. Note also that the one live table that DOES
+  exist, `live/precip_cell` (107 `valid_ts=` dirs, 2026-08-22T02..2026-08-26T12), is outside
+  `stream.prune`'s scope and carries `precip_live`'s own **7-day** retention — two horizons on
+  one `live/` tree, which a decommission checklist should state rather than discover.
