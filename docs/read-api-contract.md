@@ -39,7 +39,7 @@ payload and republish a stale one.
 | `flood` | `files/flood.json`, `files/flood-meta.json` | 30 s loop, skips unless the forcing advanced | `no-cache` | the flood panel's OPEN side: the FloodNet tier, the CO-OPS coastal chips and the 311/USGS/AORC-derived exposure. Both or neither; the meta goes LAST |
 | `flood-mta` | `files/flood-mta.json`, `files/flood-mta-meta.json` | 30 s loop, skips unless the forcing advanced | `no-cache` | **GATED, dark** — the alert-derived tier alone, on the same gate side as `live.geojson` |
 | `impact` | `files/impact.json`, `files/impact-subway.json` | 30 s loop, skips unless the forcing advanced | `no-cache` | **GATED, dark** — flood-build 17's two impact overlays, bus at Cell grain and subway at complex grain. Both VP/TU-derived, so both sit with `live.geojson`. No meta: each states its own hour, budget and staleness inline |
-| `history` | `files/history/**` | per spine rebuild | `public, max-age=300` | one file per asset |
+| `history` | `files/history/**` | per spine rebuild | `public, max-age=300` | `manifest.geojson` — every asset with a flood record, as Point Features carrying `asset_id`, `kind`, `n_events` and `name` (ABSENT on a Cell) — plus `<asset_id>.json` per listed asset, the history and the exposure merged. Measured 2026-08-26: 8,147 files / 14,174,355 B |
 | `docs` | `docs/**` | per Airflow run | `public, max-age=300` | Great Expectations Data Docs |
 | `showcase` | `showcase/**` | per landing or recorded run | `public, max-age=300` | the walkthrough, the task graph and one recorded run [orch 13] |
 | `geo` | `files/geo/**` | per ref rebuild | `public, max-age=300` | DEP design-storm flood extents — see below |
@@ -276,7 +276,25 @@ nothing in the payload says so. Two files, two cadences, two fetches, each dated
 reader from its own response headers.
 
 Sizing, measured on the tail rather than the median (a median from a random sample is the
-wrong number for sizing one click): the per-asset history maximum is 23,444 bytes.
+wrong number for sizing one click). MEASURED ON THE SHIPPED TREE, 2026-08-26, all 8,146
+listed assets: a per-asset file is **median 1,138 B, mean 1,561 B, max 21,994 B**
+(`cell:882a1062d5fffff`, 73 events) — every one of them carrying the exposure block as well
+as the history. The manifest is **1,458,148 B** and is the largest object in the family by
+66x, but a reader pays it ONCE: it is the layer, and the per-asset file is the click.
+
+**A CONSUMER DERIVES THE PER-ASSET URL FROM THE MANIFEST AND NEVER FROM A NAME.** The key
+is `files/history/<asset_id>.json`, `asset_id` verbatim — the ids carry `:` (`bus:400081`,
+`cell:882a1062d5fffff`, `ent:409:40.722103:-73.996812`), which is legal in an object key
+and in a URL path segment, and no id in the registry holds any character outside
+`[A-Za-z0-9:._-]` (measured over all 20,544). An asset ABSENT from the manifest has **no
+events on record** and needs no request at all — that is what the manifest is for, and it
+is why the file set is flat: sharding it by kind or H3 prefix would change these keys for
+no gain, since it is the object COUNT and not the directory shape that costs anything.
+
+**An entrance carries a history and NO score.** `exposure` is an ABSENT key on those files
+(928 of the 8,146), never a fabricated zero, and `exposure_unavailable` carries
+`{reason: "not_a_scored_unit", ask: "<complex asset_id>"}` — follow `ask` to the complex
+that does answer.
 
 ## Client-side only
 

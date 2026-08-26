@@ -172,3 +172,92 @@ carries TWO classic library tags (`maplibre-gl.js`, `pmtiles.js`) and still exac
 `type="module"` entry. `test_the_page_is_one_module_entry_with_no_build_step` asserts the
 one-entry rule and that every classic tag is a published `site` key — it no longer counts
 `<script` tags, so a third vendored library is not automatically a failure.
+
+
+## FROM notify 05 — YOUR MANIFEST IS LANDED AND MEASURED (2026-08-26, branch `notify05-static-history`)
+
+`make export` now writes `web/files/history/`. The `hist` row already in `layers.js`
+(`url: "files/history/manifest.geojson"`, `draw` = `setData` the body unchanged) works
+with no page change — the file it names exists now. **You still own everything visual;
+this is the data contract under it.**
+
+**THE MANIFEST IS A GeoJSON FeatureCollection AND THE KEY SET IS SIX, FROZEN:**
+
+    { "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [lon, lat] },   // 5 dp, ~1.1 m
+      "properties": { "asset_id", "kind", "n_events", "name"? } }
+
+- **`name` is an ABSENT KEY on every `cell`-kind asset — all 1,276 of them — never null.**
+  `ref/assets` names only stops, stations and complexes, and **the most-flooded assets are
+  exactly the Cells**, so `props.name` at the top of a ranked list is `undefined`, not a
+  string. Fall back to `asset_id`. **And print the `asset_id` even when a name exists:**
+  `bus:200163` and `bus:200173` are both "FATHER CAPODANNO BLVD/DOTY AV", both with 26
+  events, metres apart on opposite sides of one street — a marker click between them is
+  genuinely ambiguous and the name alone cannot resolve it.
+- `n_events` is what drives your `circle-radius` ramp. Real distribution over the 8,146
+  listed assets, so size the ramp on it rather than on a guess: 73 is the maximum
+  (`cell:882a1062d5fffff`).
+
+**THE COUNT IS 8,146, NOT THE 7,955 EVERY EARLIER TICKET SAYS.** 5,657 bus stops + 1,276
+Cells + 928 entrances + **285 complexes**. 7,955 counted assets owning a LABEL ROW; only 94
+complexes do, but `events_for_asset` answers a complex for ITSELF AND ITS ENTRANCES, so 285
+have a history a click returns. **The manifest matches what the click returns**, which is
+the only invariant that makes a marker honest, and a test pins the two together.
+
+**THE RECORD CARD'S FETCH: `files/history/<asset_id>.json`, the id VERBATIM.** Flat tree,
+no shards, no encoding — derive the URL from the manifest's own `asset_id` and never from a
+name. The ids carry `:` (`bus:400081`, `cell:882a1062d5fffff`,
+`ent:409:40.722103:-73.996812`); that is legal in a URL path segment and in an object key,
+and no id in the registry holds a character outside `[A-Za-z0-9:._-]` (measured over all
+20,544).
+
+**SIZES, MEASURED ON THE SHIPPED TREE — and the two numbers are 66x apart, so do not mix
+them up.**
+
+| | |
+|---|---|
+| manifest | **1,458,148 B raw** (138,524 gz), loaded ONCE at boot |
+| one click | median **1,138 B**, mean 1,561 B, **max 21,994 B** |
+| whole tree | 8,147 files / 14,174,355 B |
+
+Nothing in this repo sets `Content-Encoding`, so the gz figure is CONDITIONAL on an edge
+behaviour nobody has verified — **budget in RAW bytes** until the `[YOU]` curl is recorded.
+The manifest is ~40% of the live page's current 3.66 MB first paint in raw bytes, so it is
+a real boot cost: it is the layer, and it is worth deciding whether it loads at boot or on
+first toggle. That is YOUR call, not mine.
+
+**THE PER-ASSET FILE IS A MERGE, and one key can be missing:**
+
+    { "queries": ["events_for_asset", "exposure_of"], "mode": "public",
+      "asset": {asset_id, kind, name?, cell?, complex_id?},
+      "n_events": N, "events": [...], "reason"?: "no events on record",
+      "exposure": {estimand, model_id, score_index, score_ref, score_severe,
+                   surge_margin_ft?, flags[], modelled},
+      "exposure_unavailable"?: {reason: "not_a_scored_unit", ask: "<complex asset_id>"},
+      "versions": {assets_version, spine_version, label_version, score_version?} }
+
+- **928 of the 8,146 files have NO `exposure` KEY AT ALL, and they are all entrances.** An
+  entrance's score exists only inside its complex's max. **Test for the key's presence** —
+  there is no null and no zero to check, because a fabricated 0.0 would read as "safe".
+  `exposure_unavailable.ask` is the complex that DOES answer; following it works (pinned).
+- `score_index` is the within-kind RANK bounded (0, 1] — the human-facing number.
+  `score_ref` / `score_severe` are the LINEAR PREDICTOR and are **negative for nearly every
+  Unit**; neither is a probability. `modelled: false` marks the 60 kind-median bus stops —
+  never render one as a modelled rank. An absent `surge_margin_ft` (404 Units) is **not a
+  zero**: a zero margin means the water is AT the doorway. Flag meanings are published under
+  `flags` in `research/flood-10-coefficients.json` — link it, do not re-word it.
+- **NO WALL CLOCK anywhere in this family, by design.** Date every payload the way the page
+  already dates the others: response `Date` minus `Last-Modified`, same origin, both on the
+  origin's clock. A writer's stamp would break the byte-identical re-export these files are
+  evidence for, and it would read FRESH over a week-old table anyway.
+- An asset ABSENT from the manifest is **"no events on record"** with NO request. That is
+  the whole point of the manifest — do not fetch to discover an absence.
+
+**ONE GAP THE SEAM STILL HAS, and it is not yours to close.** `assets_in_area` — the query
+your MCP-facing siblings use — still returns `{asset_id, kind, name?, cell, complex_id?,
+n_events, last_event_id?}` and **no coordinate**, so an agent that asks "what is near here"
+still cannot place the answer on a map without a second lookup. That is the third time this
+repo has shipped that shape. notify 05 worked around it (one flat `ref/assets` projection,
+resolved in python) rather than editing `query.QUERIES`, because notify 06 froze the four
+tools and their row shapes for wave 7. **The real fix is `lon`/`lat` on `assets_in_area`'s
+asset rows — additive, ~4 lines — and it belongs to the next session that owns `query.py`.**
