@@ -31,7 +31,7 @@
  *     so they share one frozen ramp and one channel, offered as a radio. Two ramps on one
  *     geography is structurally impossible, not merely discouraged.
  */
-import { drawCells } from "./insight.js";
+import { drawCells, drawRoutes, drawZones } from "./insight.js";
 import { drawBasemap } from "./basemap.js";
 
 // Fixed ramps. Ratio: diverging around 1.0 (red slower, blue faster), 0.5 .. 1.2 always.
@@ -51,6 +51,48 @@ export const WATER = "#35d6c2";    // a FloodNet sensor reporting water NOW
 export const ALERT = "#ffc447";    // an MTA station with water on the tracks (the page's .warn family)
 export const HIST = "#8f7bd6";     // a stop or Cell with a flood record: history, not an alarm
 export const GATED_HUE = "#d2a24c";    // a gated layer's chip: dark, never absent
+
+/* frontend2 03's geography band. Two rules decided these four values rather than taste.
+ *  - A MODELLED extent may not be drawn in the hue an OBSERVED one uses. WATER (#35d6c2)
+ *    means "a FloodNet sensor is reporting water NOW"; DEP's design storm is a planning
+ *    map of what WOULD flood at a rain rate, and painting the two in one hue is the single
+ *    confusion this layer must not create.
+ *  - Neither arm of the diverging ramp, which is left byte-untouched (frontend 02 D2).
+ * Green is the one family this page had not spent: red and blue are the ramp, aqua is
+ * observed water, amber is an MTA alert, violet is flood history, and #d2a24c is a gated
+ * chip. `deep` and `nuisance` are two TONES of it - one hue, two depths - and DEP's
+ * exclusion mask gets a NEUTRAL that is deliberately not GREY, which already means "no
+ * publishable value for this layer" on the Cell fill three layers up.
+ */
+export const ZONE_DEEP = "#2e7d5b";       // ponding >= 1 ft ("Deep and Contiguous Flooding")
+export const ZONE_NUISANCE = "#8fcfae";   // >= 4 in, < 1 ft ("Nuisance Flooding")
+export const ZONE_MASK = "#7a8794";       // "Area not included in analysis" - NOT "no flooding"
+export const ROUTE_PLAIN = "#5b6572";     // a route line carrying geometry and no number
+
+// The category -> hue mapping, as ONE expression both the paint and the legend read, so a
+// swatch cannot show a colour the map does not use. An unrecognised category falls to the
+// mask neutral rather than to a depth tone: a tone would CLAIM a depth for something this
+// page has never seen, and the neutral only claims "not something we can colour".
+export const ZONE_COLOR = ["match", ["get", "category"],
+  "deep", ZONE_DEEP, "nuisance", ZONE_NUISANCE, "not_analyzed", ZONE_MASK, ZONE_MASK];
+export const ZONE_LEGEND = [
+  ["deep", ZONE_DEEP, "deep and contiguous ponding, at least 1 ft"],
+  ["nuisance", ZONE_NUISANCE, "nuisance flooding, 4 in to 1 ft"],
+  ["not_analyzed", ZONE_MASK, "DEP did not model here \u2014 this is NOT \u201cno flooding\u201d"],
+];
+/* The mask is DRAWN and it RECEDES, and both halves are the rule. `not_analyzed` polygons
+ * are the big ones - rail corridors, large lots, open space - so at the depths' own opacity
+ * they wash the whole city out and hide both the modelled classes and the route lines under
+ * them (measured in a real tab, not predicted). It carries less ink than a modelled class
+ * because it carries less information, and it is never zero: painting DEP's exclusion mask
+ * as clear is the exact lie this layer exists not to tell. */
+export const ZONE_FILL_OPACITY = ["match", ["get", "category"], "not_analyzed", 0.16, 0.5];
+export const ZONE_LINE_OPACITY = ["match", ["get", "category"], "not_analyzed", 0.3, 0.85];
+
+// A route line is 16,117 km of geometry in one layer, so its weight is a zoom ramp and not
+// a number: at z10 the whole network is on screen and anything thicker is a mat.
+export const ROUTE_W_THIN = ["interpolate", ["linear"], ["zoom"], 10, 0.5, 14, 1.2];
+export const ROUTE_W_RAMP = ["interpolate", ["linear"], ["zoom"], 10, 0.9, 14, 2.6];
 
 // Ticket 14's staleness cuts, kept a TABLE and never a formula (a "2x cadence" rule would
 // silently retune the deliberately chosen bronze value from 900 s to 1200). Hoisted above
@@ -100,6 +142,28 @@ export const LAYERS = [
     map: ["zones-fill", "zones-line"], owed: null,
     srcs: [{ k: "files/zones.geojson", url: "files/zones.geojson", budget: null }],
     draw: ([z]) => { if (z) map.getSource("zones").setData(z); } },
+
+  /* frontend2 03. Both are GROUND: they sit in the style block between `zones-fill` and
+   * `cells`, so they are above the basemap and below every layer that carries an answer.
+   * Neither is `fill: true` - the Cell-fill radio is frozen (frontend 02 D1) and a
+   * non-Cell polygon does not join it. What binds them to it instead is the one-ramp rule
+   * `applyRamp()` enforces: while a Cell fill is lit the zones are OUTLINES and the route
+   * is thin and uncoloured; with the fill off, the zones fill and the route carries the
+   * ramp. Both are `open: false` - nothing here is fetched until the reader ticks it, and
+   * routes.geojson is 7.78 MiB. */
+  { id: "routes", name: "Bus route lines", gate: null, fill: false, open: false,
+    map: ["routes"], owed: null,
+    srcs: [{ k: "files/geo/routes.geojson", url: "files/geo/routes.geojson", budget: null }],
+    draw: ([r]) => drawRoutes(r) },
+
+  // its FIRST source is the scenario manifest, and the scenario payload is a second source
+  // drawZones() adds once it knows which one is selected - see insight.js. A browser cannot
+  // list a directory, and `geo` is a TREE family whose served set is derived from the
+  // table, so the manifest is what makes a second scenario a DATA change and not a rewrite.
+  { id: "stormwater", name: "Ground: flood zones (DEP design storm)", gate: null, fill: false,
+    open: false, map: ["stormwater-fill", "stormwater-line"], owed: null,
+    srcs: [{ k: "files/geo/scenarios.json", url: "files/geo/scenarios.json", budget: null }],
+    draw: ([m]) => drawZones(m) },
 
   { id: "cells", name: "Delay cells", gate: null, fill: true, open: true,
     map: ["cells", "cells-line"], owed: null,
@@ -174,12 +238,28 @@ export const map = new maplibregl.Map({
     // the glyph range is same-origin and no third host is in the demo path (spec L). One
     // fontstack, one range: basemap.js rewrites the vendored theme's three onto this file.
     glyphs: "vendor/{fontstack}-{range}.pbf",
-    sources: { zones: empty(), cells: empty(), impact: empty(), locate: empty(),
+    sources: { zones: empty(), stormwater: empty(), routes: empty(), cells: empty(),
+               impact: empty(), locate: empty(),
                live: empty(), hist: empty(), fn: empty(), mta: empty() },
     layers: [
       { id: "bg", type: "background", paint: { "background-color": "#0b0d10" } },
       { id: "zones-fill", type: "fill", source: "zones", layout: { visibility: "none" },
         paint: { "fill-color": "#141920" } },
+      /* frontend2 03's geography band - the ONE place anything is added by this ticket,
+       * and it is ABOVE `zones-fill` on purpose. Every basemap layer is inserted with
+       * `beforeId: "zones-fill"` (basemap.js, derived from SPEC_ORDER[1]), so a layer
+       * declared BELOW `zones-fill` would land underneath all 66 of them and never be
+       * seen. Declared here, the geography sits above the basemap and below every layer
+       * that carries an answer, and the twelve keep their frozen relative order. */
+      { id: "stormwater-fill", type: "fill", source: "stormwater", layout: { visibility: "none" },
+        paint: { "fill-color": ZONE_COLOR, "fill-opacity": ZONE_FILL_OPACITY } },
+      // the OUTLINE is what survives the one-ramp rule: with a Cell fill lit the fill above
+      // goes to opacity 0 and this is all that is left of the zones
+      { id: "stormwater-line", type: "line", source: "stormwater", layout: { visibility: "none" },
+        paint: { "line-color": ZONE_COLOR, "line-width": 0.7,
+                 "line-opacity": ZONE_LINE_OPACITY } },
+      { id: "routes", type: "line", source: "routes", layout: { visibility: "none" },
+        paint: { "line-color": ROUTE_PLAIN, "line-width": ROUTE_W_THIN, "line-opacity": 0.85 } },
       { id: "cells", type: "fill", source: "cells", layout: { visibility: "none" },
         paint: { "fill-color": GREY, "fill-opacity": 0.86 } },
       // the impact overlay shares the Cell fill channel and the frozen ramp above; it gets

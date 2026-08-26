@@ -23,7 +23,7 @@ from raincheck import contract, flood_truth, publish
 # (there is no tests/__init__.py), so the bare name resolves under `pytest tests/...` as
 # well as under `make test`. `tests.page` resolves only when the repo root happens to be
 # sys.path[0], which is true of `python -m pytest` from the root and of nothing else.
-from page import (SPEC_ORDER, budgets, layer_entries, module_js, page_css,
+from page import (GEO_ORDER, SPEC_ORDER, budgets, layer_entries, module_js, page_css,
                   page_files, page_html, page_js, style_layers, web)
 
 
@@ -166,9 +166,33 @@ def test_the_rain_legend_names_the_uncalibrated_source_and_its_valid_stamp():
 def test_all_twelve_layers_are_declared_at_boot_in_the_frozen_order():
     """A lazily added layer lands on TOP of the order, so with anything lazy the stacking
     depends on CLICK order, and a `beforeId` naming a not-yet-added layer throws outright.
+    The twelve are asserted on their RELATIVE order with frontend2 03's geography band
+    taken out first - the same re-derivation frontend2 02 made rather than a longer literal,
+    because a longer literal is what stops being a statement about the frozen order.
     MUTATION KILLED: moving any layer in the style block, dropping one, or adding one
     through a later addLayer() instead of declaring it here."""
-    assert style_layers(page_js()) == SPEC_ORDER
+    declared = style_layers(page_js())
+    assert [lid for lid in declared if lid not in GEO_ORDER] == SPEC_ORDER
+
+
+def test_the_geography_band_sits_above_the_basemap_and_below_every_answer_layer():
+    """frontend2 03. Routes and flood zones are GROUND: they must be above `bg` and above
+    all 66 basemap layers, and below every layer that carries an answer. Both halves of
+    that are one placement, and it is not the obvious one: every basemap layer is inserted
+    with `beforeId: "zones-fill"` (SPEC_ORDER[1]), so anything declared BELOW `zones-fill`
+    lands UNDER the whole basemap and is never seen. The band therefore sits in the gap
+    between SPEC_ORDER[1] and SPEC_ORDER[2], and both bounds are derived from SPEC_ORDER
+    rather than named again.
+    MUTATION KILLED: declaring the band below `zones-fill` (invisible under the basemap),
+    above `cells` (a second fill over the answer, which is what D1's one-ramp rule forbids),
+    or reordering the three within the band so a fill paints over its own outline."""
+    declared = style_layers(page_js())
+    assert [lid for lid in declared if lid in GEO_ORDER] == GEO_ORDER, "the band's own order"
+    lo, hi = declared.index(SPEC_ORDER[1]), declared.index(SPEC_ORDER[2])
+    for lid in GEO_ORDER:
+        assert lo < declared.index(lid) < hi, f"{lid} is outside the one gap it may sit in"
+    # and the basemap's insertion point is still the first of the twelve, not one of these
+    assert f'const FIRST_DATA_LAYER = "{SPEC_ORDER[1]}";' in module_js()["basemap.js"]
 
 
 def test_the_basemap_goes_above_bg_and_below_every_one_of_the_twelve():
@@ -247,7 +271,8 @@ def test_every_source_boots_empty_and_every_data_layer_boots_hidden():
     js = page_js()
     sources = js.split("sources: {", 1)[1].split("},", 1)[0]
     names = re.findall(r"(\w+): empty\(\)", sources)
-    assert sorted(names) == ["cells", "fn", "hist", "impact", "live", "locate", "mta", "zones"]
+    assert sorted(names) == ["cells", "fn", "hist", "impact", "live", "locate", "mta",
+                             "routes", "stormwater", "zones"]
     assert "empty = () => ({ type: \"geojson\", data: { type: \"FeatureCollection\", features: [] } })" in js
     assert 'data: "files/' not in sources, "a source booting off a URL cannot report its age"
 
@@ -324,13 +349,16 @@ def test_only_a_source_with_a_frozen_budget_may_render_a_verdict():
     js = page_js()
     entries = layer_entries(js)
     all_budgets = [b for e in entries.values() for b in budgets(e)]
-    assert len(all_budgets) == 10, "ten sources, ten budget declarations"
-    assert all_budgets.count("null") == 7    # frontend2 02's basemap is the seventh
+    assert len(all_budgets) == 12, "twelve sources, twelve budget declarations"
+    # frontend2 03 adds two more unbudgeted static payloads (the route lines and the flood
+    # zones' manifest). The zones layer's SECOND source is added at draw time and carries
+    # `budget: null` too - see test_the_flood_zone_scenario_is_derived_from_a_manifest.
+    assert all_budgets.count("null") == 9
 
     assert budgets(entries["live"]) == ["STALE_AFTER_S.live", "STALE_AFTER_S.live"]
     assert "const STALE_AFTER_S = { live: 120, bronze: 900 };" in js   # ticket 14's table
     assert budgets(entries["fn"]) == [str(flood_truth.MAX_AGE_MIN * 60)]
-    for lid in ("basemap", "zones", "cells", "mta", "impact", "hist"):
+    for lid in ("basemap", "zones", "cells", "mta", "impact", "hist", "routes", "stormwater"):
         assert budgets(entries[lid]) == ["null"] * len(budgets(entries[lid]))
 
 
@@ -411,7 +439,12 @@ def test_every_layer_names_its_gate_side_by_lineage():
              for lid, e in entries.items()}
     assert gates == {"basemap": "null", "zones": "null", "cells": "null",
                      "live": '"mta-vehicles"', "fn": "null", "mta": '"mta-alerts"',
-                     "impact": '"mta-vehicles"', "hist": "null"}
+                     "impact": '"mta-vehicles"', "hist": "null",
+                     # frontend2 03: the geometry is STATIC GTFS (the published schedule
+                     # bundle), not the GTFS-Realtime feeds, and the numbers are the same
+                     # historical 2021/2023 aggregate `cells` already publishes ungated off
+                     # the same Gold table. Same lineage, same vintage, same gate side.
+                     "routes": "null", "stormwater": "null"}
 
 
 def test_a_gated_layer_renders_dark_and_explained_never_absent():
@@ -439,7 +472,7 @@ def test_the_four_not_yet_landed_sources_are_honest_off_or_gated_chips():
             for lid, e in entries.items()}
     assert owed == {"basemap": "null", "zones": "null", "cells": "null", "live": "null",
                     "fn": '"flood 15"', "mta": '"flood 15"', "impact": '"flood 17"',
-                    "hist": '"notify 05"'}
+                    "hist": '"notify 05"', "routes": "null", "stormwater": "null"}
     for lid in ("fn", "mta", "impact"):
         assert "draw: null" in entries[lid], f"{lid} may not claim to paint a payload it has not seen"
 
@@ -534,11 +567,17 @@ def test_the_frozen_ramps_are_byte_untouched_and_the_new_hues_sit_beside_them():
     assert ('const SPEED_STOPS = [[2, "#0d1b2a"], [3.5, "#1b4965"], [5, "#3d7ea6"], '
             '[6.5, "#7fb3d5"], [8, "#cfe6f4"]];') in js
     assert 'const GREY = "#3a4049";' in js
-    for name, hue in (("WATER", "#35d6c2"), ("ALERT", "#ffc447"),
-                      ("HIST", "#8f7bd6"), ("GATED_HUE", "#d2a24c")):
+    hues = {"WATER": "#35d6c2", "ALERT": "#ffc447", "HIST": "#8f7bd6", "GATED_HUE": "#d2a24c",
+            # frontend2 03: two tones of ONE hue for the two modelled depths, plus a
+            # NEUTRAL for DEP's exclusion mask that is deliberately not GREY (which already
+            # means "no publishable value" on the Cell fill), and an uncoloured route line.
+            "ZONE_DEEP": "#2e7d5b", "ZONE_NUISANCE": "#8fcfae", "ZONE_MASK": "#7a8794",
+            "ROUTE_PLAIN": "#5b6572"}
+    for name, hue in hues.items():
         assert f'const {name} = "{hue}";' in js
+    assert len(set(hues.values())) == len(hues), "two meanings on one hue"
     ramp = {c for _, c in re.findall(r"\[([\d.]+), \"(#\w+)\"\]", js)}
-    assert not ramp & {"#35d6c2", "#ffc447", "#8f7bd6", "#d2a24c"}
+    assert not ramp & set(hues.values())
     assert ".st-GATED { color: #d2a24c; }" in page_css()
 
 
@@ -567,3 +606,195 @@ def test_the_page_wires_the_layer_panel_ids():
     # the live fleet's row IS the Live panel: one control, never two for one layer
     assert 'toggle: "livetoggle"' in js
     assert 'LAYERS.filter(l => !l.fill && !l.toggle).map(rowHTML)' in js
+
+
+# ==================================== frontend2 03: the geography layers ==================
+def test_one_ramp_on_screen_is_a_paint_rule_and_not_a_promise():
+    """DESTINATION-PLAN D1. The Cell fill is an exclusive radio and it is frozen; the flood
+    zones are non-Cell polygons and the route line is a separate channel, so neither JOINS
+    that radio. What binds them to it is applyRamp(), and it is asserted on the PAINT
+    EXPRESSIONS because that is where the rule can actually be broken:
+
+      a Cell fill is lit  -> the zone fill goes to opacity 0 (outlines only) and the route
+                             line is ROUTE_PLAIN at the thin width - geometry, no number
+      no Cell fill is lit -> the zone fill paints and the route line carries the SAME ramp,
+                             on the SAME property, through the SAME colorExpr() the Cell
+                             fill uses. Not a second ramp and not a second mapping table.
+
+    MUTATION KILLED: inverting the test (`fillOn ? ZONE_FILL_OPACITY : 0`, which puts two
+    fills on one geography); ramping the line unconditionally; giving the route its own
+    stops instead of the fill's; or dropping the `styled` guard, which makes every paint
+    call throw before MapLibre has parsed the style."""
+    js = page_js()
+    body = js.split("export function applyRamp()", 1)[1].split("\n}", 1)[0]
+    assert "if (!styled) return;" in body, "every paint call throws before the style parses"
+    assert ("const fillOn = LAYERS.some(l => l.fill && on[l.id] && !shut(l));") in body
+    assert 'map.setPaintProperty("stormwater-fill", "fill-opacity", fillOn ? 0 : ZONE_FILL_OPACITY);' in body
+    assert "const ramped = !fillOn && view !== null;" in body
+    assert 'map.setPaintProperty("routes", "line-color", ramped' in body
+    assert ("? colorExpr(activeProp(), view.kind === \"speed\" ? SPEED_STOPS : RATIO_STOPS, "
+            "ROUTE_PLAIN)") in body
+    assert ": ROUTE_PLAIN);" in body
+    assert 'map.setPaintProperty("routes", "line-width", ramped ? ROUTE_W_RAMP : ROUTE_W_THIN);' in body
+    # and it re-runs on every event that can change which fill is lit or which view is shown
+    assert "applyRamp();   // the route line follows the view it is showing (D1)" in js
+    boot = module_js()["app.js"]
+    assert "applyRamp();" in boot.split('map.on("load"', 1)[1]
+    assert boot.count("applyRamp()") >= 3, "boot, a layer toggle and the fill-off option"
+
+
+def test_the_cell_fill_can_actually_be_turned_off():
+    """The other half of D1 is unreachable without this and that is not a style point. A
+    radio cannot be un-checked by clicking it, and the only other fill option (`impact`) is
+    gated and therefore rendered disabled - so before frontend2 03 the Cell fill could
+    never be off, which means the flood zones could never fill and the route line could
+    never carry the ramp. The OFF row declares no layer and claims no channel: `fill: true`
+    is still exactly {cells, impact} (the test above), and it simply clears whichever fill
+    is lit through the existing toggle().
+    MUTATION KILLED: dropping the row (D1's ramp branch becomes dead code that no reader
+    can reach), or implementing it as a third `fill: true` layer, which would put a third
+    option in a channel frontend 02 froze at two."""
+    js = page_js()
+    row = js.split("const noFillHTML = () =>", 1)[1].split("`;", 1)[0]
+    assert 'name="cellfill"' in row, "it is IN the frozen radio group, not beside it"
+    assert 'data-nofill="1"' in row
+    assert 'LAYERS.some(l => l.fill && on[l.id]) ? "" : "checked"' in row
+    assert '$("layers-fill").innerHTML = LAYERS.filter(l => l.fill).map(rowHTML).join("") + noFillHTML();' in js
+    handler = module_js()["app.js"].split('$("layers").addEventListener', 1)[1].split("\n});", 1)[0]
+    assert "const lit = LAYERS.find(l => l.fill && on[l.id]);" in handler
+    assert "if (lit) await toggle(lit.id, false);" in handler
+
+
+def test_the_flood_zone_scenario_is_derived_from_a_manifest_and_never_a_file_name():
+    """`geo` is a TREE family: its served set is DERIVED from silver/stormwater_extent, so
+    a scenario appears the day the table has one. A browser cannot list a directory, so the
+    page would otherwise have to name `stormwater-moderate.geojson` in JavaScript - and the
+    day a second scenario is readable that is a page edit, i.e. the rewrite this layer is
+    told not to require. The layer's FIRST source is the manifest; the scenario payload is a
+    second source the draw adds, fetched through the same grab() every other source uses so
+    it carries a freshness row that follows the radio.
+    MUTATION KILLED: hard-coding a scenario file name or a list of three names; building
+    the radio from a literal; or fetching the payload outside grab(), which would give the
+    layer a row naming a file it is not showing."""
+    js = page_js()
+    entry = layer_entries(js)["stormwater"]
+    assert 'k: "files/geo/scenarios.json", url: "files/geo/scenarios.json"' in entry
+    for name in ("moderate", "limited", "extreme"):
+        assert f"stormwater-{name}" not in js, f"the page names {name} - that is the rewrite"
+    body = js.split("export async function drawZones(manifest)", 1)[1].split("\n}", 1)[0]
+    assert "scenarios = manifest && Array.isArray(manifest.scenarios) ? manifest.scenarios : [];" in body
+    assert 'const src = { k: "files/geo/" + row.key, url: "files/geo/" + row.key, budget: null };' in body
+    assert "const body = await grab(lyr.id, src);" in body
+    assert "lyr.srcs = [lyr.srcs[0], src];" in body
+    # one scenario visible at a time, and a single option must not break the radio
+    assert "if (!scenarios.some(s => s.scenario === scenario)) scenario = scenarios[0].scenario;" in body
+    assert "if (!scenarios.length) {" in body, "no scenario published is a sentence, not a throw"
+    opts = js.split("const optsHTML = (lyr) =>", 1)[1].split("`;", 1)[0]
+    assert 'type="radio" name="${lyr.id}-opt"' in opts and 'data-sc="${o.id}"' in opts
+
+
+def test_the_exclusion_mask_is_a_legend_entry_and_is_never_painted_clear():
+    """DEP's "Area not included in analysis" is a CATEGORY, not an absence: the whole flood
+    chain refuses to impute it to "no flooding" (features.sample()'s own rule) and
+    silver/stormwater_extent carries it as polygons for exactly this reason. A legend that
+    shows two flood depths and silently omits the mask tells the reader that everything
+    unpainted was modelled and found dry, which is false. So it gets its own swatch, its own
+    sentence, and a hue that is NOT a third depth tone and NOT the page's existing GREY.
+    MUTATION KILLED: dropping the mask from ZONE_LEGEND; painting it with a depth tone;
+    rendering the legend only for the categories a payload happens to carry (a build that
+    lost the mask would then show a shorter legend rather than an empty count)."""
+    js = page_js()
+    assert '"not_analyzed", ZONE_MASK, ZONE_MASK];' in js, "named AND the default"
+    legend = js.split("export const ZONE_LEGEND = [", 1)[1].split("];", 1)[0]
+    ids = re.findall(r'\["(\w+)", (\w+),', legend)
+    assert ids == [("deep", "ZONE_DEEP"), ("nuisance", "ZONE_NUISANCE"),
+                   ("not_analyzed", "ZONE_MASK")]
+    assert "NOT" in legend and "no flooding" in legend, "the mask says what it is not"
+    body = js.split("function zoneLegend(body, row)", 1)[1].split("\n}", 1)[0]
+    assert "ZONE_LEGEND.map(" in body, "every row is rendered, present in the payload or not"
+    assert "not an ` +" in body and "observation of water" in body
+    # the swatch reads the same table the paint does - never a second copy of a colour
+    assert 'style="background:${hue}"' in body
+
+
+def test_the_geography_credits_are_read_off_the_payload_and_mounted_while_it_is_shown():
+    """Attribution is a CONDITION of displaying this data, not a credit line - so it lives
+    in the always-mounted `#provenance` strip beside the OSM and MTA lines. It is READ OFF
+    THE PAYLOAD's own `attribution` member rather than mirrored into the page, which is the
+    repo's standing rule for any string the page shares with a writer in src/: a mirrored
+    constant pins the mirror to itself, and here it would let a wording change in
+    stormwater_extent.ATTRIBUTION drift silently away from what the page prints. It fills
+    when a geography layer is on and empties when it is off, because with the layer off no
+    DEP or GTFS geometry is being displayed.
+    MUTATION KILLED: writing DEP's sentence into the page (the mirror); setting it with
+    innerHTML (it is a string out of a payload); or leaving it mounted after the layer is
+    unticked, which credits a source nothing on screen came from."""
+    html, js = page_html(), page_js()
+    strip = html.split('id="provenance"')[1]
+    assert '<p id="geo-attribution"></p>' in strip, "mounted, and EMPTY until a layer draws"
+    for mirrored in ("Department of Environmental Protection", "9i7c-xyvv", "design-storm"):
+        assert mirrored not in js, f"the page mirrors {mirrored!r} instead of reading it"
+    body = js.split("function renderGeoAttribution()", 1)[1].split("\n}", 1)[0]
+    assert "if (on.routes && routeAttr) parts.push(routeAttr);" in body
+    assert "if (on.stormwater && zoneAttr) parts.push(zoneAttr);" in body
+    assert '$("geo-attribution").textContent = parts.join' in body, "text, never markup"
+    assert 'routeAttr = (body && body.attribution) || "";' in js
+    assert 'zoneAttr = (body && body.attribution) || "";' in js
+    assert "renderGeoAttribution();" in js.split("export function applyRamp()", 1)[1]
+
+
+def test_no_mta_route_bullet_roundel_or_line_colour_reaches_the_page():
+    """The MTA website T&C (read by Ross 2026-08-26) makes "the logos for New York City
+    Transit subway lines" and "MTA official maps" usable only with prior written permission,
+    while stop names, coordinates and delay numbers are facts. frontend2 03 is the first
+    ticket that draws route geometry, so it is the first that could break the sweep that has
+    been clean until now: a polyline from silver/shapes is a fact and a coloured route
+    bullet is MTA IP.
+    MUTATION KILLED: painting the route line from a `route_color` property, importing an
+    MTA palette, or rendering the route id as a roundel."""
+    js, html, css = page_js(), page_html(), page_css()
+    for banned in ("route_color", "daytime_routes", "roundel", "bullet"):
+        for where, text in (("js", js), ("html", html), ("css", css)):
+            assert banned not in text.lower(), f"{banned} in the page's {where}"
+    # the route line's hue is this repo's own and does not come out of a payload
+    entry = page_js().split('{ id: "routes", type: "line"', 1)[1].split('{ id: "cells"', 1)[0]
+    assert '"line-color": ROUTE_PLAIN' in entry
+    assert '["get"' not in entry, "no payload property may drive the route line's colour"
+
+
+def test_the_exclusion_mask_recedes_but_is_never_drawn_clear():
+    """Both halves, and they pull against each other. `not_analyzed` polygons are the BIG
+    ones - rail corridors, large lots, open space - so at the modelled classes' own opacity
+    they wash the city out and hide the flood depths and the route lines under them
+    (measured in a real tab at 1500x950, not predicted). It therefore carries less ink than
+    a class that carries more information. But it is NEVER zero and never absent: painting
+    DEP's exclusion mask as clear says everything unpainted was modelled and found dry.
+    MUTATION KILLED: setting the mask's opacity to 0 (which is the lie), or giving it the
+    depths' opacity again (which hides the answer under the caveat)."""
+    js = page_js()
+    for name in ("ZONE_FILL_OPACITY", "ZONE_LINE_OPACITY"):
+        expr = js.split(f"export const {name} = ", 1)[1].split(";", 1)[0]
+        m = re.match(r'\["match", \["get", "category"\], "not_analyzed", ([\d.]+), ([\d.]+)\]',
+                     expr)
+        assert m, f"{name} is not a per-category expression: {expr}"
+        mask, modelled = float(m.group(1)), float(m.group(2))
+        assert 0 < mask < modelled, f"{name}: mask {mask}, modelled {modelled}"
+    assert '"fill-opacity": ZONE_FILL_OPACITY' in js
+    assert '"line-opacity": ZONE_LINE_OPACITY' in js
+
+
+def test_an_unpublishable_route_crossing_is_uncoloured_and_not_invisible():
+    """spec L's grey guard, on a mark it was not calibrated for. GREY (#3a4049) is the
+    Cell fill's "no publishable value" and it is chosen to recede AMONG coloured Cells; as a
+    sub-pixel hairline on the dark basemap it disappears, so a route crossing whose interval
+    is too wide would read as no route at all. `colorExpr` takes the absent colour as a
+    parameter and the route passes ROUTE_PLAIN - the hue that already means "geometry, no
+    number". One meaning, two marks, and neither is a new colour.
+    MUTATION KILLED: dropping the parameter (the network develops holes wherever the
+    evidence is thin), or giving the route a fourth grey of its own."""
+    js = page_js()
+    assert "function colorExpr(prop, stops, absent = GREY) {" in js
+    assert '["case", ["!", ["has", prop]], absent, interp];' in js
+    fill = js.split("function paint()", 1)[1].split("\n}", 1)[0]
+    assert "colorExpr(activeProp(), s)" in fill, "the Cell fill keeps spec L's grey"
+    assert "ROUTE_PLAIN)" in js.split("export function applyRamp()", 1)[1]

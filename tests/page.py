@@ -33,6 +33,13 @@ from raincheck import publish
 SPEC_ORDER = ["bg", "zones-fill", "cells", "impact-fill", "cells-line", "impact-line",
               "zones-line", "locate", "live", "hist", "fn", "mta"]
 
+# frontend2 03's geography band, and it is DELIBERATELY NOT appended to SPEC_ORDER. The
+# twelve above are frozen and keep their relative order; these three sit INSIDE it, in the
+# one gap between the ground fill and the first layer that carries an answer. The bounds
+# are DERIVED from SPEC_ORDER's own indices in the test, never written down twice - the
+# same shape frontend2 02 used for the basemap, which is inserted at SPEC_ORDER[1].
+GEO_ORDER = ["stormwater-fill", "stormwater-line", "routes"]
+
 
 def web() -> Path:
     """`web/`, from the family's own `src` callable rather than a second path constant."""
@@ -74,13 +81,20 @@ def style_layers(js: str) -> list[str]:
 
 
 def layer_entries(js: str) -> dict[str, str]:
-    """The LAYERS table, one source-text entry per layer id."""
+    """The LAYERS table, one source-text DECLARATION per layer id.
+
+    The leading comment is dropped, and that is not tidiness. Every rule below reads an
+    entry with `"fill: true" in e` and friends, so a paragraph EXPLAINING an entry is read
+    as part of it - frontend2 03's comment "neither is `fill: true` ..." made two ordinary
+    layers read as Cell fills and turned frontend 02's radio test red. It is the repo's
+    standing docstring-poisons-the-grep trap (flood 17, notify 06) in a file with no AST to
+    fall back on: the cheapest honest anchor is the declaration itself."""
     block = js.split("const LAYERS = [", 1)[1].split("\n];", 1)[0]
     out = {}
     for entry in block.split("\n\n"):
         m = re.search(r'\{ id: "(\w+)"', entry)
         if m:
-            out[m.group(1)] = entry
+            out[m.group(1)] = entry[m.start():]
     return out
 
 

@@ -107,3 +107,16 @@ code { font-size: 12px; color: var(--dim); }
   #map { position: relative; height: 60vh; }
   body { overflow-y: auto; }
 }
+
+/* frontend2 03: the flood-zone scenario radio and its legend, both inside the layer's own
+   row so they appear with the layer and vanish with it. The swatch is the same hue the
+   paint uses (layers.js ZONE_LEGEND), never a second copy of a colour. */
+.opts { margin: 3px 0 2px 20px; display: flex; flex-wrap: wrap; gap: 2px 10px; }
+.opts label { display: flex; align-items: center; gap: 4px; }
+.zlegend { margin: 2px 0 2px 20px; }
+.zl { display: flex; align-items: baseline; gap: 5px; font-size: 11px; color: #9aa4b2;
+      line-height: 1.35; }
+.zl b { color: #cfd6df; font-weight: 600; }
+.zl .sw { flex: 0 0 auto; width: 10px; height: 10px; border-radius: 2px;
+          border: 1px solid #0b0d10; }
+#geo-attribution:empty { display: none; }

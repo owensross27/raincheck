@@ -1,9 +1,20 @@
 /* The insight view (ticket 13): the paint, the headline, the curve, the view/hour
  * switching, the Cell tooltip, and the boot draw that builds all of them from
  * cells.geojson + headline.json.
+ *
+ * frontend2 03 added the GEOGRAPHY half at the bottom of this file - drawZones,
+ * setScenario and applyRamp - because it is a PAINT rule and this is where paint lives.
+ * `applyRamp()` is DESTINATION-PLAN D1's "one ramp on screen at a time", enforced on the
+ * paint expressions rather than promised in prose: it reads the same `activeProp()` and the
+ * same `colorExpr()` the Cell fill uses, which is what makes "the route line shows the SAME
+ * estimand as the fill, restricted to one route" true by construction. It is called from
+ * paint() (a view or hour switch re-colours the line) and from app.js (a toggle changes
+ * which fill is lit).
  */
-import { $, fmt, GREY, map, RATIO_STOPS, SPEED_STOPS } from "./layers.js";
-import { whys } from "./freshness.js";
+import { $, fmt, GREY, L, LAYERS, map, on, RATIO_STOPS, ROUTE_PLAIN, ROUTE_W_RAMP,
+         ROUTE_W_THIN, shut, SPEED_STOPS, styled, ZONE_FILL_OPACITY,
+         ZONE_LEGEND } from "./layers.js";
+import { grab, whys } from "./freshness.js";
 
 let head = null;         // headline.json
 let cellKeys = new Set();  // property keys present in cells.geojson
@@ -12,10 +23,15 @@ let view = null;         // the active view object
 let hourKey = null;      // active storm-hour key (MMDDHH) or null
 
 // ---------------------------------------------------------------- paint and legend
-function colorExpr(prop, stops) {
+// absent -> grey, per spec L. The `absent` colour is a parameter because the same MEANING
+// needs a different value on a line: GREY (#3a4049) is calibrated to recede among coloured
+// Cell fills and disappears entirely as a hairline on the dark basemap, so a route with no
+// publishable number would read as no route at all (measured in a real tab). ROUTE_PLAIN is
+// the hue that already means "geometry, no number" - one meaning, two marks.
+function colorExpr(prop, stops, absent = GREY) {
   const interp = ["interpolate", ["linear"], ["get", prop]];
   stops.forEach(([v, c]) => interp.push(v, c));
-  return ["case", ["!", ["has", prop]], GREY, interp];   // absent -> grey, per spec L
+  return ["case", ["!", ["has", prop]], absent, interp];
 }
 
 const activeProp = () => (view.hours ? "r" + hourKey : view.prop);
@@ -33,6 +49,7 @@ function paint() {
   $("legend-estimand").textContent = view.kind === "speed"
     ? "space-mean chord Speed over the window's dry Cell-hours (dry = mm_1h < 0.1, mm_1h_prev < 0.1, mm_6h < 0.5), rule set R2"
     : (row ? row.median_cell_estimand : "");
+  applyRamp();   // the route line follows the view it is showing (D1)
 }
 
 // ---------------------------------------------------------------- headline rendering
@@ -253,4 +270,142 @@ export function drawCells(cells, h) {
     ` ${cells.features.length} footprint Cells; publish gate: 95% interval width < ${head.gate_width}.`;
   buildViews();
   setView(views[0].id);
+}
+
+
+/* ============================================ frontend2 03: the geography layers ======
+ *
+ * ONE RAMP ON SCREEN AT A TIME (DESTINATION-PLAN D1). The Cell fill is an exclusive radio
+ * and it is frozen (frontend 02 D1); the flood zones are non-Cell polygons and the route
+ * line is a separate channel, so neither JOINS that radio. What binds them to it is this:
+ *
+ *   a Cell fill is lit  ->  the zones render as OUTLINES (the fill goes to opacity 0) and
+ *                           the route line is THIN and UNCOLOURED - geometry, no number
+ *   no Cell fill is lit ->  the zones may FILL and the route line carries the ramp, on the
+ *                           SAME property and with the SAME expression the fill would use
+ *
+ * The layer ORDER says the same thing a second way and neither is redundant: the geography
+ * band sits below `cells`, so while the fill is lit it is physically behind an 0.86-opacity
+ * paint over the whole footprint. The paint rule is what makes the intent legible and
+ * testable; the order is what makes it true even if a paint call is missed.
+ */
+let scenarios = [];     // the manifest's rows, in the order `make geo` published them
+let scenario = null;    // the selected scenario's name, kept across re-draws
+
+/** D1, applied. Safe to call before a view exists (a 404 on cells.geojson leaves `view`
+ *  null) and before MapLibre has parsed the style, which is when every paint call throws. */
+/* ATTRIBUTION IS A CONDITION OF DISPLAYING THE DATA, so it is mounted while the data is on
+ * screen and read OFF THE PAYLOAD rather than mirrored into this file. Both geo payloads
+ * carry a top-level `attribution` member (`stormwater_extent.ATTRIBUTION` for DEP's,
+ * web/geo.sql's for the route lines), and the repo's standing rule is that a page constant
+ * mirroring a src/ constant pins the mirror to itself - so the strip prints what the file
+ * says, and a wording change in the writer reaches the page with no page edit. `#provenance`
+ * is mode-invariant and always mounted; this paragraph inside it fills when a geography
+ * layer is on and empties when it is off, because with the layer off no DEP or GTFS
+ * geometry is being displayed. textContent, never markup: it is a string from a payload. */
+let routeAttr = "", zoneAttr = "";
+
+function renderGeoAttribution() {
+  const parts = [];
+  if (on.routes && routeAttr) parts.push(routeAttr);
+  if (on.stormwater && zoneAttr) parts.push(zoneAttr);
+  $("geo-attribution").textContent = parts.join("  ");
+}
+
+/** The route layer's `draw`: the data, and the credit that travels with it. */
+export function drawRoutes(body) {
+  if (body) map.getSource("routes").setData(body);
+  routeAttr = (body && body.attribution) || "";
+  renderGeoAttribution();
+}
+
+export function applyRamp() {
+  renderGeoAttribution();
+  if (!styled) return;
+  const fillOn = LAYERS.some(l => l.fill && on[l.id] && !shut(l));
+  map.setPaintProperty("stormwater-fill", "fill-opacity", fillOn ? 0 : ZONE_FILL_OPACITY);
+  const ramped = !fillOn && view !== null;
+  map.setPaintProperty("routes", "line-color", ramped
+    ? colorExpr(activeProp(), view.kind === "speed" ? SPEED_STOPS : RATIO_STOPS, ROUTE_PLAIN)
+    : ROUTE_PLAIN);
+  map.setPaintProperty("routes", "line-width", ramped ? ROUTE_W_RAMP : ROUTE_W_THIN);
+  // SAY WHY THE LINES ARE GREY, because there are two different reasons and only one of
+  // them is the reader's to change. A route feature carries the two WINDOW estimands and
+  // no storm-hour ones - a single Hour at route grain has no interval anyone could publish
+  // - so on a storm view every line is honestly grey, and without this note that reads as
+  // a broken layer rather than as an absent number. Found in the node harness, not by eye.
+  L("routes").legend = !view ? "" : fillOn
+    ? `<p class="note">A Cell fill is on, so these are geometry only: one ramp on screen at
+       a time. Choose <b>None</b> in the Cell fill group to colour them.</p>`
+    : view.hours
+    ? `<p class="note">The <b>${view.label}</b> view is a single storm HOUR, and a route
+       through one Cell in one Hour carries no interval anyone could publish - so the lines
+       are uncoloured. Choose a <b>W1</b> or <b>W2</b> view to colour them.</p>`
+    : `<p class="note">Coloured by <b>${view.label}</b> &mdash; the same estimand the Cell
+       fill shows, restricted to that route's rows in each Cell. An uncoloured crossing is
+       one whose 95% interval is too wide to publish, not a missing road.</p>`;
+}
+
+/** The legend for whatever the payload actually holds - and `not_analyzed` is NEVER
+ *  omitted and never drawn as clear. A legend showing two flood depths and nothing else
+ *  tells the reader that everything unpainted was modelled and found dry, which is false:
+ *  DEP's exclusion mask is a CATEGORY (features.sample()'s own refusal, carried through
+ *  silver/stormwater_extent as polygons for exactly this reason). Every ZONE_LEGEND row is
+ *  rendered whether or not the payload carries it, so a build that lost a category shows
+ *  an empty count rather than a shorter legend. */
+function zoneLegend(body, row) {
+  const counts = {};
+  if (body) for (const f of body.features) counts[f.properties.category] = f.properties.n_polygons;
+  const seen = Object.keys(counts).filter(k => !ZONE_LEGEND.some(([id]) => id === k));
+  const line = (hue, name, what, n) =>
+    `<div class="zl"><span class="sw" style="background:${hue}"></span>` +
+    `<b>${name}</b><span>${what}${n === undefined ? "" : ` &middot; ${n.toLocaleString()} areas`}</span></div>`;
+  return `<div class="zlegend">` +
+    ZONE_LEGEND.map(([id, hue, what]) => line(hue, id.replace("_", " "), what, counts[id])).join("") +
+    // an unrecognised category is NOT named as markup: it is the one string here that could
+    // come from a future writer rather than from this file
+    seen.map(() => line(GREY, "unrecognised", "a category this page has no legend for")).join("") +
+    `<div class="zl note">${row ? `DEP design storm: ${Number(row.rain_in_hr)} in/hr, ` +
+      `current sea level. A PLANNING map of what would flood at that rain rate - not an ` +
+      `observation of water, not a forecast, and not a site-specific determination.` : ""}</div>` +
+    `</div>`;
+}
+
+/** The zones layer's `draw`, and it is TWO-PHASE on purpose. `geo` is a TREE family whose
+ *  served set is DERIVED from silver/stormwater_extent, and a browser cannot list a
+ *  directory - so the layer's first source is the manifest `make geo` writes, and the
+ *  scenario payload is a SECOND source added here once the selection is known. It is
+ *  fetched through the same grab() every other source uses, so it gets a freshness row of
+ *  its own and that row follows the radio instead of naming a file the page is not showing.
+ *  A second scenario appearing is then a DATA change: the radio grows, nothing is edited. */
+export async function drawZones(manifest) {
+  const lyr = L("stormwater");
+  lyr.srcs = [lyr.srcs[0]];                       // drop the previous scenario's row
+  scenarios = manifest && Array.isArray(manifest.scenarios) ? manifest.scenarios : [];
+  // `scenario` and `rain_in_hr` come from stormwater_extent.SCENARIOS - a module constant,
+  // not a string out of the downloaded geodatabase - so they are this repo's own text.
+  lyr.opts = scenarios.map(s => ({ id: s.scenario, label: `${s.scenario} &middot; ${Number(s.rain_in_hr)} in/hr` }));
+  if (!scenarios.length) {
+    lyr.opt = null;
+    zoneAttr = "";
+    lyr.legend = `<p class="note">No current-sea-level scenario is published on this host.</p>`;
+    applyRamp();
+    return;
+  }
+  if (!scenarios.some(s => s.scenario === scenario)) scenario = scenarios[0].scenario;
+  lyr.opt = scenario;
+  const row = scenarios.find(s => s.scenario === scenario);
+  const src = { k: "files/geo/" + row.key, url: "files/geo/" + row.key, budget: null };
+  lyr.srcs = [lyr.srcs[0], src];
+  const body = await grab(lyr.id, src);
+  if (body) map.getSource("stormwater").setData(body);
+  zoneAttr = (body && body.attribution) || "";
+  lyr.legend = zoneLegend(body, row);
+  applyRamp();
+}
+
+/** The scenario radio inside the zones toggle. One scenario visible at a time. */
+export async function setScenario(name) {
+  scenario = name;
+  await drawZones({ scenarios });
 }
