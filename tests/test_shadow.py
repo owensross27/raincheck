@@ -234,8 +234,9 @@ def test_the_shadow_airflow_builds_is_the_nightlys_shape_on_the_shadow_root():
 
 def two_builds(tmp_path, tweak):
     """The same partition twice, the second one perturbed by `tweak(value) -> value`."""
-    import pyarrow as pa
-    import pyarrow.parquet as pq
+    pa = pytest.importorskip("pyarrow")
+    pq = pytest.importorskip("pyarrow.parquet")
+    pytest.importorskip("duckdb", reason="the compare reads parquet through duck.py")
 
     rows = [{"cell": f"c{i}", "dist_m_sum": 1000.0 + i, "route_id": "B41"} for i in range(50)]
     out = []
@@ -281,8 +282,8 @@ def test_a_non_float_column_is_never_within_tolerance(tmp_path):
     smallness makes it one of these."""
     shadow_day = driver()
     a, b = two_builds(tmp_path, lambda v: v)
-    import pyarrow as pa
-    import pyarrow.parquet as pq
+    pa = pytest.importorskip("pyarrow")
+    pq = pytest.importorskip("pyarrow.parquet")
     table = pq.read_table(b / "part-00000.parquet").to_pydict()
     table["route_id"] = ["Q59"] + table["route_id"][1:]          # one changed label
     pq.write_table(pa.table(table), b / "part-00000.parquet")
