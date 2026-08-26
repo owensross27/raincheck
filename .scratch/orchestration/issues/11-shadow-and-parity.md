@@ -319,3 +319,43 @@ NOT CLEAN at random — and the recorder names the offending column, so that is 
 rather than a mystery. The alternative to fixing it (widening the shadow's tolerance to
 non-float columns) is NOT acceptable: it would certify exactly the class of difference the
 gate exists to catch.
+
+---
+
+## RESOLVED BY ORCH 12 (2026-08-26, `orch12-cutover`) — THE FIX LANDED, AND ONE LINE ABOVE IS WRONG
+
+**The TOTAL ORDER named above is now in `enrich._dedupe`** (commit `6d8ff78`): `row_number()`
+over `DEDUPE_KEY` ordered by `fetched_at` ascending-nulls-first, then every remaining column
+in NAME order (sorted, because `vp` arrives through a mergeSchema union whose column order is
+not a promise). Three tests in `tests/test_events.py`, on a tied group planted worst-first;
+all three go RED against master's `dropDuplicates` — measured, not assumed, because the first
+run of them resolved `raincheck` from the main checkout's editable install and failed with the
+survivor being the physically-first row.
+
+**THE CORRECTION, and it is the reason the fix was not optional.** This file says the change
+"cannot touch a day with zero ambiguous groups". That is true of `schedule_relationship` and
+of nothing else. Orch 12 re-ran this census over EVERY column read after a `_dedupe` call
+(`trip_id`, `start_date`, `route_id`, `schedule_relationship`, `direction_id`, `fetched_at` —
+the union of what `passages_matched` and `passages_observed` select) and reproduced the two
+numbers above **digit for digit** (2026-08-22: 255 of 16,127 tied; 2026-08-23: 0 of 25,752),
+which is what makes the rest of the table trustworthy:
+
+| date | tied groups | `sched_rel` | `trip_id` | `route_id` | `direction_id` | `fetched_at` |
+|---|---|---|---|---|---|---|
+| 2026-08-20 | 38,193 | 0 | 8 | 2 | 1 | **38,193** |
+| 2026-08-21 | 23,588 | 483 | 12 | 2 | 6 | **23,588** |
+| 2026-08-22 | 16,127 | **255** | 7 | 3 | 2 | **16,127** |
+| 2026-08-23 | 25,752 | **0** | 9 | 0 | 6 | **25,752** |
+| 2026-08-24 | 296,361 | 260,608 | 14 | 0 | 7 | **296,361** |
+| 2026-08-25 | 37,381 | 0 | 13 | 1 | 4 | **37,381** |
+
+**`fetched_at` disagrees in EVERY tied group, on every day** — two pollers capture the same
+feed and stamp their own fetch instant — and `trip_id` disagrees on 7-14 groups every day.
+`count(DISTINCT c)` skips NULLs, so the predicate is
+`count(DISTINCT c) + (count(*) <> count(c))::INT > 1`; `trip_id` is never NULL-vs-set (0 on
+every day), so the survivor choice never decides whether a Ping is used, only which trip it
+is attributed to. **So there is no ambiguity-free day to pick, and choosing days with zero
+`schedule_relationship` ambiguity — which is what orch 12 did for its streak, because the
+cluster still runs master's `dropDuplicates` in image `7df105579eb5` — bounds the risk
+without removing it. Only the total order removes it, and it reaches the cluster with the
+wave-7 gate's image.**
