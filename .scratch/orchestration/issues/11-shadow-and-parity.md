@@ -206,3 +206,84 @@ under a scratch tag and converges with a temporarily edited (never committed)
 `deploy/airflow/values.yaml`, which is what this session did. **`raincheck_daily` stays
 PAUSED throughout - unpausing it is orch 12's cutover, not this ticket's** - and only
 `raincheck_shadow` is unpaused.
+
+### What the first shadow runs MEASURED, and the two decisions they forced
+
+Four runs, all on the pinned runtime `2396b26f00b0`, all against
+`s3a://raincheck-bronze/shadow`, `raincheck_daily` `is_paused True` throughout.
+
+**1. Karpenter consolidates a running batch pod out from under itself, and it reads as an
+OOMKill.** Run one: an `events` stage pod seven minutes into its Spark build died with
+`exit_code=137`, `reason='Error'` — and the pod events say `Evicted pod: Underutilized`.
+The `burst` pool is `WhenEmptyOrUnderutilized` + `consolidateAfter: 1m`, which is right for
+reclaiming a FINISHED build fast and fatal to a long one: as a fan-out's short tasks finish,
+their node reads underutilized. **A task is TWO pods and both need protecting.** Annotating
+only the KubernetesPodOperator's stage pod (the placement table) fixed one of two mapped
+indices; the other still died, because the EXECUTOR'S WORKER pod is a different template
+(`workers.kubernetes.podAnnotations`) and evicting it kills the task instance however well
+the stage pod is pinned. Both now carry **`karpenter.sh/do-not-disrupt: "true"`**. The
+chart's own `cluster-autoscaler.kubernetes.io/safe-to-evict: "false"` on that template is a
+**no-op on this cluster** — wrong autoscaler. Filed and deliberately NOT changed here: a
+pool that only ever runs batch arguably wants `WhenEmpty`, but a NodePool change means
+applying manifests, which is cloud 10's sequencing.
+
+**2. An exact sha over a distributed float aggregate cannot match across two runtimes.**
+With both sides finally building to completion, `silver/events` came back **equal to the
+sha on both days** and `silver/leg_hours` did not — same row count, different digest. One
+column: **`dist_m_sum`, a `sum()` of DOUBLEs.** Floating-point addition is not associative
+and the two runtimes split their input differently (`local[6]` over local files against
+`local[2]` over s3a splits), so the addition order and the last bit move — **16,773 of
+72,087 rows, max relative difference 1.24e-15, one ULP**; the whole-table total differs by
+3e-8 in 2.2e8. `gold/cell_hour_speed` inherits it from the same column, `gold/cell_hour_route`
+and `silver/events` are exactly equal. **So a cutover gate built only on an exact digest
+could never go green on a correct build.** `raincheck.parity` is left exactly as it is —
+cloud 03's T17 backfill gate reads it and wants exactness — and the SHADOW states the bound
+instead: when the exact answer is no it asks which columns differ and by how much, and
+certifies the partition only if the row counts match, every differing column is
+floating-point, and every one is inside `FLOAT_TOL = 1e-9` (six orders above what was
+measured, far below anything that could mean something about a bus). A changed row count, a
+string or integer column, or a float beyond the bound stays a real difference.
+**The alternative, filed and NOT taken: round the float aggregates at write time so the
+artifact is bit-reproducible. That changes published values in `events.py` and `gold.py`,
+and it is orch 12's / cloud 10's decision, not a shadow's.**
+
+**3. `silver/events` IS NOT REPRODUCIBLE FROM ITS OWN INPUTS, AND THE SHADOW IS WHAT SAYS
+SO. FILED, NOT FIXED — it is a change to enrichment semantics, not a shadow's to make.**
+The recorded pair came back `2026-08-23` **CLEAN** and `2026-08-22` not: its `events`
+partition had the same **750,226** rows on both sides and a different sha, and the differing
+column was **`schedule_relationship`, a VARCHAR, on 10 rows** — not floating point, so the
+bound above correctly refused to certify it. The same day had matched exactly on the
+previous run, which is the tell: this flips between runs of the SAME code on the SAME input.
+
+**Mechanism, measured rather than reasoned:** `enrich._dedupe` is
+`vp.dropDuplicates(["vehicle_id", "ts", "stop_id", "lat", "lon"])`, and `dropDuplicates`
+keeps an **arbitrary** row from each group — Spark defines no winner, so the survivor
+follows shuffle order, which differs between runtimes AND between runs. On this Mac's own
+Bronze:
+
+| day | dedupe groups | groups whose members DISAGREE about `schedule_relationship` |
+|---|---|---|
+| 2026-08-22 | 16,127 | **255** |
+| 2026-08-23 | 25,752 | **0** |
+
+Which is exactly why 08-23 is clean and 08-22 is a coin flip. (The sibling dedupe in
+`legs()` is NOT the source — measured: zero groups there where the earliest `fetched_at`
+ties and the label disagrees.)
+
+**The fix, named so nobody has to re-derive it:** give the survivor a TOTAL ORDER instead of
+an arbitrary one — `row_number()` over the same identity ordered by `fetched_at` ascending
+(which is the rule `legs()` already states in its own comment for the same situation) with
+the remaining columns as tie-breaks, or the `F.min(F.struct(...))` idiom `events.py` already
+uses. The file even contains the pattern: `enrich.py:168` orders on
+`"ts", fetched_at, "stop_id"` with the comment `# stop_id: deterministic ties`. It changes
+`silver/events` values on the ambiguous rows only, from *undefined* to *defined*, and it
+cannot touch a day with zero ambiguous groups.
+
+**Why this ticket did not take it:** it is a data-semantics change in a core enrichment
+module that no wave-6 ticket owns, discovered by the shadow that exists to discover it, and
+the shadow's job is to report it with the mechanism and the numbers. **orch 12 must decide
+before it counts seven days**, because until it is fixed a day with ambiguous groups can go
+NOT CLEAN at random — and the recorder names the offending column, so that is a diagnosis
+rather than a mystery. The alternative to fixing it (widening the shadow's tolerance to
+non-float columns) is NOT acceptable: it would certify exactly the class of difference the
+gate exists to catch.

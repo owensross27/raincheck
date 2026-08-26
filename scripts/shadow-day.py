@@ -444,7 +444,12 @@ def main(argv: list[str]) -> int:
                 verdict = (f"EQUAL to {worst:.1e} relative on {', '.join(names)} "
                            f"(floating-point sum order, bound {FLOAT_TOL:.0e})")
             else:
-                verdict = c["detail"]
+                # name the COLUMNS, not just the sha: a digest says THAT two builds differ
+                # and never WHAT, and the next session should not have to re-derive it
+                named = ", ".join(sorted({f"{n} ({d['type']})" for cols in
+                                          (c.get("columns") or {}).values()
+                                          for n, d in cols.items()}))
+                verdict = c["detail"] + (f"  <- {named}" if named else "")
             print(f"  content {c['a'].rsplit('/', 2)[-2]}/{c['a'].rsplit('/', 1)[-1]}: "
                   f"{verdict}", flush=True)
         print(f"  outcome cluster={'ok' if cluster_ok else run['tasks']} "
