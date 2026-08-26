@@ -32,6 +32,68 @@ terms receipt — build them gate-aware, do not wait for the receipt.
       mutation-checked
 - [ ] Own-module tests only; page-as-data seam extended, not forked
 
+## MUST from flood-build 17 (LANDED 2026-08-26, `flood17-live-impact-overlays`, `bb8d76f`)
+
+**THE OVERLAY DATA IS ON DISK AND ITS KEYS ARE FROZEN.** Family `impact` in
+`publish.FAMILIES`, **GATED** (`mta-vehicles` side, same as the live fleet), **no meta** -
+each file states its own hour, budget and staleness inline, which is why your freshness
+row can graduate without a second fetch.
+
+    files/impact.json          bus,    grain `cell`     <- gold/cell_hour_speed
+    files/impact-subway.json   subway, grain `complex`  <- archive/subway_tu
+
+**Your layer ids, and the one-ramp rule as it actually landed.** `web/layers.js` already
+declares `impact` / `impact-fill` / `impact-line` on the Cell FILL channel (frontend 05,
+frozen) and `files/impact.json` is already its one `src`. **Do not add a ramp.** The
+delay layer and this one are the same quantity - a Speed ratio - and share `RATIO_STOPS`;
+they are a RADIO and `toggle()` must keep clearing the other.
+
+**THE SUBWAY OVERLAY HAS NO LAYER YET AND THAT IS YOURS.** `files/impact-subway.json` is
+complex-grain POINTS, not a fill, so it is a different channel from the radio entirely -
+declare it beside `mta` (the alert dots), NEVER as a second Cell fill. **Never two kinds
+in one legend**: the bus overlay is Cells and the subway overlay is complexes, and they
+get separate legends or they are lying about their grain.
+
+**BOTH FILES PAINT GREY TODAY AND THE PAYLOAD SAYS WHY - render the reason, not a zero.**
+
+- **bus**: `cells` is keyed by the **H3 HEX STRING**, the same spelling
+  `files/cells.geojson` and `flood.json`'s `cells` use, so all three join with no lookup.
+  Each Cell carries `speed_mps`, `n_legs`, `n_vehicles` and - **only when a capture-era
+  baseline exists** - `ratio` and `baseline_days`. There is no capture-era baseline on
+  disk today, so **`ratio` is an ABSENT KEY on every Cell** and `["!", ["has", "ratio"]]`
+  paints grey, which is the chassis's own rule working as designed. `state` is
+  `no_baseline` and `baseline.reason` is a sentence you can render verbatim.
+- **subway**: `complexes` is keyed by `complex_id`, each carrying `name`, `lon`, `lat`,
+  `cell` (hex), `planned`, `dropped`, `runs`, `drop_share` and - **only above
+  `min_planned`** - `rel`. **`rel` is the ONLY number to colour**: it is the complex
+  against the CITYWIDE MEDIAN of the same hour of the same feed, because the absolute
+  drop rate has never been level-compared against an independent source
+  (`level_check.state` is `no_overlap` today). **Clamp your ramp** - measured 2026-08-26
+  02:00 UTC, `rel` runs to 18.7 with a median `drop_share` of 0.0247, so an unclamped
+  linear ramp is one station and 437 flat ones.
+
+**THE HEAD OF THE CELL GRAIN IS SPARSE AND THE PANEL MUST SAY SO, NOT JUST PAINT IT.**
+Measured on the real root 2026-08-26: the newest closed hour carries **19 Cells**, the
+densest **1,169**. Both numbers are in the payload every cycle as `n_cells` and
+`densest_cells` (plus `densest_hour_end_utc`) - render them, because 19 Cells painted
+without a count reads as a claim about the city.
+
+**THE LABEL IS NOT A FOOTNOTE.** `label` is on both documents at the top level AND at
+`strings.label`, verbatim: **"impact - never a detector input"**. `strings.caveats` is the
+panel's TEXT, not a tooltip - the bus list carries the sparse-head and one-channel
+caveats, the subway list carries the three readability claims (median event day
+indistinguishable, weekends unreadable, only the tail reads). Render them.
+
+**THE BUDGETS YOU OWED ARE SHIPPED, so both rows graduate from AGE to a VERDICT.**
+`budgets_s` is `{"impact_bus": 122400}` (34 h = one nightly cycle + `daily.TAIL_H`) and
+`{"impact_subway": 4200}` (the hour + `archiver.WINDOW`). `staleness` beside it is already
+a verdict dated at the READER - `FRESH` / `STALE` / `DOWN`, flood 11's vocabulary - so you
+can render it directly or recompute from `budgets_s`; a future stamp reads DOWN.
+
+**IT IS A CYCLE OF SIX NOW.** All six documents the flood tick writes carry ONE
+`cycle_id`, so a torn set is detectable across the whole panel. The impact documents
+deliberately carry **no `detector_version`** - they are impact, never a detector output.
+
 ## Inherited from frontend 05 (the chassis, `frontend05-seven-layer-chassis`, 2026-08-25)
 
 **The chassis is landed and its close-out is the contract — read
