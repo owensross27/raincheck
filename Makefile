@@ -8,7 +8,7 @@ export TZ := UTC
 export RAINCHECK_ARCHIVE_ROOT RAINCHECK_BRONZE_GB TRANSITLAND_API_KEY
 PY := .venv/bin/python
 
-.PHONY: warm ref nbp features picks precip-hourly precip-cell schedule events gold baseline gates slice test topics flood-obs flood-spine flood-coastal precip-flood-era flood-labels flood-matrix flood-fits flood-exposure flood-detector flood-replay flood-replication flood-live flood-panel release-check
+.PHONY: warm ref nbp features picks precip-hourly precip-cell schedule events gold baseline gates slice test topics flood-obs flood-spine flood-coastal precip-flood-era flood-labels flood-matrix flood-fits flood-exposure flood-detector flood-replay notify-replay flood-replication flood-live flood-panel release-check
 
 topics:  ## recreate the two bus topics to spec C - DESTRUCTIVE: drops retained Kafka messages (Bronze keeps the record)
 	$(PY) -m raincheck.topics
@@ -126,6 +126,20 @@ flood-detector:  ## the frozen detector rules -> research/flood-11-detector.json
 # RENDER=1 to rebuild only the .md from the committed .json.
 flood-replay:  ## replay the live detector over history -> research/flood-12-replay.{md,json}
 	$(PY) -m raincheck.flood_replay $(if $(ONLY),--only $(ONLY)) $(if $(LIMIT),--limit $(LIMIT)) $(if $(RENDER),--render-only)
+
+# --- notify ticket 11: what a real storm would have sent -----------------------------
+# Replays ticket 08's OWN `notify_decide.decide` - the same pure function the live loop
+# calls - hour by hour over flood 12's replayable subset, and publishes the message volume
+# a subscriber would have received. The subset is READ off research/flood-12-replay.json
+# (133 events / 4,326 cycles) and never re-derived here; the branch is READ from
+# research/flood-11-detector.json at replay time (`watch` while cutpoints.provisional is
+# true) and the other branch is replayed beside it as a labelled counterfactual. It
+# MEASURES: sizing the live fuse is notify 10's and the tier/rank verdict is Ross's.
+# ~20 min over 133 events; ONLY=<event_id> or LIMIT=<n> to smoke it, RENDER=1 to re-derive
+# the expectations and the over-expectation rows from the committed .json and re-render,
+# without replaying.
+notify-replay:  ## replay the notify decision over history -> research/notify-11-replay.{md,json}
+	$(PY) -m raincheck.notify_replay $(if $(ONLY),--only $(ONLY)) $(if $(LIMIT),--limit $(LIMIT)) $(if $(RENDER),--render-only)
 
 # --- flood-build ticket 15: the flood panel tick and the release checklist -----------
 # The tick normally runs INSIDE the 30 s live loop (`python -m raincheck.live_loop`); this

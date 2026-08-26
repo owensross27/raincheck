@@ -111,3 +111,48 @@ number), `window.state`, `staleness` per source with its budget in `budgets_s`
 `files/flood-meta.json` (open) and `files/flood-mta.json` + `files/flood-mta-meta.json`
 (GATED with `live.geojson`). The human-facing value is the RANK — never an eta, never a
 probability, and `make release-check` fails if one appears.
+
+## FROM notify 11 (2026-08-26, branch `notify11-f12-subset-replay`) — THE REPLAYED VOLUME, AND FOUR THINGS THE FUSE ARITHMETIC ACTUALLY SAYS
+
+The build asset is `research/notify-11-replay.{json,md}` (`make notify-replay`): notify
+08's own `nd.decide`, replayed over flood 12's 133-event / 4,326-cycle subset on three
+store-shaped synthetic lists and BOTH branches. **Read the `.md` before you size
+anything** — the four findings below are its point, and every one of them is arithmetic
+that survives whatever the volumes turn out to be.
+
+**MUST 1 — THE PER-CYCLE FUSE AND THE INGRESS TRIGGER ARE THE SAME NUMBER
+(`ns.INGRESS_TRIGGER_ENTRIES` = 25 = `Policy.per_cycle_fuse`), SO A LIST INSIDE v1's OWN
+CEILING CAN NEVER TRIP IT.** A Unit fires at most once per cycle, so a cycle owes at most
+one message per SUBSCRIPTION; while the managed list is inside the 25 entries the deferral
+allows, `wanted <= 25 = fuse`. The first cycle that can trip the fuse is a cycle on a list
+that has ALREADY reopened ticket 07's ingress. Do not read a never-firing fuse as evidence
+it is sized right — it is evidence it has not been asked yet.
+
+**MUST 2 — THE PER-HANDLE CAP IS STRUCTURALLY UNREACHABLE ON THE WATCH BRANCH.**
+`per_handle_event_cap` IS `ns.MAX_PER_HANDLE` (10) and `notify_store.add` refuses a handle
+past 10 ACTIVE rows; on the watch branch a (unit, Window) fires ONCE, so a handle receives
+at most 10 messages per Window and the cap triggers on the 11th, which cannot exist. It is
+a belt-and-braces guard there, not a limiter. **On the TIER branch it IS reachable** — an
+ELEVATED -> HIGH escalation is a second message for the same (unit, Window), exactly as
+notify 08's docstring says. Pinned by
+`tests/test_notify_replay.py::test_the_per_handle_cap_cannot_fire_on_the_watch_branch`.
+
+**MUST 3 — `Decision.worst_case` OVERSTATES, AND IT IS THE WRONG NUMBER TO SIZE OFF.** It
+is `handles x ns.MAX_PER_HANDLE` — the ceiling on the STORE, not on the list in front of
+it. Measured: the 25-entry `v1_list` cohort publishes `worst_case` **50** against a
+reachable maximum of **25** messages in a cycle. Log it (it is the fuse's declared
+ceiling), but size against the REACHABLE maximum, which is the active subscription count.
+
+**MUST 4 — ON THE WATCH BRANCH NOTHING IS URGENT, SO QUIET HOURS SUPPRESS EVERYTHING.**
+`Message.tier` is None there, so `urgent = tier == fd.HIGH` is False for EVERY message and
+the 22:00-07:00 New York rule — which never suppresses HIGH — suppresses all of them. A
+watch-branch storm that peaks overnight sends nothing at all and logs every entry as a
+`quiet_hours` DROP. That is the policy working (the drop is not deferred), and it is the
+single biggest term in the replayed volume. `elevated_optin` is read on the TIER branch
+only, so a watch-branch subscriber is opted in to everything by construction.
+
+**WHERE THE NUMBERS ARE.** Per-event message counts by kind, per-cycle counts, the drops
+split by reason, and the per-subscription-per-year rate for every (cohort, branch) chain
+are in the asset's `volume` block; `over_expectation` names every event that broke either
+stated expectation. `flood_12_flag_volume` is flood 12's ELEVATED+ FLAG rate on the same
+per-Unit-per-year scale — a flag is not a message and the two are never added.

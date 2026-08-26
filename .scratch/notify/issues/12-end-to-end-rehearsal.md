@@ -42,3 +42,59 @@ Two fixture traps this ticket already paid for, so you do not have to:
 The rehearsal's own end state is unchanged: `ns.unsubscribe(con, token)` then a SQL
 read-back of `subscriptions` (0 rows) against a throwaway db — the token in every message
 is `Message.unsubscribe_token`, the handle's own.
+
+## FROM notify 11 (2026-08-26, branch `notify11-f12-subset-replay`) — THE FIXTURE SHAPES AND THE BRANCH LIST
+
+**THE BRANCH LIST, MEASURED RATHER THAN LISTED.** notify 11 replayed BOTH branches over
+flood 12's 133-event subset by building two policies from the artifact —
+`nd.policy(det)` and `nd.policy(dict(det, cutpoints=dict(det["cutpoints"],
+provisional=False)))` — and running one `nd.decide` chain per branch off ONE `fd.cycle`
+chain. **That is how your rehearsal reaches the branch that is not shipping: flip
+`cutpoints.provisional` on a COPY of `fd.constants()` and ask `nd.policy` again. Never
+construct a `Policy(branch=...)`; `decide()` refuses a Policy that did not come from
+`nd.policy(det)`.** The live branch is still `watch`.
+
+**FOUR OF YOUR SIX SYNTHETIC BRANCHES ARE REACHABLE FROM A REAL HISTORICAL EVENT and two
+are not — measured, so you do not have to discover it:**
+
+- **entry / hold / Window roll** — reachable. A real event's cycles produce entries and
+  holds on their own, and a multi-day event ROLLS its Window mid-storm (the city dries and
+  the storm returns), which re-arms the dedupe with no artifact swap. `notify-11-replay
+  .json`'s `over_expectation` rows under `more_than_one_message_per_subscription` are
+  exactly the events where that happened; take your roll fixture from one of them rather
+  than from a `score_version` swap, which tests the key and not the walk.
+- **INSUFFICIENT_DATA** — reachable: 76 of flood 12's 4,326 cycles are that state, and
+  `nd.silent()` renders them as `insufficient_data` on every chain.
+- **quiet hours** — reachable, and on the WATCH branch it is not an edge case at all:
+  `Message.tier` is None there, so `urgent` is False for EVERY message and quiet hours
+  suppress ALL of them. A watch-branch storm that peaks between 22:00 and 07:00 New York
+  sends nothing.
+- **the per-cycle fuse** — reachable ONLY with a list whose members are the Units the rank
+  puts on top (`notify_replay`'s `top_scored` cohort, picked off `gold/flood_exposure`'s
+  `score_index`). An arbitrary list cannot reach it; see the MUST on notify 10.
+- **the winter gate** — reachable, and not rare: **267 of the 4,326 cycles were
+  winter-suppressed** and `nd.silent()` renders every one as `winter_gate`. (The replay
+  substitutes the citywide AORC median temperature for flood 14's KNYC reading, which has
+  no history on this root — the gate stays observation-derived, but a rehearsal that wants
+  the LIVE observation still has to inject one.)
+- **WINDOW_CAPPED** — **NOT reachable from history: flood 12 measured ZERO capped cycles in
+  4,326, and this replay's silent-cycle table confirms zero on every chain.** It is the one
+  detector state that has to be synthetic.
+- **the per-handle cap** — **structurally unreachable on the watch branch**, and this is
+  arithmetic, not a gap in the fixture. See the MUST on notify 10; your rehearsal has to
+  build it with an escalation on the TIER branch or with a `per_handle_event_cap` override.
+
+**THE SUBSCRIPTION FIXTURE SHAPE, and it is the store's or `decide()` raises.** Exactly
+`ns.COLUMNS` in order, `state` = `ns.STATES[0]`, `asset_kind` in `ns.KINDS`,
+`elevated_optin` in (0, 1). `notify_replay.subscribers(rows, handles)` builds them from
+`[(asset_id, kind), ...]` round-robin and REFUSES a list that puts more than
+`ns.MAX_PER_HANDLE` rows on one handle — reuse it rather than hand-shaping dicts. Its
+handles are `sub<NN>@replay.invalid` (RFC 2606 `.invalid`, which can never resolve to a
+real mailbox); do the same, and keep handles out of any published artifact — every number
+notify 11 publishes comes from `Decision.summary()` or `Message.asset_kind`.
+
+**THE 2023-09-29 EVENT YOUR LINE NAMES IS IN THE SUBSET** and it replays through the
+detector's own walk with no hand-built state: `nr.inputs(con, root, ev)` returns
+`(wet, temp, by_hour, units)` for one event exactly as flood 12 reads them, and
+`nr.replay(ev, wet, temp, by_hour, us, art, det, score_version, chains)` walks it. Both
+are two lines from a rehearsal.
