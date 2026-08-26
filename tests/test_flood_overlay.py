@@ -119,30 +119,66 @@ def test_bus_ships_no_ratio_without_a_capture_era_baseline(con, tmp_path):
     assert "BACKFILL" in got["baseline"]["reason"]
 
 
+def backfill_windows() -> tuple[str, ...]:
+    """The BACKFILL window names, read out of `gold.py`'s own source.
+
+    The independent side of the comparison below, and it has to be independent: a fixture
+    keyed on `fo.LIVE_WINDOW` moves WITH the constant, so re-pointing that constant at a
+    backfill window would leave every such test green (measured - the mutant survived).
+    Read rather than imported because importing `gold` pulls pyspark into a unit test for
+    two strings.
+    """
+    import re
+
+    src = (Path(fo.__file__).parent / "gold.py").read_text()
+    m = re.search(r"WINDOW = dict\(zip\(\(([^)]*)\), WINDOWS\)\)", src)
+    assert m, "gold.py no longer names its baseline windows the way this test reads them"
+    return tuple(re.findall(r'"([^"]+)"', m.group(1)))
+
+
+def test_the_capture_era_window_is_never_a_backfill_window(con, tmp_path):
+    """The ticket's central rule. A live Speed over a 2021 baseline is a claim about five
+    years of route change, not about rain - so the backfill rows are given every chance to
+    join and must still produce nothing."""
+    backfill = backfill_windows()
+    assert backfill == ("w1", "w2"), backfill
+    assert fo.LIVE_WINDOW not in backfill
+    hours(tmp_path)
+    how = fo.hour_of_week(HOUR)
+    base_table(tmp_path, {w: [{"cell": CELL_A, "hour_of_week": how, "speed_dry": 1.0,
+                               "n_dry": 99}] for w in backfill})
+    got = fo.bus(con, tmp_path, NOW)
+    assert got["state"] == "no_baseline"
+    assert "ratio" not in got["cells"][format(CELL_A, "x")]
+
+
 def test_bus_ratio_comes_from_the_live_window_only(con, tmp_path):
-    """The backfill row would join and is deliberately not read: `window` is a predicate
-    inside the statement, so the 2021/2023 partitions are never opened."""
+    """The backfill row would join and is deliberately not read: the read is bounded to
+    the capture-era partition by PATH and by predicate, so w1 is never opened."""
     hours(tmp_path)
     how = fo.hour_of_week(HOUR)
     base_table(tmp_path, {
         "w1": [{"cell": CELL_A, "hour_of_week": how, "speed_dry": 1.0, "n_dry": 9}],
         fo.LIVE_WINDOW: [{"cell": CELL_A, "hour_of_week": how, "speed_dry": 2.5,
-                          "n_dry": fo.MIN_BASE_DAYS}]})
+                          "n_dry": 2}]})
     got = fo.bus(con, tmp_path, NOW)
     assert got["state"] == "ok"
     cell = got["cells"][format(CELL_A, "x")]
     assert cell["speed_mps"] == 5.0                      # 500 m / 100 s
     assert cell["ratio"] == 2.0                          # 5.0 / 2.5, NOT 5.0 / 1.0
-    assert cell["baseline_days"] == fo.MIN_BASE_DAYS
+    assert cell["baseline_days"] == 2
 
 
 def test_bus_ratio_needs_two_same_weekday_baselines(con, tmp_path):
     """One day is not a baseline - the ticket's own rule, and `n_dry` is the count of
     distinct same-weekday hours behind that (cell, hour_of_week)."""
     hours(tmp_path)
+    # n_dry ONE, written literally: a fixture keyed on `fo.MIN_BASE_DAYS - 1` moves with
+    # the constant and stays green when the floor is lowered to one (measured).
     base_table(tmp_path, {fo.LIVE_WINDOW: [
         {"cell": CELL_A, "hour_of_week": fo.hour_of_week(HOUR), "speed_dry": 2.5,
-         "n_dry": fo.MIN_BASE_DAYS - 1}]})
+         "n_dry": 1}]})
+    assert fo.MIN_BASE_DAYS >= 2, "one same-weekday day is not a baseline"
     got = fo.bus(con, tmp_path, NOW)
     assert got["state"] == "no_baseline"
     assert "ratio" not in got["cells"][format(CELL_A, "x")]
@@ -230,18 +266,45 @@ def test_subway_counts_unresolved_stops_rather_than_hiding_them(con, tmp_path):
     assert got["unresolved_stops"] == 1 and got["n_complexes"] == 0
 
 
-def test_subway_withholds_rel_under_the_planned_floor(con, tmp_path):
-    """A complex the feed barely mentioned gets counts and NO colour."""
-    assets(tmp_path, pairs=[("A01", "1"), ("A02", "2")])
+# Two stations per complex, because the read strips the direction suffix BEFORE grouping:
+# `A01N` and `A01S` are one stop of one complex, so a fixture that used them as two stops
+# of one run collapsed to one planned row (measured while killing the floor's mutant).
+FOUR = (("A01", "1"), ("A04", "1"), ("A02", "2"), ("A03", "2"))
+
+
+def _runs(train_prefix: str, stops: tuple[str, str], n: int) -> list[dict]:
+    """`n` runs past a complex's two stations, the FIRST of which is dropped every time -
+    so the complex has a real, non-zero drop share and the citywide median is non-zero.
+    That matters: with a zero median the "x times nothing is not a ratio" guard withholds
+    `rel` on its own, and the floor's own mutant survives behind it."""
     rows = []
-    for k in range(fo.MIN_PLANNED + 2):     # complex 2: plenty of rows, some dropped
-        rows += _run(f"b{k}", "A02N", T0 + 900, [T0, T0 + 60] + ([T0 + 120] if k % 2 else []))
-    rows += _run("a1", "A01N", T0 + 900, [T0, T0 + 60])   # complex 1: one row only
-    tu_table(tmp_path, rows)
+    for k in range(n):
+        rows += _run(f"{train_prefix}{k}", stops[0], T0 + 900, [T0])
+        rows += _run(f"{train_prefix}{k}", stops[1], T0 + 900, [T0, T0 + 60])
+    return rows
+
+
+def test_subway_withholds_rel_under_the_planned_floor(con, tmp_path):
+    """A complex the feed barely mentioned gets counts and NO colour. TWO planned rows,
+    written literally rather than from the constant."""
+    assets(tmp_path, pairs=FOUR)
+    tu_table(tmp_path, _runs("b", ("A02N", "A03N"), 6) + _runs("a", ("A01N", "A04N"), 1))
     got = fo.subway(con, tmp_path, datetime(2026, 8, 26, 4, 0, tzinfo=timezone.utc))
-    assert got["complexes"]["1"]["planned"] == 1
-    assert "rel" not in got["complexes"]["1"]
-    assert got["complexes"]["2"]["planned"] >= fo.MIN_PLANNED
+    assert got["median_drop_share"] > 0, "the floor, not the zero-median guard, is on test"
+    thin, fat = got["complexes"]["1"], got["complexes"]["2"]
+    assert thin["planned"] == 2 and thin["dropped"] == 1 and thin["drop_share"] == 0.5
+    assert "rel" not in thin, "a complex under the floor gets counts and no colour"
+    assert fat["planned"] == 12 and "rel" in fat
+
+
+def test_subway_gives_rel_once_the_floor_is_cleared(con, tmp_path):
+    """The other side of the bracket: TEN planned rows, also literal, must get a colour.
+    Together the two pin the floor into (2, 10] without either mirroring the constant."""
+    assets(tmp_path, pairs=FOUR)
+    tu_table(tmp_path, _runs("b", ("A02N", "A03N"), 6) + _runs("a", ("A01N", "A04N"), 5))
+    got = fo.subway(con, tmp_path, datetime(2026, 8, 26, 4, 0, tzinfo=timezone.utc))
+    assert got["complexes"]["1"]["planned"] == 10
+    assert "rel" in got["complexes"]["1"]
 
 
 def test_subway_reads_only_a_closed_hour(con, tmp_path):

@@ -270,6 +270,10 @@ def bus(con, root, now: datetime) -> dict:
 # a row whose arrival had passed is a stop the train made - neither counts.
 SUBWAY_SQL = """
 WITH r AS (
+  -- the trailing N/S is the DIRECTION, and this is a COMPLEX-grain overlay: a complex
+  -- serves both, and a single run is one direction, so stripping it before the grouping
+  -- merges nothing real. `rtrim(id, 'NS')` and "drop a trailing N or S" agree on all 503
+  -- stop ids in the capture (measured).
   SELECT feed, coalesce(train_id, trip_id) AS run_id, start_date,
          rtrim(stop_id, 'NS') AS stop, arrival_time, fetched_at
     FROM {read}
