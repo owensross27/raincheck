@@ -108,8 +108,11 @@ _H = lambda d, h: f"TIMESTAMPTZ '{d} {h}:00:00+00'"      # noqa: E731
 CHR_ROWS = [
     f"({CELLS[0]}::BIGINT, {_H('2021-09-02', '18')}, 'R1', 0::TINYINT, 100::BIGINT, 0.5, 60.0, '2021-09')",
     f"({CELLS[1]}::BIGINT, {_H('2021-09-02', '19')}, 'R1', 0::TINYINT, 900::BIGINT, NULL, NULL, '2021-09')",
-    # 2021-09-03 is a Friday and no event covers it: the dry side of the substitute
+    # 2021-09-03 is a Friday and no event covers it: the dry side of the substitute. It
+    # carries the SAME discriminating pair as the event day, because `other_days` weights
+    # with its own copy of the rule and a mutation to that copy alone survived a round.
     f"({CELLS[0]}::BIGINT, {_H('2021-09-03', '18')}, 'R1', 0::TINYINT, 10::BIGINT, 0.1, 10.0, '2021-09')",
+    f"({CELLS[1]}::BIGINT, {_H('2021-09-03', '19')}, 'R1', 0::TINYINT, 90::BIGINT, NULL, NULL, '2021-09')",
     # 2023-09-29 is inside w2's DECLARED span and w2 is NOT planted below - the case that
     # tells "the window covers this day" from "the window is on disk"
     f"({CELLS[0]}::BIGINT, {_H('2023-09-29', '18')}, 'R1', 0::TINYINT, 5::BIGINT, 0.2, 20.0, '2023-09')",
@@ -783,8 +786,12 @@ def test_the_substitute_dry_side_is_other_weekdays_of_the_same_month(doc):
     """Labelled as a substitute everywhere: it is NOT the named baseline table and it is NOT
     hour-of-week matched. 2021-09-03 is the Friday that is not an event day."""
     r = next(x for x in doc["events"][0]["routes"] if x["route_id"] == "R1")
-    assert r["other_weekdays"]["late_share"] == pytest.approx(0.1)
-    assert r["other_weekdays"]["n_days"] == 1 and r["other_weekdays"]["n_hours"] == 1
+    o = r["other_weekdays"]
+    # 10 arrivals with a late_share of 0.1 and 90 without: 0.1 weighted over the rows that
+    # have one, 0.01 weighted over all 100. `other_days` holds its OWN copy of that rule and
+    # mutating it alone survived a round until this second row existed.
+    assert o["late_share"] == pytest.approx(0.1) and o["ewt_s"] == pytest.approx(10.0)
+    assert o["n_days"] == 1 and o["n_hours"] == 2
 
 
 def test_the_exhibit_markdown_names_what_it_cannot_say(doc):
