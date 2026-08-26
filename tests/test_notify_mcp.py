@@ -49,6 +49,20 @@ def names(tree=TREE) -> set:
             | {ast.unparse(n) for n in ast.walk(tree) if isinstance(n, ast.Attribute)})
 
 
+def imports(tree=TREE) -> set:
+    """The MODULES this file imports, from both statement forms."""
+    return ({n.module for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)}
+            | {a.name for n in ast.walk(tree) if isinstance(n, ast.Import)
+               for a in n.names})
+
+
+def bound(tree=TREE) -> set:
+    """The NAMES those imports bind. Unlike `names()` this sees an UNUSED import."""
+    return {a.asname or a.name.split(".")[0]
+            for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom))
+            for a in n.names}
+
+
 def numbers(tree=TREE) -> set:
     return {n.value for n in ast.walk(tree)
             if isinstance(n, ast.Constant) and isinstance(n.value, (int, float))
@@ -109,12 +123,12 @@ def test_the_module_holds_no_query_logic_at_all():
     for banned in ("execute", "sql", "table", "connect", "read_parquet", "create_view",
                    "fetchall", "filter", "project"):
         assert not any(c.split(".")[-1] == banned for c in called), (banned, called)
-    imported = ({n.module for n in ast.walk(TREE) if isinstance(n, ast.ImportFrom)}
-                | {a.name for n in ast.walk(TREE) if isinstance(n, ast.Import)
-                   for a in n.names})
-    assert imported == {"sys", "importlib.util", "pathlib", "raincheck",
-                        "mcp.server.mcpserver"}
-    assert not {n for n in names() if n.split(".")[0] in ("duck", "duckdb", "pq", "pa")}
+    assert imports() == {"sys", "importlib.util", "pathlib", "raincheck",
+                         "mcp.server.mcpserver"}
+    # the NAMES bound, not only the modules: an UNUSED `from raincheck import duck`
+    # creates no Name node at all, so an identifier scan cannot see it (measured -- that
+    # mutant survived the first round)
+    assert bound() == {"sys", "find_spec", "Path", "q", "MCPServer"}
 
 
 # ---- each tool dispatches to ITS OWN name, with the arguments it received -------------
@@ -438,7 +452,15 @@ def test_the_sdk_is_imported_inside_server_and_nowhere_else():
 def test_serving_without_the_sdk_says_so_instead_of_raising_ImportError(monkeypatch):
     monkeypatch.setattr(nm, "available", lambda: False)
     with pytest.raises(SystemExit, match="MCP SDK is not installed"):
-        nm.server()
+        nm.server(None, q.MODES[0])
+
+
+def test_server_has_no_second_copy_of_the_default_mode():
+    """`tools()` holds the safe default and `mode_of()` is the only reader of the world.
+    A second default on `server()` was a mirror nothing exercised -- it is required now,
+    so there is no constant left to flip."""
+    assert inspect.signature(nm.tools).parameters["mode"].default == q.MODES[0] == "public"
+    assert inspect.signature(nm.server).parameters["mode"].default is inspect.Parameter.empty
 
 
 def test_nothing_in_this_ticket_opens_a_port():
