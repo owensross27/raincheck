@@ -41,11 +41,18 @@ export async function grab(lyrId, s) {
   }
 }
 
+/* `lyr.srcs` is read LIVE, one await at a time, and the draw is AWAITED. Both matter.
+ * frontend2 03's zones layer learns its scenario file from its first source (a browser
+ * cannot list a directory), so its draw adds a second source and fetches it through grab()
+ * - and an un-awaited draw would let renderLayers() run before that row existed, printing
+ * a panel that names a file it is not showing. It also fixes basemap.js's draw, which has
+ * been async since frontend2 02: `on.basemap = false` was being set after the boot handler
+ * had already rendered. Nothing here may reject - every draw catches its own failures. */
 export async function load(lyrId) {
   const lyr = L(lyrId);
   const bodies = [];
   for (const s of lyr.srcs) bodies.push(await grab(lyrId, s));
-  if (lyr.draw) lyr.draw(bodies);
+  if (lyr.draw) await lyr.draw(bodies);
   return bodies;
 }
 

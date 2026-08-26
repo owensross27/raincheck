@@ -16,6 +16,12 @@
  *                 below all twelve, the pmtiles protocol, and the fall back to `bg`.
  *   app.js        this file: boot.
  *
+ * frontend2 03 added no module: the geography layers are LAYERS entries in layers.js, their
+ * paint and their draw are in insight.js beside the Cell fill's, and their two controls -
+ * the scenario radio and the Cell-fill OFF option - are delegated from here like every
+ * other control on this page. `applyRamp()` runs after anything that can change which fill
+ * is lit, which is D1's one-ramp rule.
+ *
  * WHY ALL THE WIRING IS HERE, and not beside the code it drives. The module graph is
  * CYCLIC by construction - layers.js needs drawCells (insight) inside a LAYERS.draw
  * closure, and freshness.js needs liveMeta (live) inside srcState - so the bodies do NOT
@@ -32,7 +38,7 @@
 import { $, LAYERS, map, markStyled, on } from "./layers.js";
 import { load } from "./freshness.js";
 import { applyVisibility, renderLayers, toggle } from "./panel.js";
-import { setHour, setView, showTip } from "./insight.js";
+import { applyRamp, setHour, setScenario, setView, showTip } from "./insight.js";
 import { toggleLive } from "./live.js";
 
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
@@ -43,14 +49,28 @@ map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribut
   "MTA Bus Time GTFS-RT; nycbuspositions archive; NOAA AORC; NYC TLC taxi zones; " +
   "basemap Protomaps &copy; OpenStreetMap contributors (ODbL)" }));
 
-// delegated, because the rows are rebuilt: #layers itself is the stable element
-$("layers").addEventListener("change", e => {
-  const id = e.target.dataset && e.target.dataset.l;
-  if (id) toggle(id, e.target.checked);
+// delegated, because the rows are rebuilt: #layers itself is the stable element. Three
+// controls live inside it now - the layer boxes, frontend2 03's scenario radio and its
+// Cell-fill OFF option - and all three are read off the target's own data attribute.
+$("layers").addEventListener("change", async e => {
+  const d = e.target.dataset || {};
+  if (d.l) { await toggle(d.l, e.target.checked); applyRamp(); return; }
+  if (d.sc) { await setScenario(d.sc); renderLayers(); return; }
+  if (d.nofill) {
+    // clear whichever fill is lit; toggle() already forgets its sources, re-applies
+    // visibility and re-renders the rows, so the OFF row is the one left checked
+    const lit = LAYERS.find(l => l.fill && on[l.id]);
+    if (lit) await toggle(lit.id, false); else renderLayers();
+    applyRamp();
+  }
 });
 
-$("views").addEventListener("click", e => { if (e.target.dataset.v) setView(e.target.dataset.v); });
-$("hours").addEventListener("click", e => { if (e.target.dataset.h) setHour(e.target.dataset.h); });
+// renderLayers() after a view or hour switch: frontend2 03's route row explains WHY its
+// lines are grey on the view that is showing, and that sentence changes with the view.
+$("views").addEventListener("click", e => {
+  if (e.target.dataset.v) { setView(e.target.dataset.v); renderLayers(); } });
+$("hours").addEventListener("click", e => {
+  if (e.target.dataset.h) { setHour(e.target.dataset.h); renderLayers(); } });
 
 map.on("mousemove", "cells", showTip);
 map.on("click", "cells", showTip);          // touch
@@ -62,6 +82,7 @@ map.on("load", async () => {
   markStyled();
   for (const lyr of LAYERS) if (on[lyr.id] && lyr.draw) await load(lyr.id);
   applyVisibility();
+  applyRamp();
   renderLayers();
 });
 

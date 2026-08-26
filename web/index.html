@@ -61,6 +61,11 @@
 
   <h3 class="lbl" id="pts-h">Ground and points</h3>
   <div id="layers-pts" aria-labelledby="pts-h"></div>
+  <!-- frontend2 03: the two geography layers are ordinary rows in the list above. Their
+       size is stated here because a toggle that costs 7.8 MB should say so before it is
+       ticked, not after - the repo has no compression today, so that is the raw number. -->
+  <p class="note">The bus route lines are 21,868 Cell crossings and <b>7.8 MB</b>; the
+     flood zones are <b>4.4 MB</b>. Neither is fetched until you tick it.</p>
 </section>
 
 <!-- ------------------------------------------------------ panel 3: the live view (ticket 14) -->
@@ -106,6 +111,11 @@
        requested rather than legally required, and is given. It sits HERE, in the
        mode-invariant strip, and not only in MapLibre's compact control, which ships
        collapsed behind a button - the same reason the MTA line below is here. -->
+  <!-- frontend2 03: filled from the geography payloads' own `attribution` members while
+       those layers are on, and emptied when they are off - the credit is a condition of
+       DISPLAYING the data, and reading it from the file rather than mirroring it here is
+       the repo's rule for any string the page shares with a writer in src/. -->
+  <p id="geo-attribution"></p>
   <p id="basemap-attribution">Basemap tiles built with
   <a href="https://github.com/protomaps/basemaps">Protomaps</a>, &copy;
   <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>. The map

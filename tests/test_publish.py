@@ -454,3 +454,35 @@ def test_the_insight_family_never_sweeps_up_the_flood_payloads(web, flood_files)
     keys = {i.key for i in publish.plan("insight", web / "files")}
     assert not any("flood" in k for k in keys)
 
+
+
+# --- frontend2 03: the geography files join a TREE family, additively ----------------------
+
+def test_the_geo_tree_family_takes_a_second_writers_files_without_a_contract_bump(tmp_path):
+    """`geo` is a TREE family on purpose (flood-build 19): its served set is DERIVED, so a
+    file appears the day a writer makes one. frontend2 03 is the second writer into it -
+    `make geo` now runs the extents AND `raincheck.export --geo` - and that costs nothing
+    here: no `publish.FAMILIES` edit, no `contract.SCHEMA` edit, and no bump, because
+    `contract.PROMISE[1]` freezes the PREFIX `files/geo/**` and a prefix cannot gain a
+    breaking key. The three files publish under one prefix with one Cache-Control.
+    MUTATION KILLED: turning `geo` into an explicit file list (which would refuse the whole
+    family the day a scenario is absent - the state it ships in), or giving the route lines
+    a family of their own, which would put a second prefix in front of one `make` target."""
+    geo = tmp_path / "files" / "geo"
+    geo.mkdir(parents=True)
+    for name in ("routes.geojson", "stormwater-moderate.geojson"):
+        (geo / name).write_text('{"type":"FeatureCollection","features":[]}')
+    (geo / "scenarios.json").write_text('{"scenarios":[]}')
+    items = publish.plan("geo", geo)
+    assert sorted(i.key for i in items) == ["files/geo/routes.geojson",
+                                            "files/geo/scenarios.json",
+                                            "files/geo/stormwater-moderate.geojson"]
+    types = {i.key.rsplit("/", 1)[1]: i.content_type for i in items}
+    assert types["routes.geojson"] == "application/geo+json"
+    assert types["scenarios.json"] == "application/json"
+    assert {i.cache for i in items} == {publish.BUILD_CACHE}
+    fam = publish.FAMILIES["geo"]
+    assert fam.files == () and fam.prefix == "files/geo/" and not fam.gated
+    assert contract.CONTRACT == 1
+    assert not (contract.PROMISE[contract.CONTRACT] - contract.surface())
+    assert contract.SCHEMA["files/geo/**"], "the tree points at its writer, not at a file"

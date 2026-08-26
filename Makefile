@@ -365,8 +365,14 @@ showcase:  ## the portfolio surface -> web/showcase (make showcase [LOGS=<airflo
 stormwater-extent:  ## DEP's four scenario extents -> silver/stormwater_extent + check rows (flood-build 19)
 	$(PY) -m raincheck.stormwater_extent
 
-geo:  ## the current-sea-level extents -> web/files/geo/*.geojson (publish family `geo`)
+# frontend2 03 extends this target rather than opening a second one: `geo` is ONE publish
+# family, so its two writers run in one place and a reader who ran `make geo` has the whole
+# family on disk. Order is deliberate - the extents are DEP's snapshot and take minutes on a
+# cold table, the route lines are seconds off Gold; a failure in either leaves the other's
+# files whole, because each writer stages all-or-none into its own names.
+geo:  ## the current-sea-level extents + the route lines -> web/files/geo/*.geojson (publish family `geo`)
 	$(PY) -m raincheck.stormwater_extent --geo
+	$(PY) -m raincheck.export --geo
 
 # --- ticket 14: the live export loop (foreground, 30 s, Ctrl-C stops it) -----------
 .PHONY: live-export
