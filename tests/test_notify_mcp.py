@@ -269,6 +269,38 @@ def test_every_reason_this_layer_can_return_is_one_of_the_frozen_eight(root):
     assert seen <= set(q.REASONS)
 
 
+def half_built(dst, missing: str):
+    """A root where one table is an EMPTY DIRECTORY -- what a build that died between its
+    `mkdir` and its `pq.write_table` leaves behind."""
+    for name, parts in LAYOUT.items():
+        dst.joinpath(*parts).mkdir(parents=True)
+        if name != missing:
+            shutil.copy(FIXTURES / f"notify_query_{name}.parquet",
+                        dst.joinpath(*parts) / "part-00000.parquet")
+    return dst
+
+
+def test_an_unbuilt_table_refuses_as_version_unresolved_and_not_as_a_traceback(tmp_path):
+    """The fifth of the spec's five, DRIVEN rather than claimed -- and it arrives in TWO
+    different detail shapes under the one reason, which is worth knowing before you write
+    a recovery rule against it.
+
+    A stamped table (`gold/flood_labels`) fails inside `versions()`, whose blanket
+    `except Exception` carries `{root, error}` -- the raw DuckDB IOException text, no table
+    key. A table only a query reads (`silver/flood_obs`) fails inside `view()`, which is
+    written for exactly this case and carries a clean `{table, root}`. Neither is a
+    traceback and both are this layer's to hand on unchanged, not to normalise."""
+    got = nm.tools(half_built(tmp_path / "a", "labels"))["events_for_asset"](
+        asset_id=COMPLEX)
+    assert got["error"]["reason"] == "version_unresolved" in q.REASONS
+    assert set(got["error"]["detail"]) == {"root", "error"}
+    assert "gold/flood_labels" in got["error"]["detail"]["error"]
+
+    got = nm.tools(half_built(tmp_path / "b", "obs"))["events_for_asset"](asset_id=COMPLEX)
+    assert got["error"]["reason"] == "version_unresolved"
+    assert got["error"]["detail"]["table"] == "silver/flood_obs"
+
+
 def test_only_QueryError_is_caught_and_anything_else_is_a_real_failure(monkeypatch):
     """`except Exception` here would turn a genuine defect -- a dead table, a bad root --
     into something that reads like a typed refusal."""
