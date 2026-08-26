@@ -477,12 +477,35 @@ def test_the_stdlib_server_answers_200_for_the_page_and_its_files(exported, tmp_
 
 
 def test_the_page_loads_only_vendored_scripts():
-    """No CDN at demo time (spec L): every script and stylesheet the page pulls is local."""
+    """No CDN at demo time (spec L): every script and stylesheet the page PULLS is local.
+
+    Scoped to the two tags that FETCH - `<script src>` and `<link href>` - rather than to
+    every attribute spelled src or href. An `<a href>` is navigation the visitor chooses,
+    and frontend2 02's basemap makes one of them mandatory rather than optional: the OSMF
+    attribution guidelines require the credit to link to openstreetmap.org/copyright, so a
+    rule against every remote href is a rule against shipping the basemap at all. The
+    demo-time property is unchanged - nothing is fetched off this box."""
     html = (export.REPO / "web" / "index.html").read_text()
-    remote = re.findall(r'(?:src|href)\s*=\s*["\']((?:https?:)?//[^"\']+)', html)
-    assert not remote, f"the page loads remote assets: {remote}"
+    pulls = re.findall(r"""<(?:script|link)\b[^>]*?\b(?:src|href)\s*=\s*["']"""
+                       r"""((?:https?:)?//[^"']+)""", html, re.I)
+    assert not pulls, f"the page loads remote assets: {pulls}"
     for tag in ("vendor/maplibre-gl.js", "vendor/maplibre-gl.css", "app.js", "app.css"):
         assert tag in html
+
+
+def test_a_remote_script_or_stylesheet_is_still_a_finding_but_a_link_is_not():
+    """The narrowing above, driven rather than trusted: the CDN tags this rule exists to
+    forbid are still findings, and the attribution anchor the basemap's licence requires is
+    not. Without this, the fix reads as 'the assertion was relaxed'."""
+    def pulls(html: str) -> list[str]:
+        return re.findall(r"""<(?:script|link)\b[^>]*?\b(?:src|href)\s*=\s*["']"""
+                          r"""((?:https?:)?//[^"']+)""", html, re.I)
+
+    assert pulls('<script src="https://unpkg.com/maplibre-gl.js"></script>')
+    assert pulls('<link href="//cdn.example/x.css" rel="stylesheet">')
+    assert pulls('<SCRIPT DEFER SRC="https://cdn.example/x.js"></SCRIPT>')   # case, attrs
+    assert not pulls('<a href="https://www.openstreetmap.org/copyright">OSM</a>')
+    assert not pulls('<link href="app.css" rel="stylesheet">')
 
 
 # ------------------------------------------------- frontend 06: the discovery document

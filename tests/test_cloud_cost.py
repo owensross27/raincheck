@@ -194,14 +194,44 @@ def test_no_make_target_shells_out_to_a_cluster_only_tool():
     assert offenders == {}, f"cluster-only tooling in a make recipe: {sorted(offenders)}"
 
 
+# NAMING a cluster tool is not REACHING for one, and the difference is the whole test.
+# orch 13's showcase.py says - in its docstring and in the page it renders - that the
+# Airflow UI is reachable by `kubectl port-forward` and by nothing else, which is the
+# OPPOSITE of a dependency: it is the reason the showcase had to be static. So a tool name
+# only counts against a module that could actually run one. The two hard checks stay
+# unconditional, because importing the client or reading the in-cluster env var IS the
+# dependency whether or not anything is ever spawned.
+EXECUTES = re.compile(r"\b(subprocess|Popen|os\.system|os\.exec[a-z]*|pty\.spawn)\b")
+
+
 def test_no_stage_module_reaches_for_a_kubernetes_client():
     hits = []
     for src in (ROOT / "src/raincheck").glob("*.py"):
         text = src.read_text()
         if re.search(r"^\s*(import|from)\s+kubernetes\b", text, re.M) or \
-           "KUBERNETES_SERVICE_HOST" in text or CLUSTER_ONLY.search(text):
+           "KUBERNETES_SERVICE_HOST" in text or \
+           (CLUSTER_ONLY.search(text) and EXECUTES.search(text)):
             hits.append(src.name)
     assert hits == [], f"cluster-only dependency in stage code: {hits}"
+
+
+def test_naming_a_cluster_tool_and_being_able_to_run_one_are_different_findings():
+    """The narrowing above keeps every tooth, driven rather than asserted. A module that
+    only TALKS about kubectl passes; add any way to spawn a process and the same text is a
+    finding again; and the client import and the in-cluster env var are findings on their
+    own, with nothing to spawn them."""
+    prose = '"""the UI is reachable by `kubectl port-forward` and by nothing else."""\n'
+    shells = prose + 'import subprocess\nsubprocess.run(["kubectl", "get", "pods"])\n'
+
+    def flagged(text: str) -> bool:
+        return bool(re.search(r"^\s*(import|from)\s+kubernetes\b", text, re.M)
+                    or "KUBERNETES_SERVICE_HOST" in text
+                    or (CLUSTER_ONLY.search(text) and EXECUTES.search(text)))
+
+    assert not flagged(prose)                                   # showcase.py's case
+    assert flagged(shells)                                      # the tooth that matters
+    assert flagged("import kubernetes\n")                       # no spawn needed
+    assert flagged('os.environ["KUBERNETES_SERVICE_HOST"]\n')   # nor here
 
 
 def test_every_exercised_downscale_stage_is_a_real_make_target():
