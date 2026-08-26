@@ -42,7 +42,7 @@ payload and republish a stale one.
 | `history` | `files/history/**` | per spine rebuild | `public, max-age=300` | `manifest.geojson` — every asset with a flood record, as Point Features carrying `asset_id`, `kind`, `n_events` and `name` (ABSENT on a Cell) — plus `<asset_id>.json` per listed asset, the history and the exposure merged. Measured 2026-08-26: 8,147 files / 14,174,355 B |
 | `docs` | `docs/**` | per Airflow run | `public, max-age=300` | Great Expectations Data Docs |
 | `showcase` | `showcase/**` | per landing or recorded run | `public, max-age=300` | the walkthrough, the task graph and one recorded run [orch 13] |
-| `geo` | `files/geo/**` | per ref rebuild | `public, max-age=300` | DEP design-storm flood extents — see below |
+| `geo` | `files/geo/**` | per ref rebuild | `public, max-age=300` | DEP design-storm flood extents, the bus route lines and the scenario manifest — see below |
 
 **THE FLOOD PANEL IS TWO FAMILIES BECAUSE THE GATE CUTS THROUGH IT.** `flood` and
 `flood-mta` are written by ONE tick, in one process, carrying one `cycle_id` — and they
@@ -88,7 +88,8 @@ not a footnote.
 
 **`files/geo/**` is DEP's design-storm flood extents, and it is a PLANNING map.** One
 `stormwater-<scenario>.geojson` per rainfall scenario, written by `make geo` out of
-`silver/stormwater_extent` (flood-build 19). Each file is a FeatureCollection with one
+`silver/stormwater_extent` (flood-build 19), one manifest naming them and one route-line
+payload (below). Each extent file is a FeatureCollection with one
 Feature per category — `deep` (ponding ≥ 1 ft), `nuisance` (≥ 4 in, < 1 ft) and
 `not_analyzed` — whose geometry is a MultiPolygon of that category's parts, plus the
 scenario's `rain_in_hr` on every Feature's properties and a top-level `attribution` member
@@ -107,6 +108,55 @@ absent**: its geodatabase stores its feature class in a compressed Esri format
 built from the pinned snapshot at all. The tree is DERIVED from the table, so a scenario
 appears here the day the table has it — this is a prefix family, not a promised file list,
 and no file name here is part of the `contract` integer.
+
+**`files/geo/routes.geojson` is the BUS NETWORK as Cell crossings, and it is the second
+writer into this tree** (frontend2 03). One Feature per `(shape_id, cell)` from
+`ST_Intersection(silver/shapes, ref/cells)` — DESTINATION-PLAN D1's decided segment unit —
+keyed to `(route_id, direction_id)` through `silver/trips`. Properties are `route_id`
+(a string, always), `direction_id`, `shape_id`, `cell` (**an H3 id as a lower-case HEX
+STRING**, because 613229535722209279 is past 2^53 and any consumer reading JSON numbers as
+doubles corrupts it silently) and then **the same per-window estimand names
+`files/cells.geojson` carries** — `w1_ratio`, `w1_lo`, `w1_hi`, `w1_nwet`, `w1_nev`,
+`w1_dry`, `w1_ndry` and the same for `w2` — restricted to that route's rows in that Cell,
+under the same 95% interval-width gate and the same ABSENT-never-null rule. There are no
+storm-hour properties: a route through one Cell in one Hour carries no interval anyone
+could publish. The estimand is per `(window, Cell, route_id)` and NOT per direction, because
+`gold/cell_hour_speed` carries no `direction_id` — the two directions of a route through one
+Cell share one number, and both Features carry it.
+
+**The denominator is the ROUTE's own dry same-hour-of-week Speed in that Cell**, rebuilt by
+`web/geo.sql` under `gold.baseline()`'s own dry mask rather than taken from
+`gold/cell_hourofweek_baseline`, which has no route key: dividing a route's wet Speed by a
+Cell's all-route dry Speed would publish a composition difference as a rain effect.
+
+**SIZE, said with the number: 21,868 features, 8,162,311 raw bytes (7.78 MiB)** at
+`TOLERANCE 0.0002` degrees of Douglas-Peucker (the knob `zones.geojson` already uses; 0.32%
+of network length). Nothing in this repo compresses, so that is the honest figure. It is a
+TOGGLE and is never fetched at boot. `length_m` is deliberately NOT a property — it is
+recomputable from the LineString it would sit on, and it was the one size lever worth taking
+that costs a consumer nothing.
+
+**LICENCE AND LINEAGE, because this is the first published payload with route identity in
+it.** The GEOMETRY and the route identity are **STATIC GTFS** — the scheduled service bundle
+`ref/picks` resolves per service date, not the GTFS-Realtime feeds — and the MTA developer
+terms expressly authorise *"download and host the data on a non-MTA server ... and make the
+data available to others who will access that non-MTA server"*, which is what this is. The
+SPEED figures are raincheck's own historical aggregate over 2021-08-16..2021-10-16 and
+2023-09-01..2023-11-01, the same estimand off the same Gold table that `files/cells.geojson`
+already publishes ungated: **no vehicle row, no vehicle id, no timestamp and no current
+snapshot reaches `files/geo/`**, which is what keeps it on the open side of the lineage gate
+while `files/live.geojson` and `files/impact.json` stay dark. And **no route bullet, roundel,
+line colour or MTA map styling is reproduced** — the MTA website terms make subway line logos
+and MTA official maps usable only with prior written permission, while a polyline, a stop
+name and a coordinate are facts. The payload carries its own `attribution` member and the
+page prints that string rather than a copy of it.
+
+**`files/geo/scenarios.json` exists because a browser cannot list a directory.** This is a
+prefix family whose served set is DERIVED, which is the property that lets a scenario appear
+without a code change — and a static client has no way to discover it. The manifest is one
+row per `horizon = 'current'` scenario in `silver/stormwater_extent`: `scenario`, `horizon`,
+`rain_in_hr` and the `key` the extents writer gives that scenario's file. A consumer reads
+this first and then fetches the key it wants.
 
 **`docs/**` is the CURRENT run's report, not an archive of runs.** The nightly's `gxcheck`
 stage rebuilds the whole Data Docs site every run (orchestration ticket 08), so a

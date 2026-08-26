@@ -334,3 +334,73 @@ carries TWO classic library tags (`maplibre-gl.js`, `pmtiles.js`) and still exac
 `type="module"` entry. `test_the_page_is_one_module_entry_with_no_build_step` asserts the
 one-entry rule and that every classic tag is a published `site` key — it no longer counts
 `<script` tags, so a third vendored library is not automatically a failure.
+
+---
+
+## FROM frontend2 03 (2026-08-26, branch `frontend2-03-geography-layers`) — YOU PAINT ABOVE THE GEOGRAPHY BAND
+
+**THE STACK IS 81 LAYERS AND YOURS ARE STILL THE TOP ELEVEN.** Measured in a real engine:
+`bg` · **66 basemap layers** · **`stormwater-fill` `stormwater-line` `routes`** ·
+`zones-fill` … wait, read the order carefully, because the band is NOT at the bottom:
+
+    bg · <66 basemap> · zones-fill · stormwater-fill · stormwater-line · routes ·
+    cells · impact-fill · cells-line · impact-line · zones-line · locate · live · hist · fn · mta
+
+frontend2 03's three layers sit in the ONE gap between `zones-fill` and `cells`. **You add
+NOTHING below `cells`** — your tier points (`fn`, `mta`) and your impact fill are already
+declared above the whole band and need no change. The reason the band is above `zones-fill`
+rather than below it: every basemap layer is inserted with `beforeId: "zones-fill"`, so a
+layer declared below `zones-fill` lands under all 66 basemap layers and is never seen.
+`SPEC_ORDER[1]` is still `zones-fill`, so `basemap.js` is untouched.
+
+`tests/page.py` now exports **`GEO_ORDER = ["stormwater-fill", "stormwater-line", "routes"]`**
+and the frozen-order test asserts the twelve's RELATIVE order with `GEO_ORDER` removed. If
+you add a layer, extend that the same way rather than writing a longer literal.
+
+**THE ONE-RAMP RULE IS A FUNCTION NOW, AND IT BINDS ON YOU: `insight.js applyRamp()`.**
+Your impact fill is `fill: true`, so it joins the frozen Cell-fill radio exactly as before —
+and the moment it is LIT, `applyRamp()` puts the flood zones to `fill-opacity: 0` (outlines
+only) and the route line to `ROUTE_PLAIN` at the thin width. You have to do nothing for that
+to work; you only have to not break it. Call `applyRamp()` after anything you add that can
+change which fill is lit. **The Cell-fill group has a `None` option now** (`data-nofill`),
+without which the rule's other branch was unreachable — a radio cannot be un-checked and
+`impact` is gated and disabled, so the fill could never be off. Do not remove it when you
+light the vehicle gate side.
+
+**THE LAYER IDS AND SOURCES you may need to name:** sources `routes` and `stormwater`; layers
+`routes`, `stormwater-fill`, `stormwater-line`. `LAYERS` ids are `routes` and `stormwater`.
+
+**A LAYER MAY NOW OFFER AN EXCLUSIVE CHOICE INSIDE ITS OWN ROW** — `lyr.opts` /`lyr.opt`,
+rendered by `panel.js optsHTML()` as a second radio GROUP (`data-sc`), and `lyr.legend` is
+raw HTML rendered under the row while the layer is on. Both are set by the layer's own draw
+from the payload it fetched, so they are DATA and not code. Reuse them if a tier layer ever
+needs a sub-choice; do not add a third control mechanism.
+
+**`freshness.load()` AWAITS the draw now.** A draw may be async and may add a source to
+`lyr.srcs` (frontend2 03's zones layer learns its scenario file from its first source and
+fetches the second through `grab()`), so `renderLayers()` cannot run before it finishes.
+This also fixed `basemap.js`, whose draw has been async since frontend2 02 and whose
+`on.basemap = false` was being set after the panel had already rendered.
+
+**ATTRIBUTION HAS A SLOT: `#geo-attribution` inside `#provenance`.** It is filled from each
+payload's own top-level `attribution` member while that layer is on, with `textContent`, and
+emptied when it is off. If `files/impact.json` ever needs a credit, put the string in the
+PAYLOAD and add two lines to `renderGeoAttribution()` — never a copy in the page.
+
+**MTA TRADEMARK MUST, and it is now live rather than forward:** a polyline, a stop name and
+a coordinate are FACTS; a coloured route bullet, a roundel, an MTA line colour and MTA map
+styling are IP usable only with prior written permission. frontend2 03 draws route geometry
+with its own hue (`ROUTE_PLAIN`) and `tests/test_page.py::
+test_no_mta_route_bullet_roundel_or_line_colour_reaches_the_page` fails on the strings
+`route_color`, `daytime_routes`, `roundel` and `bullet` anywhere in the page's JS, HTML or
+CSS. Your tier points are complex-grain and carry no route identity today — keep it that way.
+
+**THE HUES ARE SPENT NOW, so do not reach for green:** `ZONE_DEEP #2e7d5b`,
+`ZONE_NUISANCE #8fcfae`, `ZONE_MASK #7a8794`, `ROUTE_PLAIN #5b6572`, beside `WATER #35d6c2`,
+`ALERT #ffc447`, `HIST #8f7bd6`, `GATED_HUE #d2a24c`, `GREY #3a4049` and the two frozen ramps.
+A test asserts every one of those is distinct and none is on either arm of the diverging ramp.
+
+**`colorExpr(prop, stops, absent = GREY)` TAKES THE ABSENT COLOUR NOW.** spec L's `#3a4049`
+is calibrated to recede among coloured Cell fills and DISAPPEARS as a hairline on the dark
+basemap, so the route line passes `ROUTE_PLAIN` instead. If you ever paint a line or a small
+mark from a payload property, pass an absent colour that is visible on that mark.

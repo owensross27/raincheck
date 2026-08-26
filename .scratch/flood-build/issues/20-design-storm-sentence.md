@@ -182,3 +182,47 @@ the MRMS observation this project already ingests. Full detail:
 the detector means new columns in `silver/cell_stormwater` -> `features_version` ->
 `matrix_version` -> a refit. flood 19 asserts the stamp on both sides of its own run for
 the same reason; keep the sentence on the serving side of that line.
+
+---
+
+## FROM frontend2 03 (2026-08-26) — THE ZONE LAYER YOUR SENTENCE NAMES IS ON THE PAGE
+
+Your sentence places a live MRMS rate against DEP's discrete design-storm intensities. The
+extents are now RENDERED, so the sentence has something to point at and must agree with it.
+
+**THE LAYER, ITS IDS AND ITS PAYLOAD.** `LAYERS` id **`stormwater`**, name
+"Ground: flood zones (DEP design storm)", map layers **`stormwater-fill`** and
+**`stormwater-line`**, source **`stormwater`**. It is `open: false` and fetches nothing until
+ticked. Its FIRST source is `files/geo/scenarios.json` — the manifest `make geo` writes, one
+row per `horizon = 'current'` scenario in `silver/stormwater_extent` with `scenario`,
+`horizon`, `rain_in_hr` and the `key` of that scenario's geojson — and the selected
+scenario's payload is a SECOND source the draw adds. **Today the manifest has exactly one
+row: `moderate`, 2.13 in/hr.** One scenario is visible at a time, chosen by a radio inside
+the layer's own row that is BUILT FROM THE MANIFEST, so a second scenario is a data change.
+
+**READ `rain_in_hr` FROM THE MANIFEST OR FROM `stormwater_extent.SCENARIOS`, NEVER RETYPED.**
+1.77 / 2.13 / 3.66 are that module's constants. The page interpolates the manifest's value
+into the radio label and prints DEP's own `attribution` string from the payload rather than a
+copy of it — the same rule applies to your sentence: if it states an intensity, derive it.
+
+**THE HONESTY LINE IS ALREADY ON SCREEN AND YOURS MUST NOT CONTRADICT IT.** The zone legend
+renders: *"DEP design storm: 2.13 in/hr, current sea level. A PLANNING map of what would
+flood at that rain rate - not an observation of water, not a forecast, and not a
+site-specific determination."* Your sentence is the one that places a MEASURED rate against
+those intensities; keep it to that and do not restate the planning-grade caveat in different
+words, or the page says the same thing twice and slightly differently.
+
+**`not_analyzed` IS A CATEGORY AND IT IS ON SCREEN.** It has its own swatch, its own legend
+row (*"DEP did not model here — this is NOT 'no flooding'"*) and a deliberately recessive
+opacity (0.16 against the depths' 0.5, because the mask polygons are the big ones and at the
+depths' opacity they wash the city out). **A sentence that brackets a live rate between
+scenarios must not imply that everything unpainted was modelled and found dry.**
+
+**ONE RAMP ON SCREEN (D1) BINDS ON ANYTHING YOU ADD.** While a Cell fill is lit the zones are
+outlines and the route line is uncoloured; the rule lives in `insight.js applyRamp()`. Your
+sentence is TEXT, so it is unaffected — but if it ever grows a mark on the map, it joins the
+rule.
+
+**AND THE SEAM YOU ALREADY OWN IS UNCHANGED BY THIS TICKET:** frontend2 03 touched no
+`src/raincheck/` module except `export.py` (a `--geo` mode over a new `web/geo.sql`), and
+`live_loop.py` / `flood_panel.py` are byte-identical to master on this branch.
