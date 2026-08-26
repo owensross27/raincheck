@@ -228,3 +228,64 @@ def test_the_shadow_airflow_builds_is_the_nightlys_shape_on_the_shadow_root():
         if name not in builds:
             assert name in notice, f"the run does not say it is skipping {name}"
     assert DagSerialization.from_dict(DagSerialization.to_dict(dag))
+
+
+# --- the second question, when the shas differ ------------------------------------------
+
+def two_builds(tmp_path, tweak):
+    """The same partition twice, the second one perturbed by `tweak(value) -> value`."""
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    rows = [{"cell": f"c{i}", "dist_m_sum": 1000.0 + i, "route_id": "B41"} for i in range(50)]
+    out = []
+    for name, f in (("a", lambda v: v), ("b", tweak)):
+        part = tmp_path / name / "service_date=2026-08-22"
+        part.mkdir(parents=True)
+        pq.write_table(pa.table({"cell": [r["cell"] for r in rows],
+                                 "dist_m_sum": [f(r["dist_m_sum"]) for r in rows],
+                                 "route_id": [r["route_id"] for r in rows]}),
+                       part / "part-00000.parquet")
+        out.append(part)
+    return out
+
+
+def test_a_one_ulp_float_sum_is_the_same_number_and_a_real_difference_is_not(tmp_path):
+    """MEASURED on the first shadow: `leg_hours.dist_m_sum` is a distributed sum() of
+    DOUBLEs, floating-point addition is not associative, and the two runtimes split their
+    input differently - so 16,773 of 72,087 rows differed by at most **1.24e-15 relative**,
+    one ULP, on data that is otherwise identical. An exact sha over such a column can never
+    match across two runtimes, so a gate built only on it could never go green on a correct
+    build. The tolerance is therefore stated, bounded, and asked ONLY after the exact
+    question has been answered - `parity.compare` itself is untouched, because the T17
+    backfill gate reads it and wants exactness."""
+    shadow_day = driver()
+    a, b = two_builds(tmp_path, lambda v: v * (1 + 4e-16))
+    row = shadow_day.compare(str(a), b)
+    assert not row["ok"], "the fixture is degenerate - the two sides are byte-equal"
+    assert row["ok_within_tolerance"] and shadow_day.settled(row)
+    # keyed "" and not "service_date=...": the compare is rooted ON the partition, which is
+    # the MUST this whole ticket carries - a table-rooted one lists every other partition as
+    # missing and can never be `ok`.
+    assert list(row["columns"][""]) == ["dist_m_sum"]
+
+    # ...and the same machinery must REFUSE a difference that means something
+    a, b = two_builds(tmp_path / "far", lambda v: v * 1.01)
+    row = shadow_day.compare(str(a), b)
+    assert not shadow_day.settled(row), "a 1% difference passed a 1e-9 bound"
+
+
+def test_a_non_float_column_is_never_within_tolerance(tmp_path):
+    """The bound is about floating-point addition order and nothing else. A string, an
+    integer or a changed row count is a disagreement about the data, and no amount of
+    smallness makes it one of these."""
+    shadow_day = driver()
+    a, b = two_builds(tmp_path, lambda v: v)
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+    table = pq.read_table(b / "part-00000.parquet").to_pydict()
+    table["route_id"] = ["Q59"] + table["route_id"][1:]          # one changed label
+    pq.write_table(pa.table(table), b / "part-00000.parquet")
+    row = shadow_day.compare(str(a), b)
+    assert not shadow_day.settled(row)
+    assert row["columns"][""]["route_id"]["float"] is False
