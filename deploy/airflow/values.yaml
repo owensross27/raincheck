@@ -247,6 +247,18 @@ dagProcessor:
 workers:
   kubernetes:
     serviceAccount: *sa
+    # THE EXECUTOR'S WORKER POD IS THE OTHER HALF OF EVERY TASK, and it needs the same
+    # protection from consolidation the stage pod gets in cloud 03's placement table
+    # (orch 11, measured 2026-08-25). A task is TWO burst pods: this one runs
+    # `airflow tasks run` and OWNS the task instance, and the KubernetesPodOperator's
+    # stage pod runs beside it - so evicting THIS one kills the task however well the
+    # stage pod is pinned, which is exactly what happened to an `events` build 14 minutes
+    # in. The chart already ships `cluster-autoscaler.kubernetes.io/safe-to-evict: "false"`
+    # on this template and it is a NO-OP here: that annotation is the Cluster Autoscaler's,
+    # this cluster runs KARPENTER, and Karpenter reads `karpenter.sh/do-not-disrupt`.
+    # It costs nothing: these pods exit when their task does.
+    podAnnotations:
+      karpenter.sh/do-not-disrupt: "true"
     nodeSelector:
       raincheck.io/pool: burst
     resources:
