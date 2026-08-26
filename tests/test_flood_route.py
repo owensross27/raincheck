@@ -424,12 +424,24 @@ def test_the_geodesic_measure_is_the_one_that_wrote_silver_shapes(root, built):
 
 
 def test_geodesic_m_takes_only_the_linear_parts():
-    """`ST_Intersection` hands back a POINT where a line grazes a polygon corner, and a
-    union then carries it inside a collection."""
+    """`ST_Intersection` hands back a POINT where a line grazes a polygon corner, and a union
+    then carries it inside a collection.
+
+    A POINT ALONE CANNOT TEST THIS AND THE FIRST VERSION OF THIS TEST USED ONE. Measured:
+    `GEOD.geometry_length` of a Point is **0.0**, so dropping the filter changes nothing and
+    the mutation SURVIVED — the degenerate-fixture trap, where the fixture's value for the
+    term under test is the identity element. A POLYGON is what discriminates it: pyproj
+    returns its PERIMETER (3,911 m for the box below against the line's 845 m, a 5.6x
+    over-count), so the collection carries both a part that cannot see the guard and a part
+    that can."""
     import shapely
-    g = shapely.GeometryCollection([shapely.from_wkt(line(0, 0)), shapely.Point(-74, 40.7)])
+    ls = shapely.from_wkt(line(0, 0))
+    poly = shapely.box(LON[0], LAT0, LON[1], LAT1)
+    assert GEOD.geometry_length(shapely.Point(LON[0], LAT0)) == 0.0     # the degenerate part
+    assert GEOD.geometry_length(poly) > 3 * GEOD.geometry_length(ls)    # the one that isn't
+    g = shapely.GeometryCollection([ls, shapely.Point(LON[0], LAT0), poly])
     assert fr.geodesic_m(shapely.to_wkb(g)) == pytest.approx(
-        GEOD.geometry_length(shapely.from_wkt(line(0, 0))), rel=1e-12)
+        GEOD.geometry_length(ls), rel=1e-12)
 
 
 # --- reproducibility ----------------------------------------------------------------------
