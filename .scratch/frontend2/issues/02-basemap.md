@@ -1,6 +1,6 @@
 # frontend2 02 — the basemap decision, landed
 
-**Status: in-progress 2026-08-25** — branch `frontend2-02-basemap`. (Written from the paste
+**Status: DONE 2026-08-25** — branch `frontend2-02-basemap`, final `a403dba`, PUSHED, landed on master at the wave-6 gate; +14 tests, 22 mutants / 21 killed (the one survivor is measured-equivalent and recorded). The R2 half stays UNMEASURED, blocked on the `raincheck-public` bucket ([YOU]). (Written from the paste
 box in `~/vault/raincheck-runbook/DESTINATION-PLAN.md` §2, re-armed as wave 6 box I.)
 
 **Gate: SATISFIED.** frontend2 01's completion entry is in `RUN-LOG-ARCHIVE.md` (the

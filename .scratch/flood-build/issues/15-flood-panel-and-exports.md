@@ -7,7 +7,7 @@ anywhere. Spec: Real-time detector (serving, claims, logging); Testing seam 3.
 
 **Blocked by:** 11, 12, 13, 14 — and externally on the pipeline build: 11 (live-precip job, as amended with the catch-up fetch) and 13 (page skeleton + the pure-SQL JSON writer / merge-patch path). Explicitly NOT blocked by pipeline 12 (Kafka/streaming) — the spec ships the flood panel ahead of the bus live view: the flood tick joins pipeline 14's 30 s loop if it has landed, else stands the loop up itself with flood keys only and pipeline 14 merges its bus payload into the same process later
 
-**Status:** ready-for-agent
+**Status:** DONE 2026-08-25 — branch `flood15-panel-exports`, `b9b4a39`, +63 tests, 18/18 mutants killed. Two families frozen (`flood` OPEN, `flood-mta` GATED), the six staleness constants all DERIVED, and the RELEASE CHECKLIST landed (`src/raincheck/release_check.py`, `make release-check`, 15/15 rows pass rc 0 on the landed tree). Ships on flood 12's PROVISIONAL branch by READING the flag. See the close-out below.
 
 - [ ] the flood tick joins the existing 30 s export loop: one process, one meta file whose flood keys the single writer merges, cycles cannot overlap; the tick skips work unless the newest precip stamp advanced or a truth-source throttle expired (FloodNet 120 s, CO-OPS 360 s, NWS 300 s); every fetch has a hard 3 s timeout; last-good values keep their own age; one hung socket never stalls the bus panel
 - [ ] three export files — all Cells as geometry, point Units only at ELEVATED+, the truth payload — written through the same pure-SQL merge-patch path (absent keys, never nulls), payload-then-meta atomic replace, one cycle_id across the set

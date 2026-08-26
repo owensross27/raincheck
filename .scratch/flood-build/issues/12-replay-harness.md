@@ -7,7 +7,7 @@ Spec: Real-time detector (tiers, logging/replay); Testing seam 2.
 
 **Blocked by:** 06, 11 — and externally on the pipeline build: 11 (live-precip job, as amended: each tick catches up every missing :00 stamp within MRMS's measured ~25 h retention; replay of any live-era Window is conditional on that catch-up)
 
-**Status:** ready-for-agent
+**Status:** DONE 2026-08-25 — branch `flood12-replay-harness`, `adcc5dd`, +38 tests, 14/14 mutants killed; assets `research/flood-12-replay.{json,md}`, `make flood-replay`. **The SECOND acceptance box is deliberately NOT ticked and is not this ticket's to tick: the tier decision is [YOU]-Ross's.** The harness MEASURED and RECOMMENDED (v1 ships rank-only; counter-case HIGH-alone-at-Cell) and did not touch the artifact — `cutpoints.provisional` is still `true`, `confirmed_by` `None`, `detector_version` still `01197991471f`. See the close-out below and the wave-6 gate's STATUS [YOU] item 1.
 
 - [ ] every AORC-era union event replays through the ticket-11 walk + evaluation on the flood-era precip tables; signed live-minus-offline feature deltas and per-event flag volumes (ELEVATED and HIGH counts per kind) publish as build assets
 - [ ] the tier decision is recorded and applied: cutpoints confirmed, or — if per-event false-positive volume is unacceptable — v1 ships rank-only; either way the detector constants JSON updates and detector_version bumps

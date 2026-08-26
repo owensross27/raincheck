@@ -10,7 +10,7 @@ DAG run is by construction a different session than the LaunchAgent's.
 **Blocked by:** 05 (the nightly DAG), 06 (fan-out) — so the shadow tests the shape that
 will actually run. **External:** the shared parity module declared by the cloud effort.
 
-**Status:** ready-for-agent
+**Status:** DONE 2026-08-25 — branch `orch11-shadow-parity`, `6d7a5bb`, 7 commits, **+12 tests (recounted at the wave-6 gate; the RUN-LOG entry's +10 is wrong, `tests/test_shadow.py` holds 11 `def test_` and `test_parity.py` went 11 -> 12)**. One CLEAN shadow day recorded — **2026-08-23, and orch 12's seven count from it**. Three defects found by running it (Karpenter eviction, the distributed float sum, and `silver/events` not being reproducible from its own inputs — the third is orch 12's to settle). Cluster left clean: `raincheck_daily` PAUSED throughout, both scratch tags deleted from ECR, pin drift gone. See the close-out below.
 
 - [ ] The shadow DAG writes to a shadow data root and never touches the live Silver, Gold or live prefixes
 - [ ] The fill, the cold push and the live-table prune are disabled in shadow mode, and the run says so rather than silently skipping them
