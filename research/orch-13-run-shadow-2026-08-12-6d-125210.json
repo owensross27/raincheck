@@ -1,0 +1,130 @@
+{
+  "run": {
+    "dag_id": "raincheck_shadow",
+    "run_id": "shadow-2026-08-12-6d-125210",
+    "label": "shadow",
+    "started": "2026-08-26T12:53:56.305957Z",
+    "ended": "2026-08-26T13:16:42.215273Z",
+    "wall_seconds": 1365.9
+  },
+  "source": {
+    "kind": "the run's own Airflow task logs",
+    "states": "derived from each log's ending; see raincheck.showcase._state"
+  },
+  "instances": [
+    {
+      "task_id": "disabled",
+      "map_index": -1,
+      "tries": 1,
+      "started": "2026-08-26T12:53:56.305957Z",
+      "ended": "2026-08-26T12:54:44.735494Z",
+      "seconds": 48.4,
+      "state": "success",
+      "exit_code": null
+    },
+    {
+      "task_id": "events",
+      "map_index": 0,
+      "tries": 1,
+      "started": "2026-08-26T12:56:27.399640Z",
+      "ended": "2026-08-26T13:12:43.625041Z",
+      "seconds": 976.2,
+      "state": "success",
+      "exit_code": null
+    },
+    {
+      "task_id": "events",
+      "map_index": 1,
+      "tries": 1,
+      "started": "2026-08-26T12:56:52.799262Z",
+      "ended": "2026-08-26T13:12:38.064443Z",
+      "seconds": 945.3,
+      "state": "success",
+      "exit_code": null
+    },
+    {
+      "task_id": "events",
+      "map_index": 2,
+      "tries": 1,
+      "started": "2026-08-26T12:56:52.593206Z",
+      "ended": "2026-08-26T13:14:04.688798Z",
+      "seconds": 1032.1,
+      "state": "success",
+      "exit_code": null
+    },
+    {
+      "task_id": "events",
+      "map_index": 3,
+      "tries": 1,
+      "started": "2026-08-26T12:56:52.677247Z",
+      "ended": "2026-08-26T13:10:10.814872Z",
+      "seconds": 798.1,
+      "state": "success",
+      "exit_code": null
+    },
+    {
+      "task_id": "events",
+      "map_index": 4,
+      "tries": 1,
+      "started": "2026-08-26T12:56:52.912391Z",
+      "ended": "2026-08-26T13:08:49.864926Z",
+      "seconds": 717.0,
+      "state": "success",
+      "exit_code": null
+    },
+    {
+      "task_id": "events",
+      "map_index": 5,
+      "tries": 1,
+      "started": "2026-08-26T12:56:52.906683Z",
+      "ended": "2026-08-26T13:12:37.430408Z",
+      "seconds": 944.5,
+      "state": "success",
+      "exit_code": null
+    },
+    {
+      "task_id": "gold",
+      "map_index": -1,
+      "tries": 1,
+      "started": "2026-08-26T13:14:07.896793Z",
+      "ended": "2026-08-26T13:16:42.215273Z",
+      "seconds": 154.3,
+      "state": "success",
+      "exit_code": null
+    },
+    {
+      "task_id": "plan_service_date",
+      "map_index": -1,
+      "tries": 1,
+      "started": "2026-08-26T12:54:53.020968Z",
+      "ended": "2026-08-26T12:56:23.010497Z",
+      "seconds": 90.0,
+      "state": "success",
+      "exit_code": null
+    }
+  ],
+  "totals": {
+    "instances": 9,
+    "pods": 18,
+    "task_seconds": 5705.9,
+    "widest_map": 6
+  },
+  "verdict": {
+    "lines": [
+      "daily: OK",
+      "daily: OK",
+      "daily: OK",
+      "daily: OK",
+      "daily: OK",
+      "daily: OK",
+      "daily: OK",
+      "daily: OK"
+    ],
+    "source": "daily.verdict(), from the report task's log"
+  },
+  "serial_baseline": {
+    "seconds": 1928,
+    "service_days": 7,
+    "steady_seconds_per_day": 275
+  }
+}
