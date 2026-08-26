@@ -14,6 +14,7 @@ something.
 """
 import ast
 import inspect
+import re
 import shutil
 from pathlib import Path
 
@@ -517,7 +518,12 @@ def test_the_extra_is_pinned_to_one_major_version():
     DELIBERATELY NOT IN THE IMAGE: `docker/Dockerfile` installs `[gx]` and must NOT gain
     `[mcp]` -- no pod runs this server, and the image is not this ticket's to rewrite."""
     assert 'mcp = ["mcp>=2.1,<3"]' in (ROOT / "pyproject.toml").read_text()
-    assert "[mcp]" not in (ROOT / "docker" / "Dockerfile").read_text()
+    # the EXTRAS the image installs, parsed -- `"[mcp]" not in text` is not that check:
+    # it passes on `[gx,mcp]`, which is the exact edit it exists to forbid (measured, that
+    # mutant survived)
+    installed = re.findall(r"/opt/raincheck\[([^\]]*)\]",
+                           (ROOT / "docker" / "Dockerfile").read_text())
+    assert installed and all(set(e.split(",")) == {"gx"} for e in installed), installed
 
 
 def test_no_module_but_this_one_imports_the_sdk_and_this_one_does_it_lazily():
