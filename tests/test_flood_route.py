@@ -97,6 +97,30 @@ EVENT_DAYS = {"2021-09-01": (date(2021, 9, 1), date(2021, 9, 2)),
 ZIP_SHA = "z" * 64
 LABEL_V, SPINE_V, FEATURES_V = "lv-fixture", "sv-fixture", "fv-fixture"
 
+# The exhibit's Gold rows. 2021-09-02 is a THURSDAY, so hour_of_week is 72 + the local hour;
+# 18:00 UTC is 14:00 EDT, i.e. 86 — the same block Ida's real 24 hours land on.
+#
+# R1's two event-day rows are the discriminating pair: 100 arrivals WITH a late_share and 900
+# WITHOUT one. Weighted over the rows that have one it is 0.5; weighted over all n_events it
+# is 0.05. On the real root only 3,161 of 1.36 M rows are NULL, so the two answers differ in
+# the fourth digit and no assertion could tell them apart — here they differ tenfold.
+_H = lambda d, h: f"TIMESTAMPTZ '{d} {h}:00:00+00'"      # noqa: E731
+CHR_ROWS = [
+    f"({CELLS[0]}::BIGINT, {_H('2021-09-02', '18')}, 'R1', 0::TINYINT, 100::BIGINT, 0.5, 60.0, '2021-09')",
+    f"({CELLS[1]}::BIGINT, {_H('2021-09-02', '19')}, 'R1', 0::TINYINT, 900::BIGINT, NULL, NULL, '2021-09')",
+    # 2021-09-03 is a Friday and no event covers it: the dry side of the substitute
+    f"({CELLS[0]}::BIGINT, {_H('2021-09-03', '18')}, 'R1', 0::TINYINT, 10::BIGINT, 0.1, 10.0, '2021-09')",
+    # 2023-09-29 is inside w2's DECLARED span and w2 is NOT planted below - the case that
+    # tells "the window covers this day" from "the window is on disk"
+    f"({CELLS[0]}::BIGINT, {_H('2023-09-29', '18')}, 'R1', 0::TINYINT, 5::BIGINT, 0.2, 20.0, '2023-09')",
+]
+CHS_ROWS = [
+    f"({CELLS[0]}::BIGINT, {_H('2021-09-02', '18')}, 'R1', 1000.0, 500::BIGINT, '2021-09')",
+]
+BASE_ROWS = [   # speed_dry 4.0 against the event hour's 2.0: a ratio of exactly 0.5
+    f"({CELLS[0]}::BIGINT, 86::SMALLINT, 1000.0, 250::BIGINT, 'w1')",
+]
+
 
 def _copy(con, root: Path, table: tuple[str, ...], select: str) -> None:
     out = root.joinpath(*table)
@@ -152,6 +176,20 @@ def plant(root: Path, *, stormwater=STORMWATER, labels=LABELS, extent=EXTENT,
                     for ev, (a, b) in EVENT_DAYS.items())
     _copy(con, root, ("silver", "flood_events"),
           "SELECT * FROM (VALUES " + evs + ") t(event_id, day_start, day_end, spine_version)")
+
+    # --- the EXHIBIT's inputs. Three things this half has to discriminate and the Gold
+    # table's fixture cannot: a share weighted over rows that HAVE one vs over all of them,
+    # a baseline window that is in range but not on disk, and a dry side made of other
+    # weekdays. All three survived a mutation round until these tables existed.
+    _copy(con, root, ("gold", "cell_hour_route"),
+          "SELECT * FROM (VALUES " + ", ".join(CHR_ROWS) + ") t(cell, hour_end_utc, route_id, "
+          "direction_id, n_events, late_share, ewt_s, month)")
+    _copy(con, root, ("gold", "cell_hour_speed"),
+          "SELECT * FROM (VALUES " + ", ".join(CHS_ROWS) + ") t(cell, hour_end_utc, route_id, "
+          "dist_m_sum, dt_s_sum, month)")
+    _copy(con, root, ("gold", "cell_hourofweek_baseline"),
+          "SELECT * FROM (VALUES " + ", ".join(BASE_ROWS) + ") t(cell, hour_of_week, "
+          "dist_m_sum_dry, dt_s_sum_dry, \"window\")")
     con.close()
     return root
 
@@ -679,3 +717,79 @@ def test_the_real_table_is_reproducible_and_its_shares_are_bounded():
         assert 0.0 <= row["share_len_moderate"] <= 1.0
         assert row["share_len_limited"] is None and row["share_len_extreme"] is None
         assert row["n_cells"] >= row["n_cells_flood_prone"]
+
+
+# --- the exhibit, on a fixture ------------------------------------------------------------
+
+
+@pytest.fixture
+def doc(root):
+    return fr.exhibit(root)
+
+
+def test_the_exhibit_universe_is_the_hours_held_not_the_months(doc):
+    """Both planted events have hours in `cell_hour_route`, and the asset says N out loud."""
+    assert doc["universe"]["n_events"] == 2 == len(doc["events"])
+    assert [e["event_id"] for e in doc["events"]] == ["2021-09-01", "2023-09-29"]
+    assert doc["events"][0]["days_covered"] == ["2021-09-02"]      # not 09-01, which has no hours
+    assert set(doc["universe"]["months_held"]) == {"2021-09", "2023-09"}
+
+
+def test_the_exhibit_weights_a_share_by_the_rows_that_have_one(doc):
+    """100 arrivals carry a `late_share` of 0.5 and 900 carry none. The share of the hours
+    that HAVE one is 0.5; dividing by all 1,000 arrivals gives 0.05 and is a different claim
+    — it reads the missing rows as zero-late. A mutation doing exactly that survived the
+    whole suite until this fixture existed, because on the real root only 3,161 of 1.36 M
+    rows are NULL and the two answers differ in the fourth digit."""
+    r = next(x for x in doc["events"][0]["routes"] if x["route_id"] == "R1")
+    assert r["late_share"] == pytest.approx(0.5)
+    assert r["ewt_s"] == pytest.approx(60.0)
+    assert r["n_hours"] == 2 and r["n_events"] == 1000
+
+
+def test_the_exhibit_reports_the_speed_ratio_against_the_window_on_disk(doc):
+    """`cell_hourofweek_baseline` carries `speed_dry` and NO delay column, so the route's own
+    baseline for the same hours is a SPEED — 1000 m / 250 s = 4.0 dry against 1000 m / 500 s
+    = 2.0 on the event hour."""
+    ev = doc["events"][0]
+    r = next(x for x in ev["routes"] if x["route_id"] == "R1")
+    assert ev["baseline_window"] == "w1"
+    assert r["speed_mps"] == pytest.approx(2.0) and r["speed_dry"] == pytest.approx(4.0)
+    assert r["speed_ratio"] == pytest.approx(0.5)
+
+
+def test_a_baseline_window_in_range_but_not_on_disk_is_absent_not_named(doc):
+    """2023-09-29 sits inside `w2`'s DECLARED span and no `w2` partition was planted. The
+    window must read ABSENT: naming a window nothing built would put a label on a comparison
+    that never happened, and the join is silently empty either way — so only the reported
+    NAME can tell the two apart."""
+    ev = doc["events"][1]
+    assert ev["baseline_window"] is None
+    assert ev["speed_ratio_available"] == 0
+    assert all(x["speed_dry"] is None for x in ev["routes"])
+
+
+def test_the_baseline_overlap_is_reported_where_a_window_exists(doc):
+    """`gold.baseline()` masks by wetness, not by date, so an event day's own post-storm dry
+    hours enter its own baseline. The asset publishes the calendar behind that rather than
+    leaving a reader to assume independence."""
+    o = doc["events"][0]["baseline_overlap"]
+    assert o["window"] == "w1" and o["days_sharing_the_event_weekday"] == 9   # nine Thursdays
+    assert o["event_days_inside_the_window"] == ["2021-09-02"]
+    assert doc["events"][1]["baseline_overlap"] is None      # no window, nothing to report
+
+
+def test_the_substitute_dry_side_is_other_weekdays_of_the_same_month(doc):
+    """Labelled as a substitute everywhere: it is NOT the named baseline table and it is NOT
+    hour-of-week matched. 2021-09-03 is the Friday that is not an event day."""
+    r = next(x for x in doc["events"][0]["routes"] if x["route_id"] == "R1")
+    assert r["other_weekdays"]["late_share"] == pytest.approx(0.1)
+    assert r["other_weekdays"]["n_days"] == 1 and r["other_weekdays"]["n_hours"] == 1
+
+
+def test_the_exhibit_markdown_names_what_it_cannot_say(doc):
+    md = fr.markdown(doc)
+    assert "N = 2 flood events" in md
+    assert "no interval" in md.lower() and "CSI" in md and "base rate" in md
+    assert "ABSENT" in md                       # the 2023 event's missing window
+    assert "NOT the named baseline table" in md
