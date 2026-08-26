@@ -8,3 +8,8 @@ web/files/
 web/showcase/
 web/vendor/
 web/tiles/
+.DS_Store
+# A worktree nested here is a second copy of src/ INSIDE every recursive grep's search
+# path, and `.claude` sorts before `src`, so the stale copies come back FIRST. Worktrees
+# belong at /Users/ross/raincheck-wt/<ticket> - see the runbook protocol and TRAPS.
+.claude/worktrees/
