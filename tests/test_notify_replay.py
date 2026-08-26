@@ -351,15 +351,15 @@ def test_both_states_are_chained_so_the_dedupe_can_work(ida, art, det, run):
     """Each call's return is the next call's `previous`. Break the decision chain and the
     same Unit re-notifies every cycle — a rank has no latch of its own."""
     us, subs, p = run["units"], run["subs"], run["watch"]
-    by_hour, chained, unchained, state = _by_hour(ida["hours"]), 0, 0, None
-    prev = None
-    for now in fr.hours(ida["peak"], ida["peak"] + timedelta(hours=5)):
+    by_hour, unchained, state = _by_hour(ida["hours"]), 0, None
+    # the CHAINED number comes from the harness itself, not from a second loop here: a
+    # control the test re-implements cannot see the harness stop chaining.
+    chained = run["got"]["all/watch"]["messages"]
+    for now in fr.hours(_ev(ida)["window_start_utc"] + timedelta(hours=1),
+                        _ev(ida)["window_end_utc"]):
         w = fd.walk(now, ida["wet"])
         state = fd.cycle(state, now, fr.slice_rows(by_hour, w["anchor"], now), us, art, det,
-                         temp_c=22.0, wet_by_hour=ida["wet"],
-                         table_score_version=art["score_version"])
-        prev = nd.decide(state, prev, subs, p, now)
-        chained += len(prev.messages)
+                         wet_by_hour=ida["wet"], table_score_version=art["score_version"])
         unchained += len(nd.decide(state, None, subs, p, now).messages)
     assert 0 < chained < unchained
 
@@ -388,15 +388,23 @@ def test_the_fuses_victims_and_the_caps_victims_are_separate_rows(run, ida, art,
     assert d.summary()["dropped"] == {nd.CYCLE_FUSE: len(d.drops)}
 
 
-def test_the_per_kind_split_is_the_messages_own_asset_kind(run, ida, art, det, p):
+def test_the_per_kind_split_is_the_messages_own_asset_kind(run, ida, art, det):
+    """Driven with a Decision that BOTH sends and drops. On one that only sends, folding
+    the drops into the message count is invisible — the degenerate-fixture trap [TRAPS],
+    and it is what let two counters survive a mutation round."""
     cyc = fd.cycle(None, ida["peak"], ida["hours"], run["units"], art, det, temp_c=22.0,
                    wet_by_hour=ida["wet"], table_score_version=art["score_version"])
-    d = nd.decide(cyc, None, run["subs"], p, NOON)
+    d = nd.decide(cyc, None, run["subs"], nd.policy(det, per_cycle_fuse=1), NOON)
+    assert d.messages and d.drops, "this fixture must both send and drop"
     t = nr.tally()
     nr.add(t, d)
     assert dict(t["by_kind"]) == {k: sum(1 for m in d.messages if m.asset_kind == k)
                                  for k in {m.asset_kind for m in d.messages}}
     assert sum(t["by_kind"].values()) == t["messages"] == len(d.messages)
+    assert t["drops"] == len(d.drops)
+    # a cycle WANTED what it sent plus what it dropped, and the two are never pooled
+    assert t["peak_cycle_messages"] == len(d.messages)
+    assert t["peak_cycle_wanted"] == len(d.messages) + len(d.drops) > t["peak_cycle_messages"]
 
 
 def test_on_the_watch_branch_no_message_is_urgent_so_quiet_hours_reach_all_of_them(
@@ -731,3 +739,43 @@ def test_more_than_one_per_subscription_names_both_of_its_causes(p):
     owed 62 on 60 subscriptions across ONE Window. Calling that a roll would be wrong."""
     e = nr.expectations(p.per_cycle_fuse)[nr.PER_SUB]
     assert "windows" in e["means"] and "ESCALATION" in e["means"] and "ROLLED" in e["means"]
+
+
+def test_both_states_are_chained_in_the_loop_itself(run):
+    """The structural half of the claim above, and the one a volume test cannot make:
+    `fd.cycle`'s FIRST argument is the previous cycle's return and `nd.decide`'s SECOND is
+    this chain's own previous Decision. Passing `None` to either compiles, runs, and
+    quietly re-notifies — the latch and the (unit, window_id) dedupe both live in those
+    two arguments."""
+    fn = next(n for n in ast.walk(TREE)
+              if isinstance(n, ast.FunctionDef) and n.name == "replay")
+    cyc = next(c for c in ast.walk(fn) if isinstance(c, ast.Call)
+               and isinstance(c.func, ast.Attribute) and c.func.attr == "cycle")
+    dec = next(c for c in ast.walk(fn) if isinstance(c, ast.Call)
+               and isinstance(c.func, ast.Attribute) and c.func.attr == "decide")
+    assert isinstance(cyc.args[0], ast.Name) and cyc.args[0].id == "state"
+    assert isinstance(dec.args[1], ast.Subscript), "decide's `previous` is not prev[k]"
+    assert isinstance(dec.args[1].value, ast.Name) and dec.args[1].value.id == "prev"
+
+
+def test_the_row_shape_guard_fires_when_the_stores_columns_move(monkeypatch):
+    """The guard cannot fire on any data this module produces — it exists for the day
+    `ns.COLUMNS` changes and the literal here does not. So it is tested by moving the
+    store's own constant, which is the only thing that can discriminate it [TRAPS: two
+    values indistinguishable in every row that exists]."""
+    rows = [("bus:1", "bus_stop")]
+    assert nr.subscribers(rows, 1)
+    monkeypatch.setattr(ns, "COLUMNS", ns.COLUMNS + ("referrer",))
+    with pytest.raises(ValueError, match="store's shape"):
+        nr.subscribers(rows, 1)
+
+
+def test_the_build_refuses_a_skewed_score_stamp_instead_of_publishing_zeros(monkeypatch,
+                                                                           tmp_path):
+    """`nd.silent()` returns `version_skew` on EVERY cycle when the table stamp and the
+    coefficients disagree, so a skewed run publishes a quiet decade that looks like a
+    result. The guard runs before any event is read; nothing else in this module can
+    notice."""
+    monkeypatch.setattr(fr, "table_score_version", lambda *a, **k: "a-different-model")
+    with pytest.raises(ValueError, match="version skew"):
+        nr.build(root=tmp_path, out=tmp_path / "o.json", doc=tmp_path / "o.md")
