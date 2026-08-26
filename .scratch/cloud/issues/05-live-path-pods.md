@@ -161,3 +161,30 @@ modules was barred and every writer here is POSIX-shaped. So `live/`-on-R2 is st
 available to this ticket, for `precip_live` (which was always doubly blocked) *and* for the
 others. That needs a follow-on that changes the WRITERS - it is not a `paths.py` question
 any more.
+
+## From forecast 01 (2026-08-26) — `precip-live.yaml` was evaluated as a template and NOT copied
+
+`deploy/k8s/raincheck/precip-live.yaml` was named in DESTINATION §4 as the manifest a
+precipitation-FORECAST CronJob would copy. **forecast 01 recommends NONE, so no such
+ticket follows** and this manifest gains no sibling. Recorded because the evaluation
+produced two corrections anyone reusing this shape needs, and one number that flatters it:
+
+- **`*/5 * * * *` DOES NOT TRANSFER.** It is right for MRMS, which publishes hourly and is
+  re-fetched cheaply. HRRR publishes once an hour at **cycle + 53.74 min (p50, n=40; max
+  74.98)**, so a 5-minute tick would re-ask an unchanged bucket ~12x per publication —
+  the standing "poll at the source's rate, not your render rate" trap, which this very
+  manifest's sibling (`raincheck-live`, 360 s CO-OPS fetch inside a 30 s loop) already
+  encodes correctly. `*/20` plus the existing catch-up walk covers the measured spread.
+- **THE READ RULE DOES NOT TRANSFER EITHER.** `live/precip_cell` is "latest `fetched_at`
+  wins per (cell, valid_ts)" because MRMS revises. A forecast table's key is the freshest
+  **`issued_ts`** per `(cell, valid_ts)` — a cycle's file is immutable, so `fetched_at`
+  arbitrates the wrong thing.
+- **The pod shape itself is generous, measured:** a full HRRR tick (idx GET 0.085 s +
+  ranged GET 0.241 s + decode 1799x1059 0.044 s + `cell_means` 0.001 s) is **0.372 s at
+  169 MiB peak RSS** — *cheaper* than this manifest's own MRMS tick (0.70 s / 384 MiB
+  steady; 10.61 s / 592 MiB cold), because MRMS decodes 3500x7000 and HRRR only
+  1799x1059. 100m/256Mi request with a 1Gi limit would have fit it with room.
+- **The emptyDir blocker would have been inherited unchanged**, and worse: a forecast
+  table that dies with the pod makes every tick refetch every cycle in its window.
+
+Detail: `~/vault/nyc-precip-forecast-reference.md` §7, §9.
