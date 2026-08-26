@@ -748,6 +748,11 @@ def test_the_exhibit_universe_is_the_hours_held_not_the_months(doc):
     assert [e["event_id"] for e in doc["events"]] == ["2021-09-01", "2023-09-29"]
     assert doc["events"][0]["days_covered"] == ["2021-09-02"]      # not 09-01, which has no hours
     assert set(doc["universe"]["months_held"]) == {"2021-09", "2023-09"}
+    # n_hours is the HOURS HELD, counted, not the 24 a whole day would have. It is the number
+    # that says how thin this evidence is - the real 2021-09 partition carries 29 hours across
+    # two days, not a month - so a hard-coded 24 would flatter every event on the page.
+    assert [e["n_hours"] for e in doc["events"]] == [2, 1]
+    assert doc["events"][0]["n_routes"] == 1
 
 
 def test_the_exhibit_weights_a_share_by_the_rows_that_have_one(doc):
