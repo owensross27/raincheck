@@ -7,13 +7,13 @@ section 10.
 
 **Blocked by:** 10, 11.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] one make target drives: fixture detector state -> tier entry -> notify decision -> message render -> dry-run send -> unsubscribe token -> empty store. Repeatable, no network, no real subscriber
-- [ ] the synthetic event trips entry, hold, INSUFFICIENT_DATA, the winter gate, quiet hours and the per-subscriber cap
-- [ ] the 2023-09-29 event replays through the detector's own walk, not a hand-built state
-- [ ] the rehearsal asserts message counts and rendered strings; mail transport is NOT asserted — transport is exercised once by hand when the notifier is armed, and that is a HITL step
-- [ ] re-running it after any change costs one command
+- [x] one make target drives: fixture detector state -> tier entry -> notify decision -> message render -> dry-run send -> unsubscribe token -> empty store. Repeatable, no network, no real subscriber — `make notify-rehearse` (`python -m raincheck.notify_rehearse`; `SYNTH=1` runs the rootless half alone)
+- [x] the synthetic event trips entry, hold, INSUFFICIENT_DATA, the winter gate, quiet hours and the per-subscriber cap — plus WINDOW_CAPPED (the one synthetic-only state) and version skew; see DONE
+- [x] the 2023-09-29 event replays through the detector's own walk, not a hand-built state — `notify_replay.inputs` + `notify_replay.replay`, all six chains equal the committed notify-11 row
+- [x] the rehearsal asserts message counts and rendered strings; mail transport is NOT asserted — transport is exercised once by hand when the notifier is armed, and that is a HITL step
+- [x] re-running it after any change costs one command
 
 ## FROM notify 08 (2026-08-25, branch `notify08-decision`) — THE DECISION FUNCTION EXISTS
 
@@ -218,3 +218,97 @@ bracket?}`, shape frozen on frontend 08's file and summary line). Nothing notify
 reads it — `nd.decide`/the renderer never see a design-storm number — so a rehearsal
 asserts at most that the field exists and the line renders; `live_loop.py` is untouched
 and the wave-8 `cycle()` union is notify 10's alone.
+
+## DONE 2026-08-27 — branch `notify12-rehearsal` (the WAVE 9 GATE's P1 row reads this section)
+
+**What shipped:** `make notify-rehearse` -> `python -m raincheck.notify_rehearse`
+(`src/raincheck/notify_rehearse.py`; `SYNTH=1` runs the rootless half alone) +
+`tests/test_notify_rehearse.py` (+17 tests, nothing parametrized) + the Makefile target.
+The rehearsal EDITS none of the chain it drives — `notify_store` / `notify_decide` /
+`raincheck.notify_render` / `raincheck.notify_replay` / `flood_detect` are called, never
+touched (module names spelled in full; neither `nr` module is ever aliased, and a test
+enforces that for both rehearsal files). Every expectation is a printed PASS/FAIL row,
+`release_check`'s shape; rc 1 if any row fails.
+
+**WHAT THE REHEARSAL PROVES (measured 2026-08-27, `make notify-rehearse` = 72/72 rows,
+31.7 s; 42 synthetic + 30 real):**
+
+- **Synthetic half (no data root, real `fd.cycle` payloads over the committed Ida
+  fixture; the only hand-edits are `_retier` and the WINDOW_CAPPED state):** entry + hold
+  on BOTH branches (both policies from the artifact via the provisional flip on a copy —
+  no hand-built Policy, pinned by test) · ELEVATED sends with `elevated_optin` 1 and is
+  silent at 0 · HIGH sends either way · quiet hours DROP an ELEVATED and every watch
+  message (tier None -> nothing urgent), never deliver late, never suppress HIGH, and are
+  pinned at DUSK (01:00 UTC = 21:00 NY) where the two clocks disagree · version skew is
+  silent on a skewed AND an absent table stamp · INSUFFICIENT_DATA silent ·
+  winter gate silent with every rank surviving (the payload-side trap re-checked) ·
+  **WINDOW_CAPPED silent — the ONE synthetic-only state (0 of 4,326 real cycles, flood 12
+  and notify 11 both measured zero), so it is the one hand-edited payload** · **the
+  per-handle cap clips a TIER-branch ELEVATED -> HIGH escalation** (cap overridden to 1
+  via `nd.policy(..., per_handle_event_cap=1)`; structurally unreachable on watch, and
+  the fixture cannot hold ten entering Units on one handle — notify 11's arithmetic).
+- **Real half (the detector's own walk, no hand-built state):** `notify_replay.inputs` +
+  `notify_replay.replay` over **2023-09-29** AND the Window-ROLL event **2025-12-19**,
+  picked at runtime from the committed replay's own over-expectation rows (`windows` > 1
+  — a real mid-storm roll, the city dried and the storm returned; NEVER a `score_version`
+  swap). **All SIX chains (three cohorts x both branches) on BOTH events reproduce the
+  committed `research/notify-11-replay.json` rows EXACTLY** — today's tree makes the same
+  decisions notify 11 recorded, which is the "first real storm is not the rehearsal"
+  claim in measured form. A message-keeping copy of the replay loop folds to tallies
+  identical to `notify_replay.replay`'s on every chain (so the rendered messages come
+  from the same walk). **The per-cycle fuse CLIPS on `top_scored/tier`: 21 `cycle_fuse`
+  drops on 2023-09-29, equal to the committed row** — the top_scored cohort is the only
+  list that can ask it (notify 11's MUST, honoured). Quiet-hours drops appear on the live
+  chain; the roll event shows 2 Windows on every chain; every live-branch message carries
+  `tier: None`.
+- **Strings (11 messages rendered: synthetic watch bus/complex + tier ELEVATED/HIGH;
+  real watch x4 + tier ELEVATED/HIGH/complex; explicit `panel_url=`/`unsubscribe_to=`
+  kwargs, `.invalid` values):** the nine PRESENT items read from
+  `notify_render.strings()` / the artifacts (frozen operating-truth string == 
+  `release_check.frozen_string()`, 254 chars, unfolded in the bytes) · the CONDITIONALS
+  on the MESSAGE, not the kind (`no_skill_claim` rides exactly the carrying messages;
+  `cutpoints_note` only where a tier is claimed) · the ABSENCES: the retired claim via a
+  runtime-assembled needle proved against `release_check.RETIRED` (release-check re-run
+  on the committed tree: **15/15 rows**, row 5 clean with both rehearsal files tracked) ·
+  the word `None` · `display.cutpoints_confirmed_by` · second-scale urgency · observed
+  water, with the barred list written AROUND the frozen string and a row proving the two
+  do not collide · no `List-Unsubscribe-Post` header. **The reporting-propensity sentence
+  is asserted NOWHERE, on purpose** — it exists in no module and no artifact.
+- **The store:** fixture rows from `notify_replay.subscribers` (`.invalid` handles,
+  exactly `ns.COLUMNS`) inserted into a throwaway SQLite store, read back unchanged,
+  decided against, and **drained to ZERO rows through `notify_store.unsubscribe`** with
+  the tokens the messages themselves carry (message tokens first, the operator's sweep
+  for unmessaged handles after): 4 rows synthetic, 25 rows real, `SELECT count(*)` == 0
+  both times.
+- **Tripwires held:** `notify_render.PANEL_URL` / `UNSUBSCRIBE_TO` are still None and
+  asserted so AFTER rendering; nothing sends (AST-pinned: no smtplib/socket/subprocess
+  bound in the module).
+- **Harness falsifiability:** a canary test injects a violating corpus through `_open`'s
+  seam and requires >= 4 rows to flip red; a 4-mutant probe (chain break in the walk ·
+  drain sweep deleted · every string rule neutered · wrong needle fragment) was **4/4
+  killed with pristine 17/17 green before and after** — first attempt disclosed: two
+  probe harnesses accidentally ran CONCURRENTLY over one worktree and confounded each
+  other's attribution (a pytest run imports the module once at collection, so a restore
+  mid-run does not undo a loaded mutant); every mutant was re-run SOLO and the solo
+  numbers are the ones above.
+
+**WHAT IT DELIBERATELY DOES NOT PROVE:**
+
+- **Transport.** Nothing opens a socket and nothing sends; mail is exercised once BY
+  HAND when the notifier is armed, and that HITL arming step does not exist yet (no
+  ticket, no send path, no credential path — notify 10's AST pin unchanged).
+- **Arming.** The dry-run refusal on the unset deployment facts is still the tree's
+  outcome (notify 10); this rehearsal renders only via explicit kwargs and sets nothing.
+- **The loop seam.** `live_loop.cycle()` / `notify_dryrun.dryrun` are notify 10's,
+  pinned by its own tests; the rehearsal drives the same `nd.decide` / 
+  `raincheck.notify_render.render` those call. fb20's `design_storm` field lives in
+  `flood_panel.tick` state, which the rehearsal never touches — nothing notify-side
+  reads it, and nothing here asserts it.
+
+**Numbers for the gate:** branch `notify12-rehearsal`, commits `cce91fb` (feat) + docs;
+test delta **+17** (`def test_` 0 -> 17 in the new file; no other test file touched;
+`test_notify_decide` + `test_notify_render` re-run green, 130 passed). **Skips: the two
+real-half tests skip off-root (join the existing worktree off-root family); on the main
+checkout they RUN** (the skip is keyed on part files under the resolved root, never on
+the env var — flood-build 21a's rule). `make -n notify-rehearse` renders; re-run cost is
+one command.
