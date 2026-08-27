@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE frontend3-01 - map-first layout (throwaway; not the page)</title>
+<!-- THROWAWAY LAYOUT PROOF for research/frontend3-01-design.md. Shares the page's real
+     vendored assets and files/ JSON; invisible to tests/page.py (which reads index.html
+     and the published site modules only) and never published (no FAMILIES key). Inline
+     CSS/JS is legal HERE and only here - the real page keeps its no-inline rule. -->
+<link href="vendor/maplibre-gl.css" rel="stylesheet">
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #0b0d10; --panel: rgba(16, 19, 24, .94); --line: #2a2f38;
+  --ink: #e8ebef; --dim: #9aa4b2; --accent: #2f6ea6; --grey: #3a4049;
+  --prov: 44px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+  font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+#map { position: absolute; inset: 0; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  padding: 12px 14px; backdrop-filter: blur(6px); }
+#left { position: absolute; z-index: 2; top: 12px; left: 12px; bottom: var(--prov);
+  width: 340px; display: flex; flex-direction: column; gap: 12px; pointer-events: none; }
+#left > * { pointer-events: auto; }
+#insight { overflow-y: auto; flex: 0 1 auto; min-height: 120px; }
+#legend { flex: 0 0 auto; width: 220px; margin-top: auto; padding: 8px 12px 10px; }
+#right { position: absolute; z-index: 2; top: 12px; right: 12px; bottom: var(--prov);
+  width: 300px; display: flex; flex-direction: column; }
+#layers { overflow-y: auto; flex: 0 1 auto; }
+h1 { font-size: 17px; font-weight: 650; margin: 0 0 6px; letter-spacing: -.01em; }
+h2 { font-size: 13px; margin: 0 0 6px; }
+p { margin: 0 0 8px; }
+.note { color: var(--dim); font-size: 12px; margin: 0 0 6px; }
+.lbl { color: var(--dim); font-size: 11px; text-transform: uppercase;
+  letter-spacing: .06em; margin: 10px 0 4px; font-weight: 600; }
+.big { font-size: 24px; font-weight: 650; letter-spacing: -.02em; line-height: 1.15; }
+.band { font-size: 12px; color: var(--dim); }
+.btns { display: flex; flex-wrap: wrap; gap: 4px; }
+.btns button { background: #171b21; color: #cfd6df; border: 1px solid #313845;
+  border-radius: 7px; padding: 5px 9px; cursor: pointer; font: inherit; font-size: 12px;
+  min-height: 36px; }
+.btns button[aria-pressed="true"] { background: var(--accent); color: #fff;
+  border-color: #6fb0e4; }
+.btns button:focus-visible { outline: 2px solid #8ecbff; outline-offset: 2px; }
+
+/* recent list: variant C's ledger grammar, capped so the analyst summary stays on-card */
+#recent { margin-top: 12px; max-height: 40vh; overflow-y: auto; }
+.rec { display: flex; justify-content: space-between; gap: 8px; align-items: baseline;
+  font-size: 12px; color: var(--dim); border-top: 1px solid var(--line); padding: 5px 0; }
+.rec b { color: #b9c3d0; font-weight: 500; white-space: nowrap; }
+.rec span { text-align: right; }
+.rec:hover, .rec:focus-visible { color: var(--ink); background: rgba(142,203,255,.06); }
+
+#analyst { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 8px; }
+#analyst summary { cursor: pointer; color: var(--dim); font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .06em; }
+#analyst summary:hover { color: var(--ink); }
+
+.swatches { display: flex; height: 10px; border-radius: 4px; overflow: hidden;
+  margin: 6px 0 2px; }
+.swatches span { flex: 1; }
+.ticks { display: flex; justify-content: space-between; color: var(--dim);
+  font-size: 11px; margin-bottom: 4px; }
+.greyrow { display: flex; gap: 6px; align-items: center; color: var(--dim);
+  font-size: 11px; }
+.greyrow i { width: 22px; height: 10px; border-radius: 3px; background: var(--grey); }
+
+/* the layers CONTROL: 44px rows, chip right, chevron detail */
+.lyr { border-top: 1px solid var(--line); }
+.lyr:first-of-type { border-top: 0; }
+.lyr-row { display: flex; align-items: center; gap: 7px; min-height: 44px; }
+.lyr-row label { display: flex; gap: 7px; align-items: center; flex: 1; cursor: pointer;
+  min-height: 44px; }
+.lyr-row .nm { flex: 1; }
+.lyr.gated { opacity: .78; }
+.lyr.gated label, .lyr input:disabled { cursor: not-allowed; }
+.st { font-size: 11px; font-weight: 700; letter-spacing: .06em; }
+.st-FRESH { color: #6fd18c; } .st-STALE { color: #ffcf87; } .st-OFF { color: var(--dim); }
+.st-GATED { color: #d2a24c; } .st-AGE { color: #7f93ad; }
+.chev { background: none; border: 0; color: var(--dim); cursor: pointer; font: inherit;
+  width: 35px; min-height: 44px; }
+.chev::before { content: "\25B8"; display: inline-block; transition: transform .15s; }
+.chev[aria-expanded="true"]::before { transform: rotate(90deg); }
+.chev:focus-visible { outline: 2px solid #8ecbff; outline-offset: -2px; }
+.sub { color: var(--dim); font-size: 12px; margin: -6px 0 8px 24px; }
+.det { margin: 0 0 8px 24px; }
+.det[hidden] { display: none; }
+.srcgrid { display: grid; grid-template-columns: 1fr auto auto; gap: 2px 8px;
+  font-size: 11px; color: var(--dim); }
+.srcgrid b { font-weight: 500; color: #b9c3d0; overflow-wrap: anywhere; }
+input[type=checkbox], input[type=radio] { width: 15px; height: 15px; }
+input:focus-visible { outline: 2px solid #8ecbff; outline-offset: 2px; }
+
+/* the credit strip: ONE line, always visible; the (i) opens #info */
+#provenance { position: absolute; z-index: 2; left: 0; right: 0; bottom: 0;
+  display: flex; align-items: center; gap: 10px; padding: 4px 8px 4px 14px;
+  background: var(--panel); border-top: 1px solid var(--line); font-size: 12px;
+  color: var(--dim); }
+#provenance p { margin: 0; }
+#basemap-attribution { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; }
+#provenance a { color: #9db8d2; }
+#geo-attribution:empty { display: none; }
+#info-open { flex: 0 0 auto; width: 44px; height: 44px; border-radius: 50%;
+  background: #171b21; color: #cfd6df; border: 1px solid #313845; cursor: pointer;
+  font: 600 14px/1 inherit; }
+#info-open:hover { border-color: #4a5464; }
+#info-open:focus-visible { outline: 2px solid #8ecbff; outline-offset: 2px; }
+
+/* the info surface: a native dialog, not a second details */
+#info { background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 12px; padding: 16px 18px; max-width: 560px; width: calc(100vw - 48px);
+  max-height: 80vh; }
+#info::backdrop { background: rgba(4, 6, 9, .6); }
+#info h2 { font-size: 15px; margin: 0 24px 8px 0; }
+#info h3 { font-size: 11px; color: var(--dim); text-transform: uppercase;
+  letter-spacing: .06em; margin: 14px 0 4px; }
+#info-close { position: absolute; top: 10px; right: 12px; background: #171b21;
+  border: 1px solid #313845; border-radius: 7px; color: var(--dim); font: inherit;
+  cursor: pointer; padding: 2px 9px; min-height: 28px; }
+
+.maplibregl-ctrl-bottom-right { right: 316px; bottom: calc(var(--prov) + 8px); }
+@media (max-width: 900px) {
+  #left, #right { position: static; width: auto; display: block; }
+  /* the ramp key sits directly under the map strip it decodes (design.md sec 2.2) */
+  #left { display: flex; flex-direction: column; }
+  #legend { order: -1; margin-bottom: 0; }
+  #insight, #layers, #legend { position: static; width: auto; max-height: none;
+    margin: 12px; }
+  #recent { max-height: none; }
+  #map { position: relative; height: 60vh; }
+  body { overflow-y: auto; padding-bottom: 56px; }
+  /* the credit strip stays FIXED at the viewport bottom - the OSMF map-adjacent
+     credit on a phone (design.md sec 2.2); it wraps, never ellipsizes */
+  #provenance { position: fixed; left: 0; right: 0; bottom: 0; }
+  #basemap-attribution { white-space: normal; overflow: visible; }
+  .maplibregl-ctrl-bottom-right { right: 0; bottom: 0; }
+  #info { margin: auto 0 0; width: 100%; max-width: none; border-radius: 12px 12px 0 0; }
+}
+</style>
+</head>
+<body>
+<a href="#layers" class="note" style="position:absolute;left:-9999px;z-index:9"
+   onfocus="this.style.left='12px';this.style.top='12px'"
+   onblur="this.style.left='-9999px'">Skip to controls</a>
+<main>
+<div id="map" role="application" aria-label="Map of NYC coloured by bus Speed ratio"></div>
+
+<div id="left">
+<section id="insight" class="panel" aria-labelledby="insight-h">
+  <h1 id="insight-h">Does rain slow the NYC buses, and where?</h1>
+  <div id="answer" aria-live="polite"><p class="note">loading&hellip;</p></div>
+  <h2 class="lbl">Layer</h2>
+  <div id="views" class="btns" role="group"></div>
+  <div id="hours" class="btns" role="group" aria-label="Storm hour"></div>
+  <div id="recent"></div>
+  <details id="analyst">
+    <summary>Analyst details &mdash; estimands, intervals, gates</summary>
+    <p class="note">[prototype: the seven analyst surfaces render here unchanged —
+      preview note, headline rows, the curve, the three how-to-read notes and the
+      estimand. Content is out of this prototype's scope.]</p>
+  </details>
+</section>
+
+<div id="legend" class="panel">
+  <div class="lbl" style="margin-top:0">Speed ratio</div>
+  <div class="swatches" id="swatches" aria-hidden="true"></div>
+  <div class="ticks"><span>0.5 slower</span><span>1.0 no change</span><span>1.2 faster</span></div>
+  <div class="greyrow"><i></i><span>grey &mdash; no publishable value</span></div>
+</div>
+</div>
+
+<div id="right">
+<section id="layers" class="panel" aria-labelledby="layers-h">
+  <h2 id="layers-h">Layers</h2>
+  <p class="note" style="margin-bottom:2px">Nothing loads until you tick it.</p>
+  <h3 class="lbl">Cell fill &mdash; pick one</h3>
+  <div id="rows-fill"></div>
+  <h3 class="lbl">Ground and points</h3>
+  <div id="rows-pts"></div>
+</section>
+</div>
+</main>
+
+<dialog id="info" aria-labelledby="info-h">
+  <button id="info-close" aria-label="Close">&times;</button>
+  <h2 id="info-h">About this map</h2>
+  <p class="note">Kafka 3.9 &rarr; Spark 3.5.3 + Sedona 1.9.1 &rarr; GeoParquet &rarr;
+    DuckDB 1.5.5 (<code>make export</code>, pure-SQL JSON writer) &rarr; MapLibre GL JS
+    5.9.0, vendored. Sources: MTA Bus Time GTFS-RT; the nycbuspositions archive
+    (2017-2024 historical positions); NOAA AORC; NYC TLC taxi zones.
+    <span id="prov-files"></span></p>
+  <p class="note">All data on this page is static JSON under <code>/files/</code> &mdash;
+    the read API is documented in <code>docs/read-api-contract.md</code>.</p>
+  <h3>Rain sources</h3>
+  <p class="note">Insight views: NOAA AORC hourly (analysis), hour-ending. Live view:
+    MRMS RadarOnly QPE 01H, uncalibrated, hour-ending.</p>
+  <h3>The MTA gate</h3>
+  <p class="note" id="mta-gate">MTA gate: the MTA&rsquo;s redistribution terms are <strong>not
+  verified</strong>, so nothing MTA-derived is published here. The gate cuts
+    by LINEAGE and has two sides &mdash; vehicle positions (the live fleet, the bus impact
+    overlay) and alert rows (the MTA flood tier) &mdash; and both are dark. Those layers
+    still appear, marked GATED: absence should be explained, not mysterious.</p>
+  <h3>Licences</h3>
+  <p class="note">The map data is available under the Open Database License (ODbL); this
+    basemap is a Produced Work from that data and re-serving it carries the same licence.
+    Place labels set in Noto Sans (SIL Open Font License). Ground: TLC taxi zones over a
+    vector basemap, one PMTiles archive read by range request.</p>
+  <p class="note">Bus positions and predictions are derived from the
+    <strong>MTA</strong>&rsquo;s GTFS-Realtime feeds (MTA Bus Time). This page is not
+    affiliated with, endorsed by, or a service of the MTA, and the MTA does not warrant
+    anything shown here.</p>
+  <h3>Serving contract</h3>
+  <p class="note">Current snapshot only: no vehicle history is served here, and there is
+    no bulk or protobuf download.</p>
+  <h3>Reading the chips</h3>
+  <p class="note">FRESH &mdash; inside its source&rsquo;s staleness budget &middot;
+    STALE &mdash; over budget, or no age could be read &middot; OFF &mdash; nothing is
+    being fetched &middot; GATED &mdash; the MTA gate side is shut; dark, never absent
+    &middot; AGE &mdash; age known, no budget frozen, so no verdict is claimed.</p>
+</dialog>
+
+<div id="provenance" class="note">
+  <p id="basemap-attribution">Basemap &copy;
+    <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>,
+    built with <a href="https://github.com/protomaps/basemaps">Protomaps</a> &mdash;
+    map data under the Open Database License (ODbL). Not an MTA service.</p>
+  <p id="geo-attribution"></p>
+  <button id="info-open" aria-haspopup="dialog" aria-label="About this map: data sources and licences">i</button>
+</div>
+
+
+<script src="vendor/maplibre-gl.js"></script>
+<script src="vendor/pmtiles.js"></script>
+<script>
+/* Throwaway boot: real basemap + real cells + real headline + real recent.json.
+ * The ramp is the REAL, BYTE-UNTOUCHED RATIO_STOPS - the re-spacing in design.md
+ * sec 2.5 is an option for Ross, and the prototype must not presuppose it. */
+const RATIO_STOPS = [[0.5, "#7f0000"], [0.65, "#d7301f"], [0.8, "#fc8d59"],
+  [0.9, "#fdd49e"], [1.0, "#f7f7f7"], [1.1, "#c7dcef"], [1.2, "#6baed6"]];
+const GREY = "#3a4049";
+const $ = (id) => document.getElementById(id);
+
+$("swatches").innerHTML =
+  RATIO_STOPS.map(([, c]) => `<span style="background:${c}"></span>`).join("");
+
+const empty = () => ({ type: "geojson", data: { type: "FeatureCollection", features: [] } });
+const map = new maplibregl.Map({
+  container: "map", center: [-73.93, 40.72], zoom: 10.1, attributionControl: false,
+  style: { version: 8, glyphs: "vendor/{fontstack}-{range}.pbf",
+    sources: { cells: empty() },
+    layers: [
+      { id: "bg", type: "background", paint: { "background-color": "#0b0d10" } },
+      { id: "cells", type: "fill", source: "cells",
+        paint: { "fill-color": GREY, "fill-opacity": 0.86 } },
+      { id: "cells-line", type: "line", source: "cells",
+        paint: { "line-color": "#0b0d10", "line-width": 0.4 } },
+    ] },
+});
+map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
+// NOTE: no AttributionControl - the credit strip + the info dialog are the attribution
+// surface (design.md sec 2.2); at 375 the compact control occluded the map strip.
+
+map.on("load", async () => {
+  try {
+    const style = await (await fetch("vendor/basemap-dark.json")).json();
+    maplibregl.addProtocol("pmtiles", new pmtiles.Protocol().tile);
+    map.addSource("basemap", { type: "vector", url: "pmtiles://tiles/nyc.pmtiles" });
+    for (const l of style.layers) {
+      if (l.type === "background" || l.id === "pois") continue;
+      const out = { ...l, source: "basemap" };
+      if (out.layout && out.layout["text-font"])
+        out.layout = { ...out.layout, "text-font": ["notosans"] };
+      map.addLayer(out, "cells");
+    }
+  } catch (e) { /* basemap missing -> flat bg, same as the page */ }
+
+  const [cells, head] = await Promise.all([
+    fetch("files/cells.geojson").then(r => r.json()),
+    fetch("files/headline.json").then(r => r.json()),
+  ]);
+  map.getSource("cells").setData(cells);
+  const rows = head.rows.filter(r => r.layer === "ida" && r.on_map)
+    .sort((a, b) => a.key < b.key ? -1 : 1);
+  const worst = rows.reduce((a, r) => r.value < a.value ? r : a);
+  const prop = "r" + worst.key;
+  map.setPaintProperty("cells", "fill-color",
+    ["case", ["!", ["has", prop]], GREY,
+      ["interpolate", ["linear"], ["get", prop],
+       ...RATIO_STOPS.flatMap(([v, c]) => [v, c])]]);
+  const lo = Math.min(...worst.band), hi = Math.max(...worst.band);
+  $("answer").innerHTML = `<div class="big">${lo.toFixed(2)}&ndash;${hi.toFixed(2)}</div>
+    <div class="band">bus speed in this rain vs dry weather &mdash; 1.00 = no change
+    (Ida 2021-09-02)</div>`;
+  $("prov-files").textContent = `${cells.features.length} footprint Cells; publish gate:
+    95% interval width < ${head.gate_width}.`;
+  $("views").innerHTML =
+    ['Ida 2021-09-02', '2023-09-29 flood', 'W1 wet vs dry', 'W1 dry baseline',
+     'W2 wet vs dry', 'W2 dry baseline'].map((l, i) =>
+      `<button type="button" aria-pressed="${i === 0}">${l}</button>`).join("");
+  $("hours").innerHTML = rows.map(r =>
+    `<button type="button" aria-pressed="${r.key === worst.key}">${r.label.slice(-3)}</button>`)
+    .join("");
+});
+
+fetch("files/summary/recent.json").then(r => r.json()).then(doc => {
+  const evs = doc.events || [];
+  const rows = evs.slice(0, 5).map(ev => {
+    const span = ev.day_start === ev.day_end ? ev.day_start
+      : `${ev.day_start} → ${ev.day_end}`;
+    const n = ev.n_assets || {};
+    const bits = [ev.flood_cause || "",
+      typeof n.bus_stop === "number" ? `${n.bus_stop.toLocaleString()} bus stops` : "",
+      typeof n.complex === "number" ? `${n.complex.toLocaleString()} complexes` : "",
+    ].filter(Boolean).join(" · ");
+    return `<div class="rec" tabindex="0"><b>${span}</b><span>${bits}</span></div>`;
+  }).join("");
+  const w = doc.window || {};
+  $("recent").innerHTML =
+    `<h2 class="lbl">Flooding on record, ${w.since || ""} to ${w.until || ""}</h2>
+     <p class="note">Point at a row to see it on the map.</p>` + rows +
+    (evs.length > 5 ? `<p class="note">&hellip;and ${evs.length - 5} earlier events.</p>` : "");
+}).catch(() => { $("recent").innerHTML = ""; });
+
+/* the layer rows: today's REAL states on the public host (design.md sec 1.3) */
+const chip = (s) => `<span class="st st-${s}">${s}</span>`;
+const srcrow = (k, age, st, why) =>
+  `<b>${k}</b><span>${age}</span><span class="st st-${st}">${st}</span>` +
+  (why ? `<b style="grid-column:1/4;font-weight:400">${why}</b>` : "");
+const row = (o) => `<div class="lyr${o.gated ? " gated" : ""}">
+  <div class="lyr-row">
+    <label><input type="${o.fill ? "radio" : "checkbox"}" ${o.fill ? 'name="cellfill"' : ""}
+      ${o.on ? "checked" : ""} ${o.gated ? "disabled" : ""}>
+      <span class="nm">${o.name}</span>${chip(o.chip)}</label>
+    <button class="chev" aria-expanded="false" aria-label="Details for ${o.name}"></button>
+  </div>
+  ${o.sub ? `<p class="sub">${o.sub}</p>` : ""}
+  <div class="det" hidden><div class="srcgrid">${o.det}</div></div>
+</div>`;
+
+$("rows-fill").innerHTML = [
+  row({ name: "Delay cells", fill: true, on: true, chip: "AGE",
+    sub: "How much slower the buses ran in the rain, area by area.",
+    det: srcrow("files/cells.geojson", "4 h", "AGE", "no budget frozen for this source")
+       + srcrow("files/headline.json", "4 h", "AGE", "no budget frozen for this source") }),
+  row({ name: "Impact overlay: bus", fill: true, gated: true, chip: "GATED",
+    sub: "How the buses are doing right now against a dry baseline.",
+    det: srcrow("files/impact.json", "", "GATED", "Dark: needs the MTA terms verified. "
+      + "The row stays so the page never pretends the layer does not exist.") }),
+  `<div class="lyr"><div class="lyr-row"><label><input type="radio" name="cellfill">
+    <span class="nm">None &mdash; show the geography instead</span></label></div>
+    <p class="sub">With the fill off, zones and routes carry the ramp.</p></div>`,
+].join("");
+
+$("rows-pts").innerHTML = [
+  row({ name: "Ground: basemap", on: true, chip: "AGE",
+    sub: "Streets, parks and water under everything else.",
+    det: srcrow("tiles/nyc.pmtiles", "3 d", "AGE", "no budget frozen for this source") }),
+  row({ name: "Ground: taxi zones", on: true, chip: "AGE",
+    sub: "Taxi-zone outlines, for finding where you are.",
+    det: srcrow("files/zones.geojson", "4 h", "AGE", "no budget frozen for this source") }),
+  row({ name: "Bus route lines", chip: "OFF", sub: "Where the buses run.",
+    det: srcrow("files/geo/routes.geojson", "", "OFF", "Loads 7.8 MB when ticked.") }),
+  row({ name: "Ground: flood zones (DEP design storm)", chip: "OFF",
+    sub: "The city's planning map of where heavy rain would pond.",
+    det: srcrow("files/geo/scenarios.json", "", "OFF", "Loads 4.4 MB when ticked.") }),
+  row({ name: "Flood tier: FloodNet", chip: "OFF",
+    sub: "Street flood sensors, lit when one is reporting water.",
+    det: srcrow("files/flood.json", "", "OFF", "nothing is being fetched") }),
+  row({ name: "Flood tier: MTA alerts", gated: true, chip: "GATED",
+    sub: "Stations where the MTA has reported water on the tracks.",
+    det: srcrow("files/flood-mta.json", "", "GATED", "Dark: needs the MTA terms verified. "
+      + "The row stays so the page never pretends the layer does not exist.") }),
+  row({ name: "Impact overlay: subway", gated: true, chip: "GATED",
+    sub: "This hour's dropped subway service, by station complex.",
+    det: srcrow("files/impact-subway.json", "", "GATED", "Dark: needs the MTA terms "
+      + "verified. The row stays so the page never pretends the layer does not exist.") }),
+  row({ name: "Flood history markers", chip: "OFF",
+    sub: "Places that have flooded before; click a marker for its record.",
+    det: srcrow("files/history/manifest.geojson", "", "OFF",
+      "Loads 1.5 MB once when ticked; each marker click fetches ~1 KB.") }),
+  row({ name: "Live fleet", gated: true, chip: "GATED",
+    sub: "off &mdash; tick to fetch every 30 s; nothing can look live when it is not.",
+    det: srcrow("files/live.geojson", "", "GATED", "Dark: needs the MTA terms verified.")
+       + srcrow("files/meta.json", "", "GATED",
+         "MTA-reported trip delay: unavailable. rain: MRMS RadarOnly QPE 01H, "
+         + "uncalibrated, hour-ending, no live tick yet.") }),
+].join("");
+
+/* wiring: chevrons + the info dialog (all inline - throwaway) */
+$("layers").addEventListener("click", (e) => {
+  const b = e.target.closest(".chev");
+  if (!b) return;
+  const det = b.closest(".lyr").querySelector(".det");
+  const open = det.hidden;
+  det.hidden = !open;
+  b.setAttribute("aria-expanded", String(open));
+});
+$("info-open").addEventListener("click", () => $("info").showModal());
+$("info-close").addEventListener("click", () => $("info").close());
+$("info").addEventListener("click", (e) => {
+  if (e.target === $("info")) $("info").close();   // backdrop click
+});
+</script>
+</body>
+</html>
