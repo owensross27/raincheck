@@ -26,7 +26,11 @@ export async function grab(lyrId, s) {
     // `head: true` (frontend2 02's basemap): the same two headers, none of the body. A
     // 52 MB PMTiles archive still has an age a reader is owed, and the tiles inside it are
     // read by MapLibre's own protocol, which hands this page no headers at all.
-    const res = await fetch(s.url, { cache: "no-store", method: s.head ? "HEAD" : "GET" });
+    // `no-cache`, NOT `no-store` and NOT `default`: no-cache revalidates, and a 304 from
+    // this host carries fresh Date + Last-Modified - the exact pair subtracted below - at
+    // zero body bytes, where no-store re-downloaded ~500 KB per repeat load and `default`
+    // would serve a stored response with a FROZEN Date header (the frozen-age trap).
+    const res = await fetch(s.url, { cache: "no-cache", method: s.head ? "HEAD" : "GET" });
     if (!res.ok) {
       whys[key] = res.status === 404 ? "not published on this host" : `HTTP ${res.status}`;
       return null;

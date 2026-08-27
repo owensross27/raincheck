@@ -92,7 +92,9 @@ export async function drawBasemap(ok) {
   if (map.getSource(SRC)) return;          // idempotent: toggling off and on again
   if (!ok) { on.basemap = false; return; }
   try {
-    const res = await fetch(STYLE, { cache: "no-store" });
+    // no-cache, not no-store: revalidate the vendored style (a 304 costs no body) rather
+    // than re-download 8 KB every load - same rule as grab()'s fetch in freshness.js
+    const res = await fetch(STYLE, { cache: "no-cache" });
     if (!res.ok) throw new Error(`style HTTP ${res.status}`);
     const style = await res.json();
     maplibregl.addProtocol("pmtiles", new pmtiles.Protocol().tile);
