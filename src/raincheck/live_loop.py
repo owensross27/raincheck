@@ -39,7 +39,8 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from raincheck import duck, flood_coastal, flood_live, flood_panel, live_export, publish
+from raincheck import (duck, flood_coastal, flood_live, flood_panel, live_export,
+                       notify_dryrun, publish)
 from raincheck.live_export import INTERVAL_S
 from raincheck.paths import data_root
 
@@ -109,9 +110,13 @@ def cycle(con, root: Path, out_dir: Path, source: str, state: dict,
     # above. It is handed the detector read this cycle already has, so the winter gate's
     # KNYC temperature and the coastal chips cost no second fetch of the same endpoints.
     flood = flood_panel.tick(con, root, out_dir, state.get("flood"), now, detected)
+    # notify 10: the decision rides THIS cycle's flood read as a DRY-RUN - one call, one
+    # state field, the same clock. Decisions are made and rendered where the renderer
+    # will; NOTHING IS SENT, and the seam owns its own failure policy (never raises).
+    notify = notify_dryrun.dryrun(root, state.get("notify"), flood, now)
     return {"meta": meta, "detector": detected,
             "detected_at": now if due else state.get("detected_at"),
-            "flood": flood,
+            "flood": flood, "notify": notify,
             "publish": ship(out_dir, state), "at": now}
 
 

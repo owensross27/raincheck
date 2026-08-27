@@ -206,6 +206,42 @@ def test_the_overlays_report_themselves_on_the_one_log_line(con, tmp_path, monke
     assert "impact bus=no_baseline/19 subway=ok/438" in line
 
 
+# --- notify 10: the notify decision joined this cycle as a DRY-RUN ----------------------
+
+def test_the_notify_dryrun_rides_this_cycle_with_its_state_chained(con, tmp_path,
+                                                                   monkeypatch):
+    """The dry-run is ONE call inside cycle() and ONE field on state, flood 15's shape:
+    it is handed THIS cycle's flood state (its seam is downstream of the tick, so the
+    decision reads the read the panel just rendered), its own previous state, and the
+    cycle's own clock - a second clock would be the ageing-apart this loop exists to
+    prevent."""
+    seen = []
+
+    def fake_dryrun(root, prev, flood, now):
+        seen.append((root, prev, flood, now))
+        return {"at": now, "decided": False, "why": "stubbed"}
+
+    monkeypatch.setattr(live_loop.notify_dryrun, "dryrun", fake_dryrun)
+    states, _ = run(con, tmp_path, monkeypatch, times=[NOW, NOW + timedelta(seconds=30)])
+    assert len(seen) == 2, "every cycle offers the dry-run its turn"
+    assert seen[0][0] == tmp_path, "the loop's own data root, where the store lives"
+    assert seen[0][2] is states[0]["flood"], "THIS cycle's flood state, not last cycle's"
+    assert seen[0][3] == NOW, "the same clock the cycle stamped everything else with"
+    assert seen[1][1] is states[0]["notify"], "the previous state is carried across"
+
+
+def test_the_real_dry_run_carries_when_the_flood_tick_could_not_read(con, tmp_path,
+                                                                     monkeypatch):
+    """Unstubbed integration: on this empty root the flood tick errors, so the dry-run
+    decides nothing, touches no store (no subscriptions.db appears), and the fleet still
+    publishes - a notifier that cannot decide costs a state field, never a cycle."""
+    states, calls = run(con, tmp_path, monkeypatch)
+    n = states[0]["notify"]
+    assert n["decided"] is False and n["why"] == "flood_error"
+    assert not (tmp_path / "live" / "subscriptions.db").exists()
+    assert calls["publish"], "the export half must still publish"
+
+
 def test_a_broken_overlay_read_never_reaches_this_loop(con, tmp_path, monkeypatch):
     """The overlays are a garnish on the panel. `flood_overlay.read` catches per side, so
     a dead Gold table costs a grey layer and nothing else - the fleet still exports and
