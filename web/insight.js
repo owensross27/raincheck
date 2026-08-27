@@ -14,7 +14,7 @@
 import { $, fmt, GREY, L, LAYERS, map, on, RATIO_STOPS, ROUTE_PLAIN, ROUTE_W_RAMP,
          ROUTE_W_THIN, shut, SPEED_STOPS, styled, ZONE_FILL_OPACITY,
          ZONE_LEGEND } from "./layers.js";
-import { grab, whys } from "./freshness.js";
+import { ages, fmtAge, grab, whys } from "./freshness.js";
 
 let head = null;         // headline.json
 let cellKeys = new Set();  // property keys present in cells.geojson
@@ -408,4 +408,115 @@ export async function drawZones(manifest) {
 export async function setScenario(name) {
   scenario = name;
   await drawZones({ scenarios });
+}
+
+
+/* ================================= frontend 07: the flood-history record card ==========
+ *
+ * One manifest paints the layer; ONE fetch per click paints the card, and nothing under
+ * files/history/ is fetched before a click - the manifest IS the absence test (an asset it
+ * does not list has no record, and no request is ever made to discover that). The record
+ * is dated READER-side off its own response headers through grab(), like every other
+ * payload on this page - no wall clock is ever written into the family.
+ *
+ * The id prints even when a name exists: names are unique at NO grain ("86 St" names six
+ * complexes; two bus stops metres apart share one name and one event count), so the
+ * asset_id is the identity and the name is a courtesy. `name` is an ABSENT key on every
+ * Cell - undefined, never null, never the word - so the title falls back to the id.
+ */
+let cardSeq = 0;   // clicks race: a slow record must never paint over a later click's card
+
+const esc = (s) => String(s).replace(/[&<>"']/g,
+  c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+const EVENT_CAP = 12;   // newest-first; 73 rows would bury the freshness rows below
+
+/* The exposure block. 928 assets - every entrance - have NO `exposure` key AT ALL (absent,
+ * not null: a fabricated 0.0 would read as "safe"), so the branch tests the KEY and the
+ * absence is rendered as a sentence, never a zero and never a blank. What IS rendered is
+ * `score_index` - the within-kind rank bounded (0, 1] - beside the payload's own estimand
+ * sentence, verbatim. The two linear-predictor numbers in the payload are deliberately not
+ * rendered: they are negative for nearly every Unit and are not probabilities, and a card
+ * has no honest one-line gloss for them. */
+function exposureHTML(doc) {
+  if (doc.exposure === undefined) {
+    const ask = doc.exposure_unavailable && doc.exposure_unavailable.ask;
+    return `<p class="note">No flood-exposure score for this asset kind` +
+      (ask ? ` &mdash; the score lives on its complex, <b>${esc(ask)}</b>.` : `.`) + `</p>`;
+  }
+  const e = doc.exposure;
+  const bits = [`<div class="row"><div class="big">${fmt(e.score_index)}</div>
+    <div class="band">flood-exposure rank within its kind, in (0, 1]</div>
+    <p class="note">${esc(e.estimand || "")}</p>`];
+  if (e.modelled === false) bits.push(`<p class="note">kind-median estimate &mdash; not a
+    modelled rank for this asset.</p>`);
+  // an absent surge margin is NOT a zero: a zero margin means water AT the doorway
+  if (e.surge_margin_ft !== undefined)
+    bits.push(`<p class="note">coastal surge margin ${fmt(e.surge_margin_ft, 1)} ft</p>`);
+  if (e.flags && e.flags.length)
+    bits.push(`<p class="note">flags: ${e.flags.map(esc).join(", ")} &mdash; meanings
+      published in research/flood-10-coefficients.json</p>`);
+  return bits.join("") + `</div>`;
+}
+
+function eventHTML(ev) {
+  const srcs = ev.event_source_counts
+    ? Object.entries(ev.event_source_counts).map(([s, n]) => `${esc(s)} &times;${n}`).join(", ")
+    : (ev.sources || []).map(esc).join(", ");
+  const span = ev.day_start === ev.day_end ? esc(ev.day_start)
+    : `${esc(ev.day_start)} &rarr; ${esc(ev.day_end)}`;
+  const support = ev.label_support && ev.label_support.length
+    ? ` &middot; support: ${ev.label_support.map(esc).join(" + ")}` : "";
+  return `<div class="src"><b>${span}</b><span>${esc(ev.event_class || "")}</span></div>` +
+    `<div class="src why"><span>${esc(ev.flood_cause || "")}` +
+    `${srcs ? " &middot; " + srcs : ""}${support}</span></div>`;
+}
+
+export async function showCard(p) {
+  const seq = ++cardSeq;
+  const h = $("card-h");
+  // textContent, never markup: `name` originates in the GTFS registry, the one string
+  // here that crosses a trust boundary. The id line prints UNCONDITIONALLY (see header).
+  h.textContent = p.name || p.asset_id;
+  $("card-id").textContent = `${p.kind} · ${p.asset_id}`;
+  $("card-body").innerHTML = `<p class="note">fetching this asset&rsquo;s record&hellip;</p>`;
+  $("card").hidden = false;
+  h.focus();
+  // the id VERBATIM in the URL: flat tree, no shards, no encoding (charset measured over
+  // the whole registry: [A-Za-z0-9:._-], every character legal in a path segment)
+  const src = { k: "files/history/" + p.asset_id + ".json",
+                url: "files/history/" + p.asset_id + ".json", budget: null };
+  const doc = await grab("hist", src);
+  if (seq !== cardSeq) return;   // a later click or a close owns the card now
+  if (!doc) {
+    $("card-body").innerHTML = `<p class="note">no record could be fetched:
+      ${esc(whys["hist/" + src.k] || "fetch failed")}</p>`;
+    return;
+  }
+  const age = ages["hist/" + src.k];
+  const events = (doc.events || []).slice().reverse();   // the seam orders oldest-first
+  const shown = events.slice(0, EVENT_CAP);
+  const label = doc.versions && doc.versions.label_version;
+  $("card-body").innerHTML =
+    `<p class="note">${doc.n_events} flood event${doc.n_events === 1 ? "" : "s"} on record
+       &middot; ${age === null || age === undefined
+         ? "record age unknown" : `record ${fmtAge(age)} old`} (dated from its own
+       response headers)</p>` +
+    exposureHTML(doc) +
+    shown.map(eventHTML).join("") +
+    (events.length > shown.length
+      ? `<p class="note">&hellip;and ${events.length - shown.length} earlier events.</p>` : "") +
+    `<p class="note">Source counts are city-wide at EVENT grain &mdash; what the whole
+       event generated across the city, not what was observed at this asset.</p>` +
+    (label ? `<p class="note">label version <code>${esc(label).slice(0, 12)}</code></p>` : "");
+}
+
+export function closeCard() {
+  if ($("card").hidden) return;
+  cardSeq++;                     // a record still in flight must not repaint a closed card
+  $("card").hidden = true;
+  // focus returns to the marker's own toggle row, so a keyboard reader lands back where
+  // the layer is controlled rather than at <body>
+  const t = document.querySelector('#layers [data-l="hist"]');
+  if (t) t.focus();
 }

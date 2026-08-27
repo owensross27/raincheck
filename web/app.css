@@ -33,6 +33,18 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
 #right { position: absolute; z-index: 2; top: 12px; right: 12px; bottom: var(--prov); width: 340px;
   display: flex; flex-direction: column; gap: 8px; }
 #layers { position: static; overflow-y: auto; flex: 1 1 auto; min-height: 120px; }
+/* frontend 07: the record card is a flex SIBLING in the column - relative only to anchor
+   its close button, never fixed or floated, so it shares the column with the layer panel
+   and can never cover the freshness rows or the provenance strip. It owns its scroll. */
+#card { position: relative; overflow-y: auto; flex: 0 1 auto; min-height: 0; max-height: 46%; }
+#card-close { position: absolute; top: 8px; right: 10px; background: #171b21;
+  border: 1px solid #313845; border-radius: 7px; color: var(--dim); font: inherit;
+  cursor: pointer; padding: 0 7px; min-height: 24px; }
+#card-close:hover { border-color: #4a5464; }
+#card-close:focus-visible { outline: 2px solid #8ecbff; outline-offset: 2px; }
+#card-h { padding-right: 34px; overflow-wrap: anywhere; }
+#card-h:focus { outline: none; }
+#card-id { overflow-wrap: anywhere; }
 #live { position: static; overflow-y: auto; flex: 0 1 auto; }
 #provenance { bottom: 12px; left: 12px; right: 12px; }
 
@@ -102,7 +114,7 @@ code { font-size: 12px; color: var(--dim); }
 
 @media (max-width: 900px) {
   #left, #right { position: static; width: auto; display: block; }
-  #insight, #layers, #live, #legend { position: static; width: auto; max-height: none; margin: 12px; }
+  #insight, #layers, #card, #live, #legend { position: static; width: auto; max-height: none; margin: 12px; }
   #provenance { position: static; margin: 12px; }
   #map { position: relative; height: 60vh; }
   body { overflow-y: auto; }

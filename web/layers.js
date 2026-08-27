@@ -195,11 +195,22 @@ export const LAYERS = [
     srcs: [{ k: "files/impact.json", url: "files/impact.json", budget: null }],
     draw: null },
 
+  /* frontend 07. `open: false` is the boot-vs-toggle decision, taken on the measured
+   * sizes: the manifest is 1,458,148 B RAW (nothing on this host compresses), ~40% of the
+   * page's current first paint, so it is fetched ONCE on the first tick and never at boot.
+   * A click then fetches ONE per-asset record (median 1,138 B, max 21,994 B) - the card's
+   * fetch in insight.js, and the only thing under files/history/ ever fetched besides
+   * this manifest. No budget is frozen for this source anywhere in the repo, so its row
+   * reads a bare AGE - reporting a verdict here would be a guessed constant. */
   { id: "hist", point: true, name: "Flood history markers", gate: null, fill: false, open: false,
-    map: ["hist"], owed: "notify 05",
+    map: ["hist"], owed: null,
     srcs: [{ k: "files/history/manifest.geojson", url: "files/history/manifest.geojson",
              budget: null }],
-    draw: ([m]) => { if (m) map.getSource("hist").setData(m); } },
+    draw: ([m]) => { if (m) {
+      map.getSource("hist").setData(m);
+      L("hist").legend = `<p class="note">${m.features.length.toLocaleString()} assets with a
+        flood record. Click a marker for its record card - one small fetch per click.</p>`;
+    } } },
 ];
 export const L = (id) => LAYERS.find(x => x.id === id);
 export const shut = (lyr) => Boolean(lyr.gate) && !GATE[lyr.gate];
@@ -279,9 +290,12 @@ export const map = new maplibregl.Map({
                  "circle-stroke-color": "#8ecbff", "circle-stroke-width": 2 } },
       { id: "live", type: "circle", source: "live", layout: { visibility: "none" },
         paint: { "circle-radius": 2.6, "circle-color": LIVE_FRESH, "circle-opacity": 0.9 } },
+      // the radius ramp is sized on the manifest's own measured tail: n_events max is 73
+      // (cell:882a1062d5fffff), so the top stop is real data, not a guess
       { id: "hist", type: "circle", source: "hist", layout: { visibility: "none" },
         paint: { "circle-color": HIST, "circle-opacity": 0.5,
-          "circle-radius": ["interpolate", ["linear"], ["get", "n_events"], 1, 1.6, 12, 4.6] } },
+          "circle-radius": ["interpolate", ["linear"], ["get", "n_events"],
+                            1, 1.6, 12, 4.6, 73, 8] } },
       // the hollow ring: a sensor reporting water is a filled aqua disc, a dry or stale one
       // is a STROKE with no fill, so "sensor present, no water" reads as a different MARK
       { id: "fn", type: "circle", source: "fn", layout: { visibility: "none" },
