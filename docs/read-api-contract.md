@@ -25,7 +25,7 @@ consumer can learn the whole surface without a human in the loop.
 
 ## The families
 
-Eleven, each an EXPLICIT file list or an explicit prefix. Never a directory sync — the
+Twelve, each an EXPLICIT file list or an explicit prefix. Never a directory sync — the
 insight files, the live pair, the two flood pairs and the two impact overlays are written
 into one directory by three writers on three cadences, so a sync would publish a gated
 payload and republish a stale one.
@@ -43,6 +43,7 @@ payload and republish a stale one.
 | `docs` | `docs/**` | per Airflow run | `public, max-age=300` | Great Expectations Data Docs |
 | `showcase` | `showcase/**` | per landing or recorded run | `public, max-age=300` | the walkthrough, the task graph and one recorded run [orch 13] |
 | `geo` | `files/geo/**` | per ref rebuild | `public, max-age=300` | DEP design-storm flood extents, the bus route lines and the scenario manifest — see below |
+| `summary` | `files/summary/**` | per `gold/route_flood` or spine rebuild | `public, max-age=300` | three recent-flooding aggregates — `recent.json`, `complexes.json`, `routes.json` — see below |
 
 **THE FLOOD PANEL IS TWO FAMILIES BECAUSE THE GATE CUTS THROUGH IT.** `flood` and
 `flood-mta` are written by ONE tick, in one process, carrying one `cycle_id` — and they
@@ -157,6 +158,43 @@ without a code change — and a static client has no way to discover it. The man
 row per `horizon = 'current'` scenario in `silver/stormwater_extent`: `scenario`, `horizon`,
 `rain_in_hr` and the `key` the extents writer gives that scenario's file. A consumer reads
 this first and then fetches the key it wants.
+
+**`files/summary/**` is the three recent-flooding aggregates** (frontend2 04,
+`src/raincheck/summary.py`), written by `make summary` and staged-and-swapped whole so a
+partial build is never publishable. They answer the questions a consumer asks BEFORE it
+knows an asset id, without a `files/history/` fetch per asset:
+
+- **`recent.json`** — the trailing 365 days of the event spine, newest first, the window
+  ANCHORED ON THE SPINE'S OWN NEWEST DAY rather than on today (no wall clock reaches any
+  payload; the reader dates the file from its own HTTP response, like everything else
+  here). Each event carries its day range, class and cause, its decoded observation
+  sources, the max labelled depth, labelled-asset counts per kind, and the Cells it
+  touched as H3 hex strings — the same spelling `files/cells.geojson` keys on, so the two
+  join without a lookup. The counts are EVENT-grain counts of the published attachment
+  (`gold/flood_labels`), never a re-attachment and never report counts.
+- **`complexes.json`** — every subway complex with a flood record, with `lon`/`lat` (a
+  payload that names a place carries its coordinates), `n_events` and `last_event_id`.
+  Counts come through the query seam's own sweep, so a complex answers for itself AND its
+  child entrances — exactly what `events_for_asset` returns for the same id. Names are
+  not unique; print the `asset_id` beside the name.
+- **`routes.json`** — `gold/route_flood` as a payload: one row per
+  `(route_id, direction_id)` (both STRINGS), with the route's length, Cells crossed,
+  flood-prone Cells, flood-event count and last event day, and its measured shares.
+  **A NULL share is not a zero**: a share column that is entirely NULL at the source —
+  `share_len_limited` and `share_len_extreme` today, no current-sea-level dataset exists
+  for either — is not written per row at all, and the top-level `not_published` block
+  carries the reason, derived from the extent builder's own declarations.
+  **`share_len_not_analyzed` is published beside `share_len_moderate`**: it is DEP's
+  exclusion mask, and one real route runs 80.5% of its length through ground DEP never
+  modelled — a payload carrying only the flooded share would call that route safe.
+
+**Every claim in this family is DESCRIPTIVE** — "crosses N flood-prone Cells" is
+supported; "is slower because it floods" is a statistical claim this surface does not
+make (each file says so in `strings.caveats`; render those sentences, never restate
+them). A `route_id` is a fact and renders as text; no roundel, bullet or MTA line colour
+appears here or may be added by a consumer without MTA's permission. Each file carries
+the same `versions` stamps as `files/index.json`, and `routes.json` additionally names
+its source table's own stamps under `source`.
 
 **`docs/**` is the CURRENT run's report, not an archive of runs.** The nightly's `gxcheck`
 stage rebuilds the whole Data Docs site every run (orchestration ticket 08), so a

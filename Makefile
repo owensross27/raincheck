@@ -406,6 +406,13 @@ flood-route:  ## route x flood-extent attribution -> gold/route_flood + check ro
 flood-route-exhibit:  ## the ONE measured exhibit -> research/flood-21-route-exhibit.{md,json} (reads only)
 	$(PY) -m raincheck.flood_route --exhibit
 
+# frontend2 04: the three recent-flooding aggregates (publish family `summary`, a TREE).
+# Reads the flood universe and gold/route_flood - run AFTER `make flood-route`. Staged and
+# swapped whole, so a partial build can never be published.
+.PHONY: summary
+summary:  ## recent/complexes/routes aggregates -> web/files/summary/*.json (publish family `summary`)
+	$(PY) -m raincheck.summary
+
 # --- ticket 14: the live export loop (foreground, 30 s, Ctrl-C stops it) -----------
 .PHONY: live-export
 live-export:  ## live.geojson + meta.json every 30 s (make live-export [SOURCE=bronze] [ONCE=1])
