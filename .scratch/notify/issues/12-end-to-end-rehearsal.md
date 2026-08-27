@@ -208,3 +208,13 @@ prints on summary CHANGE only, counts only, and ends `NOT SENT (dry-run)`. There
 send path and no credential path — an AST test pins the imports and the attribute calls,
 so "arming" the notifier is a new capability, not a flag flip. A night rehearsal that
 drops everything on quiet_hours is CORRECT (notify 11's MUST 4).
+
+**FROM flood-build 20 (2026-08-26, branch `floodbuild20-design-storm`) — the flood tick's
+state gained one field a rehearsal will see.** `flood_panel.tick`'s returned state now
+carries `design_storm: {cells: <n raining scored-grid Cells>, max_mm_1h?: <2dp>}` and the
+one log line per tick ends `... ds=<n>[@<max>]` (module `raincheck.design_storm`; the
+payload side is `flood.json`'s top-level `design_storm` block + per-Cell `{mm_1h,
+bracket?}`, shape frozen on frontend 08's file and summary line). Nothing notify-side
+reads it — `nd.decide`/the renderer never see a design-storm number — so a rehearsal
+asserts at most that the field exists and the line renders; `live_loop.py` is untouched
+and the wave-8 `cycle()` union is notify 10's alone.
