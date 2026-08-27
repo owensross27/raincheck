@@ -395,10 +395,11 @@ def page(rec: dict, svg: str) -> str:
     families = ", ".join(f"<code>{html.escape(n)}</code>"
                          + (" (gated, dark)" if f.gated else "")
                          for n, f in sorted(publish.FAMILIES.items()))
-    # the fan-out's headline claim is "events, five Service dates wide", and only a real
-    # nightly's gap scan can produce five - so the page says which side of that this run is
-    # on rather than leaving a reader to assume the good one.
-    width = ("." if run["label"] == "nightly" and tot["widest_map"] >= 5 else
+    # the fan-out's headline claim is "events, five Service dates wide", and the caveat is
+    # about the WIDTH alone - the shadow's plan_service_date pod runs the identical
+    # `daily plan service_date` scan and produced six (orch 12's recorded run), so the label
+    # must not decide this; SCOPE[label] already says separately what a shadow is.
+    width = ("." if tot["widest_map"] >= 5 else
              ", so the fan-out at its declared width - one <code>events</code> pod per gap "
              "Service date, five or more of them - is not what this run shows.")
     verdict = rec["verdict"]

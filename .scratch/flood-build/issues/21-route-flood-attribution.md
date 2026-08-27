@@ -245,6 +245,17 @@ honest alternatives, both cheaper than the diff below:
 new predicate nothing in `daily.py` has today.
 **The diff is written as asked; the recommendation is (a), and it is the gate's call.**
 
+> **DECIDED — WAVE 8 GATE, PART 1 (2026-08-26): (a). The diff is NOT applied;
+> `make flood-route` stays a hand target run with the flood chain, beside
+> `make flood-labels`.** The measured case above is the whole reason: none of the seven
+> inputs is written by any nightly stage, so a nightly `flood_route` buys a burst node to
+> rebuild a byte-identical file every night. Option (b)'s moved-version predicate is new
+> machinery `daily.py` does not have and nothing else needs. The diff above stays ready,
+> verbatim, for the day an input starts moving nightly (a working Pick path, an unfrozen
+> flood chain) — re-decide then, do not inherit this. Consequence at this gate:
+> `raincheck_daily` stays FOURTEEN tasks and the `raincheck-stage` annotation is
+> untouched. Recorded on STATUS by the same gate entry.
+
 **Part 1 — `src/raincheck/daily.py`**, after the `gold` reduce and before `precip`
 (it reads Gold and Silver, writes Gold, and stands in front of `gxcheck`, which reads
 batches):
