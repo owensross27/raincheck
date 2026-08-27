@@ -219,6 +219,20 @@ def test_the_command_adds_lists_and_removes(tmp_path, root, capsys):
     assert "refused: unknown_token" in capsys.readouterr().err
 
 
+def test_a_dash_leading_unsubscribe_token_still_parses(tmp_path, root, capsys, monkeypatch):
+    """secrets.token_urlsafe can open with "-", and argparse reads that as an option -
+    caught live 2026-08-27 when the suite's random token opened with "-" and the CLI
+    rc-2'd the one token its owner holds. The command must accept it positionally."""
+    monkeypatch.setattr(ns.secrets, "token_urlsafe", lambda n: "-RIEw3Exx-pinned")
+    db = tmp_path / "cli.db"
+    argv = ["--db", str(db), "--root", str(root)]
+    assert ns.main(argv + ["add", HANDLE, STA]) == 0
+    token = capsys.readouterr().out.split("unsubscribe token: ")[1].strip()
+    assert token.startswith("-")
+    assert ns.main(argv + ["unsubscribe", token]) == 0
+    assert "unsubscribed 1 rows" in capsys.readouterr().out
+
+
 def test_no_http_ingress_ships_in_this_ticket():
     """v1 has no public write path of any kind: the module opens no socket and serves
     nothing. The handler above is the seam an endpoint would call instead."""

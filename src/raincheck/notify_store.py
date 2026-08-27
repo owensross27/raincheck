@@ -195,6 +195,13 @@ def main(argv: list[str] | None = None) -> int:
     rm.add_argument("handle")
     rm.add_argument("asset_id", nargs="?")
     sub.add_parser("unsubscribe").add_argument("token")
+    # secrets.token_urlsafe opens with "-" about 3% of the time, and argparse reads a
+    # dash-leading positional as an option (rc 2 - the one token its owner has cannot
+    # unsubscribe them). The token is always the final positional, so shield it.
+    argv = list(sys.argv[1:] if argv is None else argv)
+    i = argv.index("unsubscribe") + 1 if "unsubscribe" in argv else len(argv)
+    if i < len(argv) and argv[i].startswith("-") and argv[i] not in ("-h", "--help"):
+        argv.insert(i, "--")
     args = ap.parse_args(argv)
 
     root = args.root or data_root()
