@@ -164,3 +164,13 @@ walks it. Both are two lines from a rehearsal.
 `raincheck.notify_render` and this ticket ships `raincheck.notify_replay`. Both read
 naturally as `nr`. Spell them out here — every module name in this block is written in
 full for that reason.
+
+**FROM flood-build 20 (2026-08-26, branch `floodbuild20-design-storm`) — the flood tick's
+state gained one field a rehearsal will see.** `flood_panel.tick`'s returned state now
+carries `design_storm: {cells: <n raining scored-grid Cells>, max_mm_1h?: <2dp>}` and the
+one log line per tick ends `... ds=<n>[@<max>]` (module `raincheck.design_storm`; the
+payload side is `flood.json`'s top-level `design_storm` block + per-Cell `{mm_1h,
+bracket?}`, shape frozen on frontend 08's file and summary line). Nothing notify-side
+reads it — `nd.decide`/the renderer never see a design-storm number — so a rehearsal
+asserts at most that the field exists and the line renders; `live_loop.py` is untouched
+and the wave-8 `cycle()` union is notify 10's alone.

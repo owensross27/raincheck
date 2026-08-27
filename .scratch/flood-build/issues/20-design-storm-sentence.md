@@ -9,7 +9,8 @@ moved (D2).
 **Gate:** flood-build 19 + flood-build 15. Held to wave 8 — it edits flood 15's tick in
 `live_loop.py`, the file flood 17 owns alone in wave 7.
 
-**Status:** not-started — this file exists so far only to carry what 19 and 17 measured.
+**Status:** done — 2026-08-26, branch `floodbuild20-design-storm`. Close-out at the
+bottom; the frozen `design_storm` shape is there and on frontend 08's summary line.
 
 ---
 
@@ -226,3 +227,69 @@ rule.
 **AND THE SEAM YOU ALREADY OWN IS UNCHANGED BY THIS TICKET:** frontend2 03 touched no
 `src/raincheck/` module except `export.py` (a `--geo` mode over a new `web/geo.sql`), and
 `live_loop.py` / `flood_panel.py` are byte-identical to master on this branch.
+
+---
+
+## DONE 2026-08-26 — branch `floodbuild20-design-storm`
+
+**What shipped.** `src/raincheck/design_storm.py` (new, pure: scenarios / bracket / rates /
+cell / block / read / line) threaded through `flood_panel` alone — `payloads()` gained
+`design_storm=None` keyword-with-default (release_check's eight-positional call untouched),
+`_cells()` gained a `rates` parameter, `_tick` computes the snapshot from the `rows` it
+already read, state gained `design_storm` (the log-line summary), and `line()` appends
+`ds=<n>[@<max mm>]`. **`live_loop.py` is byte-identical to master** — the box predicted two
+`cycle()` editors this wave, but flood 17's seam (merge into `flood_panel._tick`, never
+into `cycle()`) plus the fact that every input was already in the tick made a loop edit a
+second call for nothing; a new `tests/test_live_loop.py` test pins `design_storm` out of
+that file the way flood 17 pinned `flood_overlay` out. The wave-8 `cycle()` union is
+notify 10's alone.
+
+**THE FROZEN SHAPE (frontend 08 binds to this; all additive, no `contract.CONTRACT` bump):**
+
+```
+flood.json (OPEN side only; nothing on flood-mta.json or the impact files)
+  design_storm:                      # top-level; absent only from pre-fb20 payloads and
+    scenarios: [                     #   release_check's sample — else always present
+      {scenario, rain_in_hr, mm_1h, horizons, extent_open, reason?} x3, ordered by mm_1h
+    ]                                # limited 1.77/44.96 · moderate 2.13/54.1 · extreme 3.66/92.96
+    asof: ISO hour-end of the newest landed MRMS hour   # absent when live/precip_cell is empty
+    display: { sentence            — "It is raining {mm_1h} mm/h here; DEP's Moderate design
+                                      storm is 54.10 mm/h." ({mm_1h} is the ONE placeholder,
+                                      filled per Cell)
+               bracket_sentence    — "...reaches DEP's {bracket} design intensity."
+               bracket_note        — why only Moderate/current is drawable
+               climate_note        — qualifier 1 (labels, never frequencies)
+               extent_note         — qualifier 2 (intensity does not reproduce extent) }
+  cells["<hex>"].design_storm:       # SCORED Cells only (1,351), present ONLY while
+    { mm_1h: <newest-hour rate, 2dp>,#   mm_1h > 0 there — absent-never-null
+      bracket?: "limited"|"moderate"|"extreme" }   # absent below Limited (the normal case)
+```
+
+Render from `display` only; `extent_open`/`reason` are why the sentence must not imply
+three drawable rungs; if the top-level key is absent render nothing. The intensities are
+derived (`stormwater_extent.SCENARIOS` x `flood_obs.MM_PER_INCH`, lazily imported once per
+process); an AST test (21a's pattern) keeps 1.77/2.13/3.66/44.96/54.1/92.96/25.4 out of
+the code of both edited modules.
+
+**Measured.** Tick peak RSS, real root, three runs each, `/usr/bin/time -l`, median:
+master **432.4 MiB** (397.1–448.8) vs branch **434.5 MiB** (420.3–442.6) — **+2.1 MiB,
+inside run-to-run noise (baseline spread 51.7 MiB); branch max < baseline max. The peak
+did not move; no request bump filed.** `flood.json` +1,628 B on a dry night (the block;
+zero per-Cell keys — the measured base rate holds). `make release-check` 15/15 rc 0.
+Own-module tests 84/84 with the real root (`test_design_storm` 15 new,
+`test_flood_panel` +3, `test_live_loop` +2). **10/10 mutants killed** (bracket boundary,
+oldest-hour, future-hours, NULL-kept, extent_open inverted, dry-cells-counted,
+every-cell-stamped, block-unthreaded, summary-dropped), pristine green both ends,
+harness under every TRAPS rule. Degenerate-fixture trap hit and fixed in-session: the
+Ida fixture's newest hour has every scored Cell wet below Limited, so the payload test
+plants one dry and one bracketed rate and asserts its own non-degeneracy.
+
+**Decisions a later session should know.** (1) Per-Cell dict is `{mm_1h, bracket?}`, not
+DESTINATION-PLAN's sketched `{rate_in_hr, bracket}` — the sentence is in mm and mm_1h is
+the estimand identity with the scenario rows; in/hr rides once, in `scenarios`. (2) The
+key set stays the 1,351 scored Cells (flood 15's rule) — the rate exists for all 4,113
+but a Cell with no exposure row has no dict; widening is a deliberate loop change.
+(3) `rates` carries measured 0.0 (dry is data); `cell()` is what turns dry into an
+absent key. (4) pyproj is NOT part of this module's import bill — `query` -> `ref`
+already imports it in the live pod; the lazy import defers `stormwater_extent` +
+`features` + the Transformer build, and a subprocess test pins it.

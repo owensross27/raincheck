@@ -404,3 +404,37 @@ A test asserts every one of those is distinct and none is on either arm of the d
 is calibrated to recede among coloured Cell fills and DISAPPEARS as a hairline on the dark
 basemap, so the route line passes `ROUTE_PLAIN` instead. If you ever paint a line or a small
 mark from a payload property, pass an absent colour that is visible on that mark.
+
+---
+
+## FROM flood-build 20 (LANDED 2026-08-26, branch `floodbuild20-design-storm`) — THE `design_storm` SHAPE IS FROZEN; RENDER FROM `display`, NEVER COMPOSE
+
+`files/flood.json` now carries it (additive, no `contract.CONTRACT` bump; absent from any
+pre-fb20 payload — your "if absent, render NOTHING" rule stands):
+
+```
+flood.json.design_storm                  # top-level
+  scenarios: [{scenario, rain_in_hr, mm_1h, horizons, extent_open, reason?}] x3,
+             ordered by mm_1h            # limited 44.96 · moderate 54.1 · extreme 92.96
+  asof:      ISO hour-end of the newest landed MRMS hour (absent if none)
+  display:   sentence · bracket_sentence · bracket_note · climate_note · extent_note
+flood.json.cells["<hex>"].design_storm   # SCORED Cells only, ONLY while mm_1h > 0 there
+  {mm_1h: <2dp>, bracket?: "limited"|"moderate"|"extreme"}   # bracket absent below Limited
+```
+
+- **`display.sentence` has ONE placeholder, `{mm_1h}`** — substitute the Cell's
+  `design_storm.mm_1h` and you have the whole sentence ("It is raining {mm_1h} mm/h here;
+  DEP's Moderate design storm is 54.10 mm/h."). `bracket_sentence` has `{bracket}` and is
+  rendered ONLY when the Cell dict carries `bracket` (near-never: measured base rate is
+  0.0039% of Cell-hours at Limited, 0 at Moderate). Every number in the strings is derived
+  from `stormwater_extent.SCENARIOS` upstream — do not re-derive or retype any intensity
+  in JS; an AST test keeps them out of the Python, and the same one-home rule reaches you.
+- **A Cell with no `design_storm` dict is DRY or unread — render no sentence there.** The
+  normal night is: block present, zero per-Cell keys.
+- `bracket_note`/`climate_note`/`extent_note` are the three bound qualifiers (only
+  Moderate/current drawable; labels-never-frequencies; intensity does not reproduce
+  extent). Render them verbatim if you surface them; they deliberately do NOT restate the
+  zone legend's planning-grade line, so placing them beside it does not double it.
+- The tick's log line gained `ds=<n>[@<max mm>]`; `flood_panel` state gained
+  `design_storm` (summary). `live_loop.py` is untouched — the wave-8 `cycle()` union is
+  notify 10's alone.
