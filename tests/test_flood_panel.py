@@ -884,3 +884,43 @@ def test_the_tick_threads_the_design_storm_and_carries_its_summary(tmp_path, mon
     doc = json.loads((tmp_path / "web" / "flood.json").read_text())
     assert doc["design_storm"]["display"]["sentence"]
     assert doc["design_storm"]["asof"] == narrow[0]["hour_end_utc"].isoformat()
+
+
+def test_a_missing_detector_artifact_degrades_the_tick_instead_of_killing_the_loop(
+        tmp_path, monkeypatch):
+    """The sibling of the outage test above, for the two lines that used to sit OUTSIDE
+    `tick`'s guard.
+
+    `fd.constants()` reads `research/flood-11-detector.json` off the REPO, not off the data
+    root, and cloud 14 measured what that costs when it is absent: `raincheck-live`
+    CrashLoopBackOff'd on the cluster, taking the FLEET EXPORT half down with the detector -
+    the exact outcome `live_loop`'s failure policy ("a dead detector must not stop the fleet
+    from publishing") exists to prevent, from a function whose first docstring line is
+    "Never raises". The image half is the Dockerfile test below; this is the contract."""
+    def gone(*a, **k):
+        raise FileNotFoundError(fd.DETECTOR)
+    monkeypatch.setattr(fp.fd, "constants", gone)
+    state = fp.tick(None, tmp_path, tmp_path / "web", None, NOW)
+    assert state["error"].startswith("FileNotFoundError"), state
+    assert state["skipped"] is False and state["stamp"] is None
+
+
+def test_the_image_carries_every_research_artifact_the_detector_reads_at_runtime():
+    """The three artifacts are named from the MODULE CONSTANTS, never re-typed here: a
+    fourth one added to either module fails this test until the Dockerfile carries it.
+
+    `research/` is .dockerignore'd wholesale, so for nine waves every image shipped without
+    the fitted model and nothing could see it - no pod had ever run the flood tick. The
+    build's own assertion (`fd.constants(); fe.coefficients(); fe.FITS.read_text()`) is the
+    check with teeth, because it fails the BUILD; this one costs nothing and catches a
+    dropped COPY line without one. NAMED LIMIT: it reads these three constants, not every
+    `REPO / "research" / ...` in src/ - most of those are write targets (flood_fits,
+    flood_replay, notify_replay), and telling a writer from a reader by static shape is a
+    bigger machine than the problem."""
+    text = (Path(__file__).parent.parent / "docker" / "Dockerfile").read_text()
+    ignore = (Path(__file__).parent.parent / ".dockerignore").read_text()
+    for p in (fd.DETECTOR, fe.COEFFICIENTS, fe.FITS):
+        assert f"research/{p.name}" in text, f"docker/Dockerfile does not COPY {p.name}"
+        assert f"!research/{p.name}" in ignore, f".dockerignore excludes {p.name}"
+    assert "fd.constants(); fe.coefficients(); fe.FITS.read_text()" in text, \
+        "the build no longer LOADS the artifacts it copies"

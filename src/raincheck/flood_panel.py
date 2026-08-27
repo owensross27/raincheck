@@ -760,11 +760,21 @@ def tick(con, root: Path, out_dir: Path, prev: dict | None, now: datetime,
     there rather than from a second fetch of the same two endpoints at the render rate.
     """
     prev = prev or {}
-    det_art = prev.get("det") or fd.constants()
-    stamp = newest_stamp(root)
-    if not due(prev, stamp, now, det_art["throttles"]["floodnet_s"]):
-        return prev | {"skipped": True}
+    stamp = None
+    # `fd.constants()` and the skip test are INSIDE the guard, and that is what makes the
+    # first line of this docstring true. They used to sit above it, so a missing
+    # research/flood-11-detector.json raised out of a function documented never to raise -
+    # which killed live_loop's whole cycle, the FLEET EXPORT HALF INCLUDED, in flat
+    # contradiction of that module's own failure policy ("a dead detector must not stop the
+    # fleet from publishing"). Measured on the cluster by cloud 14, 2026-08-27: the artifact
+    # is not in the image, and raincheck-live CrashLoopBackOff'd on it rather than
+    # degrading to an error field. The image half is fixed in docker/Dockerfile; this half
+    # is the contract, and it holds for any future artifact that goes missing.
     try:
+        det_art = prev.get("det") or fd.constants()
+        stamp = newest_stamp(root)
+        if not due(prev, stamp, now, det_art["throttles"]["floodnet_s"]):
+            return prev | {"skipped": True}
         return _tick(con, root, out_dir, prev, now, detector, det_art, stamp,
                      ship_ or ship)
     except Exception as exc:  # noqa: BLE001 - an outage is a field on state, never a stop
