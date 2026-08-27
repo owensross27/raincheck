@@ -332,6 +332,11 @@ wide" checkbox is NOT ticked**: the widest map is measured into the record
       a real nightly's gap scan can produce five" — is what has been disproved: the shadow's
       `plan_service_date` pod runs the identical `daily plan service_date` scan and produced
       six. **Fix the predicate, not the label.**
+      **FIXED — WAVE 8 GATE, PART 1 (2026-08-26, `32176c4`):** `showcase.page()` now keys
+      the caveat on `tot["widest_map"] >= 5` alone (label conjunct dropped; the disproved
+      only-a-nightly comment corrected). `tests/test_showcase.py` 34 passed / 1 skipped;
+      the three-wide fixture's both-labels caveat assertion still holds. Nothing on this
+      ticket remains open.
 - [x] The serial baseline is stated next to it — `SERIAL = 1928 s / 7 service days /
       ~275 s/day`, on the page beside the run, with the reason both numbers travel together
 
