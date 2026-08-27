@@ -21,7 +21,7 @@
  * write, and an imported binding is read-only in the importing module.
  * -------------------------------------------------------------------------------- */
 import { $, DELAY_CUT_S, L, LIVE_FRESH, LIVE_STALE, map, on, STALE_AFTER_S } from "./layers.js";
-import { forget, grab, whys } from "./freshness.js";
+import { ages, forget, grab, whys } from "./freshness.js";
 import { renderLayers } from "./panel.js";
 
 let liveTimer = null, liveFeatures = null;
@@ -113,6 +113,162 @@ async function liveTick() {
   }
   renderLive(meta);
   renderLayers();
+}
+
+/* ============================== frontend 08: the flood tier points and the two impact
+ * overlays (flood 15/17's payloads). Every claim string rendered below is READ from the
+ * payload - flood 11's display.* strings selected by flood_panel.strings(), the same
+ * artifact every notify message reads - never re-worded here, so the panel and a message
+ * cannot disagree. Tier words go through strings.tier_labels; no tier is ever spelled in
+ * this file and nothing here may print an absent value ("None"/undefined) - an absent
+ * member renders NOTHING, never a placeholder. Each draw sets its layer's `legend`
+ * (frontend2 03's mechanism: rendered under the row while the layer is lit) and the
+ * panel's srcState() row does the freshness verdict off the frozen `budget:` fields.
+ */
+
+// a payload string -> one sentence; absent -> nothing at all
+const note = (s, cls = "note") => (s === null || s === undefined || s === "")
+  ? "" : `<p class="${cls}">${esc(s)}</p>`;
+const sentences = (list) => (Array.isArray(list) ? list : []).map(c => note(c)).join("");
+
+/* The DATA-age composite, the live pair's `vp_age_s + metaAge` idiom in the overlay rows.
+ * The payload's `staleness.age_min` is the data's age AT WRITE (the writer recomputes it
+ * every tick); the header age grab() recorded is the file's age SINCE the write. Their sum
+ * is the data's age now, dated at the reader, and it keeps counting after the writer dies
+ * - without it a freshly rewritten file over a stale Gold hour would read FRESH. ages{} is
+ * grab()'s own registry and load() runs the draw after grab() has set it; this is a
+ * property write, not a cross-module binding write. */
+function addDataAge(lyrId, body) {
+  const lyr = L(lyrId);
+  const key = lyrId + "/" + lyr.srcs[0].k;
+  if (body && body.staleness && typeof body.staleness.age_min === "number"
+      && typeof ages[key] === "number")
+    ages[key] += Math.max(0, body.staleness.age_min * 60);
+}
+
+/** files/flood.json -> the FloodNet sensor points + the flood panel's own text. */
+export function drawFn(f) {
+  const lyr = L("fn");
+  if (!f) { lyr.legend = ""; return; }
+  const fn = f.floodnet || {};
+  if (fn.geojson) map.getSource("fn").setData(fn.geojson);
+  const s = f.strings || {};
+  const read = fn.read || {};
+  const parts = [];
+  if (typeof read.rendered === "number")
+    parts.push(note(`${read.rendered} sensors drawn, ${fn.detected ?? 0} reporting water now.`));
+  if (s.panel)
+    parts.push(note([s.panel.headline, s.panel.release, s.panel.caveat]
+      .filter(Boolean).join(" · ")));
+  parts.push(note(s.operating_truth));
+  if (f.provisional) parts.push(note(s.tiers_provisional));
+  const w = f.window;
+  parts.push(w && w.state ? note(`Window ${w.state}${w.anchor ? `, anchor ${w.anchor}` : ""}.`)
+                          : note("No Window is open."));
+  // a refusal is rendered, never papered over with a last-good number (units is [] then)
+  if (f.model_tier && f.model_tier !== "ok")
+    parts.push(note(`model tier ${f.model_tier}${f.skew && f.skew.reason ? ": " + f.skew.reason : ""}`, "note warn"));
+  if (f.dim && f.dim.dimmed && typeof f.dim.dry_hours === "number")
+    parts.push(note(`Dimmed: ${f.dim.dry_hours} dry hours since rain.`));
+  if (f.winter && f.winter.suppressed) parts.push(note(f.winter.label || s.winter_label));
+  // Units at ELEVATED+ only; the tier word comes from strings.tier_labels, never typed
+  // here, and the asset_id prints beside the name (names are not unique at any grain)
+  const us = Array.isArray(f.units) ? f.units : [];
+  if (us.length) parts.push(note(`${us.length} flagged Units:`));
+  for (const u of us.slice(0, 12)) {
+    const tier = (s.tier_labels || {})[u.tier];
+    parts.push(note([u.name, `(${u.asset_id})`, tier, u.rank !== undefined ? `rank ${u.rank}` : ""]
+      .filter(Boolean).join(" ")));
+  }
+  if (us.length > 12) parts.push(note(`… and ${us.length - 12} more flagged Units not listed.`));
+  if (us.some(u => u.kind === "complex")) parts.push(note(s.no_complex_skill_claim));
+  const inCells = us.map(u => u.cell).filter(Boolean);
+  if (new Set(inCells).size < inCells.length) parts.push(note(s.within_cell));
+  // the writer's per-feed verdicts at last write; the file's OWN age is the srcState row
+  const st = f.staleness || {};
+  if (Object.keys(st).length)
+    parts.push(note("Feeds at last write: " + Object.entries(st).map(([k, v]) =>
+      `${k} ${v.state}` + (typeof v.age_min === "number" ? ` (${Math.round(v.age_min)} min)` : ""))
+      .join(" · ") + "."));
+  parts.push(sentences(fn.caveats));
+  // flood-build 20's storm-comparison sentence, IF the payload carries it - rendered from
+  // its own display strings and from nothing else; absent means NOTHING, no placeholder
+  const ds = f.design_storm && f.design_storm.display;
+  if (ds) parts.push(sentences(Object.values(ds).filter(v => typeof v === "string")));
+  lyr.legend = parts.join("");
+}
+
+/** files/flood-mta.json -> the affected-complex dots + the chip rows. */
+export function drawMta(m) {
+  const lyr = L("mta");
+  if (!m) { lyr.legend = ""; return; }
+  const t = m.mta || {};
+  if (t.geojson) map.getSource("mta").setData(t.geojson);
+  const s = m.strings || {};
+  const parts = [];
+  if (typeof t.active === "number")
+    parts.push(note(`${t.active} active alert${t.active === 1 ? "" : "s"} in the last ${t.hours ?? "—"} h of alert capture.`));
+  for (const c of (Array.isArray(t.chips) ? t.chips : []))
+    parts.push(note([(c.stations || []).map(x => `${x.name} (stn:${x.complex_id})`).join(", "),
+                     c.state, typeof c.age_min === "number" ? `${Math.round(c.age_min)} min ago` : ""]
+      .filter(Boolean).join(" · ")));
+  if ((t.chips || []).length) parts.push(note(s.no_complex_skill_claim));
+  parts.push(note(s.operating_truth));
+  lyr.legend = parts.join("");
+}
+
+/** files/impact.json -> the bus overlay: the hour's Cells joined onto the geometry the
+ *  page already parsed (cells.geojson is fetched ONCE - frontend 05 retired the double
+ *  parse - so the join reads the map's own `cells` source rather than fetching again). */
+export function drawImpact(b) {
+  const lyr = L("impact");
+  if (!b) { lyr.legend = ""; return; }
+  addDataAge("impact", b);
+  const src = map.getSource("cells");
+  const fc = src && src.serialize ? src.serialize().data : null;
+  const feats = ((fc && fc.features) || []).map(f => ({
+    type: "Feature", geometry: f.geometry,
+    properties: { cell: f.properties.cell, ...((b.cells || {})[f.properties.cell] || {}) },
+  }));
+  map.getSource("impact").setData({ type: "FeatureCollection", features: feats });
+  const s = b.strings || {};
+  const parts = [note(s.label)];
+  if (!feats.length)
+    parts.push(note("No Cell geometry is loaded (files/cells.geojson), so there is nothing to paint on."));
+  // the sparse head is SAID, not just painted: 19 Cells without a count reads as a claim
+  // about the city (flood 17's own counts, re-shipped in the payload every cycle)
+  if (typeof b.n_cells === "number")
+    parts.push(note(`Newest closed hour ${b.hour_end_utc ?? ""}: ${b.n_cells} Cells, against ${b.densest_cells ?? "—"} in the densest hour (${b.densest_hour_end_utc ?? ""}).`));
+  if (b.baseline && b.baseline.reason && b.state === "no_baseline")
+    parts.push(note(b.baseline.reason));
+  parts.push(note(s.never_a_detector_input));
+  parts.push(sentences(s.caveats));
+  lyr.legend = parts.join("");
+}
+
+/** files/impact-subway.json -> complex-grain points. `rel` rides only when the payload
+ *  carries it - absent (below min_planned), not zero - and the mark reads it as SIZE. */
+export function drawImpactSub(d) {
+  const lyr = L("subway");
+  if (!d) { lyr.legend = ""; return; }
+  addDataAge("subway", d);
+  const feats = Object.entries(d.complexes || {})
+    .filter(([, c]) => typeof c.lon === "number" && typeof c.lat === "number")
+    .map(([id, c]) => ({
+      type: "Feature", geometry: { type: "Point", coordinates: [c.lon, c.lat] },
+      properties: { complex_id: id, name: c.name, cell: c.cell, planned: c.planned,
+                    dropped: c.dropped, runs: c.runs, drop_share: c.drop_share,
+                    ...("rel" in c ? { rel: c.rel } : {}) },
+    }));
+  map.getSource("subway").setData({ type: "FeatureCollection", features: feats });
+  const s = d.strings || {};
+  const parts = [note(s.label)];
+  if (typeof d.n_complexes === "number")
+    parts.push(note(`Hour ${d.hour_end_utc ?? ""}: ${d.n_complexes} complexes, ${d.planned ?? "—"} planned stop rows, ${d.dropped ?? "—"} dropped. ${d.n_rel ?? "—"} carry a rel value; a complex under ${d.min_planned ?? "—"} planned rows carries none - absent, not zero.`));
+  if (d.level && d.level.note) parts.push(note(d.level.note));
+  parts.push(note(s.never_a_detector_input));
+  parts.push(sentences(s.caveats));
+  lyr.legend = parts.join("");
 }
 
 export function toggleLive(lit) {

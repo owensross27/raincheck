@@ -33,6 +33,7 @@
  */
 import { drawCells, drawRoutes, drawZones } from "./insight.js";
 import { drawBasemap } from "./basemap.js";
+import { drawFn, drawImpact, drawImpactSub, drawMta } from "./live.js";
 
 // Fixed ramps. Ratio: diverging around 1.0 (red slower, blue faster), 0.5 .. 1.2 always.
 export const RATIO_STOPS = [[0.5, "#7f0000"], [0.65, "#d7301f"], [0.8, "#fc8d59"], [0.9, "#fdd49e"],
@@ -68,6 +69,17 @@ export const ZONE_DEEP = "#2e7d5b";       // ponding >= 1 ft ("Deep and Contiguo
 export const ZONE_NUISANCE = "#8fcfae";   // >= 4 in, < 1 ft ("Nuisance Flooding")
 export const ZONE_MASK = "#7a8794";       // "Area not included in analysis" - NOT "no flooding"
 export const ROUTE_PLAIN = "#5b6572";     // a route line carrying geometry and no number
+
+/* flood 17's subway impact overlay: one new hue for one new mark family (complex-grain
+ * points), and the clamp its `rel` ramp must carry. `rel` is the complex against the
+ * citywide same-hour median of the SAME feed and it is unbounded above - measured 18.7
+ * against a median drop_share of 0.0247 (2026-08-26) - so the size ramp saturates at
+ * REL_CLAMP: past several times the citywide median the mark has said everything a mark
+ * can say, and an unclamped linear ramp is one station and 437 flat ones. A complex below
+ * the payload's own `min_planned` carries NO `rel` - absent, not zero - and renders as a
+ * RING, the page's established "present, no publishable value" mark (the fn layer's). */
+export const SUBWAY = "#e07ba0";   // a complex's dropped-service share vs the citywide median
+export const REL_CLAMP = 4;
 
 // The category -> hue mapping, as ONE expression both the paint and the legend read, so a
 // swatch cannot show a colour the map does not use. An unrecognised category falls to the
@@ -181,19 +193,36 @@ export const LAYERS = [
     draw: null },
 
   { id: "fn", point: true, name: "Flood tier: FloodNet", gate: null, fill: false, open: false,
-    map: ["fn"], owed: "flood 15",
+    map: ["fn"], owed: null,
     srcs: [{ k: "files/flood.json", url: "files/flood.json", budget: 600 }],
-    draw: null },
+    draw: ([f]) => drawFn(f) },
 
+  // no budget: unlike the impact pair below, no staleness constant for the alert side is
+  // frozen anywhere in the repo (flood 15's budgets_s carries the six FEED budgets, none
+  // for this file), so this row renders an AGE and judges nothing - the chip states inside
+  // the payload carry their own per-incident verdicts. frontend 02 D6: never a guessed one.
   { id: "mta", point: true, name: "Flood tier: MTA alerts", gate: "mta-alerts", fill: false, open: false,
-    map: ["mta"], owed: "flood 15",
+    map: ["mta"], owed: null,
     srcs: [{ k: "files/flood-mta.json", url: "files/flood-mta.json", budget: null }],
-    draw: null },
+    draw: ([m]) => drawMta(m) },
 
+  // 122400 = flood_overlay.BUS_BUDGET_S (one nightly cycle + daily.TAIL_H); the test
+  // derives it from that module so the two cannot drift. The payload's own staleness is
+  // the DATA's age at write; the draw adds it to the file age (the live pair's composite),
+  // so a fresh file over a stale Gold hour still reads STALE.
   { id: "impact", name: "Impact overlay: bus", gate: "mta-vehicles", fill: true, open: false,
-    map: ["impact-fill", "impact-line"], owed: "flood 17",
-    srcs: [{ k: "files/impact.json", url: "files/impact.json", budget: null }],
-    draw: null },
+    map: ["impact-fill", "impact-line"], owed: null,
+    srcs: [{ k: "files/impact.json", url: "files/impact.json", budget: 122400 }],
+    draw: ([b]) => drawImpact(b) },
+
+  // flood 17's subway overlay: complex-grain POINTS, a different channel from the
+  // Cell-fill radio entirely (never a second fill - a Cell overlay and a complex overlay
+  // in one legend would be lying about their grain). 4200 = flood_overlay.SUBWAY_BUDGET_S
+  // (the hour + archiver.WINDOW), derived in the test like the bus budget above.
+  { id: "subway", point: true, name: "Impact overlay: subway", gate: "mta-vehicles", fill: false,
+    open: false, map: ["subway"], owed: null,
+    srcs: [{ k: "files/impact-subway.json", url: "files/impact-subway.json", budget: 4200 }],
+    draw: ([d]) => drawImpactSub(d) },
 
   /* frontend 07. `open: false` is the boot-vs-toggle decision, taken on the measured
    * sizes: the manifest is 1,458,148 B RAW (nothing on this host compresses), ~40% of the
@@ -251,7 +280,7 @@ export const map = new maplibregl.Map({
     glyphs: "vendor/{fontstack}-{range}.pbf",
     sources: { zones: empty(), stormwater: empty(), routes: empty(), cells: empty(),
                impact: empty(), locate: empty(),
-               live: empty(), hist: empty(), fn: empty(), mta: empty() },
+               live: empty(), hist: empty(), fn: empty(), mta: empty(), subway: empty() },
     layers: [
       { id: "bg", type: "background", paint: { "background-color": "#0b0d10" } },
       { id: "zones-fill", type: "fill", source: "zones", layout: { visibility: "none" },
@@ -274,9 +303,14 @@ export const map = new maplibregl.Map({
       { id: "cells", type: "fill", source: "cells", layout: { visibility: "none" },
         paint: { "fill-color": GREY, "fill-opacity": 0.86 } },
       // the impact overlay shares the Cell fill channel and the frozen ramp above; it gets
-      // no ramp of its own and can never be lit at the same time as `cells` (frontend 02 D1)
+      // no ramp of its own and can never be lit at the same time as `cells` (frontend 02 D1).
+      // The paint is declared AT BOOT off the same RATIO_STOPS the delay fill uses: `ratio`
+      // is an ABSENT key wherever no capture-era baseline exists (today: everywhere, and
+      // the payload says why), so ["!", ["has", "ratio"]] paints grey - spec L's own rule.
       { id: "impact-fill", type: "fill", source: "impact", layout: { visibility: "none" },
-        paint: { "fill-color": GREY, "fill-opacity": 0.86 } },
+        paint: { "fill-color": ["case", ["!", ["has", "ratio"]], GREY,
+                   ["interpolate", ["linear"], ["get", "ratio"], ...RATIO_STOPS.flat()]],
+                 "fill-opacity": 0.86 } },
       { id: "cells-line", type: "line", source: "cells", layout: { visibility: "none" },
         paint: { "line-color": "#0b0d10", "line-width": 0.4 } },
       { id: "impact-line", type: "line", source: "impact", layout: { visibility: "none" },
@@ -303,6 +337,16 @@ export const map = new maplibregl.Map({
                  "circle-radius": ["case", ["get", "display"], 6, 3.4],
                  "circle-stroke-color": ["case", ["get", "display"], "#0b0d10", WATER],
                  "circle-stroke-width": 1.2 } },
+      // flood 17's subway overlay: `rel` drives the SIZE, clamped at REL_CLAMP (an
+      // interpolate holds its last output past its last stop, so the clamp is the
+      // expression itself). Absent `rel` (below the payload's min_planned) is a RING -
+      // present, no publishable value - never a zero-sized or zero-valued mark.
+      { id: "subway", type: "circle", source: "subway", layout: { visibility: "none" },
+        paint: { "circle-color": ["case", ["has", "rel"], SUBWAY, "rgba(0,0,0,0)"],
+                 "circle-radius": ["case", ["has", "rel"],
+                   ["interpolate", ["linear"], ["get", "rel"], 1, 3.5, REL_CLAMP, 9], 3],
+                 "circle-stroke-color": SUBWAY, "circle-stroke-width": 1.2,
+                 "circle-opacity": 0.85 } },
       // an "affected station" is a dot on the COMPLEX (frontend 02 D4): the flood_truth chip
       // is per-incident and spans one or more complexes, so the chip is what the card shows
       { id: "mta", type: "circle", source: "mta", layout: { visibility: "none" },

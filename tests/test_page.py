@@ -18,13 +18,13 @@ VISIBLE tab (MapLibre throttles rAF when hidden, so a headless screenshot is mis
 """
 import re
 
-from raincheck import contract, flood_truth, publish
+from raincheck import contract, flood_overlay, flood_truth, publish
 # `page`, not `tests.page`: pytest's prepend import mode puts THIS directory on sys.path
 # (there is no tests/__init__.py), so the bare name resolves under `pytest tests/...` as
 # well as under `make test`. `tests.page` resolves only when the repo root happens to be
 # sys.path[0], which is true of `python -m pytest` from the root and of nothing else.
-from page import (GEO_ORDER, SPEC_ORDER, budgets, layer_entries, module_js, page_css,
-                  page_files, page_html, page_js, style_layers, web)
+from page import (GEO_ORDER, SPEC_ORDER, SUB_ORDER, budgets, layer_entries, module_js,
+                  page_css, page_files, page_html, page_js, style_layers, web)
 
 
 # ---------------------------------------------------------- the split itself, frontend2 01
@@ -172,7 +172,8 @@ def test_all_twelve_layers_are_declared_at_boot_in_the_frozen_order():
     MUTATION KILLED: moving any layer in the style block, dropping one, or adding one
     through a later addLayer() instead of declaring it here."""
     declared = style_layers(page_js())
-    assert [lid for lid in declared if lid not in GEO_ORDER] == SPEC_ORDER
+    assert [lid for lid in declared
+            if lid not in GEO_ORDER and lid not in SUB_ORDER] == SPEC_ORDER
 
 
 def test_the_geography_band_sits_above_the_basemap_and_below_every_answer_layer():
@@ -272,7 +273,7 @@ def test_every_source_boots_empty_and_every_data_layer_boots_hidden():
     sources = js.split("sources: {", 1)[1].split("},", 1)[0]
     names = re.findall(r"(\w+): empty\(\)", sources)
     assert sorted(names) == ["cells", "fn", "hist", "impact", "live", "locate", "mta",
-                             "routes", "stormwater", "zones"]
+                             "routes", "stormwater", "subway", "zones"]
     assert "empty = () => ({ type: \"geojson\", data: { type: \"FeatureCollection\", features: [] } })" in js
     assert 'data: "files/' not in sources, "a source booting off a URL cannot report its age"
 
@@ -349,16 +350,25 @@ def test_only_a_source_with_a_frozen_budget_may_render_a_verdict():
     js = page_js()
     entries = layer_entries(js)
     all_budgets = [b for e in entries.values() for b in budgets(e)]
-    assert len(all_budgets) == 12, "twelve sources, twelve budget declarations"
+    assert len(all_budgets) == 13, "thirteen sources, thirteen budget declarations"
     # frontend2 03 adds two more unbudgeted static payloads (the route lines and the flood
     # zones' manifest). The zones layer's SECOND source is added at draw time and carries
     # `budget: null` too - see test_the_flood_zone_scenario_is_derived_from_a_manifest.
-    assert all_budgets.count("null") == 9
+    # frontend 08 graduates the two impact rows (flood 17's derived budgets, asserted from
+    # the module below); `mta` deliberately stays AGE - no staleness constant for the
+    # alert-side FILE is frozen anywhere in the repo, and a guessed one is the exact
+    # failure this test exists to catch.
+    assert all_budgets.count("null") == 8
 
     assert budgets(entries["live"]) == ["STALE_AFTER_S.live", "STALE_AFTER_S.live"]
     assert "const STALE_AFTER_S = { live: 120, bronze: 900 };" in js   # ticket 14's table
     assert budgets(entries["fn"]) == [str(flood_truth.MAX_AGE_MIN * 60)]
-    for lid in ("basemap", "zones", "cells", "mta", "impact", "hist", "routes", "stormwater"):
+    # flood 17's two derived budgets, read from the module that derives them - never a
+    # second copy that can drift (122400 = one nightly cycle + daily.TAIL_H; 4200 = the
+    # hour + archiver.WINDOW)
+    assert budgets(entries["impact"]) == [str(flood_overlay.BUS_BUDGET_S)]
+    assert budgets(entries["subway"]) == [str(flood_overlay.SUBWAY_BUDGET_S)]
+    for lid in ("basemap", "zones", "cells", "mta", "hist", "routes", "stormwater"):
         assert budgets(entries[lid]) == ["null"] * len(budgets(entries[lid]))
 
 
@@ -439,7 +449,7 @@ def test_every_layer_names_its_gate_side_by_lineage():
              for lid, e in entries.items()}
     assert gates == {"basemap": "null", "zones": "null", "cells": "null",
                      "live": '"mta-vehicles"', "fn": "null", "mta": '"mta-alerts"',
-                     "impact": '"mta-vehicles"', "hist": "null",
+                     "impact": '"mta-vehicles"', "subway": '"mta-vehicles"', "hist": "null",
                      # frontend2 03: the geometry is STATIC GTFS (the published schedule
                      # bundle), not the GTFS-Realtime feeds, and the numbers are the same
                      # historical 2021/2023 aggregate `cells` already publishes ungated off
@@ -463,19 +473,22 @@ def test_a_gated_layer_renders_dark_and_explained_never_absent():
 
 def test_the_four_not_yet_landed_sources_are_honest_off_or_gated_chips():
     """Rendering truthfully with layers dark is the design requirement, not a degraded
-    mode. Each of the four names the ticket that owes its payload, so a reader is told what
-    is missing rather than shown an empty map. MUTATION KILLED: deleting a not-yet-landed
-    layer until its writer ships (which is what forces the re-plumbing tickets 07/08 are
-    meant to be spared), or claiming a payload the page cannot draw."""
+    mode. A layer whose payload has not landed names the ticket that owes it; frontend 08
+    landed the draws for the tier points and both impact overlays, so those four claim
+    their payloads now and owe nothing. MUTATION KILLED: deleting a not-yet-landed layer
+    until its writer ships, claiming a payload the page cannot draw, or leaving a stale
+    `owed:` note over a layer whose draw exists."""
     entries = layer_entries(page_js())
     owed = {lid: re.search(r'owed: (\"[a-z0-9 ]+\"|null)', e).group(1)
             for lid, e in entries.items()}
     assert owed == {"basemap": "null", "zones": "null", "cells": "null", "live": "null",
-                    "fn": '"flood 15"', "mta": '"flood 15"', "impact": '"flood 17"',
+                    "fn": "null", "mta": "null", "impact": "null", "subway": "null",
                     "hist": "null",   # notify 05 landed its manifest; frontend 07 lit it
                     "routes": "null", "stormwater": "null"}
-    for lid in ("fn", "mta", "impact"):
-        assert "draw: null" in entries[lid], f"{lid} may not claim to paint a payload it has not seen"
+    for lid, fn in (("fn", "drawFn"), ("mta", "drawMta"),
+                    ("impact", "drawImpact"), ("subway", "drawImpactSub")):
+        assert f"{fn}(" in entries[lid], f"{lid}'s draw is {fn}"
+        assert "draw: null" not in entries[lid], lid
 
 
 # ---------------------------------------------------------------- keyboard, mobile, layout
@@ -507,7 +520,7 @@ def test_a_small_screen_opens_with_the_fill_on_and_every_point_layer_off():
     assert "LAYERS.forEach(l => { on[l.id] = l.open && !(SMALL && l.point); });" in js
     entries = layer_entries(js)
     points = {lid for lid, e in entries.items() if "point: true" in e}
-    assert points == {"live", "fn", "mta", "hist"}
+    assert points == {"live", "fn", "mta", "hist", "subway"}
     opens = {lid for lid, e in entries.items() if "open: true" in e}
     assert opens == {"basemap", "zones", "cells"}, "the ground, the basemap and the fill"
     assert "basemap" not in points, (
@@ -573,7 +586,11 @@ def test_the_frozen_ramps_are_byte_untouched_and_the_new_hues_sit_beside_them():
             # NEUTRAL for DEP's exclusion mask that is deliberately not GREY (which already
             # means "no publishable value" on the Cell fill), and an uncoloured route line.
             "ZONE_DEEP": "#2e7d5b", "ZONE_NUISANCE": "#8fcfae", "ZONE_MASK": "#7a8794",
-            "ROUTE_PLAIN": "#5b6572"}
+            "ROUTE_PLAIN": "#5b6572",
+            # frontend 08: the subway impact overlay's one hue - a new mark family
+            # (complex-grain points) gets a new hue rather than overloading ALERT, which
+            # already means "an MTA station with water on the tracks"
+            "SUBWAY": "#e07ba0"}
     for name, hue in hues.items():
         assert f'const {name} = "{hue}";' in js
     assert len(set(hues.values())) == len(hues), "two meanings on one hue"
@@ -799,3 +816,112 @@ def test_an_unpublishable_route_crossing_is_uncoloured_and_not_invisible():
     fill = js.split("function paint()", 1)[1].split("\n}", 1)[0]
     assert "colorExpr(activeProp(), s)" in fill, "the Cell fill keeps spec L's grey"
     assert "ROUTE_PLAIN)" in js.split("export function applyRamp()", 1)[1]
+
+
+# ==================================== frontend 08: the flood tiers and the impact overlays
+def test_the_tier_vocabulary_is_read_from_the_payload_and_never_spelled():
+    """The tier words come from flood 11's display.tier_labels via flood_panel.strings(),
+    the same artifact every notify message reads - so the page and a message cannot
+    disagree, and Ross recording flood 12's verdict changes the payload with no page edit.
+    The frozen honesty string is likewise READ (strings.operating_truth), never mirrored:
+    a page constant that mirrors a src/ constant pins the mirror to itself (TRAPS).
+    MUTATION KILLED: typing a tier word into the page; pasting the operating-truth
+    sentence into JS; or rendering a unit's tier without going through tier_labels."""
+    js = page_js()
+    for word in ('"NONE"', '"ELEVATED"', '"HIGH"', '"elevated"', '"high"', "not flagged"):
+        assert word not in js, f"the page spells {word} instead of reading tier_labels"
+    assert "tier_labels" in js, "the tier word is looked up, never typed"
+    assert "ranks where a flood REPORT is likely" not in js, "the honesty string is mirrored"
+    assert "operating_truth" in js, "the honesty string is read from the payload"
+    # nothing may print an absent value: the unit line filters absent members out
+    body = js.split("export function drawFn(f)", 1)[1].split("\n}", 1)[0]
+    assert ".filter(Boolean).join(" in body
+    assert "(s.tier_labels || {})[u.tier]" in body
+    assert "u.asset_id" in body, "names are not unique at any grain - the id prints beside them"
+
+
+def test_the_bus_overlay_joins_by_hex_and_paints_absent_ratio_grey_on_the_frozen_ramp():
+    """flood 17: `cells` is keyed by the H3 HEX STRING cells.geojson already carries, so
+    the join needs no lookup - and the geometry is read from the map's own `cells` source
+    because cells.geojson is fetched ONCE (frontend 05 retired the double parse). There is
+    no capture-era baseline today, so `ratio` is an ABSENT key on every Cell and
+    ["!", ["has", "ratio"]] paints grey - the chassis's own rule; the ramp is RATIO_STOPS
+    spread into the boot declaration, never a second table. The payload's reason sentence
+    is rendered, not restated. MUTATION KILLED: giving the overlay its own stops; painting
+    absent ratio as a zero (a 0.5-clamped dark red lie); fetching cells.geojson a second
+    time; or dropping the baseline.reason render."""
+    js = page_js()
+    block = js.split('{ id: "impact-fill"', 1)[1].split('{ id: "cells-line"', 1)[0]
+    assert '["case", ["!", ["has", "ratio"]], GREY,' in block
+    assert '["interpolate", ["linear"], ["get", "ratio"], ...RATIO_STOPS.flat()]' in block
+    body = js.split("export function drawImpact(b)", 1)[1].split("\n}", 1)[0]
+    assert 'map.getSource("cells")' in body, "the geometry the page already parsed"
+    assert "(b.cells || {})[f.properties.cell]" in body, "the hex-keyed join"
+    assert 'fetch("files/cells.geojson"' not in js, "cells.geojson is fetched once"
+    assert "b.baseline.reason" in body, "the payload says WHY there is no ratio - render it"
+    assert "b.n_cells" in body and "b.densest_cells" in body, (
+        "the sparse head is said, not just painted")
+
+
+def test_the_subway_overlay_is_points_beside_the_alert_dots_with_a_clamped_rel_ramp():
+    """flood 17: complex-grain POINTS, never a second Cell fill - a Cell overlay and a
+    complex overlay in one legend would be lying about their grain, so it is its own layer
+    on its own channel, declared at boot in the gap between the two flood tier point
+    layers (the bounds derived from SPEC_ORDER's tail, the GEO_ORDER shape). `rel` runs to
+    18.7 against a median drop_share of 0.0247, so the ramp is CLAMPED at REL_CLAMP - an
+    interpolate holds its last output past its last stop, so the clamp is the expression -
+    and a complex below min_planned carries NO rel: absent, not zero, rendered as a RING
+    (the fn layer's established present-but-no-value mark). MUTATION KILLED: declaring it
+    `fill: true` (a third option in the frozen radio); an unclamped ramp (one station and
+    437 flat ones); or writing `rel: 0` for a withheld complex."""
+    js = page_js()
+    declared = style_layers(js)
+    assert [lid for lid in declared if lid in SUB_ORDER] == SUB_ORDER
+    lo, hi = declared.index(SPEC_ORDER[-2]), declared.index(SPEC_ORDER[-1])
+    for lid in SUB_ORDER:
+        assert lo < declared.index(lid) < hi, f"{lid} sits between the two tier point layers"
+    entry = layer_entries(js)["subway"]
+    assert "fill: true" not in entry, "never a second Cell fill"
+    assert "point: true" in entry
+    block = js.split('{ id: "subway", type: "circle"', 1)[1].split('{ id: "mta"', 1)[0]
+    assert '["interpolate", ["linear"], ["get", "rel"], 1, 3.5, REL_CLAMP, 9]' in block
+    assert "const REL_CLAMP = 4;" in js
+    assert '["case", ["has", "rel"], SUBWAY, "rgba(0,0,0,0)"]' in block, "absent rel is a ring"
+    body = js.split("export function drawImpactSub(d)", 1)[1].split("\n}", 1)[0]
+    assert '..."rel" in c ? { rel: c.rel } : {}' in body.replace("(", "").replace(")", ""), \
+        "rel rides only when the payload carries it - absent, never zero"
+
+
+def test_the_impact_rows_graduate_with_a_reader_dated_data_age_composite():
+    """The impact payloads carry their own staleness INLINE (no meta files, flood 17):
+    `staleness.age_min` is the DATA's age at write, and the header age grab() recorded is
+    the file's age since - their sum is the data's age now, dated at the reader, counting
+    up after the writer dies. Without it a freshly rewritten file over a stale Gold hour
+    reads FRESH, which is the frozen-age trap through a new door. Both draws add it; the
+    verdict itself stays srcState()'s, against the frozen budgets the module derives.
+    MUTATION KILLED: dropping the composite from either draw (the bus row then reads
+    FRESH today while the payload's own state is STALE at 40 h), or clamping the sum so a
+    negative writer skew subtracts age."""
+    js = page_js()
+    body = js.split("function addDataAge(lyrId, body)", 1)[1].split("\n}", 1)[0]
+    assert "ages[key] += Math.max(0, body.staleness.age_min * 60);" in body
+    for draw, lid in (("drawImpact(b)", '"impact"'), ("drawImpactSub(d)", '"subway"')):
+        fn = js.split(f"export function {draw}", 1)[1].split("\n}", 1)[0]
+        assert f"addDataAge({lid}" in fn, draw
+    assert js.count("addDataAge(") == 3, "defined once, called by exactly the two overlays"
+
+
+def test_the_design_storm_sentence_renders_only_when_present_and_never_a_placeholder():
+    """flood-build 20 (same wave, additive) may add `design_storm` to files/flood.json;
+    the page renders the sentence from that member's OWN display strings and from nothing
+    else - if the key is absent, NOTHING renders: no placeholder, no 'coming soon', no
+    hard-coded rate (the literals live in stormwater_extent.SCENARIOS and reach the page
+    only through a payload). MUTATION KILLED: rendering a placeholder when the key is
+    absent, or typing a design-storm rate or sentence into the page."""
+    js = page_js()
+    body = js.split("export function drawFn(f)", 1)[1].split("\n}", 1)[0]
+    assert "const ds = f.design_storm && f.design_storm.display;" in body
+    assert "if (ds) parts.push(" in body
+    for literal in ("54.10", "44.96", "92.96", "1.77", "2.13", "3.66"):
+        assert literal not in js, f"a design-storm rate {literal} is typed into the page"
+    assert "coming soon" not in js.lower()
