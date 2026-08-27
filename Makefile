@@ -5,10 +5,10 @@
 -include .env
 export JAVA_HOME ?= /opt/homebrew/opt/openjdk@17
 export TZ := UTC
-export RAINCHECK_ARCHIVE_ROOT RAINCHECK_BRONZE_GB TRANSITLAND_API_KEY
+export RAINCHECK_ARCHIVE_ROOT RAINCHECK_BRONZE_GB TRANSITLAND_API_KEY SLACK_BOT_TOKEN
 PY := .venv/bin/python
 
-.PHONY: warm ref nbp features picks precip-hourly precip-cell schedule events gold baseline gates slice test topics flood-obs flood-spine flood-coastal precip-flood-era flood-labels flood-matrix flood-fits flood-exposure flood-detector flood-replay notify-replay notify-rehearse flood-replication flood-live flood-panel release-check
+.PHONY: slack warm ref nbp features picks precip-hourly precip-cell schedule events gold baseline gates slice test topics flood-obs flood-spine flood-coastal precip-flood-era flood-labels flood-matrix flood-fits flood-exposure flood-detector flood-replay notify-replay notify-rehearse flood-replication flood-live flood-panel release-check
 
 topics:  ## recreate the two bus topics to spec C - DESTRUCTIVE: drops retained Kafka messages (Bronze keeps the record)
 	$(PY) -m raincheck.topics
@@ -150,6 +150,11 @@ notify-replay:  ## replay the notify decision over history -> research/notify-11
 # runs the synthetic half alone (no data root needed).
 notify-rehearse:  ## drive detector -> decision -> render -> empty store, twice (rc 1 = a check failed)
 	$(PY) -m raincheck.notify_rehearse $(if $(SYNTH),--synthetic-only)
+
+# The OPS side-channel (chartered 2026-08-27), NOT the subscriber mail path - that stays
+# the by-hand HITL. Token: SLACK_BOT_TOKEN in .env; the bot must be /invite'd once.
+slack:  ## post MSG to #raincheck-notifs (make slack MSG="..." [CHANNEL='#other'])
+	$(PY) -m raincheck.slack $(if $(CHANNEL),--channel $(CHANNEL)) "$(MSG)"
 
 # --- flood-build ticket 15: the flood panel tick and the release checklist -----------
 # The tick normally runs INSIDE the 30 s live loop (`python -m raincheck.live_loop`); this
