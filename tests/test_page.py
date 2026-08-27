@@ -911,16 +911,27 @@ def test_the_impact_rows_graduate_with_a_reader_dated_data_age_composite():
 
 
 def test_the_design_storm_sentence_renders_only_when_present_and_never_a_placeholder():
-    """flood-build 20 (same wave, additive) may add `design_storm` to files/flood.json;
-    the page renders the sentence from that member's OWN display strings and from nothing
-    else - if the key is absent, NOTHING renders: no placeholder, no 'coming soon', no
-    hard-coded rate (the literals live in stormwater_extent.SCENARIOS and reach the page
-    only through a payload). MUTATION KILLED: rendering a placeholder when the key is
-    absent, or typing a design-storm rate or sentence into the page."""
+    """flood-build 20's frozen shape (landed same wave): `display.sentence` carries ONE
+    placeholder, {mm_1h}, substituted per Cell from cells[hex].design_storm - a dict
+    present on SCORED Cells only, ONLY while raining there. The page renders the wettest
+    such Cell's sentence and the three bound qualifier notes WITH it; `bracket_sentence`
+    only when that Cell carries `bracket` (absent below Limited). An absent block, a
+    pre-fb20 payload, and a dry night (block present, zero per-Cell keys) all render
+    NOTHING - no placeholder, no 'coming soon', and no literal rate typed into JS (the
+    intensities have ONE home, stormwater_extent.SCENARIOS, and reach the page only
+    through the payload's own strings). MUTATION KILLED: printing the raw {mm_1h}
+    placeholder; rendering the block on a dry night; rendering bracket_sentence without
+    a bracket; typing a rate; or a placeholder when the key is absent."""
     js = page_js()
     body = js.split("export function drawFn(f)", 1)[1].split("\n}", 1)[0]
-    assert "const ds = f.design_storm && f.design_storm.display;" in body
-    assert "if (ds) parts.push(" in body
+    assert "const dsB = f.design_storm;" in body
+    assert "if (dsB && dsB.display) {" in body
+    assert "if (rain.length) {" in body, "a dry night renders nothing"
+    assert '.replace("{mm_1h}", worst.mm_1h)' in body, "the placeholder is substituted"
+    assert "if (worst.bracket && dsB.display.bracket_sentence)" in body
+    assert '.replace("{bracket}", worst.bracket)' in body
+    assert '["bracket_note", "climate_note", "extent_note"]' in body, (
+        "the three bound qualifiers travel with the claim")
     for literal in ("54.10", "44.96", "92.96", "1.77", "2.13", "3.66"):
         assert literal not in js, f"a design-storm rate {literal} is typed into the page"
     assert "coming soon" not in js.lower()

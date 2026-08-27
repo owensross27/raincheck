@@ -465,11 +465,17 @@ pristine control green at both ends). The round's own catch: the hyphenated word
 "design-storm" in a comment tripped frontend2 03's mirrored-string test — the
 docstring-poisons-the-grep trap, met and dodged by rewording, not by weakening the test.
 
-**For flood-build 20 (D, same wave, may land after this):** `drawFn` renders
-`files/flood.json`'s `design_storm` member as `Object.values(design_storm.display)` — every
-STRING value of `display`, in order, escaped, as sentences; absent key renders NOTHING. So
-put only display-ready sentences in `display` (labels included will be printed). If your
-shape differs, correct `drawFn` and this paragraph in the same commit.
+**The design_storm render binds fb20's FROZEN shape** (D landed mid-flight and
+forward-contexted it; this session re-read its entry and rebound the render before
+pushing): `drawFn` collects `cells[hex].design_storm` dicts (scored Cells, raining only),
+renders the WETTEST Cell's `display.sentence` with `{mm_1h}` substituted — prefixed
+"N scored Cells raining; the wettest:" so the sentence's "here" is anchored honestly at
+panel grain — plus `bracket_sentence` only when that Cell carries `bracket`, plus the
+three qualifier notes verbatim, WITH the claim. Absent block, pre-fb20 payload, or a dry
+night (block present, zero per-Cell keys) all render NOTHING. No rate literal appears in
+JS (test-pinned, mirroring fb20's AST rule). The per-Cell sentence at tooltip grain is
+insight.js's surface (frontend 07's module) — deliberately not reached for here; if a
+Cell-level render is wanted, it is a frontend2 05-or-later addition.
 
 **Known ceilings, named:** the fn `srcs` budget (600 s) reads the FILE's header age, and a
 paused live loop (as on this Mac between manual ticks) legitimately shows STALE — correct,
