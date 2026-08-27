@@ -191,10 +191,25 @@ export function drawFn(f) {
       `${k} ${v.state}` + (typeof v.age_min === "number" ? ` (${Math.round(v.age_min)} min)` : ""))
       .join(" · ") + "."));
   parts.push(sentences(fn.caveats));
-  // flood-build 20's storm-comparison sentence, IF the payload carries it - rendered from
-  // its own display strings and from nothing else; absent means NOTHING, no placeholder
-  const ds = f.design_storm && f.design_storm.display;
-  if (ds) parts.push(sentences(Object.values(ds).filter(v => typeof v === "string")));
+  // flood-build 20's storm-comparison block, IF the payload carries it (frozen shape,
+  // 2026-08-26): `display.sentence` has ONE placeholder, {mm_1h}, substituted per Cell
+  // from cells[hex].design_storm - present on SCORED Cells only, ONLY while raining
+  // there. The panel renders the WETTEST such Cell and says so; the three bound
+  // qualifier notes travel with the claim, verbatim. A dry night (block present, zero
+  // per-Cell keys) and a pre-fb20 payload (block absent) both render NOTHING.
+  const dsB = f.design_storm;
+  if (dsB && dsB.display) {
+    const rain = Object.values(f.cells || {}).map(c => c && c.design_storm).filter(Boolean);
+    if (rain.length) {
+      const worst = rain.reduce((a, c) => (c.mm_1h > a.mm_1h ? c : a));
+      parts.push(note(`${rain.length} scored Cell${rain.length === 1 ? "" : "s"} raining; the wettest: `
+        + String(dsB.display.sentence || "").replace("{mm_1h}", worst.mm_1h)));
+      if (worst.bracket && dsB.display.bracket_sentence)
+        parts.push(note(String(dsB.display.bracket_sentence).replace("{bracket}", worst.bracket)));
+      for (const k of ["bracket_note", "climate_note", "extent_note"])
+        parts.push(note(dsB.display[k]));
+    }
+  }
   lyr.legend = parts.join("");
 }
 
