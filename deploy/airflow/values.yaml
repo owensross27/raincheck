@@ -60,11 +60,11 @@ executor: "KubernetesExecutor"
 images:
   airflow:
     repository: 384555717200.dkr.ecr.us-east-1.amazonaws.com/raincheck
-    tag: "32176c4abafd-airflow"
+    tag: "cae1f924be0f-airflow"
     pullPolicy: IfNotPresent
   pod_template:
     repository: 384555717200.dkr.ecr.us-east-1.amazonaws.com/raincheck
-    tag: "32176c4abafd-airflow"
+    tag: "cae1f924be0f-airflow"
     pullPolicy: IfNotPresent
 
 # ---------------------------------------------------------------------------------------
