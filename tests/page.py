@@ -40,6 +40,12 @@ SPEC_ORDER = ["bg", "zones-fill", "cells", "impact-fill", "cells-line", "impact-
 # same shape frontend2 02 used for the basemap, which is inserted at SPEC_ORDER[1].
 GEO_ORDER = ["stormwater-fill", "stormwater-line", "routes"]
 
+# frontend 08's subway impact overlay: complex-grain points beside the alert dots. Like
+# GEO_ORDER it is deliberately NOT appended to SPEC_ORDER - the twelve keep their frozen
+# relative order and this one sits in the gap between the two flood tier point layers
+# (SPEC_ORDER's own tail), with the bounds derived in the test rather than named again.
+SUB_ORDER = ["subway"]
+
 
 def web() -> Path:
     """`web/`, from the family's own `src` callable rather than a second path constant."""
