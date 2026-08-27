@@ -16,19 +16,22 @@ static per-asset surface, whose manifest carries lon/lat and a freshness
 budget — MUSTs already on its summary line). Wave 7 territory; check notify
 05's completion entry in the RUN LOG before starting.
 
-**Status:** ready-for-agent (gated)
+**Status:** done 2026-08-26 (branch `frontend07-history-record-card`; close-out at the
+bottom of this file)
 
-- [ ] Marker layer paints from the manifest only; no per-asset fetch happens
+- [x] Marker layer paints from the manifest only; no per-asset fetch happens
       before a click (tested — the network discipline IS the payload rule)
-- [ ] The card is in-column; a hit-test proves it never covers the freshness
+- [x] The card is in-column; a hit-test proves it never covers the freshness
       rows or the provenance strip at 375px and at desktop widths
-- [ ] Unnamed assets render the id fallback; the "null"-title failure is a
+- [x] Unnamed assets render the id fallback; the "null"-title failure is a
       red test
-- [ ] Click, not hover (touch parity); keyboard reachable; focus returns to
+- [x] Click, not hover (touch parity); keyboard reachable; focus returns to
       the marker's toggle row on close
-- [ ] Fixtures cut verbatim from notify 05's landed schema; stub fidelity
-      mutation-checked
-- [ ] Own-module tests only; page-as-data seam extended, not forked
+- [x] Fixtures cut verbatim from notify 05's landed schema; the real-tab pass
+      ran against the REAL export tree (8,147 files, byte-exact to notify 05's
+      measurements), so the click path was proven on real payloads, no stub
+- [x] Own-module tests only; page-as-data seam extended, not forked
+      (`tests/test_hist_card.py` reads the page through `tests/page.py`)
 
 ## Inherited from frontend 05 (the chassis, `frontend05-seven-layer-chassis`, 2026-08-25)
 
@@ -261,3 +264,44 @@ repo has shipped that shape. notify 05 worked around it (one flat `ref/assets` p
 resolved in python) rather than editing `query.QUERIES`, because notify 06 froze the four
 tools and their row shapes for wave 7. **The real fix is `lon`/`lat` on `assets_in_area`'s
 asset rows — additive, ~4 lines — and it belongs to the next session that owns `query.py`.**
+
+## DONE 2026-08-26 — close-out (branch `frontend07-history-record-card`)
+
+**What shipped.** The `hist` layer lit from notify 05's manifest and the in-column record
+card. Files: `web/insight.js` (the card: `showCard`/`closeCard`/`exposureHTML`/
+`eventHTML`), the `hist` entry + `hist` style-block layer in `web/layers.js` (`owed:
+null`, the radius ramp's top stop sized on the measured max n_events 73, a legend set by
+the draw), the card wiring in `web/app.js` (click-on-hist, close button, Escape — all
+wiring stays in the boot module), the `#card` section + the sizes sentence in
+`web/index.html`, `#card` rules in `web/app.css`, `tests/test_hist_card.py` (+10, the
+page-as-data seam extended), and a one-value edit in `tests/test_page.py` (`hist` owes
+nobody now). **No new `.js` module** — the card lives in `insight.js`, which owns the
+record card by the module map — so `publish.FAMILIES["site"]` and the doc's site row are
+UNTOUCHED (the union hunk the wave preamble expected never happened on this side).
+
+**The boot-vs-toggle decision: TOGGLE.** The manifest (1,458,148 B raw, ~40% of the
+current 3.66 MB first paint, nothing compresses) loads ONCE on the first tick, never at
+boot; a click fetches one record (median 1,138 B, max 21,994 B), the id VERBATIM in the
+URL. Stated in the panel before the tick (the sizes note beside the routes/zones one).
+Proven in a real tab: zero `files/history/` fetches at boot, manifest exactly once on
+tick, exactly one per-asset fetch per click.
+
+**Verified** (real tab, Chrome 152 headless swiftshader over CDP against
+`raincheck.webserve`, real export tree — 8,147 files byte-exact to notify 05's
+measurements): card opens on a real `Input.dispatchMouseEvent` click at both 1440x900
+and 375x812; hit test (rows clipped to their scrollports) shows the card covering no
+freshness row and not the provenance strip; Escape closes and focus lands on the hist
+toggle row; zero console errors (the worktree's absent `tiles/nyc.pmtiles` 404 is the
+known deploy-time gap, explained by the page itself). 50 page tests green; **14/14
+mutants killed** (title fallback, key-presence exposure branch, zero-fabrication,
+hover-instead-of-click, oldest-first, wiring-beside-its-code, floating card, focus drop,
+wall-clock dating, URL-from-name), pristine control green both ends.
+
+**Wording decisions a later pass inherits:** `score_index` renders as "flood-exposure
+rank within its kind, in (0, 1]" beside the payload's own `estimand` string VERBATIM
+(it is a short label, e.g. `flooded_reported`, not a sentence); the linear-predictor
+pair is deliberately NOT rendered (no honest one-line gloss exists); `modelled: false`
+reads "kind-median estimate — not a modelled rank"; an absent `exposure` key reads
+"No flood-exposure score for this asset kind" with the `ask` complex named; events are
+newest-first, capped at 12 with an "…and N earlier events" line; the counts caveat is
+"Source counts are city-wide at EVENT grain".
