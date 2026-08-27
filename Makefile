@@ -141,7 +141,7 @@ flood-replay:  ## replay the live detector over history -> research/flood-12-rep
 notify-replay:  ## replay the notify decision over history -> research/notify-11-replay.{md,json}
 	$(PY) -m raincheck.notify_replay $(if $(ONLY),--only $(ONLY)) $(if $(LIMIT),--limit $(LIMIT)) $(if $(RENDER),--render-only)
 
-# ~1.5 min: a synthetic storm trips every decision branch (real fd.cycle payloads over the
+# ~35 s: a synthetic storm trips every decision branch (real fd.cycle payloads over the
 # committed Ida fixture), then the real 2023-09-29 event and a real Window-roll event replay
 # through the detector's own walk with every chain checked against the committed notify-11
 # rows; messages render with explicit .invalid deployment facts and the throwaway store is
