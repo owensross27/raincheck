@@ -92,3 +92,14 @@ the gated rows dark with their reasons, and the provenance strip.
 note, the curve and the legend estimand are inside `<details id="analyst">` in
 `#insight` — default closed, state in localStorage, ids unchanged so every existing
 render call and test still binds.
+
+## JUDGED AT THE WAVE 9 GATE, PART 2 (2026-08-27)
+
+The gate fan-out's finding (b) — `#grey-note` lost its "(the property is absent, not
+null)" clause in the rider shortening, and nothing pins that string — was left to PART 2
+to judge. **Judged: the clause does NOT return.** It is analyst-grade precision, the
+rider pass's whole charter was removing exactly that register from the default view, and
+the absent-vs-null distinction still lives where an analyst looks (the estimand prose
+behind the `#analyst` disclosure and the payload contract docs). Findings (c) aria-live
+double-announce, (d) `mouseout`->`mouseleave`, and (e) the verbatim-source-line
+localStorage test stay filed on STATUS's end-state FILED-FORWARD list, none blocking.
