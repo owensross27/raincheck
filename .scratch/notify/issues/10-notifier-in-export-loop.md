@@ -7,16 +7,36 @@ discipline).
 
 **Blocked by:** 09 — externally on flood-build 15 (the flood tick inside the export loop).
 
-**Status:** ready-for-agent
+**Status:** done (2026-08-26, branch `notify10-dry-run` — DRY-RUN ONLY; the wave-8 box
+scoped this ticket to NOTHING SENT, so every send-mechanics line below is explicitly out
+of scope until an arming ticket exists)
 
-- [ ] the decision and the send run inside the existing 30 s export loop, in the same tick that computes the detector state — no new daemon, so no new HITL gate opens
-- [ ] DRY-RUN IS THE DEFAULT: messages render and log without being sent unless the notifier is explicitly armed
-- [ ] a missing credential makes the notifier do nothing and say so — fail closed, never half-send
-- [ ] each send has a hard timeout; a failure is logged to the flood NDJSON log and skipped; a mail failure never stalls a cycle and never blocks the panel
-- [ ] the loop's existing rules bind the notifier: cycles cannot overlap, one cycle id spans the set, one hung socket never stalls the bus panel
-- [ ] notifier state (last-notified keys per unit and Window) persists with the loop's other state; a lost state file degrades to at most one re-send per Window, never one per cycle
-- [ ] email is the only channel — no SMS, push or webhook path exists in the code
-- [ ] no third-party analytics touch the message or the store
+- [x] the decision runs inside the existing 30 s export loop, in the same tick that computes the detector state — no new daemon, so no new HITL gate opens (the SEND half is out of scope: v1 is dry-run by the wave-8 box)
+- [x] DRY-RUN IS THE DEFAULT — stronger: dry-run is the ONLY mode; no arming flag exists, so there is nothing to flip by accident
+- [x] a missing credential makes the notifier do nothing — structurally: NO credential path exists at all (an AST test pins the imports), so a half-send is impossible rather than guarded against
+- [ ] ~~each send has a hard timeout; a send failure logged and skipped~~ — OUT OF SCOPE: no send exists; this line moves to the arming ticket, whichever that is
+- [x] the loop's existing rules bind the notifier: same single cycle, same `now` to every call (pinned by test), no socket anywhere in the module so nothing can hang the bus panel
+- [x] notifier state (the chained `Decision` ledgers) rides `state["notify"]` beside the loop's other state; a restart loses `watched`/`latched` and degrades to at most one re-entry per Window (the ledger rolls on `window_id` — notify 08's property), never one per cycle
+- [x] email is the only channel — in v1 NO channel exists in code; the rendered form is notify 09's RFC 5322 message and nothing else is rendered or sent
+- [x] no third-party analytics touch the message or the store — the log line is `Decision.summary()` counts only; no handle, no token, no payload ever printed
+
+## DONE 2026-08-26 (notify 10, branch `notify10-dry-run`)
+
+`src/raincheck/notify_dryrun.py` (one function, `dryrun(root, prev, flood, now)`) +
+one call and one `state` field (`notify`) in `live_loop.cycle()` — the function is
+deliberately NOT named `tick` (flood 17's AST test allows `cycle()` one `.tick(` call;
+flood-build 20 is the other wave-8 editor of that file). Decides only on a cycle whose
+flood tick produced a fresh read; carry cycles (`skipped`/`error`/no read) keep the
+ledgers and never touch the store. Renders `d.messages` only — today every render
+REFUSES (`nr.PANEL_URL`/`nr.UNSUBSCRIBE_TO` unset, the tripwire facts) and that refusal
+is the recorded dry-run outcome (`unrendered`/`unrendered_reason` on state), not a gap.
+The store connection opens once and is carried on state (the loop's warm-connection
+idiom). A decide refusal is `error` on state with the previous Decision carried. Log on
+summary change only, ending `NOT SENT (dry-run)`. +12 tests
+(`tests/test_notify_dryrun.py` 10, `tests/test_live_loop.py` +2), 10/10 mutants killed,
+zero skips added. The full state shape is written on ticket 12's file (FROM notify 10
+block). The page cannot see any of this — nothing is published — so frontend 08 got no
+forward-context, on purpose.
 
 ## FROM notify 08 (2026-08-25, branch `notify08-decision`) — THE DECISION FUNCTION EXISTS
 
