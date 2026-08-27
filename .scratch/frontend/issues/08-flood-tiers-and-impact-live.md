@@ -17,20 +17,35 @@ its line). Wave 7+ territory; check both completion entries in the RUN LOG
 before starting. The MTA-side layers additionally stay GATED until the [YOU]
 terms receipt — build them gate-aware, do not wait for the receipt.
 
-**Status:** ready-for-agent (gated)
+**Status:** done 2026-08-26 (branch `frontend08-impact-live`; close-out at the bottom)
 
-- [ ] The radio's second option (impact) works both directions; delay XOR
-      impact pinned by a mutation-checked test
-- [ ] Two-meta lineage: killing one gate side darkens exactly its layers and
-      flips exactly its freshness rows; the other side is untouched (tested
-      both directions)
-- [ ] Hollow-ring vs filled sensor vs dimmed vehicle are distinct at render
-      scale; the three-meanings-one-grey failure is a red test
-- [ ] Budgeted sources now render FRESH/STALE from the frozen constants —
-      never from guessed thresholds; unbudgeted remainder still says AGE
-- [ ] Fixtures verbatim from flood 15/17's landed schemas; stub fidelity
-      mutation-checked
-- [ ] Own-module tests only; page-as-data seam extended, not forked
+- [x] The radio's second option (impact) works both directions; delay XOR
+      impact pinned by a mutation-checked test (the existing two-fills tests
+      plus a fill:true mutant on the new subway entry; 12/12 mutants killed)
+- [x] Two-meta lineage: killing one gate side darkens exactly its layers and
+      flips exactly its freshness rows; the other side is untouched (the
+      GATE-derivation test asserts both sides against publish.LIVE_TERMS_VERIFIED
+      and the layer->side map test pins which layers each side carries; verified
+      both directions in a real tab — ungated fn lit beside gated impact rows,
+      then a LOCAL, uncommitted gate flip lit both overlays with fn untouched)
+- [x] Hollow-ring vs filled sensor vs dimmed vehicle are distinct at render
+      scale; the subway overlay's absent-rel mark is a ring in its OWN hue
+      (SUBWAY #e07ba0), so the ring shape has two hue-distinct meanings, never
+      a grey
+- [x] Budgeted sources now render FRESH/STALE from the frozen constants —
+      impact 122400 s / subway 4200 s, derived in the test from
+      flood_overlay.BUS_BUDGET_S / SUBWAY_BUDGET_S. **`mta` deliberately stays
+      AGE: no staleness constant for the alert-side FILE is frozen anywhere in
+      the repo** (flood 15's budgets_s carries the six FEED budgets, none for
+      flood-mta.json) and a guessed threshold is the exact failure the counting
+      test exists to catch.
+- [x] Payload shapes verified against the REAL landed files, not fixtures:
+      there is no JS runner (spec L), so the draws were exercised in a real tab
+      against a real `flood_panel` tick's own output (383 sensors, 444
+      complexes, a 1-Cell bus hour) — stronger than a fixture and immune to
+      stub drift
+- [x] Own-module tests only (tests/test_page.py, 40 -> 45); page-as-data seam
+      extended (tests/page.py gains SUB_ORDER, the GEO_ORDER shape), not forked
 
 ## MUST from flood-build 17 (LANDED 2026-08-26, `flood17-live-impact-overlays`, `bb8d76f`)
 
@@ -438,3 +453,62 @@ flood.json.cells["<hex>"].design_storm   # SCORED Cells only, ONLY while mm_1h >
 - The tick's log line gained `ds=<n>[@<max mm>]`; `flood_panel` state gained
   `design_storm` (summary). `live_loop.py` is untouched — the wave-8 `cycle()` union is
   notify 10's alone.
+
+---
+
+## DONE 2026-08-26 — close-out (frontend 08, branch `frontend08-impact-live`)
+
+**What landed, in two files plus the test seam.** `web/live.js` gained the four draws
+(`drawFn`, `drawMta`, `drawImpact`, `drawImpactSub`) — the module map assigns 08 `live.js`,
+and no new page module was added, so `publish.FAMILIES` is untouched and there is no
+contract edit anywhere. `web/layers.js` changed only the `fn`/`mta`/`impact` entries, a NEW
+`subway` entry + boot declaration, and two constants (`SUBWAY = "#e07ba0"`,
+`REL_CLAMP = 4`); `GATE` values are UNchanged (LIVE_TERMS_VERIFIED is still None, both
+sides false, the derivation test green).
+
+**The subway overlay is layer id `subway`** (source `subway`, complex-grain points),
+declared at boot BETWEEN `fn` and `mta` — the bounds derived from `SPEC_ORDER[-2:]` in the
+test, `tests/page.py` exports `SUB_ORDER = ["subway"]` the way GEO_ORDER works. `rel`
+drives circle SIZE (stops `1 -> 3.5px`, `REL_CLAMP -> 9px`; an interpolate holds its last
+output past its last stop, so the clamp IS the expression); absent `rel` (below the
+payload's `min_planned`) is a RING in the same hue — present, no publishable value, never
+zero. Never a second Cell fill; separate legend per grain, as required.
+
+**The bus overlay's paint is declared AT BOOT**: `["case", ["!", ["has", "ratio"]], GREY,
+[interpolate ...RATIO_STOPS.flat()]]` — the frozen ramp spread in, no second stops table,
+no draw-time paint call. The draw joins `impact.json`'s hex-keyed `cells` onto the
+geometry the page already parsed, read off the map's own `cells` source via
+`getSource("cells").serialize().data` (cells.geojson stays ONE fetch, one parse — the
+frontend 05 rule).
+
+**The freshness composite (the one design decision worth reading).** The impact payloads
+have NO meta and carry `staleness.age_min` inline = the DATA's age at write; the header
+age is the file's age since. `addDataAge()` in live.js adds them (the live pair's
+`vp_age_s + metaAge` idiom), so the row's verdict is reader-dated, keeps counting after
+the writer dies, and a fresh file over a stale Gold hour cannot read FRESH. Verified live:
+bus reads **41 h STALE against 122400 s** (hour_end 2026-08-25 10:00 UTC) while subway
+reads **42 min FRESH against 4200 s** — same tick, opposite verdicts, both honest.
+
+**Verified in a real tab** (swiftshader flags, CDP screenshots, against `raincheck.webserve`
+serving the worktree's web/, real payloads from a real `flood_panel --no-publish` tick):
+zero console errors; 383 dry sensors render as hollow aqua rings; the gated rows print
+their reason; a local uncommitted GATE flip lit both overlays — grey footprint + 444
+rel-sized rose discs with rings where rel is withheld — and the tier side was untouched.
+
+**Mutation round: 12/12 killed** (harness under every TRAPS rule: committed first,
+refuse-dirty, landed-mutant proof per case, checkout+clean restore with porcelain assert,
+pristine control green at both ends). The round's own catch: the hyphenated words
+"design-storm" in a comment tripped frontend2 03's mirrored-string test — the
+docstring-poisons-the-grep trap, met and dodged by rewording, not by weakening the test.
+
+**For flood-build 20 (D, same wave, may land after this):** `drawFn` renders
+`files/flood.json`'s `design_storm` member as `Object.values(design_storm.display)` — every
+STRING value of `display`, in order, escaped, as sentences; absent key renders NOTHING. So
+put only display-ready sentences in `display` (labels included will be printed). If your
+shape differs, correct `drawFn` and this paragraph in the same commit.
+
+**Known ceilings, named:** the fn `srcs` budget (600 s) reads the FILE's header age, and a
+paused live loop (as on this Mac between manual ticks) legitimately shows STALE — correct,
+not a defect. `mta` has no frozen file budget and renders AGE (see the checkbox above).
+The flood.json `cells` member (score_index per hex) is read by nothing on the page — the
+static dormant view is future work, not this ticket's, and no layer claims it.
