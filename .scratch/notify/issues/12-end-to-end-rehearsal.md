@@ -164,3 +164,47 @@ walks it. Both are two lines from a rehearsal.
 `raincheck.notify_render` and this ticket ships `raincheck.notify_replay`. Both read
 naturally as `nr`. Spell them out here — every module name in this block is written in
 full for that reason.
+
+## FROM notify 10 (2026-08-26, branch `notify10-dry-run`) — THE DRY-RUN IS IN THE LOOP; ITS STATE IS WHAT YOU REHEARSE AGAINST
+
+Module names spelled in full throughout (this file already holds two `nr`s).
+
+**THE SEAM.** `live_loop.cycle()` now calls, after the flood tick and with the same
+clock:
+
+    notify = raincheck.notify_dryrun.dryrun(root, state.get("notify"), flood, now)
+
+ONE call, ONE `state` field (`notify`), flood 15's join shape — and the function is
+named `dryrun`, not `tick`, because flood 17's AST test allows `cycle()` at most one
+`.tick(` call. flood-build 20 is the other wave-8 editor of that file; the gate re-runs
+`tests/test_live_loop.py` on the union.
+
+**THE STATE SHAPE (`state["notify"]`), the loop's own record of what would have gone
+out — nothing is published, so no page and no payload carries this; the loop state and
+the on-change log line are the ONLY surfaces:**
+
+    at                 datetime — the cycle's clock
+    decided            bool — a fresh flood read was decided this cycle
+    why                None | "flood_error" | "flood_skipped" | "no_read" (carry cycles)
+    d                  the chained `raincheck.notify_decide.Decision` (next cycle's prev;
+                       carried UNTOUCHED through carry cycles and through errors)
+    summary            d.summary() — counts only: {branch, reason, window_id, messages,
+                       drops, dropped{reason: n}, worst_case}
+    rendered           int — messages `raincheck.notify_render.render(m)` rendered
+    unrendered         int — messages it REFUSED (today: ALL of them, PANEL_URL/
+                       UNSUBSCRIBE_TO unset — the tripwire facts; that is the correct
+                       tree outcome, not a defect)
+    unrendered_reason  first refusal, "ValueError: ..." truncated
+    error              a decide()/store failure as text, or None — never a raise
+    con                the store's sqlite3 connection, opened once, carried (internal)
+
+**WHAT A REHEARSAL CAN LEAN ON, pinned by `tests/test_notify_dryrun.py` and a 10/10
+mutation round:** the decision runs ONLY on a fresh read (skipped/errored/readless flood
+cycles carry `d` and never touch the store — `live/subscriptions.db` is not even
+created); the same `now` reaches `raincheck.notify_decide.decide` as reached the flood
+tick (`Message.now` equals the loop clock); a DROP is never rendered; a decide refusal
+(inconsistent store row) lands in `error` with the previous `d` carried; the log line
+prints on summary CHANGE only, counts only, and ends `NOT SENT (dry-run)`. There is no
+send path and no credential path — an AST test pins the imports and the attribute calls,
+so "arming" the notifier is a new capability, not a flag flip. A night rehearsal that
+drops everything on quiet_hours is CORRECT (notify 11's MUST 4).
