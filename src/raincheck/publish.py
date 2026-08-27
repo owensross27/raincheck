@@ -23,6 +23,7 @@ The bucket IS the `web/` tree, so the page's relative paths work unchanged:
       files/impact-subway.json                      30 s loop        family `impact`    GATED
     files/history/**                                per spine rebuild  family `history`
     files/geo/**                                    per ref rebuild  family `geo`
+    files/summary/**                                per route_flood rebuild  family `summary`
     docs/**                                         per Airflow run  family `docs`
     showcase/**                                     per landing      family `showcase`
 
@@ -240,6 +241,14 @@ FAMILIES: dict[str, Family] = {
         # of them is absent - which is the state it ships in.
         cadence="per ref rebuild", writer="`make geo` [flood-build 19]",
         src=lambda: WEB / "files" / "geo", prefix="files/geo/"),
+    "summary": Family(
+        # frontend2 04. The three aggregate payloads that answer "where flooded recently /
+        # which complexes / how many routes" without a seam call per asset. A TREE family
+        # because the file set is the writer's to grow (a fourth aggregate later owes no
+        # contract bump, frontend 06's subset rule); the writer stages and swaps the tree
+        # whole, so a tree with files in it is always a complete build.
+        cadence="per gold/route_flood or spine rebuild", writer="`make summary` [frontend2 04]",
+        src=lambda: WEB / "files" / "summary", prefix="files/summary/"),
     "site": Family(
         cadence="deploy-time", writer="the operator, after `make vendor`",
         src=lambda: WEB, prefix="",

@@ -98,6 +98,8 @@ SCHEMA = {
     "files/history/**": "src/raincheck/history.py (notify 05: a manifest plus one file "
                         "per asset, rendered over query.py in mode='public')",
     "files/geo/**": "src/raincheck/stormwater_extent.py (flood-build 19)",
+    "files/summary/**": "src/raincheck/summary.py (frontend2 04: recent.json, "
+                        "complexes.json and routes.json - recent-flooding aggregates)",
     "docs/**": "Great Expectations Data Docs (orchestration ticket 08)",
     "showcase/**": "src/raincheck/showcase.py (orchestration ticket 13)",
     # the basemap archive's shape is the PMTiles spec, and its CONTENT is OpenStreetMap

@@ -81,6 +81,12 @@ complex to ask, which cap was hit, which argument was missing. Read `reason`, ac
 ABSENT, NEVER NULL. An unpublishable value is a MISSING KEY, not a null. Test for
 presence; a key that is there is a real value.
 
+CITYWIDE AGGREGATES ARE STATIC FILES, NOT A TOOL. "Where flooded recently", "which
+complexes carry a flood record" and "how many routes cross flood-prone ground" are
+answered by the published `files/summary/` payloads (recent.json, complexes.json,
+routes.json -- see docs/read-api-contract.md); fetch those instead of sweeping an asset
+tool over the city.
+
 {VERSIONS_LINE}"""
 
 DESCRIPTIONS = {
