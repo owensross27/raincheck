@@ -218,3 +218,32 @@ def test_a_broken_overlay_read_never_reaches_this_loop(con, tmp_path, monkeypatc
     states, calls = run(con, tmp_path, monkeypatch)
     assert len(calls["publish"]) == 1 and states[0]["publish"] == "published 2"
     assert "gold is gone" not in live_loop.line(states[0])
+
+
+# --- flood-build 20: the design-storm sentence MERGED INTO that same tick ----------------
+
+def test_the_design_storm_sentence_never_touches_this_loop(con, tmp_path, monkeypatch):
+    """flood-build 20 rides flood 15's tick exactly as flood 17's overlays do: its data is
+    computed inside `flood_panel._tick` from rows that tick already read, so this loop
+    gains no call, no import and no state field of its own - the wave-8 `cycle()` union is
+    notify 10's alone. Same AST pin as the overlays test above, extended to this ticket's
+    name."""
+    import ast
+    from pathlib import Path
+
+    src = Path(live_loop.__file__).read_text()
+    calls = [n for n in ast.walk(ast.parse(src))
+             if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+             and n.func.attr == "tick"]
+    assert len(calls) == 1, "cycle() must call the flood tick once and only once"
+    assert "design_storm" not in src, (
+        "the sentence is merged into flood_panel.tick, never called from this loop")
+
+
+def test_the_design_storm_reports_itself_on_the_one_log_line(con, tmp_path, monkeypatch):
+    """The sentence's supervision surface is the same one line per tick."""
+    monkeypatch.setattr(live_loop.flood_panel, "tick", lambda *a, **k: {
+        "skipped": False, "counts": {}, "window": "OK", "skew": "ok",
+        "design_storm": {"cells": 2, "max_mm_1h": 53.9}})
+    states, _ = run(con, tmp_path, monkeypatch)
+    assert "ds=2@53.9" in live_loop.line(states[0])

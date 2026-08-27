@@ -69,6 +69,7 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from raincheck import design_storm as ds
 from raincheck import duck, flood_detect as fd, flood_exposure as fe
 from raincheck import flood_live as fl, flood_overlay as fo, flood_truth as ft
 from raincheck import live_export, publish
@@ -462,13 +463,17 @@ def _coastal(coastal: dict | None) -> dict | None:
     return dict(coastal) | {"recolor": {k: v for k, v in r.items() if k != "units"}}
 
 
-def _cells(read: dict, uni: dict, modelled: bool) -> dict:
+def _cells(read: dict, uni: dict, modelled: bool, rates: dict | None = None) -> dict:
     """One dict per SCORED Cell, keyed by the H3 HEX string - the same spelling
     cells.geojson keys on, because an H3 id is an int64 past 2^53 and JSON cannot carry
     one. Geometry is deliberately NOT duplicated here: the page already holds it.
 
     Absent, never null, and one dict per Cell so a later ticket can add a key without a
-    rewrite (flood-build 20 adds `design_storm` per Cell in wave 8).
+    rewrite - flood-build 20's `design_storm` is the first: {mm_1h, bracket?}, present
+    only while it is raining in that Cell. `rates` covers the whole 4,113-Cell grid but
+    the key set here stays the 1,351 SCORED Cells on purpose: a Cell with no exposure
+    row has no dict to carry it, and widening that is a deliberate loop change, not a
+    lookup (flood 15's rule).
     """
     live = {u["asset_id"]: u for u in read.get("units") or []} if modelled else {}
     totals = read.get("cell_totals") or {}
@@ -486,7 +491,8 @@ def _cells(read: dict, uni: dict, modelled: bool) -> dict:
             surge_margin_ft=e["surge_margin_ft"],
             window_mm=_r(totals.get(hexid), 3),
             rank=_r((u or {}).get("rank")), tier=(u or {}).get("tier"),
-            latched=(u or {}).get("latched") or None)
+            latched=(u or {}).get("latched") or None,
+            design_storm=ds.cell((rates or {}).get(hexid)))
     return out
 
 
@@ -554,13 +560,19 @@ def _mta_geojson(tier: dict) -> dict:
 
 
 def payloads(read: dict, uni: dict, truth: dict, coastal: dict | None, winter: dict | None,
-             det: dict, art: dict, now: datetime, impact: dict | None = None) -> dict:
+             det: dict, art: dict, now: datetime, impact: dict | None = None,
+             design_storm: dict | None = None) -> dict:
     """The six documents this cycle publishes, keyed by file name.
 
     ONE cycle_id across the set, so a reader can tell a torn set from a coherent one.
     `provisional` is read from the artifact HERE, at render time, every cycle: flood 12
     recommended rank-only and the verdict is Ross's, so recording it must reach the panel
     without a redeploy.
+
+    `design_storm` is `raincheck.design_storm.read()`'s snapshot (flood-build 20) and is
+    keyword-with-a-default for flood 17's reason: `release_check._sample_payloads()` calls
+    this positionally with eight arguments and must keep working. Its block and its
+    per-Cell rates land on the UNGATED file only - MRMS-derived, nothing MTA in it.
     """
     cycle_id = now.isoformat()
     cuts = det["cutpoints"]
@@ -588,14 +600,15 @@ def payloads(read: dict, uni: dict, truth: dict, coastal: dict | None, winter: d
         "revisions": len(read.get("revisions") or []),
         "model_tier": "ok" if modelled else "dropped",
     }
-    cells = _cells(read, uni, modelled)
+    cells = _cells(read, uni, modelled, (design_storm or {}).get("rates"))
     flagged = _flagged(read, uni, modelled)
     ungated = head | {
         "lineage": "ungated", "strings": strings(det, art), "cutpoints": dict(cuts),
         "window": meta["window"], "staleness": stale, "budgets_s": dict(BUDGETS_S),
         "dim": meta["dim"], "winter": meta["winter"], "skew": meta["skew"],
         "model_tier": meta["model_tier"], "cells": cells, "units": flagged,
-    } | pack(coastal=_coastal(coastal)) | {
+    } | pack(coastal=_coastal(coastal),
+             design_storm=(design_storm or {}).get("block")) | {
         "floodnet": pack(source=fn["source"], status=fn["status"], citation=fn["citation"],
                          caveats=fn["caveats"], rule=fn["rule"],
                          window_min=fn["window_min"], asof=fn["asof"],
@@ -800,7 +813,12 @@ def _tick(con, root, out_dir, prev, now, detector, det_art, stamp, ship_) -> dic
     # `now`, so the impact files cannot age apart from the tiers they sit next to. It
     # never raises: each side comes back with its own `state`, DOWN included.
     impact = fo.read(con, root, now)
-    docs = payloads(read, uni, truth, coastal, winter, det_art, art, now, impact)
+    # flood-build 20: the design-storm sentence's data, on the same `now`. No new read -
+    # the per-Cell rate is the newest landed hour of `rows`, already in memory - and the
+    # DEP intensities are read from stormwater_extent.SCENARIOS (lazily, once per process).
+    design = ds.read(rows, now)
+    docs = payloads(read, uni, truth, coastal, winter, det_art, art, now, impact,
+                    design_storm=design)
     write(out_dir, docs)
     full = stamp != prev.get("stamp")
     key = _truth_key(truth)
@@ -808,7 +826,7 @@ def _tick(con, root, out_dir, prev, now, detector, det_art, stamp, ship_) -> dic
     return {"skipped": False, "at": now, "stamp": stamp, "read": read, "art": art,
             "det": det_art, "uni": uni, "index": index, "cell_of": placed,
             "truth_key": key, "counts": docs["flood-meta.json"]["counts"],
-            "impact": impact,
+            "impact": impact, "design_storm": design["summary"],
             "window": read["window"]["state"], "skew": read["skew"]["model_tier"],
             "publish": ship_(out_dir, prev.get("publish")), "error": None}
 
@@ -822,7 +840,7 @@ def line(state: dict) -> str:
     return (f"flood window={state.get('window')} skew={state.get('skew')} "
             f"flagged={c.get('units_flagged')} fn={c.get('floodnet_detected')} "
             f"publish={(state.get('publish') or {}).get(UNGATED)} "
-            f"{fo.line(state.get('impact'))}")
+            f"{fo.line(state.get('impact'))} {ds.line(state.get('design_storm'))}")
 
 
 def main() -> None:

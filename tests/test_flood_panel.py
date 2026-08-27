@@ -802,3 +802,85 @@ def test_a_real_tick_writes_four_files_and_publishes_only_the_open_side(con, tmp
 
 def det_states():
     return set(fd.constants()["display"]["precip_states"])
+
+
+# ---- flood-build 20: the design-storm sentence rides the OPEN side ----------------------
+
+def _design(ida):
+    from raincheck import design_storm as ds
+    return ds.read(ida["hours"], NOW)
+
+
+def test_the_design_storm_block_and_per_cell_rates_ride_the_ungated_file(ida, uni, det,
+                                                                         art):
+    """The block (scenario table + display strings) is a top-level `flood.json` key; the
+    per-Cell {mm_1h, bracket?} rides each scored Cell's dict, present exactly where it is
+    raining at the newest landed hour. Nothing lands on the gated files - the data is
+    MRMS-derived, so it belongs on the OPEN side with the tier it sits beside."""
+    from raincheck import design_storm as ds
+    design = _design(ida)
+    # the fixture's newest hour has every scored Cell WET below Limited, which would leave
+    # the dry branch and the bracket branch unexecuted (the degenerate-fixture trap). Two
+    # rates are overridden so all three per-Cell shapes are really rendered, and the test
+    # asserts its own non-degeneracy below.
+    hexes = [format(c, "x") for c in ida["mx"]]
+    design["rates"][hexes[0]] = 0.0     # dry -> no key
+    design["rates"][hexes[1]] = 60.0    # above Moderate -> bracket present
+    read = fd.cycle(None, NOW, ida["hours"], uni["units"], art, det, temp_c=22.0,
+                    table_score_version=uni["table_score_version"], wet_by_hour=ida["wet"])
+    docs = fp.payloads(read, uni, truth_read(), None, None, det, art, NOW, None,
+                       design_storm=design)
+    block = docs["flood.json"]["design_storm"]
+    assert [s["scenario"] for s in block["scenarios"]] == ["limited", "moderate",
+                                                          "extreme"]
+    assert "{mm_1h}" in block["display"]["sentence"]
+    # presence iff raining there, value the newest-hour rate - checked over EVERY scored
+    # Cell, so a key on a dry Cell or a missing key on a wet one both fail.
+    seen = {"dry": 0, "wet": 0, "bracketed": 0}
+    for hexid in hexes:
+        cell = docs["flood.json"]["cells"][hexid]
+        rate = design["rates"].get(hexid)
+        if rate:
+            assert cell["design_storm"]["mm_1h"] == round(rate, 2)
+            assert cell["design_storm"] == ds.cell(rate)
+            seen["wet"] += 1
+            seen["bracketed"] += "bracket" in cell["design_storm"]
+        else:
+            assert "design_storm" not in cell
+            seen["dry"] += 1
+    assert all(seen.values()), f"a branch went unexercised: {seen}"
+    blob = json.dumps({n: docs[n] for f in (fp.GATED, fp.IMPACT) for n in fp.FILES[f]},
+                      default=str)
+    assert "design_storm" not in blob
+
+
+def test_a_writer_handed_no_design_storm_emits_none(ida, uni, det, art):
+    """`release_check._sample_payloads()` calls positionally with eight arguments; the
+    keyword-with-default means that path - and any older caller - renders a flood.json
+    with no `design_storm` anywhere, absent-never-null."""
+    _, docs = render(ida, uni, det, art)
+    assert "design_storm" not in docs["flood.json"]
+    assert all("design_storm" not in v for v in docs["flood.json"]["cells"].values())
+
+
+def test_the_tick_threads_the_design_storm_and_carries_its_summary(tmp_path, monkeypatch):
+    """Through `_tick` for real (stubbed reads, empty universe): the block reaches the
+    written flood.json, and the summary rides the tick's state for the one log line."""
+    narrow = [{"cell": 1, "hour_end_utc": datetime(2026, 8, 25, 5, tzinfo=timezone.utc),
+               "mm_1h": 2.5}]
+    monkeypatch.setattr(fp, "universe", lambda *a: {"units": [], "static": {},
+                                                    "where": {},
+                                                    "table_score_version": None})
+    monkeypatch.setattr(fp, "wet_series", lambda *a, **k: {})
+    monkeypatch.setattr(fp, "cell_hours", lambda *a, **k: narrow)
+    monkeypatch.setattr(fp, "cell_index", lambda root: False)
+    monkeypatch.setattr(fp.ft, "truth", lambda *a, **k: truth_read())
+    now = datetime(2026, 8, 25, 6, tzinfo=timezone.utc)
+    state = fp.tick(None, tmp_path, tmp_path / "web", None, now,
+                    ship_=lambda o, p: {fp.UNGATED: "x", fp.GATED: "x"})
+    assert state.get("error") is None, state.get("error")
+    assert state["design_storm"] == {"cells": 1, "max_mm_1h": 2.5}
+    assert "ds=1@2.5" in fp.line(state)
+    doc = json.loads((tmp_path / "web" / "flood.json").read_text())
+    assert doc["design_storm"]["display"]["sentence"]
+    assert doc["design_storm"]["asof"] == narrow[0]["hour_end_utc"].isoformat()
