@@ -47,6 +47,17 @@ COPY pyproject.toml README.md Makefile /opt/raincheck/
 COPY src /opt/raincheck/src
 COPY web /opt/raincheck/web
 COPY scripts /opt/raincheck/scripts
+# The three research artifacts src/ LOADS AT RUNTIME, and only those three - `research/` is
+# otherwise .dockerignore'd (write-ups, exhibits, replay outputs; the exceptions are listed
+# there beside this list). They are the fitted model this project ships: flood 09's fits,
+# flood 10's coefficients and flood 11's detector constants, 96 KB of tracked JSON that
+# `flood_exposure.FITS`/`.COEFFICIENTS` and `flood_detect.DETECTOR` name as
+# `REPO / "research" / ...`. Nine waves of images shipped without them and no test could
+# see it, because no pod had ever run the flood tick; cloud 14 applied the live Deployment
+# and it CrashLoopBackOff'd on the first cycle (2026-08-27). They are enumerated rather
+# than globbed so that adding a runtime artifact is a deliberate edit here.
+COPY research/flood-09-fits.json research/flood-10-coefficients.json \
+     research/flood-11-detector.json /opt/raincheck/research/
 #
 # `[gx]` is the Great Expectations extra (orchestration 08): the nightly's gxcheck stage
 # runs in a pod on THIS image, so the extra installs here or the stage has nothing to run.
@@ -58,6 +69,7 @@ RUN pip install --no-cache-dir -e "/opt/raincheck[gx]" \
  && ln -s /opt/venv /opt/raincheck/.venv \
  && python -c "import raincheck.spark, eccodes, duckdb, confluent_kafka, great_expectations" \
  && python -c "from raincheck.paths import REPO; assert str(REPO) == '/opt/raincheck', REPO" \
+ && python -c "from raincheck import flood_detect as fd, flood_exposure as fe; fd.constants(); fe.coefficients(); fe.FITS.read_text()" \
  && make -C /opt/raincheck --dry-run events DATE=1970-01-01 >/dev/null
 
 # Bake the jars. Version pairing is NOT guessable: geotools-wrapper's suffix is the

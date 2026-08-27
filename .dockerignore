@@ -4,6 +4,17 @@ data/
 .scratch/
 docs/
 research/
+# ...EXCEPT the three artifacts src/ LOADS AT RUNTIME. They are tracked JSON (96 KB), not
+# build outputs: flood_detect.DETECTOR, flood_exposure.FITS and flood_exposure.COEFFICIENTS
+# are module-level `REPO / "research" / ...` constants, so a pod that runs the detector
+# reads them off the image. Excluding the whole directory shipped nine waves of images
+# without them and nothing could see it - no pod had ever run the flood tick. cloud 14
+# ran it and raincheck-live CrashLoopBackOff'd on the first one. The Dockerfile's runtime
+# stage COPYs exactly these and LOADS them in its own build assertion, so dropping a line
+# here fails the BUILD rather than a pod at 03:00.
+!research/flood-09-fits.json
+!research/flood-10-coefficients.json
+!research/flood-11-detector.json
 tests/
 .env
 **/*.pyc
