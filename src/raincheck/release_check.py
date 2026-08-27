@@ -129,6 +129,30 @@ def rows() -> list[tuple[bool, str, str]]:
                 "adding these families did not break the promised read surface",
                 f"contract {contract.CONTRACT}, still a subset"))
 
+    # 9b. THE BUILT DISCOVERY DOCUMENT vs THE CODE THAT DECLARES IT. `contract.families()`
+    # derives from publish.FAMILIES, so the CODE cannot drift - but `web/files/index.json`
+    # is a BUILT ARTIFACT written by an export run, and nothing re-ran when a family was
+    # added. It drifted, and nothing could see it: at the wave-10 gate the published file
+    # declared 10 families while publish.FAMILIES held 12 (`impact` and `summary` missing),
+    # so P3's own recent-flooding API was invisible through the one fetch the contract
+    # designates as authoritative - on a suite that was green. A test cannot catch this
+    # (the file is gitignored and absent in a fresh checkout); the PRE-PUBLISH gate can,
+    # which is the only moment the stale bytes are about to become the public answer.
+    built = publish.WEB / "files" / contract.NAME
+    if not built.exists():
+        out.append((True, "the built index.json is absent, so nothing stale can publish",
+                    f"{built.relative_to(REPO)} not built - `make export` writes it"))
+    else:
+        declared = set(json.loads(built.read_text()).get("families", {}))
+        missing, extra = set(publish.FAMILIES) - declared, declared - set(publish.FAMILIES)
+        drift = ((f"; MISSING {sorted(missing)}" if missing else "")
+                 + (f"; STALE {sorted(extra)}" if extra else ""))
+        out.append((not drift,
+                    "the BUILT index.json declares exactly publish.FAMILIES",
+                    f"{len(declared)} declared vs {len(publish.FAMILIES)} in code"
+                    + (drift + " - re-run `make export`, then publish FAMILY=insight"
+                       if drift else "")))
+
     # 10. The budgets the page renders a VERDICT from are derived, not typed.
     out.append((flood_panel.BUDGETS_S == {
         "precip_fresh": det["staleness_budgets"]["precip_fresh_min"] * 60,
