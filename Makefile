@@ -8,7 +8,7 @@ export TZ := UTC
 export RAINCHECK_ARCHIVE_ROOT RAINCHECK_BRONZE_GB TRANSITLAND_API_KEY
 PY := .venv/bin/python
 
-.PHONY: warm ref nbp features picks precip-hourly precip-cell schedule events gold baseline gates slice test topics flood-obs flood-spine flood-coastal precip-flood-era flood-labels flood-matrix flood-fits flood-exposure flood-detector flood-replay notify-replay flood-replication flood-live flood-panel release-check
+.PHONY: warm ref nbp features picks precip-hourly precip-cell schedule events gold baseline gates slice test topics flood-obs flood-spine flood-coastal precip-flood-era flood-labels flood-matrix flood-fits flood-exposure flood-detector flood-replay notify-replay notify-rehearse flood-replication flood-live flood-panel release-check
 
 topics:  ## recreate the two bus topics to spec C - DESTRUCTIVE: drops retained Kafka messages (Bronze keeps the record)
 	$(PY) -m raincheck.topics
@@ -140,6 +140,16 @@ flood-replay:  ## replay the live detector over history -> research/flood-12-rep
 # without replaying.
 notify-replay:  ## replay the notify decision over history -> research/notify-11-replay.{md,json}
 	$(PY) -m raincheck.notify_replay $(if $(ONLY),--only $(ONLY)) $(if $(LIMIT),--limit $(LIMIT)) $(if $(RENDER),--render-only)
+
+# ~1.5 min: a synthetic storm trips every decision branch (real fd.cycle payloads over the
+# committed Ida fixture), then the real 2023-09-29 event and a real Window-roll event replay
+# through the detector's own walk with every chain checked against the committed notify-11
+# rows; messages render with explicit .invalid deployment facts and the throwaway store is
+# drained to zero rows through the unsubscribe handler. No network, no real subscriber,
+# NOTHING SENT - transport stays a by-hand step for whenever the notifier is armed. SYNTH=1
+# runs the synthetic half alone (no data root needed).
+notify-rehearse:  ## drive detector -> decision -> render -> empty store, twice (rc 1 = a check failed)
+	$(PY) -m raincheck.notify_rehearse $(if $(SYNTH),--synthetic-only)
 
 # --- flood-build ticket 15: the flood panel tick and the release checklist -----------
 # The tick normally runs INSIDE the 30 s live loop (`python -m raincheck.live_loop`); this
