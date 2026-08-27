@@ -355,10 +355,16 @@ export:  ## insight files from Gold -> web/files (make export [GATE=0.30] sweeps
 # metro z0-15 316 MB, metro z0-13 52 MB. maxzoom 13 with MapLibre overzooming past it keeps
 # roads and shorelines legible all the way in, on a page whose subject is a ~1,200-Cell
 # citywide ramp and not a street atlas.
-PMTILES_BUILD := 20260824
+# THE PIN CANNOT BE PUSHED FURTHER OUT THAN ~3 WEEKS - that is the whole window Protomaps
+# keeps - so this bump buys three weeks and no more, and it is a RECURRING chore, not a
+# fix. What it is NOT is a live-page risk: the page reads `tiles/nyc.pmtiles` off its own
+# host (basemap.js:52), so an expired build date breaks `make basemap` (a rebuild) and
+# never a visitor. Bumped 20260824 -> 20260827 by frontend2 06; both dates verified alive
+# TWICE first (HEAD 200 + ranged GET 206, URL echoed - two probes have lied here before).
+PMTILES_BUILD := 20260827
 BASEMAP_BBOX := -74.90,40.10,-72.90,41.30
 BASEMAP_MAXZOOM := 13
-NYC_PMTILES_SHA := c5b08d90657332ef297135204715f965bdc60c2157b5dffe3485eab31f5e6fc3
+NYC_PMTILES_SHA := 9d57ab4a0ba6a92365217267a371a7071f04e3dd526b6f51540666b09f5ec124
 
 basemap:  ## build the pinned NYC PMTiles basemap into web/tiles (needs the pmtiles CLI)
 	@command -v pmtiles >/dev/null || { echo "basemap: the pmtiles CLI is not on PATH."; \
