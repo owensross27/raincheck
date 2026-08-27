@@ -132,3 +132,28 @@ code { font-size: 12px; color: var(--dim); }
 .zl .sw { flex: 0 0 auto; width: 10px; height: 10px; border-radius: 2px;
           border: 1px solid #0b0d10; }
 #geo-attribution:empty { display: none; }
+
+/* frontend2 05: the two audiences (D7). The rider surface is everything visible by
+   default; the analyst prose sits behind this ONE disclosure, default closed. The
+   summary is a real <summary>, so the keyboard and screen-reader semantics are the
+   platform's - it only gets the page's focus ring and label styling. */
+#answer .big { font-size: 22px; }
+#analyst { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 8px; }
+#analyst summary { cursor: pointer; color: var(--dim); font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .06em; }
+#analyst summary:hover { color: var(--ink); }
+#analyst summary:focus-visible { outline: 2px solid #8ecbff; outline-offset: 2px; }
+#analyst[open] summary { margin-bottom: 8px; }
+
+/* the rider's recent-flooding rows: date left, labelled-asset counts right; hover or
+   focus rings the event's Cells on the map, and the row shows it took the pointer */
+#recent { margin-top: 12px; }
+.rec { display: flex; justify-content: space-between; gap: 8px; align-items: baseline;
+  font-size: 12px; color: var(--dim); border-top: 1px solid var(--line); padding: 4px 0; }
+.rec b { color: #b9c3d0; font-weight: 500; white-space: nowrap; }
+.rec span { text-align: right; }
+.rec:hover { color: var(--ink); background: rgba(142, 203, 255, .06); }
+.rec:focus-visible { outline: 2px solid #8ecbff; outline-offset: 1px; color: var(--ink); }
+
+/* the one-sentence rider description under each layer row */
+.lyr .sub { margin: 2px 0 0; }

@@ -146,11 +146,13 @@ export const LAYERS = [
   // Its source is HEAD-ed, not fetched: an age must not cost 52 MB to learn, and the tiles
   // themselves are read by MapLibre's own protocol, which reports no headers to us.
   { id: "basemap", name: "Ground: basemap", gate: null, fill: false, open: true,
+    sub: "Streets, parks and water under everything else.",
     map: [], owed: null,
     srcs: [{ k: "tiles/nyc.pmtiles", url: "tiles/nyc.pmtiles", budget: null, head: true }],
     draw: ([ok]) => drawBasemap(ok) },
 
   { id: "zones", name: "Ground: taxi zones", gate: null, fill: false, open: true,
+    sub: "Taxi-zone outlines, for finding where you are.",
     map: ["zones-fill", "zones-line"], owed: null,
     srcs: [{ k: "files/zones.geojson", url: "files/zones.geojson", budget: null }],
     draw: ([z]) => { if (z) map.getSource("zones").setData(z); } },
@@ -164,6 +166,7 @@ export const LAYERS = [
    * ramp. Both are `open: false` - nothing here is fetched until the reader ticks it, and
    * routes.geojson is 7.78 MiB. */
   { id: "routes", name: "Bus route lines", gate: null, fill: false, open: false,
+    sub: "Where the buses run.",
     map: ["routes"], owed: null,
     srcs: [{ k: "files/geo/routes.geojson", url: "files/geo/routes.geojson", budget: null }],
     draw: ([r]) => drawRoutes(r) },
@@ -173,11 +176,13 @@ export const LAYERS = [
   // list a directory, and `geo` is a TREE family whose served set is derived from the
   // table, so the manifest is what makes a second scenario a DATA change and not a rewrite.
   { id: "stormwater", name: "Ground: flood zones (DEP design storm)", gate: null, fill: false,
+    sub: "The city's planning map of where heavy rain would pond.",
     open: false, map: ["stormwater-fill", "stormwater-line"], owed: null,
     srcs: [{ k: "files/geo/scenarios.json", url: "files/geo/scenarios.json", budget: null }],
     draw: ([m]) => drawZones(m) },
 
   { id: "cells", name: "Delay cells", gate: null, fill: true, open: true,
+    sub: "How much slower the buses ran in the rain, area by area.",
     map: ["cells", "cells-line"], owed: null,
     srcs: [{ k: "files/cells.geojson", url: "files/cells.geojson", budget: null },
            { k: "files/headline.json", url: "files/headline.json", budget: null }],
@@ -193,6 +198,7 @@ export const LAYERS = [
     draw: null },
 
   { id: "fn", point: true, name: "Flood tier: FloodNet", gate: null, fill: false, open: false,
+    sub: "Street flood sensors around the city, lit when one is reporting water.",
     map: ["fn"], owed: null,
     srcs: [{ k: "files/flood.json", url: "files/flood.json", budget: 600 }],
     draw: ([f]) => drawFn(f) },
@@ -202,6 +208,7 @@ export const LAYERS = [
   // for this file), so this row renders an AGE and judges nothing - the chip states inside
   // the payload carry their own per-incident verdicts. frontend 02 D6: never a guessed one.
   { id: "mta", point: true, name: "Flood tier: MTA alerts", gate: "mta-alerts", fill: false, open: false,
+    sub: "Stations where the MTA has reported water on the tracks.",
     map: ["mta"], owed: null,
     srcs: [{ k: "files/flood-mta.json", url: "files/flood-mta.json", budget: null }],
     draw: ([m]) => drawMta(m) },
@@ -211,6 +218,7 @@ export const LAYERS = [
   // the DATA's age at write; the draw adds it to the file age (the live pair's composite),
   // so a fresh file over a stale Gold hour still reads STALE.
   { id: "impact", name: "Impact overlay: bus", gate: "mta-vehicles", fill: true, open: false,
+    sub: "How the buses are doing right now against a dry baseline.",
     map: ["impact-fill", "impact-line"], owed: null,
     srcs: [{ k: "files/impact.json", url: "files/impact.json", budget: 122400 }],
     draw: ([b]) => drawImpact(b) },
@@ -220,6 +228,7 @@ export const LAYERS = [
   // in one legend would be lying about their grain). 4200 = flood_overlay.SUBWAY_BUDGET_S
   // (the hour + archiver.WINDOW), derived in the test like the bus budget above.
   { id: "subway", point: true, name: "Impact overlay: subway", gate: "mta-vehicles", fill: false,
+    sub: "This hour's dropped subway service, by station complex.",
     open: false, map: ["subway"], owed: null,
     srcs: [{ k: "files/impact-subway.json", url: "files/impact-subway.json", budget: 4200 }],
     draw: ([d]) => drawImpactSub(d) },
@@ -232,6 +241,7 @@ export const LAYERS = [
    * this manifest. No budget is frozen for this source anywhere in the repo, so its row
    * reads a bare AGE - reporting a verdict here would be a guessed constant. */
   { id: "hist", point: true, name: "Flood history markers", gate: null, fill: false, open: false,
+    sub: "Places that have flooded before; click a marker for its record.",
     map: ["hist"], owed: null,
     srcs: [{ k: "files/history/manifest.geojson", url: "files/history/manifest.geojson",
              budget: null }],
