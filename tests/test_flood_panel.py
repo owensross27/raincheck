@@ -522,10 +522,11 @@ def test_an_outage_is_a_field_on_state_and_never_a_stopped_loop(tmp_path, monkey
     assert state["skipped"] is False and "error" in fp.line(state)
 
 
-def test_a_gated_family_is_a_designed_state_logged_once(tmp_path, capsys):
-    """cloud 09 rc 3. The MTA terms are unverified, so the gated pair is written locally
-    and not published - a standing condition, and a line every 30 s would bury the tick
-    that genuinely broke."""
+def test_a_gated_family_is_a_designed_state_logged_once(tmp_path, capsys, monkeypatch):
+    """cloud 09 rc 3. With the MTA terms unverified (forced here - the shipped gate is
+    open since 2026-08-27) the gated pair is written locally and not published - a
+    standing condition, and a line every 30 s would bury the tick that genuinely broke."""
+    monkeypatch.setattr(publish, "LIVE_TERMS_VERIFIED", None)
     (tmp_path / "flood.json").write_text("{}")
     (tmp_path / "flood-meta.json").write_text("{}")
     (tmp_path / "flood-mta.json").write_text("{}")
@@ -544,10 +545,11 @@ def test_a_gated_family_is_a_designed_state_logged_once(tmp_path, capsys):
     assert all(f"flood-panel: {f} publish gated" in out for f in gated)
 
 
-def test_the_ungated_family_is_not_gated_by_the_mta_terms(tmp_path):
+def test_the_ungated_family_is_not_gated_by_the_mta_terms(tmp_path, monkeypatch):
     """The whole point of the split, asserted through the real publisher: with the terms
-    unverified the open side must still plan."""
-    assert publish.LIVE_TERMS_VERIFIED is None
+    unverified (forced - the shipped gate is open since 2026-08-27) the open side must
+    still plan while the gated side refuses."""
+    monkeypatch.setattr(publish, "LIVE_TERMS_VERIFIED", None)
     for name in fp.FILES[fp.UNGATED]:
         (tmp_path / name).write_text("{}")
     items = publish.plan(fp.UNGATED, tmp_path)

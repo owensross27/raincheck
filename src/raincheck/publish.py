@@ -142,14 +142,20 @@ TYPES = {".geojson": "application/geo+json", ".js": "text/javascript",
 # live.geojson is the one family that re-serves an MTA-derived, feed-shaped payload. The
 # spec does not assert what MTA's terms say, and neither does this module: publishing it
 # is gated on a HUMAN verification. Ross was asked directly on 2026-08-24 and had NOT
-# verified the terms, so the gate is closed and `publish("live")` refuses with rc 3.
+# verified the terms, so the gate shipped closed (rc 3) from 08-24 to 08-27.
 #
-# To open it, replace None with the receipt - the date and what was actually read, e.g.
-#     LIVE_TERMS_VERIFIED = "2026-09-01: MTA developer terms, sec.N - derived
-#                            current-snapshot views permitted with attribution"
-# The three constraints in the module docstring hold either way; the gate only decides
-# whether the payload goes public at all.
-LIVE_TERMS_VERIFIED: str | None = None
+# VERIFIED 2026-08-27, at Ross's direction - the receipt below is the record; the full
+# captured text and the clause-by-clause reading are docs/adr/0003 and the runbook copy
+# (~/vault/raincheck-runbook/mta-terms-2026-08-27.txt). To close the gate again, set this
+# back to None - the three constraints in the module docstring hold either way; the gate
+# only decides whether the payload goes public at all.
+LIVE_TERMS_VERIFIED: str | None = (
+    "2026-08-27: MTA Developer Agreement for Access to Data Feeds "
+    "(mta.info/developers/terms-and-conditions) - authorizes downloading the data, "
+    "hosting it on a non-MTA server and making it available to others from that server "
+    "(and requires exactly that shape); realtime feeds covered with a >1 min lag "
+    "disclosure duty, satisfied by the page's reader-dated ages; non-endorsement, "
+    "no-accuracy-claims and no-MTA-branding conditions already enforced. docs/adr/0003.")
 
 
 class Refused(Exception):

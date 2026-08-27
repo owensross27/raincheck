@@ -53,19 +53,30 @@ def gate_open(monkeypatch):
 
 # --- the MTA gate ------------------------------------------------------------------------
 
-def test_live_is_refused_while_the_mta_terms_are_unverified(web):
-    """Ross was asked directly on 2026-08-24 and had not verified them, so the shipped
-    constant is None and the live family does not publish. This is the ticket's hard
-    precondition expressed as code rather than as a note on a page."""
-    assert publish.LIVE_TERMS_VERIFIED is None, (
-        "the gate was opened without a recorded verification - the constant must carry "
-        "the date and what was read")
+def test_the_open_gate_carries_a_recorded_verification(web):
+    """Opened 2026-08-27 at Ross's direction: the constant is the RECEIPT - the date and
+    what was actually read (docs/adr/0003) - never a bare truthy flag. A blank or
+    dateless receipt is an unopened gate wearing an opened one's type. And with the
+    receipt recorded, the gated family plans."""
+    receipt = publish.LIVE_TERMS_VERIFIED
+    assert receipt and "2026-08-27" in receipt and "mta.info" in receipt, (
+        "the gate must carry the date and what was read, not a flag")
+    assert [i.key for i in publish.plan("live", web / "files")] == [
+        "files/live.geojson", "files/meta.json"]
+
+
+def test_live_is_refused_while_the_mta_terms_are_unverified(web, monkeypatch):
+    """The refusal path outlives the opening: with the constant back to None the live
+    family refuses with GateClosed, exactly as it shipped from 08-24 to 08-27. The gate
+    is a revocation lever, so its shut side stays covered."""
+    monkeypatch.setattr(publish, "LIVE_TERMS_VERIFIED", None)
     with pytest.raises(publish.GateClosed):
         publish.plan("live", web / "files")
 
 
-def test_the_closed_gate_uploads_nothing_at_all(web):
+def test_the_closed_gate_uploads_nothing_at_all(web, monkeypatch):
     """A refusal that has already uploaded half a pair is not a refusal."""
+    monkeypatch.setattr(publish, "LIVE_TERMS_VERIFIED", None)
     sent = []
     with pytest.raises(publish.GateClosed):
         publish.publish("live", web / "files", dest="raincheck-public",
@@ -75,10 +86,15 @@ def test_the_closed_gate_uploads_nothing_at_all(web):
 
 def test_the_closed_gate_is_rc_3_and_the_other_families_still_ship(web):
     """rc 3 is a designed state - cloud 05's supervisor logs it and carries on - and it
-    must not be reachable by anything that is merely broken (that is rc 1)."""
+    must not be reachable by anything that is merely broken (that is rc 1). The shipped
+    constant is open now, so the closed CLI is driven by shutting the gate in-process
+    before main(); the mapping GateClosed -> SystemExit(3) is what this pins."""
     env = {**os.environ, "PYTHONPATH": str(REPO / "src")}
-    live = subprocess.run([sys.executable, "-m", "raincheck.publish", "--family", "live",
-                           "--src", str(web / "files"), "--dry-run"],
+    shut = ("import sys; src = sys.argv[1]; import raincheck.publish as p; "
+            "p.LIVE_TERMS_VERIFIED = None; "
+            "sys.argv = ['publish', '--family', 'live', '--src', src, '--dry-run']; "
+            "p.main()")
+    live = subprocess.run([sys.executable, "-c", shut, str(web / "files")],
                           capture_output=True, text=True, env=env)
     assert live.returncode == 3 and "NOT verified" in live.stderr
     site = subprocess.run([sys.executable, "-m", "raincheck.publish", "--family", "site",
@@ -414,15 +430,16 @@ def flood_files(tmp_path):
 
 
 def test_the_flood_panel_publishes_as_two_families_because_the_gate_cuts_through_it(
-        flood_files):
+        flood_files, monkeypatch):
     """frontend 01 D3, Ross's decision. The FloodNet tier carries no MTA-derived content
     at all, so withholding the MTA feed must not withhold it - and `gated` is a property
     of a FAMILY, so one family could not have been on both sides of the gate. This is that
-    decision expressed where the publisher can enforce it."""
+    decision expressed where the publisher can enforce it, with the gate FORCED shut (the
+    shipped constant is open since 2026-08-27)."""
     from raincheck import flood_panel
+    monkeypatch.setattr(publish, "LIVE_TERMS_VERIFIED", None)
     open_side = publish.plan(flood_panel.UNGATED, flood_files)
     assert [i.key for i in open_side] == ["files/flood.json", "files/flood-meta.json"]
-    assert publish.LIVE_TERMS_VERIFIED is None, "the gate is shut and the open side ships"
     with pytest.raises(publish.GateClosed):
         publish.plan(flood_panel.GATED, flood_files)
 
@@ -472,14 +489,17 @@ def impact_files(tmp_path):
     return tmp_path
 
 
-def test_the_impact_overlays_are_gated_because_their_lineage_is_vp_and_tu(impact_files):
+def test_the_impact_overlays_are_gated_because_their_lineage_is_vp_and_tu(
+        impact_files, monkeypatch):
     """Not a panel split and not a taste: `files/impact.json` is gold/cell_hour_speed <- VP
     and `files/impact-subway.json` is archive/subway_tu, so both sit on the same side of
-    the lineage gate as live.geojson. Nothing here may reach the OPEN flood family."""
+    the lineage gate as live.geojson. Nothing here may reach the OPEN flood family. The
+    gate is FORCED shut here (the shipped constant is open since 2026-08-27)."""
     from raincheck import flood_overlay
     fam = publish.FAMILIES[flood_overlay.FAMILY]
     assert fam.gated is True and fam.cache == publish.NO_CACHE
     assert fam.files == flood_overlay.FILES     # pinned to the writer, never a second copy
+    monkeypatch.setattr(publish, "LIVE_TERMS_VERIFIED", None)
     with pytest.raises(publish.GateClosed):
         publish.plan(flood_overlay.FAMILY, impact_files)
 

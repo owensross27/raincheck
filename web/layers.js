@@ -115,14 +115,15 @@ export const DELAY_CUT_S = 300;   // 06's Delay cutoff, borrowed for an agency-c
 /* THE MTA GATE CUTS BY LINEAGE, and it has TWO SIDES (frontend 01 D3). Withholding the
  * vehicles must never withhold the FloodNet tier, and opening the vehicles must never
  * open MTA-derived ALERT rows - so the page keys each layer on its own gate side rather
- * than on one global switch. Both sides are shut by the same deploy-time constant today,
- * `raincheck.publish.LIVE_TERMS_VERIFIED` (None = not verified, so nothing MTA-derived is
- * published); a test cross-checks these two booleans against it. Ticket 08 lights a side
- * by flipping ONE of these, with no re-plumbing.
+ * than on one global switch. Both sides follow the same deploy-time constant,
+ * `raincheck.publish.LIVE_TERMS_VERIFIED` - OPEN since 2026-08-27, when the MTA
+ * Developer Agreement was verified (docs/adr/0003: the terms authorize, and in fact
+ * require, serving the data to others from a non-MTA server); a test cross-checks these
+ * two booleans against it. Either side can be shut again alone, with no re-plumbing.
  */
 const GATE = {
-  "mta-vehicles": false,   // GTFS-RT vehicle positions -> the live fleet, flood 17's bus overlay
-  "mta-alerts": false,     // archive/subway_alerts -> the MTA flood tier's alert rows
+  "mta-vehicles": true,    // GTFS-RT vehicle positions -> the live fleet, flood 17's bus overlay
+  "mta-alerts": true,      // archive/subway_alerts -> the MTA flood tier's alert rows
 };
 
 /* The seven layers, their SOURCES and their budgets. A layer takes the worst of its
