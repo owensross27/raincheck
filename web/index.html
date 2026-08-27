@@ -15,23 +15,41 @@
 <div id="left">
 <section id="insight" class="panel" aria-labelledby="insight-h">
   <h1 id="insight-h">Does rain slow the NYC buses, and where?</h1>
-  <p class="note" id="preview-note">loading&hellip;</p>
+  <div id="answer" aria-live="polite"><p class="note">loading&hellip;</p></div>
 
   <h2 class="lbl" id="views-h">Layer</h2>
   <div id="views" class="btns" role="group" aria-labelledby="views-h"></div>
   <div id="hours" class="btns" role="group" aria-label="Storm hour (hour ending, UTC)"></div>
 
-  <div id="headline" aria-live="polite"></div>
+  <!-- frontend2 05: the rider's recent-flooding list, from files/summary/recent.json
+       (frontend2 04's payload; its strings render verbatim, its window is the spine's
+       newest day and never "today"). Rows locate their areas on the map. -->
+  <div id="recent"></div>
 
-  <figure id="curve">
-    <figcaption id="curve-cap" class="lbl"></figcaption>
-    <svg id="curve-svg" viewBox="0 0 340 96" role="img" aria-labelledby="curve-cap"></svg>
-  </figure>
+  <!-- frontend2 05 (DESTINATION-PLAN D7): ONE disclosure holds everything analyst-grade -
+       the estimands, the interval rows, the curve, the chord/hidden/gate notes. Every
+       element inside moved here VERBATIM; nothing was reworded and no id changed. A real
+       disclosure element, so the keyboard and screen-reader semantics come from the
+       platform. Default CLOSED; app.js remembers the reader's choice in localStorage. -->
+  <details id="analyst">
+    <summary>Analyst details &mdash; estimands, intervals, gates and the curve</summary>
+    <p class="note" id="preview-note">loading&hellip;</p>
 
-  <h2 class="lbl">How to read these numbers</h2>
-  <p class="note" id="note-chord"></p>
-  <p class="note" id="note-hidden"></p>
-  <p class="note" id="note-gate"></p>
+    <div id="headline" aria-live="polite"></div>
+
+    <figure id="curve">
+      <figcaption id="curve-cap" class="lbl"></figcaption>
+      <svg id="curve-svg" viewBox="0 0 340 96" role="img" aria-labelledby="curve-cap"></svg>
+    </figure>
+
+    <h2 class="lbl">How to read these numbers</h2>
+    <p class="note" id="note-chord"></p>
+    <p class="note" id="note-hidden"></p>
+    <p class="note" id="note-gate"></p>
+
+    <h2 class="lbl">What the map colour measures</h2>
+    <div class="note" id="legend-estimand"></div>
+  </details>
 </section>
 
 <div id="legend" class="panel">
@@ -39,8 +57,9 @@
   <div class="swatches" id="swatches" aria-hidden="true"></div>
   <div class="ticks"><span id="tick-lo"></span><span id="tick-mid"></span><span id="tick-hi"></span></div>
   <div class="swatches one" aria-hidden="true"><span class="grey"></span></div>
-  <div class="note" id="grey-note">grey = no publishable value for this layer (the property is absent, not null)</div>
-  <div class="note" id="legend-estimand"></div>
+  <div class="note" id="grey-note">grey = no publishable value for this layer</div>
+  <!-- frontend2 05: #legend-estimand moved into the analyst disclosure (D7) - the
+       estimand sentence is analyst prose; the swatches and ticks stay the rider's -->
   <div class="note">rain: AORC hourly, hour-ending</div>
 </div>
 </div>
@@ -49,15 +68,17 @@
 <div id="right">
 <section id="layers" class="panel" aria-labelledby="layers-h">
   <h2 id="layers-h">Layers</h2>
-  <p class="note">Every layer carries its own freshness, per SOURCE: FRESH, STALE with a
-     reason, OFF, GATED, or a bare AGE where no staleness budget has been frozen yet.
-     Nothing is fetched until you tick it.</p>
+  <!-- frontend2 05: the rider pass shortened this copy; the five-state vocabulary keeps
+       one decoding sentence because the chips show in BOTH views (a bare AGE chip is
+       otherwise unreadable). The wording is the page's own, not a frozen string. -->
+  <p class="note">Each row is one data source and its chip says how current it is; a bare
+     AGE means no staleness budget is frozen for that file. Nothing is fetched until you
+     tick it.</p>
 
   <h3 class="lbl" id="fill-h">Cell fill &mdash; pick one</h3>
   <div id="layers-fill" role="radiogroup" aria-labelledby="fill-h"></div>
-  <p class="note">One fill at a time: the delay layer and the impact overlay are the same
-     quantity (a Speed ratio) over the same Cells at different time-scales, so they share
-     one ramp and one channel and can never disagree on screen.</p>
+  <p class="note">One fill at a time: both options colour the same areas with one shared
+     ramp, so they can never disagree on screen.</p>
 
   <h3 class="lbl" id="pts-h">Ground and points</h3>
   <div id="layers-pts" aria-labelledby="pts-h"></div>

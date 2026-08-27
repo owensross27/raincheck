@@ -54,6 +54,7 @@ export function rowHTML(lyr) {
     <label><input type="${kind}" ${lyr.fill ? 'name="cellfill"' : ""} data-l="${lyr.id}"
       ${on[lyr.id] ? "checked" : ""} ${dark || !styled ? "disabled" : ""}>
       <span class="nm">${lyr.name}</span>${chipHTML(worst(lyr))}</label>
+    ${lyr.sub ? `<p class="note sub">${lyr.sub}</p>` : ""}
     ${srcRows(lyr)}${gate}${owed}${on[lyr.id] ? optsHTML(lyr) + (lyr.legend || "") : ""}</div>`;
 }
 

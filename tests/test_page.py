@@ -936,3 +936,99 @@ def test_the_design_storm_sentence_renders_only_when_present_and_never_a_placeho
     for literal in ("54.10", "44.96", "92.96", "1.77", "2.13", "3.66"):
         assert literal not in js, f"a design-storm rate {literal} is typed into the page"
     assert "coming soon" not in js.lower()
+
+
+# ==================================== frontend2 05: one page, two audiences ===============
+def test_everything_analyst_grade_sits_behind_one_closed_real_details_disclosure():
+    """DESTINATION-PLAN D7. The analyst prose - preview_note, the headline's interval
+    rows and estimands, the curve, the chord/hidden/gate notes and the legend estimand -
+    lives INSIDE one real <details> element, which ships CLOSED (no `open` attribute, so
+    the rider view is the default) and whose control is a native <summary>, never a
+    div-with-a-click-handler pretending. Everything inside kept its id, so no render call
+    changed. The frozen honesty string is NOT in here: it renders in the fn layer's own
+    row (flood 15's strings, read from the payload) and stays visible in both views.
+    MUTATION KILLED: shipping the disclosure open (the analyst view becomes the default,
+    reversing D7); moving one of the seven surfaces back out; a second <details> (the
+    decision is ONE disclosure); or replacing <details> with a styled div, which loses
+    the platform's keyboard and screen-reader semantics."""
+    html = page_html()
+    assert html.count("<details") == 1, "ONE disclosure for everything analyst-grade"
+    m = re.search(r"<details([^>]*)>(.*?)</details>", html, re.S)
+    attrs, block = m.group(1), m.group(2)
+    assert 'id="analyst"' in attrs
+    assert "open" not in attrs, "default CLOSED: the rider view is the default (D7)"
+    assert "<summary>" in block, "a real disclosure element, not a styled div"
+    for el in ('id="preview-note"', 'id="headline"', 'id="curve"', 'id="note-chord"',
+               'id="note-hidden"', 'id="note-gate"', 'id="legend-estimand"'):
+        assert el in block, f"{el} is analyst prose and must sit inside the disclosure"
+    assert 'id="answer"' in html.split("<details", 1)[0], "the rider's answer line stays out"
+
+
+def test_the_disclosure_state_is_remembered_with_both_localstorage_sides_guarded():
+    """The reader's choice persists per browser, and localStorage is allowed to fail:
+    private windows and storage-blocking settings THROW on access, so both the read and
+    the write sit in try/catch and anything but a stored "open" reads as closed - absent,
+    unreadable and garbage all land on the rider default. The wiring is app.js's, like
+    every listener on this page (the cyclic-module rule).
+    MUTATION KILLED: an unguarded read (the page dies at boot in a private window); a
+    truthy default (absent state opening the analyst view); or the toggle listener moving
+    into another module."""
+    app = module_js()["app.js"]
+    assert ('try { $("analyst").open = localStorage.getItem("raincheck.analyst") '
+            '=== "open"; } catch {}') in app
+    assert 'try { localStorage.setItem("raincheck.analyst"' in app
+    assert '$("analyst").addEventListener("toggle"' in app
+    for name, js in module_js().items():
+        if name != "app.js":
+            assert "localStorage" not in js, f"{name} touches localStorage - app.js owns it"
+
+
+def test_the_rider_list_renders_recent_json_strings_verbatim_and_never_says_today():
+    """The summary payloads may be RENDERED but their key shapes are frozen by use
+    (frontend2 04), and `strings.caveats[]` render VERBATIM on every surface that shows
+    them - the page escapes and prints the sentences, it restates nothing. The window is
+    anchored on the SPINE'S newest day_end, so the page prints the payload's own dates
+    and never the word today. The fetch goes through grab(), the page's one dated seam,
+    with `budget: null` (no staleness budget is frozen for this file). Rows are focusable
+    (tabindex), so the locate ring answers a keyboard and a tap as well as a hover - and
+    the row content is facts (a date span, labelled-asset counts), no analyst vocabulary.
+    MUTATION KILLED: paraphrasing the caveats instead of rendering them; captioning the
+    window as "today"; a bare fetch() that dates nothing; or mouse-only rows."""
+    ins = module_js()["insight.js"]
+    body = ins.split("export async function loadRecent()", 1)[1].split("\n}", 1)[0]
+    assert '"files/summary/recent.json"' in body and "budget: null" in body
+    assert "await grab(" in body, "fetched and dated through the page's one seam"
+    assert "s.caveats" in body and "esc(c)" in body, "the caveat sentences render verbatim"
+    assert "today" not in body.lower(), "the window ends at the spine's newest day"
+    assert "esc(w.since || " in body and "esc(w.until || " in body
+    assert "esc(s.label || " in body, "the writer's label line renders verbatim"
+    assert 'tabindex="0"' in body and 'data-ev="${i}"' in body
+    # the ring reads the map's own cells source - cells.geojson stays ONE fetch - and
+    # clears itself; the wiring (mouseover/focusin and their clears) is app.js's
+    loc = ins.split("export function locateEvent(i)", 1)[1].split("\n}", 1)[0]
+    assert 'map.getSource("cells")' in loc and "serialize" in loc
+    assert 'setLayoutProperty("locate", "visibility", "none")' in loc
+    app = module_js()["app.js"]
+    for wire in ('$("recent").addEventListener("mouseover"',
+                 '$("recent").addEventListener("mouseout"',
+                 '$("recent").addEventListener("focusin"',
+                 '$("recent").addEventListener("focusout"'):
+        assert wire in app, wire
+    assert "loadRecent();" in app
+
+
+def test_every_layer_row_carries_one_plain_rider_sentence():
+    """D7's rider surface: ONE sentence per source, visible in both views, under the
+    layer's name in its own row. The live fleet is the one exception - its row IS the
+    Live panel, which carries its own prose. The sentences are the page's own copy
+    (descriptive, no claim a caveat does not already make); the frozen strings still
+    come from the payloads.
+    MUTATION KILLED: dropping the render from rowHTML (the sentences become dead data),
+    or shipping a layer with no rider sentence."""
+    entries = layer_entries(page_js())
+    for lid, e in entries.items():
+        if lid == "live":
+            continue
+        assert re.search(r'sub: "', e), f"{lid} has no one-sentence rider description"
+    row = page_js().split("function rowHTML", 1)[1].split("\n}", 1)[0]
+    assert "lyr.sub" in row and 'class="note sub"' in row

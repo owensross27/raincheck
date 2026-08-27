@@ -38,8 +38,8 @@
 import { $, LAYERS, map, markStyled, on } from "./layers.js";
 import { load } from "./freshness.js";
 import { applyVisibility, renderLayers, toggle } from "./panel.js";
-import { applyRamp, closeCard, setHour, setScenario, setView, showCard,
-         showTip } from "./insight.js";
+import { applyRamp, closeCard, loadRecent, locateEvent, setHour, setScenario, setView,
+         showCard, showTip } from "./insight.js";
 import { toggleLive } from "./live.js";
 
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
@@ -118,6 +118,31 @@ if (map.loaded()) $("livetoggle").disabled = false;
 else map.once("load", () => { $("livetoggle").disabled = false; });
 
 $("livetoggle").addEventListener("change", () => toggleLive($("livetoggle").checked));
+
+// frontend2 05 (D7): ONE disclosure holds everything analyst-grade, default CLOSED.
+// The reader's choice is remembered per browser; localStorage can throw (private
+// windows, storage-blocking settings), so BOTH sides are guarded and an absent or
+// unreadable value means closed - the rider default, never the analyst one.
+try { $("analyst").open = localStorage.getItem("raincheck.analyst") === "open"; } catch {}
+$("analyst").addEventListener("toggle", () => {
+  try { localStorage.setItem("raincheck.analyst", $("analyst").open ? "open" : "closed"); }
+  catch {}
+});
+
+// the rider's recent-flooding rows ring their Cells on the map (prototype variant C's
+// hover-locate). focusin/focusout give a keyboard - and a tap, which focuses the row -
+// the same ring hover gives a mouse. Delegated: the rows are rebuilt by loadRecent().
+const recRow = (t) => t && t.closest ? t.closest("#recent [data-ev]") : null;
+$("recent").addEventListener("mouseover", e => {
+  const r = recRow(e.target); if (r) locateEvent(Number(r.dataset.ev)); });
+$("recent").addEventListener("mouseout", () => locateEvent(null));
+$("recent").addEventListener("focusin", e => {
+  const r = recRow(e.target); if (r) locateEvent(Number(r.dataset.ev)); });
+$("recent").addEventListener("focusout", () => locateEvent(null));
+
+// the list itself needs no map, so it is not gated on `load`; 32,924 B raw, dated
+// through grab() like every other payload
+loadRecent();
 
 // first paint of the panel itself: the rows exist before the map is loaded, with
 // every control disabled, so the reader sees the layer set rather than a blank column.

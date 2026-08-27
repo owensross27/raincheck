@@ -58,8 +58,13 @@ const currentRow = () => head.rows.find(r =>
 
 function renderHeadline() {
   const r = currentRow();
-  if (!r) { $("headline").innerHTML = ""; return; }
+  if (!r) { $("headline").innerHTML = ""; $("answer").innerHTML = ""; return; }
   const bandLo = Math.min(r.band[0], r.band[1]), bandHi = Math.max(r.band[0], r.band[1]);
+  // frontend2 05: the rider's one-line answer - the published band value with a plain
+  // gloss, no interval and no estimand (both sit in the analyst disclosure, verbatim)
+  $("answer").innerHTML = `<div class="big">${fmt(bandLo)}&ndash;${fmt(bandHi)}</div>
+    <div class="band">how fast the buses moved in this rain, as a share of their
+      dry-weather Speed &mdash; 1.00 means no change (${view.label})</div>`;
   // spec L requires the panel to state that the 2023-09-29 band reaches ~1.0. That is a
   // property of the STORM, not of the selected Hour: band() collapses to a point whenever
   // both arms sit in one chord class, so an hour-local test would hide the statement on
@@ -254,9 +259,13 @@ export function showTip(e) {
 // ------------------------------------------------------------------------- boot draw
 export function drawCells(cells, h) {
   if (!cells || !h) {
-    $("preview-note").textContent = whys["cells/files/cells.geojson"] === "not published on this host"
+    const msg = whys["cells/files/cells.geojson"] === "not published on this host"
       ? "the insight files are not published on this host."
       : "export files missing - run `make export` and reload.";
+    $("preview-note").textContent = msg;
+    // the disclosure ships closed, so the failure must also land on the rider surface -
+    // a broken host cannot be a secret the analyst view keeps
+    $("answer").textContent = msg;
     return;
   }
   head = h;
@@ -519,4 +528,75 @@ export function closeCard() {
   // the layer is controlled rather than at <body>
   const t = document.querySelector('#layers [data-l="hist"]');
   if (t) t.focus();
+}
+
+
+/* ========================= frontend2 05: the rider's recent-flooding list ==============
+ *
+ * files/summary/recent.json (frontend2 04's payload - key shapes frozen by use). The
+ * strings render VERBATIM: `strings.label` and every `strings.caveats[]` sentence are the
+ * writer's, and the window's dates are printed as the payload's own dates - the window is
+ * anchored on the SPINE'S newest day_end, so the page never presents `until` as today.
+ * Rows carry no analyst vocabulary: a date span and labelled-asset counts, both facts.
+ *
+ * Hovering or focusing a row rings that event's Cells on the boot-declared `locate` layer
+ * (prototype variant C's hover-locate, taken): the centroids are derived from the map's
+ * own `cells` source, so cells.geojson stays ONE fetch. The wiring is app.js's, like all
+ * wiring on this page.
+ */
+let recentEvents = [];   // the fetched events, indexed by the rows' data-ev attribute
+
+const REC_CAP = 8;   // a glance, not an archive; the rest is named, not hidden
+
+export async function loadRecent() {
+  const src = { k: "files/summary/recent.json", url: "files/summary/recent.json",
+                budget: null };
+  const doc = await grab("recent", src);
+  const box = $("recent");
+  recentEvents = doc && Array.isArray(doc.events) ? doc.events : [];
+  if (!doc) { box.innerHTML = ""; return; }   // not published: no section, no claim
+  const s = doc.strings || {};
+  const w = doc.window || {};
+  const rows = recentEvents.slice(0, REC_CAP).map((ev, i) => {
+    const span = ev.day_start === ev.day_end ? esc(ev.day_start)
+      : `${esc(ev.day_start)} &rarr; ${esc(ev.day_end)}`;
+    const n = ev.n_assets || {};
+    const bits = [ev.flood_cause ? esc(ev.flood_cause) : "",
+      typeof n.bus_stop === "number" ? `${n.bus_stop.toLocaleString()} bus stops` : "",
+      typeof n.complex === "number" ? `${n.complex.toLocaleString()} station complexes` : "",
+    ].filter(Boolean).join(" · ");
+    return `<div class="rec" tabindex="0" data-ev="${i}"><b>${span}</b><span>${bits}</span></div>`;
+  }).join("");
+  box.innerHTML =
+    `<h2 class="lbl">Flooding on record, ${esc(w.since || "")} to ${esc(w.until || "")}</h2>` +
+    `<p class="note">${esc(s.label || "")}</p>` +
+    `<p class="note">Point at an event to ring its areas on the map.</p>` +
+    rows +
+    (recentEvents.length > REC_CAP
+      ? `<p class="note">&hellip;and ${recentEvents.length - REC_CAP} earlier events in
+         <code>files/summary/recent.json</code>.</p>` : "") +
+    (Array.isArray(s.caveats) ? s.caveats.map(c => `<p class="note">${esc(c)}</p>`).join("") : "");
+}
+
+/** Ring one event's Cells on the `locate` layer; null clears it. The geometry comes from
+ *  the map's own `cells` source (the drawImpact idiom), so an unloaded fill, a 404 or a
+ *  hex outside the footprint all degrade to an empty ring - never a throw. */
+export function locateEvent(i) {
+  if (!styled) return;
+  const ev = i === null ? null : recentEvents[i];
+  const hexes = ev && Array.isArray(ev.cells) ? ev.cells : [];
+  if (!hexes.length) { map.setLayoutProperty("locate", "visibility", "none"); return; }
+  const src = map.getSource("cells");
+  const fc = src && src.serialize ? src.serialize().data : null;
+  const want = new Set(hexes);
+  const feats = ((fc && fc.features) || [])
+    .filter(f => f.geometry && f.geometry.type === "Polygon" && want.has(f.properties.cell))
+    .map(f => {
+      const ring = f.geometry.coordinates[0];
+      const c = ring.reduce((a, p) => [a[0] + p[0], a[1] + p[1]], [0, 0]);
+      return { type: "Feature", properties: {}, geometry: { type: "Point",
+               coordinates: [c[0] / ring.length, c[1] / ring.length] } };
+    });
+  map.getSource("locate").setData({ type: "FeatureCollection", features: feats });
+  map.setLayoutProperty("locate", "visibility", feats.length ? "visible" : "none");
 }
