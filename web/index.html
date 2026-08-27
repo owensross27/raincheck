@@ -66,6 +66,23 @@
        ticked, not after - the repo has no compression today, so that is the raw number. -->
   <p class="note">The bus route lines are 21,868 Cell crossings and <b>7.8 MB</b>; the
      flood zones are <b>4.4 MB</b>. Neither is fetched until you tick it.</p>
+  <!-- frontend 07: the boot-vs-toggle decision, stated where the tick happens. The
+       manifest is ~40% of the page's current first paint in raw bytes (nothing on this
+       host is compressed), so it loads on the first tick and never at boot. -->
+  <p class="note">The flood-history markers are 8,146 assets and <b>1.5 MB</b>, fetched
+     once when first ticked &mdash; never at boot. Clicking a marker fetches that one
+     asset&rsquo;s record alone (median ~1 KB, at most 22 KB).</p>
+</section>
+
+<!-- ------------------------------------------- panel 2b: the record card (frontend 07) -->
+<!-- IN-COLUMN by construction: a flex sibling of #layers inside #right, so it shrinks
+     against the layer panel and scrolls itself - never floating, never covering the
+     freshness rows or the provenance strip. Hidden until a marker is clicked. -->
+<section id="card" class="panel" hidden aria-labelledby="card-h">
+  <button id="card-close" type="button" aria-label="Close the flood record card">&times;</button>
+  <h2 id="card-h" tabindex="-1"></h2>
+  <p class="note" id="card-id"></p>
+  <div id="card-body"></div>
 </section>
 
 <!-- ------------------------------------------------------ panel 3: the live view (ticket 14) -->

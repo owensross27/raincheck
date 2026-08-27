@@ -38,7 +38,8 @@
 import { $, LAYERS, map, markStyled, on } from "./layers.js";
 import { load } from "./freshness.js";
 import { applyVisibility, renderLayers, toggle } from "./panel.js";
-import { applyRamp, setHour, setScenario, setView, showTip } from "./insight.js";
+import { applyRamp, closeCard, setHour, setScenario, setView, showCard,
+         showTip } from "./insight.js";
 import { toggleLive } from "./live.js";
 
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
@@ -75,6 +76,16 @@ $("hours").addEventListener("click", e => {
 map.on("mousemove", "cells", showTip);
 map.on("click", "cells", showTip);          // touch
 map.on("mouseleave", "cells", () => { $("tip").style.display = "none"; });
+
+// frontend 07: the record card opens on CLICK, never hover (touch parity), and the Cell
+// tooltip is hidden so the two cannot stack on one marker. Close returns focus to the
+// hist toggle row (insight.closeCard); Escape works anywhere while the card is open.
+map.on("click", "hist", (e) => {
+  $("tip").style.display = "none";
+  showCard(e.features[0].properties);
+});
+$("card-close").addEventListener("click", closeCard);
+addEventListener("keydown", (e) => { if (e.key === "Escape") closeCard(); });
 
 // `load`, not `styledata`: styledata fires while isStyleLoaded() is still false and every
 // setPaintProperty / setLayoutProperty below still throws "Style is not done loading".

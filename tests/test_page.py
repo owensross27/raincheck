@@ -472,7 +472,8 @@ def test_the_four_not_yet_landed_sources_are_honest_off_or_gated_chips():
             for lid, e in entries.items()}
     assert owed == {"basemap": "null", "zones": "null", "cells": "null", "live": "null",
                     "fn": '"flood 15"', "mta": '"flood 15"', "impact": '"flood 17"',
-                    "hist": '"notify 05"', "routes": "null", "stormwater": "null"}
+                    "hist": "null",   # notify 05 landed its manifest; frontend 07 lit it
+                    "routes": "null", "stormwater": "null"}
     for lid in ("fn", "mta", "impact"):
         assert "draw: null" in entries[lid], f"{lid} may not claim to paint a payload it has not seen"
 
