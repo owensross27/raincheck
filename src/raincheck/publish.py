@@ -259,6 +259,10 @@ FAMILIES: dict[str, Family] = {
         # under the page's own rules - a module the family does not name is a module no
         # test can see. Adding a key is additive under contract.PROMISE[1]: no bump.
         files=("index.html",
+               # frontend3 02: the icon whose absence 404'd /favicon.ico on every load of
+               # the public page (Cloudflare's 404 body cost ~6.8 KB a time). In LOAD
+               # position - the <head> link fetches it before any module runs.
+               "favicon.svg",
                "layers.js", "freshness.js", "panel.js", "insight.js", "live.js",
                "basemap.js", "app.js",
                "app.css", "vendor/maplibre-gl.js", "vendor/maplibre-gl.css",

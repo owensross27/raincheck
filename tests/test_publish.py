@@ -292,13 +292,19 @@ def test_the_allowlist_widened_by_two_web_payload_formats_and_not_by_a_category(
 # --- rule 3, and the page's half of STALE (text assertions; the browser check is in the log)
 
 def test_the_page_carries_mta_attribution_where_a_visitor_can_see_it():
-    """Attribution is a CONDITION of publishing the live view (spec sec.9), so it lives in
-    the always-visible provenance panel - not only in MapLibre's compact control, which
-    ships collapsed behind a button."""
+    """Attribution is a CONDITION of publishing the live view (spec sec.9). frontend3 02
+    (wave-11 spec sec. 2.3): the always-visible credit STRIP keeps a visible
+    non-affiliation shorthand, and the FULL paragraph - verbatim, never reworded - moves
+    one tap away into the info dialog, which sits BEFORE the strip in source order. The
+    strip slice is bounded at its own </footer> so nothing outside it can answer for it;
+    the dialog slice is bounded the same way, so the paragraph cannot ride in a comment
+    or a script. Both halves are the condition: delete either and this goes red."""
     html = (REPO / "web" / "index.html").read_text()
-    panel = html.split('id="provenance"')[1]
-    assert "MTA" in panel and "GTFS-Realtime" in panel
-    assert "not\n  affiliated with, endorsed by, or a service of the MTA" in panel
+    strip = html.split('id="provenance"')[1].split("</footer>")[0]
+    assert "Not an MTA service." in strip, "the visible non-affiliation shorthand"
+    dialog = html.split("<dialog", 1)[1].split("</dialog>", 1)[0]
+    assert "MTA" in dialog and "GTFS-Realtime" in dialog
+    assert "not\n  affiliated with, endorsed by, or a service of the MTA" in dialog
     assert "Current snapshot only" in html and "no bulk or protobuf" in html
 
 

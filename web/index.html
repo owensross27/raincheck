@@ -7,8 +7,13 @@
 <!-- vendored by `make vendor` into web/vendor/ (gitignored): no CDN at demo time, no build step -->
 <link href="vendor/maplibre-gl.css" rel="stylesheet">
 <link href="app.css" rel="stylesheet">
+<!-- frontend3 02: a `site` key, so it publishes with the page; the link is what stops the
+     automatic /favicon.ico probe (a 404 whose Cloudflare body cost ~6.8 KB per load). -->
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
 <body>
+<a class="skip" href="#insight">Skip to controls</a>
+<main>
 <div id="map" role="application" aria-label="Map of NYC H3 Cells coloured by bus Speed ratio"></div>
 
 <!-- ------------------------------------------------- panel 1: the insight view (ticket 13) -->
@@ -32,10 +37,10 @@
        disclosure element, so the keyboard and screen-reader semantics come from the
        platform. Default CLOSED; app.js remembers the reader's choice in localStorage. -->
   <details id="analyst">
-    <summary>Analyst details &mdash; estimands, intervals, gates and the curve</summary>
+    <summary>Analyst details &mdash; estimands, intervals, gates</summary>
     <p class="note" id="preview-note">loading&hellip;</p>
 
-    <div id="headline" aria-live="polite"></div>
+    <div id="headline"></div>
 
     <figure id="curve">
       <figcaption id="curve-cap" class="lbl"></figcaption>
@@ -52,15 +57,15 @@
   </details>
 </section>
 
+<!-- the legend is owned by applyRamp() (insight.js): shown while a RAMP is on screen -
+     the Cell fill's, or the zones/route ramp with the fill off - and only ever toggled
+     `hidden`, because paint() writes into the five ids below unconditionally. -->
 <div id="legend" class="panel">
   <div class="lbl" id="legend-title">Speed ratio</div>
   <div class="swatches" id="swatches" aria-hidden="true"></div>
   <div class="ticks"><span id="tick-lo"></span><span id="tick-mid"></span><span id="tick-hi"></span></div>
   <div class="swatches one" aria-hidden="true"><span class="grey"></span></div>
-  <div class="note" id="grey-note">grey = no publishable value for this layer</div>
-  <!-- frontend2 05: #legend-estimand moved into the analyst disclosure (D7) - the
-       estimand sentence is analyst prose; the swatches and ticks stay the rider's -->
-  <div class="note">rain: AORC hourly, hour-ending</div>
+  <div class="note" id="grey-note">grey &mdash; no publishable value</div>
 </div>
 </div>
 
@@ -68,106 +73,132 @@
 <div id="right">
 <section id="layers" class="panel" aria-labelledby="layers-h">
   <h2 id="layers-h">Layers</h2>
-  <!-- frontend2 05: the rider pass shortened this copy; the five-state vocabulary keeps
-       one decoding sentence because the chips show in BOTH views (a bare AGE chip is
-       otherwise unreadable). The wording is the page's own, not a frozen string. -->
-  <p class="note">Each row is one data source and its chip says how current it is; a bare
-     AGE means no staleness budget is frozen for that file. Nothing is fetched until you
-     tick it.</p>
+  <p class="note">Nothing loads until you tick it.</p>
 
   <h3 class="lbl" id="fill-h">Cell fill &mdash; pick one</h3>
   <div id="layers-fill" role="radiogroup" aria-labelledby="fill-h"></div>
-  <p class="note">One fill at a time: both options colour the same areas with one shared
-     ramp, so they can never disagree on screen.</p>
+  <p class="note">One ramp at a time.</p>
 
   <h3 class="lbl" id="pts-h">Ground and points</h3>
   <div id="layers-pts" aria-labelledby="pts-h"></div>
-  <!-- frontend2 03: the two geography layers are ordinary rows in the list above. Their
-       size is stated here because a toggle that costs 7.8 MB should say so before it is
-       ticked, not after - the repo has no compression today, so that is the raw number. -->
-  <p class="note">The bus route lines are 21,868 Cell crossings and <b>7.8 MB</b>; the
-     flood zones are <b>4.4 MB</b>. Neither is fetched until you tick it.</p>
-  <!-- frontend 07: the boot-vs-toggle decision, stated where the tick happens. The
-       manifest is ~40% of the page's current first paint in raw bytes (nothing on this
-       host is compressed), so it loads on the first tick and never at boot. -->
-  <p class="note">The flood-history markers are 8,146 assets and <b>1.5 MB</b>, fetched
-     once when first ticked &mdash; never at boot. Clicking a marker fetches that one
-     asset&rsquo;s record alone (median ~1 KB, at most 22 KB).</p>
+
+  <!-- frontend3 02 (spec sec. 2.4): the live fleet's row group, STATIC in the HTML and
+       never a rowHTML() rebuild - app.js wires #livetoggle DIRECTLY and an innerHTML
+       rebuild would kill that listener silently. Only #src-live and #live-chip are
+       filled by renderLayers(); the detail div follows panel.js's openDet state. -->
+  <div id="live">
+    <div class="lyr">
+      <div class="lrow"><label><input type="checkbox" id="livetoggle" disabled>
+        <span class="nm"><span id="live-h">Live fleet</span></span><span id="live-chip"></span></label>
+      <button type="button" class="chev" data-det="live" aria-expanded="false"
+        aria-controls="det-live" aria-label="Live fleet detail">&rsaquo;</button></div>
+      <p class="note sub">show vehicles (30 s refresh)</p>
+      <p id="livemeta" class="note">off &mdash; tick to fetch every 30 s; nothing can look
+         live when it is not.</p>
+      <div id="det-live" class="det" hidden>
+        <p class="note">MTA-reported trip delay: <span id="delaystate">unavailable (decoder build item)</span></p>
+        <p class="note">rain: MRMS RadarOnly QPE 01H, uncalibrated, hour-ending,
+           <span id="rainstate">no live tick yet</span></p>
+        <div id="src-live" class="srcs"></div>
+      </div>
+    </div>
+  </div>
 </section>
 
 <!-- ------------------------------------------- panel 2b: the record card (frontend 07) -->
 <!-- IN-COLUMN by construction: a flex sibling of #layers inside #right, so it shrinks
      against the layer panel and scrolls itself - never floating, never covering the
-     freshness rows or the provenance strip. Hidden until a marker is clicked. -->
+     freshness rows or the credit strip. Hidden until a marker is clicked. -->
 <section id="card" class="panel" hidden aria-labelledby="card-h">
   <button id="card-close" type="button" aria-label="Close the flood record card">&times;</button>
   <h2 id="card-h" tabindex="-1"></h2>
   <p class="note" id="card-id"></p>
   <div id="card-body"></div>
 </section>
-
-<!-- ------------------------------------------------------ panel 3: the live view (ticket 14) -->
-<section id="live" class="panel" aria-labelledby="live-h">
-  <h2 id="live-h">Live: the fleet right now <span id="live-chip"></span></h2>
-  <p id="livemeta" class="note" aria-live="polite">off - tick the box below to fetch
-     <code>files/meta.json</code> every 30 s. Nothing is fetched until you do, so nothing
-     here can look live when it is not.</p>
-  <!-- cloud 09: the served view is the CURRENT SNAPSHOT and nothing else - no history of
-       vehicle positions is kept on the host, and there is no bulk or protobuf endpoint.
-       Saying so on the page is what makes it a view of the feed rather than a copy. -->
-  <p class="note">Current snapshot only: no vehicle history is served here, and there is
-     no bulk or protobuf download.</p>
-  <p class="note">MTA-reported trip delay: <span id="delaystate">unavailable (decoder build item)</span></p>
-  <p class="note">rain: MRMS RadarOnly QPE 01H, uncalibrated, hour-ending,
-     <span id="rainstate">no live tick yet</span></p>
-  <!-- enabled by app.js on MapLibre's `load`; the live layer cannot be painted before
-       that and every branch of the handler touches it -->
-  <p><label class="note"><input type="checkbox" id="livetoggle" disabled> show vehicles (30 s refresh)</label></p>
-  <div id="src-live" class="srcs"></div>
-</section>
 </div>
+</main>
 
-<div id="provenance" class="panel note">
-  Kafka 3.9 &rarr; Spark 3.5.3 + Sedona 1.9.1 &rarr; GeoParquet &rarr; DuckDB 1.5.5 (<code>make export</code>,
+<!-- frontend3 02: the info surface - a native dialog element, never a second disclosure
+     widget (the analyst one stays the page's ONE). Everything moved in here from the old
+     provenance slab is MOVED, never deleted: the licence and provenance prose stays one
+     tap away behind the credit strip's info button. The dialog sits BEFORE #provenance
+     in source order so the strip's containment checks can never be satisfied from inside
+     a collapsed surface. -->
+<dialog id="info" aria-labelledby="info-h">
+  <button id="info-close" type="button" aria-label="Close">&times;</button>
+  <h2 id="info-h">About this map</h2>
+  <p class="note">Kafka 3.9 &rarr; Spark 3.5.3 + Sedona 1.9.1 &rarr; GeoParquet &rarr; DuckDB 1.5.5 (<code>make export</code>,
   pure-SQL JSON writer) &rarr; MapLibre GL JS 5.9.0, vendored. Rain: NOAA AORC hourly (analysis),
   MRMS RadarOnly QPE (live). Ground: TLC taxi zones over a vector basemap, one PMTiles
-  archive read by range request.
-  <span id="prov-files"></span>
+  archive read by range request.<span id="prov-files"></span></p>
+  <p class="note">Sources: MTA Bus Time GTFS-RT; the nycbuspositions archive (the 2017-2024
+  historical bus positions behind every past-storm number here); NOAA AORC; NYC TLC taxi
+  zones; basemap Protomaps &copy; OpenStreetMap contributors (ODbL).</p>
+  <p class="note">Every number on this page is read from static JSON under <code>files/</code>;
+  the read surface is documented in <code>docs/read-api-contract.md</code>.</p>
+
+  <h3 class="lbl">Rain sources</h3>
+  <p class="note">rain: AORC hourly, hour-ending</p>
+  <p class="note">The live panel's rain is radar-only (MRMS), uncalibrated &mdash; an
+  estimate from radar, not a gauge reading.</p>
+
+  <h3 class="lbl">The MTA gate</h3>
   <p id="mta-gate">MTA gate: the MTA&rsquo;s redistribution terms are <strong>not
   verified</strong>, so nothing MTA-derived is published here. The gate cuts by LINEAGE and
   has two sides - vehicle positions (the live fleet, the bus impact overlay) and alert rows
   (the MTA flood tier) - and both are dark. Those layers still appear, marked GATED: absence
   should be explained, not mysterious.</p>
-  <!-- frontend2 02: the basemap's attribution is a CONDITION of using the data, worded on
-       2026-08-25 from the two upstream requirements themselves rather than from memory.
-       OSMF Attribution Guidelines: credit "(c) OpenStreetMap contributors"; for a
-       browsable map the credit appears in a corner of the map or adjacent to it; it "must
-       also make it clear that the data is available under the Open Database License",
-       which may be done by linking OpenStreetMap to openstreetmap.org/copyright.
-       github.com/protomaps/basemaps: the tilesets are ODbL and "web maps ... that use this
-       Produced Work must visibly attribute (c) OpenStreetMap"; credit to Protomaps is
-       requested rather than legally required, and is given. It sits HERE, in the
-       mode-invariant strip, and not only in MapLibre's compact control, which ships
-       collapsed behind a button - the same reason the MTA line below is here. -->
-  <!-- frontend2 03: filled from the geography payloads' own `attribution` members while
-       those layers are on, and emptied when they are off - the credit is a condition of
-       DISPLAYING the data, and reading it from the file rather than mirroring it here is
-       the repo's rule for any string the page shares with a writer in src/. -->
-  <p id="geo-attribution"></p>
-  <p id="basemap-attribution">Basemap tiles built with
-  <a href="https://github.com/protomaps/basemaps">Protomaps</a>, &copy;
-  <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>. The map
-  data is available under the Open Database License (ODbL); this basemap is a Produced Work
-  from that data and re-serving it carries the same licence. Place labels set in Noto Sans
-  (SIL Open Font License).</p>
-  <!-- cloud 09: MTA attribution is a CONDITION of publishing the live view, not a credit
-       line. It stays in the always-visible panel rather than only inside MapLibre's
-       compact attribution control, which ships collapsed behind a button. -->
+
+  <h3 class="lbl">Licences</h3>
+  <!-- frontend2 02's full Produced-Work text; the strip keeps the short form with every
+       pinned literal (OSMF: the credit stays adjacent to the map and never collapses). -->
+  <p class="note">The map data is available under the Open Database License (ODbL); this
+  basemap is a Produced Work from that data and re-serving it carries the same licence.
+  Place labels set in Noto Sans (SIL Open Font License).</p>
   <p id="attribution">Bus positions and predictions are derived from the
   <strong>MTA</strong>&rsquo;s GTFS-Realtime feeds (MTA Bus Time). This page is not
   affiliated with, endorsed by, or a service of the MTA, and the MTA does not warrant
   anything shown here.</p>
-</div>
+
+  <h3 class="lbl">Serving contract</h3>
+  <!-- cloud 09: the served view is the CURRENT SNAPSHOT and nothing else - no history of
+       vehicle positions is kept on the host, and there is no bulk or protobuf endpoint.
+       Saying so on the page is what makes it a view of the feed rather than a copy. -->
+  <p class="note">Current snapshot only: no vehicle history is served here, and there is
+  no bulk or protobuf download.</p>
+
+  <h3 class="lbl">Reading the chips</h3>
+  <p class="note">Each row is one data source and its chip says how current it is; a bare
+  AGE means no staleness budget is frozen for that file. Nothing is fetched until you
+  tick it.</p>
+  <p class="note">FRESH &mdash; inside its frozen staleness budget.</p>
+  <p class="note">STALE &mdash; over budget, or no age could be read; the reason prints.</p>
+  <p class="note">OFF &mdash; nothing is being fetched.</p>
+  <p class="note">GATED &mdash; dark behind a licence gate; the row stays, explained.</p>
+  <p class="note">AGE &mdash; age known, no budget frozen, so no verdict.</p>
+  <p class="note">One fill at a time: both options colour the same areas with one shared
+  ramp, so they can never disagree on screen.</p>
+</dialog>
+
+<!-- the credit strip: fixed at the viewport bottom at EVERY width (the OSMF map-adjacent
+     credit on a phone), wrapping below 900px - never nowrap/ellipsis, which would clip
+     the ODbL sentence. Everything else the old slab held lives in the dialog above. -->
+<footer id="provenance" class="panel note">
+  <!-- frontend2 02: the basemap's attribution is a CONDITION of using the data. The short
+       form here carries the OSMF requirements whole - the credit, both links, the ODbL
+       sentence - and never collapses; the Produced-Work prose is in the info dialog. -->
+  <p id="basemap-attribution">Basemap &copy;
+  <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>, built
+  with <a href="https://github.com/protomaps/basemaps">Protomaps</a> &mdash; map data under
+  the Open Database License (ODbL).</p>
+  <!-- frontend2 03: filled from the geography payloads' own `attribution` members while
+       those layers are on, and emptied when they are off - the credit is a condition of
+       DISPLAYING the data, read from the file, never mirrored here. -->
+  <p id="geo-attribution"></p>
+  <p id="mta-brief">Not an MTA service.</p>
+  <button id="info-btn" type="button" aria-haspopup="dialog"
+    aria-label="About this map: sources, licences, how to read it">&#9432;</button>
+</footer>
 
 <div id="tip" role="tooltip"></div>
 

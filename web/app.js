@@ -37,18 +37,17 @@
  */
 import { $, LAYERS, map, markStyled, on } from "./layers.js";
 import { load } from "./freshness.js";
-import { applyVisibility, renderLayers, toggle } from "./panel.js";
+import { applyVisibility, renderLayers, toggle, toggleDet } from "./panel.js";
 import { applyRamp, closeCard, loadRecent, locateEvent, setHour, setScenario, setView,
          showCard, showTip } from "./insight.js";
 import { toggleLive } from "./live.js";
 
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
-// The COMPACT control is a convenience, never the attribution itself: it ships collapsed
-// behind a button, and both OSM's guidelines and spec sec.9 want the credit visible. The
-// binding copy is the always-mounted #provenance strip in index.html.
-map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution:
-  "MTA Bus Time GTFS-RT; nycbuspositions archive; NOAA AORC; NYC TLC taxi zones; " +
-  "basemap Protomaps &copy; OpenStreetMap contributors (ODbL)" }));
+// NO AttributionControl (frontend3 02): at 375 the compact control rendered EXPANDED over
+// the map strip, duplicating the credit strip below - and the strip is now fixed at the
+// viewport bottom at every width, so the OSMF adjacency requirement is met without it.
+// Its customAttribution credits were collapsed, never deleted: they live in the #info
+// dialog (the nycbuspositions archive credit existed nowhere else on the page).
 
 // delegated, because the rows are rebuilt: #layers itself is the stable element. Three
 // controls live inside it now - the layer boxes, frontend2 03's scenario radio and its
@@ -65,6 +64,22 @@ $("layers").addEventListener("change", async e => {
     applyRamp();
   }
 });
+
+// the per-row detail chevrons (frontend3 02), delegated like every other row control: the
+// rows are rebuilt on six events, so the OPEN state lives in panel.js's openDet Set and
+// rowHTML re-emits it - a DOM-held state would slam shut on every 30 s live tick. The
+// live row's chevron is static markup; same Set, same handler.
+$("layers").addEventListener("click", e => {
+  const b = e.target.closest ? e.target.closest("#layers [data-det]") : null;
+  if (b) toggleDet(b.dataset.det);
+});
+
+// the info dialog (frontend3 02): a native <dialog> - focus trap, Esc and ::backdrop come
+// from the platform - and NOT a second <details>: the analyst disclosure stays the page's
+// one. A click on the dialog element itself is a click on the backdrop.
+$("info-btn").addEventListener("click", () => $("info").showModal());
+$("info-close").addEventListener("click", () => $("info").close());
+$("info").addEventListener("click", e => { if (e.target === $("info")) $("info").close(); });
 
 // renderLayers() after a view or hour switch: frontend2 03's route row explains WHY its
 // lines are grey on the view that is showing, and that sentence changes with the view.
@@ -135,7 +150,10 @@ $("analyst").addEventListener("toggle", () => {
 const recRow = (t) => t && t.closest ? t.closest("#recent [data-ev]") : null;
 $("recent").addEventListener("mouseover", e => {
   const r = recRow(e.target); if (r) locateEvent(Number(r.dataset.ev)); });
-$("recent").addEventListener("mouseout", () => locateEvent(null));
+// mouseleave, NOT mouseout: mouseout bubbles from every child-to-child move inside the
+// list, so each row-to-row hover cleared and re-set the locate ring (frontend2 05's
+// filed nit); mouseleave fires only when the pointer leaves the list itself.
+$("recent").addEventListener("mouseleave", () => locateEvent(null));
 $("recent").addEventListener("focusin", e => {
   const r = recRow(e.target); if (r) locateEvent(Number(r.dataset.ev)); });
 $("recent").addEventListener("focusout", () => locateEvent(null));

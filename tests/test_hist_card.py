@@ -142,12 +142,16 @@ def test_the_card_is_in_column_hidden_until_a_click_and_never_floating():
     that is visible at boot."""
     html = page_html()
     assert '<section id="card" class="panel" hidden' in html
-    assert html.index('id="right"') < html.index('id="card"') < html.index('id="live"')
+    # frontend3 02 merged the live panel INTO the layers card (wave-11 spec sec. 2.4), so
+    # the column order is now layers (live row group inside it) -> card: the card is still
+    # a flex sibling of #layers inside #right, stacking after it at 375.
+    assert html.index('id="right"') < html.index('id="live"') < html.index('id="card"')
     block = re.search(r"#card \{([^}]*)\}", page_css()).group(1)
     assert "fixed" not in block and "absolute" not in block
     assert "relative" in block, "relative only anchors the close button - it stays in flow"
-    # the small-screen block lays the card out like its column siblings
-    assert re.search(r"#insight, #layers, #card, #live", page_css())
+    # the small-screen block lays the card out like its column siblings (#live is inside
+    # #layers now and needs no rule of its own; the legend joined the list instead)
+    assert re.search(r"#insight, #layers, #card, #legend", page_css())
 
 
 def test_the_card_is_keyboard_reachable_and_close_returns_focus_to_the_toggle_row():
@@ -170,11 +174,15 @@ def test_the_card_is_keyboard_reachable_and_close_returns_focus_to_the_toggle_ro
 
 def test_the_panel_states_the_sizes_and_the_boot_vs_toggle_decision_before_the_tick():
     """The two sizes are 66x apart and only one is a boot cost - so the decision (first
-    tick, never boot) and both numbers are stated IN THE PANEL, before a reader ticks
-    anything, in RAW bytes: nothing on this host sets Content-Encoding, so a gz figure
-    would be a promise about an edge nobody has verified.
-    MUTATION KILLED: a silent 1.5 MB tick, or a budget quoted in conditional gz bytes."""
-    html = page_html()
-    assert "8,146 assets" in html and "1.5 MB" in html
-    assert "fetched\n     once when first ticked" in html or "fetched once when first ticked" in html
-    assert "22 KB" in html
+    tick, never boot) and both numbers are stated before a reader ticks anything, in RAW
+    bytes. frontend3 02 moved the statement from a page-level paragraph into the hist
+    ROW's own detail (`det:` on its LAYERS entry, rendered by rowHTML) - one tap away at
+    the point of the tick, instead of a warning about a layer the reader may never touch.
+    MUTATION KILLED: a silent 1.5 MB tick (deleting the det note), losing the never-at-
+    boot decision, or dropping the per-click ceiling."""
+    e = layer_entries(page_js())["hist"]
+    assert "8,146 assets" in e and "1.5 MB" in e
+    assert "once when first ticked" in e and "never at boot" in e
+    assert "22 KB" in e
+    row = page_js().split("function rowHTML", 1)[1].split("\n}", 1)[0]
+    assert "lyr.det" in row, "the det note is dead data unless rowHTML renders it"

@@ -12,30 +12,35 @@
      offsetHeight on every resize. This is only the value before the first measurement -
      a hard-coded clearance is what put a toggle underneath the strip in the prototype,
      where a real click never reached it. */
-  --prov: 124px;
+  --prov: 72px;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
   font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
 #map { position: absolute; inset: 0; }
 
+.skip { position: absolute; z-index: 5; left: -9999px; top: 12px; background: var(--accent);
+  color: #fff; padding: 12px 16px; border-radius: 8px; }
+.skip:focus { left: 12px; }
+
 .panel { position: absolute; z-index: 2; background: var(--panel); border: 1px solid var(--line);
-  border-radius: 10px; padding: 12px 14px; backdrop-filter: blur(6px); }
+  border-radius: 10px; padding: 12px 14px; backdrop-filter: blur(6px); font-size: 13px; }
 /* one left column that owns its own scrolling: the panels shrink to fit between the
-   header and the provenance strip rather than sliding under it */
-#left { position: absolute; z-index: 2; top: 12px; left: 12px; bottom: var(--prov); width: 380px;
+   header and the credit strip rather than sliding under it */
+#left { position: absolute; z-index: 2; top: 12px; left: 12px; bottom: var(--prov); width: 340px;
   display: flex; flex-direction: column; gap: 8px; }
 #insight { position: static; overflow-y: auto; flex: 1 1 auto; min-height: 120px; }
-#legend { position: static; overflow-y: auto; flex: 0 1 auto; max-height: 46%; }
+#legend { position: static; overflow-y: auto; flex: 0 1 auto; max-height: 46%; padding: 8px 14px; }
 /* the right column is the same shape as #left: the panels shrink against each other and
    own their own scrolling, so the record card ticket 07 adds can share the column rather
    than float over the freshness rows it was opened from */
-#right { position: absolute; z-index: 2; top: 12px; right: 12px; bottom: var(--prov); width: 340px;
+#right { position: absolute; z-index: 2; top: 12px; right: 12px; bottom: var(--prov); width: 300px;
   display: flex; flex-direction: column; gap: 8px; }
 #layers { position: static; overflow-y: auto; flex: 1 1 auto; min-height: 120px; }
 /* frontend 07: the record card is a flex SIBLING in the column - relative only to anchor
    its close button, never fixed or floated, so it shares the column with the layer panel
-   and can never cover the freshness rows or the provenance strip. It owns its scroll. */
+   and can never cover the freshness rows or the credit strip. It owns its scroll. */
 #card { position: relative; overflow-y: auto; flex: 0 1 auto; min-height: 0; max-height: 46%; }
 #card-close { position: absolute; top: 8px; right: 10px; background: #171b21;
   border: 1px solid #313845; border-radius: 7px; color: var(--dim); font: inherit;
@@ -45,10 +50,36 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
 #card-h { padding-right: 34px; overflow-wrap: anywhere; }
 #card-h:focus { outline: none; }
 #card-id { overflow-wrap: anywhere; }
-#live { position: static; overflow-y: auto; flex: 0 1 auto; }
-#provenance { bottom: 12px; left: 12px; right: 12px; }
 
-h1 { font-size: 16px; margin: 0 0 6px; letter-spacing: -.01em; }
+/* frontend3 02: the credit strip - fixed at the viewport bottom at EVERY width (the OSMF
+   map-adjacent credit on a phone), one line at 1280, wrapping below 900px. Never
+   nowrap/ellipsis: clipping the ODbL sentence would collapse the credit the strip exists
+   to keep visible. Everything else the old slab held is in the #info dialog. */
+#provenance { position: fixed; z-index: 3; bottom: 0; left: 0; right: 0; margin: 0;
+  border-radius: 0; border-width: 1px 0 0; padding: 4px 12px; font-size: 12px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 2px 14px; }
+#provenance p { margin: 0; }
+#geo-attribution:empty { display: none; }
+#info-btn { margin-left: auto; min-width: 44px; min-height: 44px; background: #171b21;
+  color: #cfd6df; border: 1px solid #313845; border-radius: 50%; cursor: pointer;
+  font: inherit; font-size: 16px; }
+#info-btn:hover { border-color: #4a5464; }
+#info-btn:focus-visible { outline: 2px solid #8ecbff; outline-offset: 2px; }
+
+/* the info dialog: a native <dialog>, so the focus trap, Esc and the backdrop are the
+   platform's. On a phone it styles as a full-width bottom sheet (media query below). */
+#info { background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 12px; padding: 16px 18px; max-width: 560px; width: calc(100% - 48px);
+  max-height: 80vh; font-size: 13px; }
+#info::backdrop { background: rgba(4, 6, 9, .6); }
+#info-close { position: absolute; top: 10px; right: 12px; background: #171b21;
+  border: 1px solid #313845; border-radius: 7px; color: var(--dim); font: inherit;
+  cursor: pointer; min-width: 44px; min-height: 44px; }
+#info-close:hover { border-color: #4a5464; }
+#info-close:focus-visible { outline: 2px solid #8ecbff; outline-offset: 2px; }
+#info h2 { padding-right: 52px; }
+
+h1 { font-size: 17px; font-weight: 650; margin: 0 0 6px; letter-spacing: -.01em; }
 h2 { font-size: 13px; margin: 0 0 6px; }
 h3 { font-size: 12px; margin: 0 0 4px; }
 p { margin: 0 0 8px; }
@@ -57,22 +88,23 @@ code { font-size: 12px; color: var(--dim); }
 .lbl { color: var(--dim); font-size: 11px; text-transform: uppercase;
   letter-spacing: .06em; margin: 10px 0 4px; font-weight: 600; }
 
-.btns { display: flex; flex-wrap: wrap; gap: 4px; }
+.btns { display: flex; flex-wrap: wrap; gap: 8px; }
 .btns button { background: #171b21; color: #cfd6df; border: 1px solid #313845; border-radius: 7px;
-  padding: 5px 9px; cursor: pointer; font: inherit; font-size: 12px; min-height: 30px; }
+  padding: 5px 9px; cursor: pointer; font: inherit; font-size: 12px; min-height: 36px; }
 .btns button:hover { border-color: #4a5464; }
 .btns button[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: #6fb0e4; }
 .btns button:focus-visible, #livetoggle:focus-visible { outline: 2px solid #8ecbff; outline-offset: 2px; }
 
 #headline { margin-top: 12px; }
-.big { font-size: 26px; font-weight: 650; letter-spacing: -.02em; line-height: 1.15; }
+.big { font-size: 24px; font-weight: 650; letter-spacing: -.02em; line-height: 1.15; }
 .band { font-size: 13px; color: var(--ink); }
 .row { padding: 8px 0; border-top: 1px solid var(--line); }
 .row:first-child { border-top: 0; }
 .warn { color: #ffcf87; }
 
-/* the live panel dims itself when the pipeline stops writing (ticket 14); the dots dim
+/* the live row group dims itself when the pipeline stops writing (ticket 14); the dots dim
    with it, in app.js - a bright panel over grey dots would still read as live */
+#live { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 4px; }
 #live.stale { border-color: #6a5a33; }
 #live.stale #live-h::after { content: " - STALE"; color: #ffcf87; }
 
@@ -90,21 +122,30 @@ code { font-size: 12px; color: var(--dim); }
   padding: 8px 10px; font-size: 12px; }
 #tip b { display: block; margin-bottom: 2px; }
 
-/* the layer panel (frontend 05). A row per layer; the freshness rows sit under it, one per
-   SOURCE, because a layer's feeds publish on different cadences. A GATED row is DARK, never
-   missing: the box is disabled, the chip keeps its own hue and the reason is printed. */
-.lyr { border-top: 1px solid var(--line); padding: 7px 0; }
+/* the layer panel (frontend 05, rebuilt by frontend3 02): a row is a CONTROL - name,
+   box, chip - with everything else one tap away behind its chevron. A GATED row is
+   DARK, never missing: the box is disabled, the chip keeps its own hue and the reason
+   prints in the row's detail. */
+.lyr { border-top: 1px solid var(--line); padding: 8px 0; }
 .lyr:first-of-type { border-top: 0; }
-.lyr label { display: flex; gap: 7px; align-items: baseline; cursor: pointer; }
+.lrow { display: flex; align-items: center; gap: 7px; }
+.lrow label { display: flex; gap: 7px; align-items: center; cursor: pointer; flex: 1;
+  min-height: 44px; }
 .lyr .nm { flex: 1; }
 .lyr .note { margin: 4px 0 0; }
 .lyr.gated { opacity: .78; }
 .lyr.gated label, .lyr input:disabled { cursor: not-allowed; }
+.chev { flex: 0 0 auto; width: 35px; min-height: 44px; background: none; border: 0;
+  color: var(--dim); font: inherit; font-size: 16px; cursor: pointer; }
+.chev[aria-expanded="true"] { transform: rotate(90deg); }
+.chev:hover { color: var(--ink); }
+.chev:focus-visible { outline: 2px solid #8ecbff; outline-offset: 2px; }
+.det { margin: 2px 0 0 20px; }
 .src { color: var(--dim); font-size: 11px; display: flex; gap: 6px; align-items: baseline;
   justify-content: space-between; margin-top: 3px; }
 .src b { font-weight: 500; color: #b9c3d0; }
-.src.why { opacity: .78; justify-content: flex-end; }
-.st { font-size: 10px; font-weight: 700; letter-spacing: .06em; }
+.src .why { opacity: .78; font-style: normal; }
+.st { font-size: 11px; font-weight: 700; letter-spacing: .06em; }
 .st-FRESH { color: #6fd18c; }
 .st-STALE { color: #ffcf87; }
 .st-OFF   { color: var(--dim); }
@@ -112,12 +153,26 @@ code { font-size: 12px; color: var(--dim); }
 .st-AGE   { color: #7f93ad; }          /* age known, no budget frozen -> no verdict */
 .lyr input:focus-visible { outline: 2px solid #8ecbff; outline-offset: 2px; }
 
+/* the NavigationControl's stated home: clear of the right card and the credit strip -
+   the default bottom-right corner is covered twice at 1280 (spec sec. 2.1). */
+.maplibregl-ctrl-bottom-right { right: 316px; bottom: calc(var(--prov) + 8px); }
+
 @media (max-width: 900px) {
-  #left, #right { position: static; width: auto; display: block; }
-  #insight, #layers, #card, #live, #legend { position: static; width: auto; max-height: none; margin: 12px; }
-  #provenance { position: static; margin: 12px; }
+  #left, #right { position: static; width: auto; }
+  /* the legend renders FIRST under the map strip: the fill is ON by default at 375,
+     so its key belongs directly under the map it explains */
+  #left { display: flex; flex-direction: column; }
+  #legend { order: -1; }
+  #right { display: block; }
+  #insight, #layers, #card, #legend { position: static; width: auto; max-height: none; margin: 12px; }
   #map { position: relative; height: 60vh; }
-  body { overflow-y: auto; }
+  body { overflow-y: auto; padding-bottom: var(--prov); }
+  /* the 40vh cap exists to keep the analyst summary on-card at 1280; at 375 it would
+     only manufacture a nested scroller inside an already-scrolling page */
+  #recent { max-height: none; }
+  #info { margin: auto 0 0; width: 100%; max-width: none; max-height: 85vh;
+    border-radius: 12px 12px 0 0; }
+  .maplibregl-ctrl-bottom-right { right: 8px; bottom: 8px; }
 }
 
 /* frontend2 03: the flood-zone scenario radio and its legend, both inside the layer's own
@@ -131,13 +186,11 @@ code { font-size: 12px; color: var(--dim); }
 .zl b { color: #cfd6df; font-weight: 600; }
 .zl .sw { flex: 0 0 auto; width: 10px; height: 10px; border-radius: 2px;
           border: 1px solid #0b0d10; }
-#geo-attribution:empty { display: none; }
 
 /* frontend2 05: the two audiences (D7). The rider surface is everything visible by
    default; the analyst prose sits behind this ONE disclosure, default closed. The
    summary is a real <summary>, so the keyboard and screen-reader semantics are the
    platform's - it only gets the page's focus ring and label styling. */
-#answer .big { font-size: 22px; }
 #analyst { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 8px; }
 #analyst summary { cursor: pointer; color: var(--dim); font-size: 11px; font-weight: 600;
   text-transform: uppercase; letter-spacing: .06em; }
@@ -146,8 +199,12 @@ code { font-size: 12px; color: var(--dim); }
 #analyst[open] summary { margin-bottom: 8px; }
 
 /* the rider's recent-flooding rows: date left, labelled-asset counts right; hover or
-   focus rings the event's Cells on the map, and the row shows it took the pointer */
-#recent { margin-top: 12px; }
+   focus rings the event's Cells on the map, and the row shows it took the pointer.
+   Capped so the analyst disclosure is never scrolled out of its own card at 1280.
+   18vh, not the spec's 40vh: the cap exists FOR the summary's visibility (spec sec. 2.1's
+   own purpose), and the REAL payload's label + caveat strings are ~45px taller than the
+   prototype's - measured at 1280x800, 40vh left the summary ~80px below the card fold. */
+#recent { margin-top: 12px; max-height: 18vh; overflow-y: auto; }
 .rec { display: flex; justify-content: space-between; gap: 8px; align-items: baseline;
   font-size: 12px; color: var(--dim); border-top: 1px solid var(--line); padding: 4px 0; }
 .rec b { color: #b9c3d0; font-weight: 500; white-space: nowrap; }

@@ -63,8 +63,8 @@ function renderHeadline() {
   // frontend2 05: the rider's one-line answer - the published band value with a plain
   // gloss, no interval and no estimand (both sit in the analyst disclosure, verbatim)
   $("answer").innerHTML = `<div class="big">${fmt(bandLo)}&ndash;${fmt(bandHi)}</div>
-    <div class="band">how fast the buses moved in this rain, as a share of their
-      dry-weather Speed &mdash; 1.00 means no change (${view.label})</div>`;
+    <div class="band">bus speed in this rain vs dry weather &mdash; 1.00 = no change
+      (${view.label})</div>`;
   // spec L requires the panel to state that the 2023-09-29 band reaches ~1.0. That is a
   // property of the STORM, not of the selected Hour: band() collapses to a point whenever
   // both arms sit in one chord class, so an hour-local test would hide the statement on
@@ -330,10 +330,15 @@ export function drawRoutes(body) {
 
 export function applyRamp() {
   renderGeoAttribution();
-  if (!styled) return;
   const fillOn = LAYERS.some(l => l.fill && on[l.id] && !shut(l));
-  map.setPaintProperty("stormwater-fill", "fill-opacity", fillOn ? 0 : ZONE_FILL_OPACITY);
   const ramped = !fillOn && view !== null;
+  // the legend shows while a RAMP IS ON SCREEN - the Cell fill's, or the zone/route ramp
+  // with the fill off (D1's other half) - not "while a fill is lit", which would hide the
+  // key in exactly the state the None row exists to reach. Only `hidden` is toggled:
+  // paint() writes into the legend's five ids unconditionally, so they must survive.
+  $("legend").hidden = !(fillOn || ramped);
+  if (!styled) return;
+  map.setPaintProperty("stormwater-fill", "fill-opacity", fillOn ? 0 : ZONE_FILL_OPACITY);
   map.setPaintProperty("routes", "line-color", ramped
     ? colorExpr(activeProp(), view.kind === "speed" ? SPEED_STOPS : RATIO_STOPS, ROUTE_PLAIN)
     : ROUTE_PLAIN);
@@ -546,7 +551,7 @@ export function closeCard() {
  */
 let recentEvents = [];   // the fetched events, indexed by the rows' data-ev attribute
 
-const REC_CAP = 8;   // a glance, not an archive; the rest is named, not hidden
+const REC_CAP = 5;   // a glance, not an archive; the rest is named, not hidden
 
 export async function loadRecent() {
   const src = { k: "files/summary/recent.json", url: "files/summary/recent.json",
@@ -567,14 +572,16 @@ export async function loadRecent() {
     ].filter(Boolean).join(" · ");
     return `<div class="rec" tabindex="0" data-ev="${i}"><b>${span}</b><span>${bits}</span></div>`;
   }).join("");
+  // rows FIRST under the header: the section is capped (app.css #recent), so the pixels
+  // inside the cap go to the rider's rows; the label and caveat sentences still render
+  // verbatim below them, beside each other, and scroll into view with the tail
   box.innerHTML =
     `<h2 class="lbl">Flooding on record, ${esc(w.since || "")} to ${esc(w.until || "")}</h2>` +
-    `<p class="note">${esc(s.label || "")}</p>` +
-    `<p class="note">Point at an event to ring its areas on the map.</p>` +
     rows +
     (recentEvents.length > REC_CAP
-      ? `<p class="note">&hellip;and ${recentEvents.length - REC_CAP} earlier events in
-         <code>files/summary/recent.json</code>.</p>` : "") +
+      ? `<p class="note">&hellip;and ${recentEvents.length - REC_CAP} earlier events.</p>` : "") +
+    `<p class="note">Point at a row to see it on the map.</p>` +
+    `<p class="note">${esc(s.label || "")}</p>` +
     (Array.isArray(s.caveats) ? s.caveats.map(c => `<p class="note">${esc(c)}</p>`).join("") : "");
 }
 

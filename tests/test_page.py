@@ -134,7 +134,11 @@ def test_the_page_wires_the_live_panel_ids_ticket_13_stubbed():
 def test_the_page_keeps_both_stale_thresholds_and_only_setdata_on_a_clean_tick():
     js = page_js()
     assert "live: 120" in js and "bronze: 900" in js   # spec L's two STALE cuts
-    assert "cache: \"no-store\"" in js                 # a cached meta.json is a lie
+    # no-cache, not no-store (frontend3 02): a meta.json served without REVALIDATION is a
+    # lie, and no-cache revalidates every fetch - a 304 carries fresh Date+Last-Modified
+    # at zero body bytes. no-store meant never stored AND never revalidated, so
+    # `public, max-age=300` on files/ did nothing and ~500 KB re-downloaded per repeat load.
+    assert "cache: \"no-cache\"" in js
     assert "STALE: the pipeline is not writing" in js
     # the delay wording is gated and never says "late"
     assert "over 5 min (agency-computed, unvalidated)" in js
@@ -382,7 +386,11 @@ def test_the_age_is_read_off_the_response_headers_and_never_off_a_payload():
     assert 'res.headers.get("Date")' in grab and 'res.headers.get("Last-Modified")' in grab
     assert "Date.now()" not in grab, "a browser clock cannot be allowed to fake freshness"
     assert "Math.max(0, (d - m) / 1000)" in grab
-    assert 'cache: "no-store"' in grab
+    # `no-cache`, NOT `default` (frontend3 02): default would serve a stored response with
+    # a FROZEN Date header - the frozen-age trap through the browser cache - while
+    # no-cache revalidates, and a 304 carries the exact header pair subtracted above.
+    assert 'cache: "no-cache"' in grab
+    assert '"default"' not in grab
 
 
 def test_the_basemap_archive_is_dated_by_a_head_and_a_failed_fetch_is_explained():
@@ -407,6 +415,19 @@ def test_the_basemap_archive_is_dated_by_a_head_and_a_failed_fetch_is_explained(
     assert 'return { s: "OFF", why: whys[key] || "nothing is being fetched" };' in state
     forget = js.split("function forget(lyrId)", 1)[1].split("\n}", 1)[0]
     assert "delete whys[" in forget, "an unticked layer must not inherit an old reason"
+
+
+def test_every_page_fetch_revalidates_and_none_bypasses_the_browser_cache():
+    """frontend3 02's inherited no-store -> no-cache fix, over BOTH fetch sites - grab()
+    and the basemap style fetch, which previously had no test at all (the wave-11 box
+    named that gap). `no-store` is never-stored-and-never-revalidated, so the families'
+    own Cache-Control did nothing; `no-cache` revalidates (a 304 carries fresh Date +
+    Last-Modified, the pair the reader-dating subtracts, at zero body bytes); `default`
+    would serve a stored response with a frozen Date - the frozen-age trap.
+    MUTATION KILLED: reverting either site to no-store, or 'fixing' one to default."""
+    js = page_js()
+    assert js.count('cache: "no-cache"') == 2, "grab() and the basemap style fetch"
+    assert '"no-store"' not in js
 
 
 def test_a_missing_payload_is_stale_with_a_reason_and_never_an_empty_map():
@@ -542,7 +563,12 @@ def test_the_basemap_attribution_is_in_the_mode_invariant_strip():
     sentence (attribution without the licence is not attribution under these guidelines),
     or dropping either link."""
     html = page_html()
-    strip = html.split('id="provenance"')[1]
+    # BOUNDED at the strip's own close (frontend3 02): an unbounded split-once slice reads
+    # everything to end-of-file as "inside" the strip, so content added after it - a
+    # dialog, a script - would satisfy "the credit is in the always-visible strip" from a
+    # collapsed surface. The strip is the page's <footer>; the info dialog sits BEFORE it
+    # in source order, and this bound is what keeps that arrangement honest.
+    strip = html.split('id="provenance"')[1].split("</footer>")[0]
     assert '<p id="basemap-attribution">' in strip
     for s_ in ("OpenStreetMap contributors",
                "https://www.openstreetmap.org/copyright",
@@ -561,10 +587,14 @@ def test_nothing_is_positioned_against_a_guessed_provenance_height():
     UNDERNEATH it in the prototype, where a real click never reached it. MUTATION KILLED:
     restoring a literal clearance, or dropping the observer that measures the strip."""
     css, js = page_css(), page_js()
-    assert "bottom: 84px" not in css
+    # by SHAPE, not the one literal (frontend3 02): "bottom: 84px" banned only the guess
+    # that happened once - any OTHER literal clearance in a column rule defeats the
+    # measured --prov mechanism just the same, and a reflow could reintroduce one at a
+    # different number. The rule is: no pixel-literal `bottom:` inside either column rule.
     for col in ("#left", "#right"):
         rule = css.split(col + " { position: absolute;", 1)[1].split("}", 1)[0]
         assert "bottom: var(--prov)" in rule, col
+        assert not re.search(r"bottom:\s*\d", rule), f"{col}: a literal clearance"
     assert '$("provenance").offsetHeight' in js
     assert 'setProperty(\n  "--prov"' in js
     assert 'observe($("provenance"))' in js
@@ -748,7 +778,8 @@ def test_the_geography_credits_are_read_off_the_payload_and_mounted_while_it_is_
     innerHTML (it is a string out of a payload); or leaving it mounted after the layer is
     unticked, which credits a source nothing on screen came from."""
     html, js = page_html(), page_js()
-    strip = html.split('id="provenance"')[1]
+    # bounded at </footer>, same rationale as the basemap-attribution test above
+    strip = html.split('id="provenance"')[1].split("</footer>")[0]
     assert '<p id="geo-attribution"></p>' in strip, "mounted, and EMPTY until a layer draws"
     for mirrored in ("Department of Environmental Protection", "9i7c-xyvv", "design-storm"):
         assert mirrored not in js, f"the page mirrors {mirrored!r} instead of reading it"
@@ -974,8 +1005,13 @@ def test_the_disclosure_state_is_remembered_with_both_localstorage_sides_guarded
     truthy default (absent state opening the analyst view); or the toggle listener moving
     into another module."""
     app = module_js()["app.js"]
-    assert ('try { $("analyst").open = localStorage.getItem("raincheck.analyst") '
-            '=== "open"; } catch {}') in app
+    # by SHAPE, not the verbatim source line (frontend3 02): the old assert pinned the
+    # line's exact whitespace, so any reflow of app.js turned it red with the guard fully
+    # intact. What the rule actually is: the READ is inside try/catch, and only a stored
+    # "open" (strict equality) opens the analyst view - absent/garbage lands closed.
+    assert re.search(r'try\s*\{\s*\$\("analyst"\)\.open\s*=\s*localStorage\.getItem\('
+                     r'"raincheck\.analyst"\)\s*===\s*"open";?\s*\}\s*catch', app), (
+        "the localStorage read must be guarded and default closed")
     assert 'try { localStorage.setItem("raincheck.analyst"' in app
     assert '$("analyst").addEventListener("toggle"' in app
     for name, js in module_js().items():
@@ -1009,11 +1045,17 @@ def test_the_rider_list_renders_recent_json_strings_verbatim_and_never_says_toda
     assert 'map.getSource("cells")' in loc and "serialize" in loc
     assert 'setLayoutProperty("locate", "visibility", "none")' in loc
     app = module_js()["app.js"]
+    # mouseleave, NOT mouseout (frontend3 02): mouseout bubbles from every child-to-child
+    # move inside the list, so each row-to-row hover cleared and re-set the locate ring.
+    # The PAIR is the contract - set on enter (mouseover/focusin), cleared on leave.
     for wire in ('$("recent").addEventListener("mouseover"',
-                 '$("recent").addEventListener("mouseout"',
+                 '$("recent").addEventListener("mouseleave"',
                  '$("recent").addEventListener("focusin"',
                  '$("recent").addEventListener("focusout"'):
         assert wire in app, wire
+    leave = app.split('$("recent").addEventListener("mouseleave"', 1)[1].split("\n", 1)[0]
+    assert "locateEvent(null)" in leave, "leaving the list clears the ring"
+    assert '"mouseout"' not in app, "mouseout churns the ring on every row-to-row move"
     assert "loadRecent();" in app
 
 
@@ -1032,3 +1074,88 @@ def test_every_layer_row_carries_one_plain_rider_sentence():
         assert re.search(r'sub: "', e), f"{lid} has no one-sentence rider description"
     row = page_js().split("function rowHTML", 1)[1].split("\n}", 1)[0]
     assert "lyr.sub" in row and 'class="note sub"' in row
+
+
+# ==================================== frontend3 02: map-first chrome ======================
+def test_the_info_control_is_a_native_dialog_and_everything_moved_in_is_still_there():
+    """The provenance/licence slab collapses behind the credit strip's info button - a
+    native <dialog> (platform focus trap, Esc, ::backdrop), NEVER a second <details>: the
+    analyst disclosure stays the page's ONE disclosure and the count test above holds at 1.
+    The dialog sits BEFORE #provenance in source order, so the strip's bounded containment
+    slices can never be satisfied from inside it. Collapse, never delete: every sentence
+    the slab held is in the dialog - including the "nycbuspositions archive" credit, whose
+    ONLY other home was the deleted AttributionControl (removed in the same commit).
+    MUTATION KILLED: a second <details> as the info control; the dialog placed after the
+    strip; deleting (rather than moving) the pipeline sentence, the MTA non-affiliation
+    paragraph, the Produced-Work text, the snapshot-only sentence or the archive credit."""
+    html = page_html()
+    assert html.count("<dialog") == 1 and 'id="info"' in html
+    assert html.index("<dialog") < html.index('id="provenance"'), (
+        "the dialog precedes the strip, so the strip slice cannot contain it")
+    block = html.split("<dialog", 1)[1].split("</dialog>", 1)[0]
+    for s_ in ("Kafka 3.9", 'id="prov-files"', "nycbuspositions archive",
+               'id="mta-gate"', "Produced Work", "SIL Open Font License",
+               'id="attribution"', "affiliated with, endorsed by, or a service of the MTA",
+               "Current snapshot only", "no bulk or protobuf",
+               "rain: AORC hourly, hour-ending",
+               "Each row is one data source and its chip says how current it is"):
+        assert s_ in block, s_
+    app = module_js()["app.js"]
+    assert '$("info").showModal()' in app, "opened as a MODAL dialog, wired in app.js"
+    # the CALL, not the word - the comment explaining the removal names the control
+    # (the docstring-poisons-the-grep trap, anchored on the code per TRAPS)
+    assert "new maplibregl.AttributionControl" not in app, (
+        "the compact control rendered EXPANDED over the 375px map strip; the fixed strip "
+        "carries the OSMF adjacency at every width now")
+    strip = html.split('id="provenance"')[1].split("</footer>")[0]
+    assert "Not an MTA service." in strip, "the visible non-affiliation shorthand"
+    assert 'id="info-btn"' in strip
+
+
+def test_an_open_row_detail_is_module_state_that_survives_the_rebuilds():
+    """renderLayers() rewrites the rows' innerHTML on six events - every toggle, view
+    switch, hour switch, scenario change, boot, and every 30 s while the live toggle is on
+    - so a detail whose open state lived in the DOM would slam shut on each of them. The
+    state is panel.js's `openDet` Set; rowHTML() re-emits hidden/aria-expanded FROM it,
+    the delegated click lives in app.js (the cyclic-module rule), the focus restore grows
+    a data-det case, and the STATIC live row's detail follows the same Set.
+    MUTATION KILLED: emitting the detail unconditionally hidden (openDet unread - an hour
+    switch closes every open detail); wiring the chevron inside panel.js; dropping the
+    live row's sync; or losing the chevron's focus across a rebuild."""
+    js = page_js()
+    row = js.split("function rowHTML", 1)[1].split("\n}", 1)[0]
+    assert "openDet.has(lyr.id)" in row, "the open state is read from the module Set"
+    assert "aria-expanded=" in row
+    panel = module_js()["panel.js"]
+    assert "export const openDet = new Set()" in panel
+    render = panel.split("export function renderLayers()", 1)[1].split("\n}", 1)[0]
+    assert '$("det-live").hidden = !openDet.has("live");' in render, "the static live row"
+    assert "a.dataset.det" in render, "focus returns to the chevron after a rebuild"
+    app = module_js()["app.js"]
+    assert "toggleDet(" in app, "the chevron click is delegated from the entry module"
+
+
+def test_the_legend_shows_while_a_ramp_is_on_screen_and_only_toggles_hidden():
+    """Owned by applyRamp(), which already computes the value: `fillOn || ramped` - NOT
+    "while a fill is lit", which would hide the key in exactly the state the None row
+    exists to reach (fill off, zones/routes carrying the same ramp - D1's other half).
+    Only `hidden` is toggled: paint() writes into the legend's five ids unconditionally,
+    so destroy-and-recreate throws on the next view switch.
+    MUTATION KILLED: keying the legend on the fill alone, or removing a legend id."""
+    body = page_js().split("export function applyRamp()", 1)[1].split("\n}", 1)[0]
+    assert '$("legend").hidden = !(fillOn || ramped);' in body
+    html = page_html()
+    for el in ("legend-title", "swatches", "tick-lo", "tick-mid", "tick-hi"):
+        assert f'id="{el}"' in html, el
+
+
+def test_the_page_ships_a_favicon_as_a_site_key():
+    """/favicon.ico 404'd on every load of the public page and Cloudflare's 404 body cost
+    ~6.8 KB a time (frontend2 06 filed it; frontend3 02 owns it). The icon is a `site`
+    key, so it publishes with the page - additive under contract.PROMISE[1], no bump -
+    and the <link> is what stops the automatic /favicon.ico probe.
+    MUTATION KILLED: the file without the key (never reaches the host), or the key
+    without the link (the /favicon.ico 404 continues)."""
+    assert "favicon.svg" in publish.FAMILIES["site"].files
+    assert (web() / "favicon.svg").is_file()
+    assert '<link rel="icon" href="favicon.svg" type="image/svg+xml">' in page_html()

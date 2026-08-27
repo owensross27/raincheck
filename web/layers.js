@@ -167,6 +167,7 @@ export const LAYERS = [
    * routes.geojson is 7.78 MiB. */
   { id: "routes", name: "Bus route lines", gate: null, fill: false, open: false,
     sub: "Where the buses run.",
+    det: "21,868 Cell crossings; loads 7.8 MB when ticked, never before.",
     map: ["routes"], owed: null,
     srcs: [{ k: "files/geo/routes.geojson", url: "files/geo/routes.geojson", budget: null }],
     draw: ([r]) => drawRoutes(r) },
@@ -177,6 +178,7 @@ export const LAYERS = [
   // table, so the manifest is what makes a second scenario a DATA change and not a rewrite.
   { id: "stormwater", name: "Ground: flood zones (DEP design storm)", gate: null, fill: false,
     sub: "The city's planning map of where heavy rain would pond.",
+    det: "Loads 4.4 MB when ticked, never before.",
     open: false, map: ["stormwater-fill", "stormwater-line"], owed: null,
     srcs: [{ k: "files/geo/scenarios.json", url: "files/geo/scenarios.json", budget: null }],
     draw: ([m]) => drawZones(m) },
@@ -242,6 +244,7 @@ export const LAYERS = [
    * reads a bare AGE - reporting a verdict here would be a guessed constant. */
   { id: "hist", point: true, name: "Flood history markers", gate: null, fill: false, open: false,
     sub: "Places that have flooded before; click a marker for its record.",
+    det: "8,146 assets; loads 1.5 MB once when first ticked - never at boot. A marker click fetches that one record alone (~1 KB, at most 22 KB).",
     map: ["hist"], owed: null,
     srcs: [{ k: "files/history/manifest.geojson", url: "files/history/manifest.geojson",
              budget: null }],
