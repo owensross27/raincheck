@@ -1,6 +1,6 @@
 # frontend4 03 — bronze live-export carries cell, rain, and the agency's delay
 
-Status: ready-for-agent
+Status: done (2026-08-27, branch `frontend4-03-bronze-cell-rain`)
 Spec: `.scratch/frontend4/spec.md` (F3a). Charter: `.scratch/frontend4/charter.md`
 (option (a), taken).
 Blocked by: none.
@@ -86,3 +86,51 @@ Worktree at `/Users/ross/raincheck-wt/frontend4-03`, branch
 fixtures are tmp-root and need nothing), never the full suite, no pin commits. Commit
 explicit paths, push, RUN-LOG entry + forward-context (ticket 04 and the gate read your
 entry: say the exact keys bronze now emits and the containment rule).
+
+## Close-out (2026-08-27)
+
+Landed as `enrich_bronze(con, root, now)`, called from `prepare()` right after `q` is
+built, only when `source == "bronze"`. Bronze now emits (all-or-nothing per key, absent
+when unresolved): `cell` (lower-hex, same spelling as `cells.geojson`), `mm_1h`,
+`precip_valid_ts`, `trip_delay_s`. **Containment rule ticket 04 and the gate should read
+as MUST**: a missing/unreadable `ref/cells` leaves `cell`/`mm_1h`/`precip_valid_ts` absent;
+a missing/unreadable `live/precip_cell` leaves only `mm_1h`/`precip_valid_ts` absent
+(`cell` still resolves); either way the tick's `error` stays `None` and `stale` stays
+`False` - enrichment never raises past `enrich_bronze`'s own try/except, so it can never
+turn a healthy tick into a failed one. `trip_delay_s` is `max(trip_delay_s)` off the
+latest fetch's TU rows (bronze `_next_stop_sql`), absent when the era predates the column
+(`union_by_name` NULL).
+
+MUST 3 (era coverage): **not registered as a new `eras.READERS` entry.** `live_export`'s
+`READ` constant and `eras.duck_columns` (`duck.table`) both read
+`read_parquet(..., hive_partitioning=true, hive_types_autocast=false, union_by_name=true)`
+over the same `archive/tu` base path - byte-identical DuckDB read shape - so the existing
+`duck`/`tu` row already exercises this module's exact read mechanism, and `ERA_COLS["tu"]`
+already names `trip_delay_s`. Ran `python -m raincheck.eras` against the real root:
+INCONCLUSIVE on all four rows (no date dir currently mixes part schemas - the standing,
+expected shape per TRAPS), confirming nothing here is broken, only unproven until a mixed
+day exists.
+
+Mutation round (commit-first, `PYTHONDONTWRITEBYTECODE=1`, git-restore verified empty
+after every case): oldest-fetch-wins flip (`ORDER BY fetched_at ASC`) - KILLED; future
+partition accepted (dropped the `<= wall clock` filter) - KILLED; `ref/cells` failure
+re-raising instead of being caught - KILLED (2 tests broke: the garnish-absent test and
+the pre-era-TU test, both expect a written `live.geojson`); `flood_panel.cell_of`'s
+covers-confirm dropped (blind first STRtree hit) - SURVIVED on the first fixture (a
+rectangular Cell box has bbox == footprint, so bbox-only and covers-confirmed queries
+agree by construction); fixed by adding a standalone L-shaped-polygon test
+(`test_the_strtree_seam_covers_confirms_not_just_a_bbox_hit`) whose notch is a bbox
+candidate but not covered - re-ran, KILLED. `trip_delay_s` off the wrong fetch - first
+attempt (`max()` pooled over all fetches) SURVIVED because the fixture's older-fetch decoy
+(30) was numerically smaller than the real value (420), so `max()` picked the right answer
+by accident; fixed by re-deriving the mutation as `min()` over the pooled fetches (which
+truly reads the wrong row) - re-ran, KILLED. All five now kill; the fixture file carries
+both fixes (`TRIP_DELAY_S_DECOY`, the notch-polygon test).
+
+Smoke (`--source bronze --once`, real root, read-only): `error: null`, `n_vehicles: 2461`,
+`n_with_trip_delay: 2244`, `n_in_rain_cells: 73`; a sampled feature carries
+`cell/mm_1h/precip_valid_ts/trip_delay_s` all populated (`precip_valid_ts` ~21 min old on
+the real root at run time).
+
+Forward-context: nothing else discovered that changes another ticket's contract beyond
+what's already bolded above for ticket 04 / the gate.
