@@ -28,8 +28,14 @@ Sources (`SOURCE=`):
               precip_valid_ts onto the VP row, so this path does no precip join.
     bronze    <root>/archive/vp + /archive/tu, 20-min window (Bronze flushes in 10-min
               parts). Stop-row TU is reduced in two steps - latest fetch per (trip,
-              vehicle), then that fetch's earliest future arrival. No Cell, no mm_1h, no
-              trip_delay_s; `fetched_at IS NULL` archive-era rows drop out on the recency
+              vehicle), then that fetch's earliest future arrival, carrying that fetch's
+              own `trip_delay_s`. `enrich_bronze()` then joins `cell` (the
+              `flood_panel.cell_index()`/`cell_of()` STRtree seam over `ref/cells`) and
+              `mm_1h`/`precip_valid_ts` (`live/precip_cell`, mirroring
+              `enrich.with_live_precip`'s newest-partition/newest-fetch rule) onto the
+              vehicle rows. Enrichment is garnish: an unreadable `ref/cells` or
+              `live/precip_cell` leaves those keys absent and the tick healthy - it never
+              raises. `fetched_at IS NULL` archive-era rows drop out on the recency
               filter. A labelled demo fallback: the page prints `source: bronze`.
 
 The SQL stays in this module rather than a `web/*.sql` twin of the insight export: every
@@ -43,6 +49,7 @@ Run: make live-export                 (30 s loop, Ctrl-C stops it)
 import argparse
 import json
 import os
+import sys
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -103,7 +110,7 @@ def _next_stop_sql(source: str, t0: int) -> str:
         nxt AS (SELECT trip_id, vehicle_id, max(fetched_at) AS tu_fetched_at,
                        arg_min(stop_id, arrival_time) AS next_stop_id,
                        min(arrival_time) - max(snap) AS pred_next_s,
-                       NULL::BIGINT AS trip_delay_s
+                       max(trip_delay_s) AS trip_delay_s
                 FROM tu_fetch WHERE arrival_time >= snap GROUP BY 1, 2)"""
     # the stream already reduced live/tu to one row per (trip, vehicle, fetched_at) under
     # this same snapshot-clock rule, so the latest such row is the Prediction. A trip whose
@@ -144,6 +151,59 @@ def prepare(con, root: Path, source: str, now: datetime) -> None:
            l.occupancy, l.ts, l.fetched_at, n.next_stop_id, n.pred_next_s, n.trip_delay_s,
            round(l.lon, 5) AS lon, round(l.lat, 5) AS lat, {extra}
     FROM latest l LEFT JOIN nxt n USING (trip_id, vehicle_id)""")
+    if source == "bronze":
+        enrich_bronze(con, root, now)
+
+
+def enrich_bronze(con, root: Path, now: datetime) -> None:
+    """Bronze-only garnish over `q`: `cell` via the `flood_panel.cell_index()`/`cell_of()`
+    STRtree seam (point-query, `covers`-confirm - the predicate-direction trap is solved
+    there, not re-derived here) and `mm_1h`/`precip_valid_ts` off `<root>/live/precip_cell`,
+    mirroring `enrich.with_live_precip`'s rule exactly: newest `valid_ts=` string-hive
+    partition <= the wall clock (lexicographic max), newest `fetched_at` wins per
+    `(cell, valid_ts)`, projection + predicate inside the read statement.
+
+    Enrichment is garnish, not export: an unreadable `ref/cells` or `live/precip_cell`
+    leaves the corresponding keys NULL (absent once written) and never raises - the caller's
+    tick stays healthy either way. `flood_panel` is imported here, not at module level: it
+    imports `live_export` back (the panel's DuckDB-only tick seam), so importing it eagerly
+    would be circular.
+    """
+    from raincheck import flood_panel
+
+    try:
+        rows = con.execute("SELECT vehicle_id, lon, lat FROM q").fetchall()
+        index = flood_panel.cell_index(root)
+        cells = flood_panel.cell_of(index, {v: (lon, lat) for v, lon, lat in rows})
+    except Exception as exc:  # noqa: BLE001 - garnish failure, never the tick's
+        print(f"enrich_bronze: {root}/ref/cells unreadable ({exc}) - cell NULL this tick",
+              file=sys.stderr, flush=True)
+    else:
+        con.execute("CREATE OR REPLACE TEMP TABLE vcell(vehicle_id VARCHAR, cell BIGINT)")
+        if cells:
+            con.executemany("INSERT INTO vcell VALUES (?, ?)", list(cells.items()))
+        con.execute("CREATE OR REPLACE TEMP TABLE q AS SELECT q.* EXCLUDE (cell), vcell.cell "
+                    "FROM q LEFT JOIN vcell USING (vehicle_id)")
+
+    hour = now.strftime("%Y-%m-%dT%H")
+    try:
+        con.execute(f"""
+        CREATE OR REPLACE TEMP TABLE precip AS
+        WITH t AS (SELECT cell, mm_1h, fetched_at, valid_ts FROM
+                       {READ.format(path=f'{root}/live/precip_cell')}
+                   WHERE valid_ts <= '{hour}'),
+             vt AS (SELECT max(valid_ts) AS valid_ts FROM t)
+        SELECT t.cell, t.mm_1h, t.valid_ts FROM t JOIN vt USING (valid_ts)
+        QUALIFY row_number() OVER (PARTITION BY t.cell ORDER BY t.fetched_at DESC) = 1""")
+    except Exception as exc:  # noqa: BLE001 - mirrors enrich.with_live_precip's containment
+        print(f"enrich_bronze: {root}/live/precip_cell unreadable ({exc}) - "
+              f"mm_1h/precip_valid_ts NULL this tick", file=sys.stderr, flush=True)
+        return
+    con.execute("""
+        CREATE OR REPLACE TEMP TABLE q AS
+        SELECT q.* EXCLUDE (mm_1h, precip_valid_ts), p.mm_1h,
+               strptime(p.valid_ts, '%Y-%m-%dT%H') AS precip_valid_ts
+        FROM q LEFT JOIN precip p USING (cell)""")
 
 
 def geojson(con) -> str:
