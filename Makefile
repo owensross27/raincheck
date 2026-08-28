@@ -309,11 +309,17 @@ MAPLIBRE_CSS_SHA := 43c1d886b5fdf0aac4e7135bd6f84b823d9f48283a648012665f9be52c01
 #                    also the right call visually - the basemap must recede under the
 #                    Cell ramp, not carry a weight hierarchy of its own. 0-255 is Latin-1,
 #                    which is every place name in the extract's frame.
+#   notosans-256-511.pbf  frontend4 01: a SECOND range for the SAME fontstack (Latin
+#                    Extended-A), needed once street names render at street zooms - the
+#                    extract's minor-street names use characters 0-255 does not cover.
+#                    Further ranges stay a two-line addition here; do not add ranges
+#                    nothing requests.
 PMTILES_JS := 4.5.0
 BASEMAP_THEME := 4.5.0
 PMTILES_JS_SHA := caf981bc46f6327ee7e65d5dc964d89d38a69f60edca2bd4c5c890c21b554c6c
 BASEMAP_STYLE_SHA := 58080437fe322014b1ed41bca8c01c0c98151b777602fc018ef7194d89de0fbb
 BASEMAP_FONT_SHA := 62c6d49b15fa836eb6aa45e259c7ca6762f44b011b09e47776efbe4a6db1b397
+BASEMAP_FONT2_SHA := 2eca7561f9f566bcacfda5dd04fb5880baec1328ec0f5484678289a13994de8a
 
 # Download to .new, verify, and only then replace: writing straight to the final path would
 # destroy the last known-good copy on the way to failing the checksum.
@@ -324,14 +330,16 @@ vendor:  ## fetch the pinned web assets into web/vendor (no CDN at demo time): M
 	curl -fsSL -o web/vendor/pmtiles.js.new https://unpkg.com/pmtiles@$(PMTILES_JS)/dist/pmtiles.js
 	curl -fsSL -o web/vendor/basemap-dark.json.new https://unpkg.com/protomaps-themes-base@$(BASEMAP_THEME)/dist/styles/dark/en.json
 	curl -fsSL -o web/vendor/notosans-0-255.pbf.new 'https://protomaps.github.io/basemaps-assets/fonts/Noto%20Sans%20Regular/0-255.pbf'
+	curl -fsSL -o web/vendor/notosans-256-511.pbf.new 'https://protomaps.github.io/basemaps-assets/fonts/Noto%20Sans%20Regular/256-511.pbf'
 	@printf '%s  %s\n' "$(MAPLIBRE_JS_SHA)" web/vendor/maplibre-gl.js.new \
 	                   "$(MAPLIBRE_CSS_SHA)" web/vendor/maplibre-gl.css.new \
 	                   "$(PMTILES_JS_SHA)" web/vendor/pmtiles.js.new \
 	                   "$(BASEMAP_STYLE_SHA)" web/vendor/basemap-dark.json.new \
-	                   "$(BASEMAP_FONT_SHA)" web/vendor/notosans-0-255.pbf.new | shasum -a 256 -c - \
+	                   "$(BASEMAP_FONT_SHA)" web/vendor/notosans-0-255.pbf.new \
+	                   "$(BASEMAP_FONT2_SHA)" web/vendor/notosans-256-511.pbf.new | shasum -a 256 -c - \
 	  || { rm -f web/vendor/*.new; \
 	       echo "vendor: checksum FAILED, previous copies left untouched"; exit 1; }
-	@for f in maplibre-gl.js maplibre-gl.css pmtiles.js basemap-dark.json notosans-0-255.pbf; do \
+	@for f in maplibre-gl.js maplibre-gl.css pmtiles.js basemap-dark.json notosans-0-255.pbf notosans-256-511.pbf; do \
 	   mv web/vendor/$$f.new web/vendor/$$f; done
 	@echo "vendor: maplibre-gl $(MAPLIBRE), pmtiles $(PMTILES_JS), basemap theme $(BASEMAP_THEME) verified"
 

@@ -201,28 +201,36 @@ def test_the_geography_band_sits_above_the_basemap_and_below_every_answer_layer(
 
 
 def test_the_basemap_goes_above_bg_and_below_every_one_of_the_twelve():
-    """frontend2 02. The basemap's layer ids come from a VENDORED style, not from this
-    repo, so the order rule cannot be a longer literal - there is nothing honest to write
-    down. It is an INVARIANT instead: the twelve keep their frozen relative order (the test
-    above), and every basemap layer is inserted with a `beforeId` naming the FIRST of the
-    twelve after `bg`, which places all of it in the one gap between the background and the
-    ground. That is also the only sanctioned addLayer/addSource on this page, and it lives
-    in one module, so "declare at boot" still holds for everything this repo authors.
-    MUTATION KILLED: dropping the `beforeId` (the whole basemap then lands ON TOP of the
-    delay Cells and hides the answer), pointing it at a later layer, adding a second
-    addLayer site in another module, or reordering SPEC_ORDER so `bg` is not first."""
+    """frontend2 02, re-derived to the two-splice by frontend4 01. The basemap's layer ids
+    come from a VENDORED style, not from this repo, so the order rule cannot be a longer
+    literal - there is nothing honest to write down. It is an INVARIANT instead: the twelve
+    keep their frozen relative order (the test above), and every NON-SYMBOL basemap layer is
+    inserted with a `beforeId` naming the FIRST of the twelve after `bg`, while every SYMBOL
+    (label) basemap layer is inserted before a second, later point - above every fill/line
+    and below every point layer - so a name is never painted over by a dot. That is also the
+    only sanctioned addLayer/addSource on this page, and it lives in one module, so "declare
+    at boot" still holds for everything this repo authors.
+    MUTATION KILLED: dropping either `beforeId` (the fills/lines land ON TOP of the delay
+    Cells and hide the answer, or the labels land ON TOP of the point layers), pointing
+    either at the wrong layer, collapsing the partition so labels use FIRST_DATA_LAYER too
+    (labels would then sit under fills again), adding a second addLayer site in another
+    module, or reordering SPEC_ORDER so `bg` is not first."""
     mods = module_js()
     base = mods["basemap.js"]
     assert SPEC_ORDER[0] == "bg", "the background is the only layer below the basemap"
-    # the insertion point is DERIVED from the frozen order, never a second copy of the name
+    # both insertion points are DERIVED from the frozen order, never a second copy of the name
     assert f'const FIRST_DATA_LAYER = "{SPEC_ORDER[1]}";' in base
-    assert "map.addLayer(l, FIRST_DATA_LAYER);" in base, "every basemap layer carries it"
+    assert f'export const LABELS_BEFORE = "{SPEC_ORDER[7]}";' in base
+    assert "map.addLayer(l, FIRST_DATA_LAYER);" in base, "the non-symbol splice"
+    assert "map.addLayer(l, LABELS_BEFORE);" in base, "the symbol (label) splice"
+    # the partition predicate is anchored on the code, not on prose describing it
+    assert "l.type === \"symbol\"" in base or "l.type !== \"symbol\"" in base
     for name, js in mods.items():
         if name == "basemap.js":
             continue
         assert "addLayer(" not in js, f"{name}: a lazily added layer lands on top"
         assert "addSource(" not in js, name
-    assert base.count("map.addLayer(") == 1 and base.count("map.addSource(") == 1
+    assert base.count("map.addLayer(") == 2 and base.count("map.addSource(") == 1
 
 
 def test_the_basemap_falls_back_to_the_flat_bg_rectangle_and_never_throws():
@@ -262,9 +270,56 @@ def test_the_basemap_is_vendored_and_names_no_third_host_at_demo_time():
     assert 'glyphs: "vendor/{fontstack}-{range}.pbf",' in js
     keys = set(publish.FAMILIES["site"].files)
     assert {"vendor/pmtiles.js", "vendor/basemap-dark.json",
-            "vendor/notosans-0-255.pbf"} <= keys
+            "vendor/notosans-0-255.pbf", "vendor/notosans-256-511.pbf"} <= keys
     assert publish.FAMILIES["tiles"].files == ("nyc.pmtiles",)
     assert "tiles/nyc.pmtiles" not in keys, "the archive is never a site key, never committed"
+
+
+def test_the_density_overrides_name_only_road_layers():
+    """frontend4 01. `OVERRIDES` is a density knob for exactly the layers the ticket names -
+    minor/service/other/link roads and their casings - and nothing else; highway, major and
+    rail curves and every color stay the vendored theme's own. Anchored on the const's own
+    key set rather than on prose, so an override slipped onto a layer this ticket does not
+    name is caught even though its VALUE is free-form.
+    MUTATION KILLED: adding an override for a highway/major/rail layer, or for a color
+    (`line-color`/`text-color`) instead of density."""
+    base = module_js()["basemap.js"]
+    block = base.split("const OVERRIDES = {", 1)[1].split("\n};", 1)[0]
+    keys = set(re.findall(r"^\s*(\w+): \{", block, re.MULTILINE))
+    assert keys == {"roads_minor", "roads_minor_casing", "roads_minor_service",
+                     "roads_minor_service_casing", "roads_other", "roads_link",
+                     "roads_link_casing"}
+    for bad in ("highway", "major", "rail"):
+        assert bad not in block, f"OVERRIDES must not touch a {bad} layer"
+    assert "line-color" not in block and "text-color" not in block, "density, not color"
+
+
+def test_roads_labels_minor_shows_at_the_extracts_own_maxzoom():
+    """frontend4 01. The extract is built to maxzoom 13 (Makefile), and minzoom 15 on
+    `roads_labels_minor` was overzoom-only - minor street names never rendered at any zoom a
+    real pan reaches. MUTATION KILLED: reverting the override, or applying it to
+    `roads_labels_major` instead (D1's calibrated major-label sizing/color must stay
+    untouched)."""
+    base = module_js()["basemap.js"]
+    assert 'layer.id === "roads_labels_minor") layer.minzoom = 13;' in base
+    assert "roads_labels_major" not in base, "only the minor label layer is touched"
+
+
+def test_nested_text_font_overrides_are_collapsed_too():
+    """frontend4 01. The vendored style's `text-field` `format` expressions carry PER-SPAN
+    `text-font` overrides that the original top-level-only collapse could not see, so a
+    label using one would have requested an un-vendored fontstack. The walk must be
+    recursive over the whole layout object, not a second special case for `format`.
+    MUTATION KILLED: reverting to a top-level-only check (`layout["text-font"]`), which
+    leaves the nested overrides untouched.
+    Comments-must-not-name-fontstacks (docstring-poisons-the-grep): this file never spells
+    the un-vendored fontstack names, so a literal search for them can never pass by finding
+    a comment instead of dead code."""
+    base = module_js()["basemap.js"]
+    assert "function collapseFonts(node)" in base
+    assert 'k === "text-font" && Array.isArray(v) ? ["literal", [FONT]] : collapseFonts(v)' in base
+    for name in ("Noto Sans Devanagari", "Noto Sans Medium", "Noto Sans Italic"):
+        assert name not in base, "this file must never spell an un-vendored fontstack"
 
 
 def test_every_source_boots_empty_and_every_data_layer_boots_hidden():
