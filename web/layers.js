@@ -161,7 +161,7 @@ export const LAYERS = [
     srcs: [{ k: "tiles/nyc.pmtiles", url: "tiles/nyc.pmtiles", budget: null, head: true }],
     draw: ([ok]) => drawBasemap(ok) },
 
-  { id: "zones", name: "Ground: taxi zones", gate: null, fill: false, open: true,
+  { id: "zones", name: "Ground: taxi zones", gate: null, fill: false, open: false,
     sub: "Taxi-zone outlines, for finding where you are.",
     map: ["zones-fill", "zones-line"], owed: null,
     srcs: [{ k: "files/zones.geojson", url: "files/zones.geojson", budget: null }],
@@ -193,7 +193,7 @@ export const LAYERS = [
     srcs: [{ k: "files/geo/scenarios.json", url: "files/geo/scenarios.json", budget: null }],
     draw: ([m]) => drawZones(m) },
 
-  { id: "cells", name: "Delay cells", gate: null, fill: true, open: true,
+  { id: "cells", name: "Delay cells", gate: null, fill: true, open: false,
     sub: "How much slower the buses ran in the rain, area by area.",
     map: ["cells", "cells-line"], owed: null,
     srcs: [{ k: "files/cells.geojson", url: "files/cells.geojson", budget: null },

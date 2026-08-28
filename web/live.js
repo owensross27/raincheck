@@ -21,7 +21,7 @@
  * write, and an imported binding is read-only in the importing module.
  * -------------------------------------------------------------------------------- */
 import { $, DELAY_CUT_S, L, LIVE_COLOR, LIVE_STALE, map, on, STALE_AFTER_S } from "./layers.js";
-import { ages, forget, grab, whys } from "./freshness.js";
+import { ages, forget, grab, load, whys } from "./freshness.js";
 import { renderLayers } from "./panel.js";
 import { bandCaveats, cellFeatures } from "./insight.js";
 
@@ -337,6 +337,10 @@ export function toggleLive(lit) {
   clearInterval(liveTimer);
   liveTimer = null;
   if (lit) {
+    // frontend4 05: the band join reads the cells payload, and with the Cell fill off by
+    // default nothing else loads it. Data only - the fill's visibility stays the radio's,
+    // and a failed load leaves the fleet neutral, which is the honest degradation.
+    if (!on.cells && cellFeatures().length === 0) load("cells").then(liveTick, () => {});
     liveTick();
     liveTimer = setInterval(liveTick, 30000);
   } else {
