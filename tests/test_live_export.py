@@ -32,7 +32,10 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+import pyarrow as pa
+import pyarrow.parquet as pq
 import pytest
+import shapely
 
 from raincheck import duck, live_export, publish
 
@@ -41,6 +44,14 @@ EPOCH = int(T.timestamp())
 NOW = T + timedelta(seconds=60)                            # the injected wall clock
 CELL = 613229522952650751                                  # a real Cell id (Central Park)
 CELL_HEX = "882a100895fffff"
+# V1's newest Ping sits at (-73.9700, 40.7820); the box covers only that point, so the
+# planted Cell id IS the oracle for `cell_of`'s covers-confirm (nothing else seeded is inside
+# it: V2 is at -73.98/40.75, V3 at -73.99/40.70).
+CELL_BOX = (-73.9705, 40.7815, -73.9695, 40.7825)
+PRECIP_MM = 2.5              # the winning (newest-fetched_at) row - above RAIN_MM
+PRECIP_MM_DECOY = 0.4        # an older fetch for the same (cell, valid_ts) - below RAIN_MM,
+                              # so oldest-wins would both pick the wrong value AND miscount rain
+PRECIP_MM_FUTURE = 9.9       # a valid_ts partition after the wall clock - must never be read
 
 
 def _stop(name: str) -> str:
@@ -158,6 +169,50 @@ def seed_bronze(root: Path) -> None:
     con.close()
 
 
+def seed_ref_cells(root: Path) -> None:
+    """A minimal `ref/cells` (cell int64, geometry WKB - the real table's two columns
+    `flood_panel.cell_index` reads) with ONE polygon, `CELL_BOX`, covering only V1's
+    rain-flagged point. The planted id is the oracle: `cell_of` point-queries then
+    `covers`-confirms, so a box that missed the point would resolve nothing."""
+    box = shapely.box(*CELL_BOX)
+    t = pa.table({"cell": pa.array([CELL], pa.int64()),
+                  "geometry": pa.array([shapely.to_wkb(box)], pa.binary())})
+    out = root / "ref" / "cells"
+    out.mkdir(parents=True, exist_ok=True)
+    pq.write_table(t, out / "part.parquet")
+
+
+def seed_precip_cell(root: Path, now: datetime = NOW) -> None:
+    """`live/precip_cell` as `precip_live.tick` writes it (cell, mm_1h, fetched_at under
+    `valid_ts=YYYY-MM-DDTHH`). The target partition (`now`'s hour) holds a decoy older
+    `fetched_at` with a DIFFERENT mm_1h so newest-fetch selection is killable by name; a
+    second, later-than-`now` partition must never be read."""
+    hour = now.strftime("%Y-%m-%dT%H")
+    future_hour = (now + timedelta(hours=1)).strftime("%Y-%m-%dT%H")
+
+    def part(valid_ts: str, rows: list[tuple[float, int]]) -> None:
+        d = root / "live" / "precip_cell" / f"valid_ts={valid_ts}"
+        d.mkdir(parents=True, exist_ok=True)
+        t = pa.table({
+            "cell": pa.array([CELL] * len(rows), pa.int64()),
+            "mm_1h": pa.array([mm for mm, _ in rows], pa.float32()),
+            "fetched_at": pa.array([datetime.fromtimestamp(f, timezone.utc) for _, f in rows],
+                                    pa.timestamp("us", tz="UTC")),
+        })
+        pq.write_table(t, d / "part.parquet")
+
+    part(hour, [(PRECIP_MM_DECOY, EPOCH - 300), (PRECIP_MM, EPOCH - 60)])
+    part(future_hour, [(PRECIP_MM_FUTURE, EPOCH - 30)])
+
+
+def seed_bronze_full(root: Path) -> None:
+    """`seed_bronze` plus `ref/cells` and `live/precip_cell`, so the `bronze` fixture
+    exercises `enrich_bronze`'s success path end to end."""
+    seed_bronze(root)
+    seed_ref_cells(root)
+    seed_precip_cell(root)
+
+
 def _tick(root: Path, out: Path, source: str, now: datetime = NOW) -> tuple[dict, dict]:
     """One tick, returning (meta, live.geojson)."""
     con = duck.connect()
@@ -178,7 +233,7 @@ def live(tmp_path_factory):
 @pytest.fixture(scope="module")
 def bronze(tmp_path_factory):
     root = tmp_path_factory.mktemp("broot")
-    seed_bronze(root)
+    seed_bronze_full(root)
     return _tick(root, tmp_path_factory.mktemp("bweb"), "bronze")
 
 
@@ -337,13 +392,79 @@ def test_bronze_reduces_stop_row_tu_in_two_steps(bronze):
     assert p["pred_next_s"] == PRED_S
 
 
-def test_bronze_carries_no_cell_precip_or_trip_delay(bronze):
+def test_bronze_carries_cell_rain_and_trip_delay(bronze):
+    """The new contract: `enrich_bronze` resolves `cell` off `ref/cells`, `mm_1h`/
+    `precip_valid_ts` off `live/precip_cell` (newest fetch of the target partition, never
+    the future one or the older decoy), and the bronze TU reduce carries the agency's own
+    `trip_delay_s`."""
     meta, fc = bronze
-    for f in fc["features"]:
-        p = f["properties"]
-        assert not {"cell", "mm_1h", "precip_valid_ts", "trip_delay_s"} & set(p)
-    assert meta["n_in_rain_cells"] == 0 and meta["n_with_trip_delay"] == 0
+    p = only(fc)["properties"]
+    assert p["cell"] == CELL_HEX
+    assert p["mm_1h"] == pytest.approx(PRECIP_MM)
+    assert p["mm_1h"] != pytest.approx(PRECIP_MM_DECOY)   # newest fetched_at wins, not oldest
+    assert p["mm_1h"] != pytest.approx(PRECIP_MM_FUTURE)  # the later partition was never read
+    assert p["precip_valid_ts"] == T.strftime(live_export.STAMP)
+    assert p["trip_delay_s"] == TRIP_DELAY_S
+    assert meta["n_in_rain_cells"] == 1                   # V1 only - V2's point has no Cell
+    assert meta["n_with_trip_delay"] == 1
     assert meta["source"] == "bronze" and meta["error"] is None
+
+
+def test_bronze_enrichment_is_garnish_when_ref_cells_is_absent(tmp_path):
+    """Rule 1 of MUST 1: a missing `ref/cells` leaves the three keys absent and the tick
+    healthy - it must not raise, and it must not fail the FLEET read either."""
+    root, out = tmp_path / "root", tmp_path / "web"
+    seed_bronze(root)   # no ref/cells, no live/precip_cell at all
+    meta, fc = _tick(root, out, "bronze")
+    p = only(fc)["properties"]
+    assert not {"cell", "mm_1h", "precip_valid_ts"} & set(p)
+    assert meta["error"] is None and meta["stale"] is False
+    assert meta["n_in_rain_cells"] == 0
+
+
+def test_bronze_enrichment_is_garnish_when_precip_cell_is_absent(tmp_path):
+    """`cell` still resolves off `ref/cells`; only the precip join fails closed."""
+    root, out = tmp_path / "root", tmp_path / "web"
+    seed_bronze(root)
+    seed_ref_cells(root)   # cell resolves; live/precip_cell is not there
+    meta, fc = _tick(root, out, "bronze")
+    p = only(fc)["properties"]
+    assert p["cell"] == CELL_HEX
+    assert not {"mm_1h", "precip_valid_ts"} & set(p)
+    assert meta["error"] is None and meta["stale"] is False
+    assert meta["n_in_rain_cells"] == 0
+
+
+def test_bronze_trip_delay_s_absent_for_a_pre_era_tu_part(tmp_path):
+    """A pre-era `archive/tu` PART with no `trip_delay_s` (or `header_ts`) column, sitting
+    beside the normal wide part `seed_bronze` writes - the mixed-schema shape `eras.py`
+    itself looks for. `union_by_name` synthesizes NULL for the narrow file's rows, never
+    fails, and `json_merge_patch` drops it to an absent key - the same shape as V0's
+    NULL-`fetched_at` VP row."""
+    root, out = tmp_path / "root", tmp_path / "web"
+    seed_bronze(root)   # the wide part: header_ts + trip_delay_s present
+    con = _con()
+    _write(con, root / "archive" / "vp", f"""
+        SELECT 'V9' AS vehicle_id, 'TRIP9' AS trip_id, 'B41' AS route_id,
+               0::BIGINT AS direction_id, '20260301' AS start_date,
+               'SCHEDULED' AS schedule_relationship, 40.7820 AS lat, -73.9700 AS lon,
+               90.0 AS bearing, NULL::VARCHAR AS stop_id, {EPOCH} AS ts,
+               NULL::VARCHAR AS occupancy, {EPOCH} AS header_ts, {EPOCH} AS fetched_at,
+               strftime(to_timestamp({EPOCH}), '%Y-%m-%d') AS date,
+               strftime(to_timestamp({EPOCH}), '%H') AS hour""")
+    # the narrow part: no header_ts, no trip_delay_s column at all
+    _write(con, root / "archive" / "tu", f"""
+        SELECT 'TRIP9' AS trip_id, 'B41' AS route_id, '20260301' AS start_date,
+               0::BIGINT AS direction_id, 'V9' AS vehicle_id, '{_stop("S1")}' AS stop_id,
+               1 AS stop_sequence, {EPOCH + 120} AS arrival_time,
+               NULL::BIGINT AS departure_time, {EPOCH} AS fetched_at,
+               strftime(to_timestamp({EPOCH}), '%Y-%m-%d') AS date,
+               strftime(to_timestamp({EPOCH}), '%H') AS hour""")
+    con.close()
+    _, fc = _tick(root, out, "bronze")
+    p = only(fc, "V9")["properties"]
+    assert "trip_delay_s" not in p
+    assert p["next_stop_id"] == _stop("S1")   # the Prediction still resolves off the union
 
 
 def test_bronze_uses_the_twenty_minute_window_and_drops_null_fetched_at(bronze):
