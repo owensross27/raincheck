@@ -219,6 +219,48 @@ function buildViews() {
 }
 
 // ------------------------------------------------------------------------ tooltip
+// frontend4 02: one mechanism, the existing #tip element, for the four point layers that
+// answered only to click (hist) or not at all (subway, mta, fn). A TIPS entry is a pure
+// render function over a feature's own properties -> an HTML string; every untrusted
+// string (a name, a published sentence) is wrapped in esc(), the showCard/eventHTML
+// pattern already used below - never innerHTML'd raw. `hist`'s `name` key is ABSENT (not
+// null) on all 1,276 cell-kind features, so the title falls back to `asset_id`, and the
+// id always prints beside it (names are not unique at any grain - "86 St" names six
+// complexes, two bus stops share one name metres apart).
+export const TIPS = {
+  hist: (p) => `<b>${esc(p.name || p.asset_id)}</b><br>${esc(p.kind)} · ${esc(p.asset_id)}
+    <br>${p.n_events} flood event(s)`,
+  // `rel` rides only when the payload carried it (absent below min_planned, not zero) -
+  // the same conditional live.js's own feature-rebuild uses (`"rel" in c`).
+  subway: (p) => {
+    const lines = [];
+    if (p.dropped !== undefined) lines.push(`${p.dropped} dropped`);
+    if (p.planned !== undefined) lines.push(`${p.planned} planned`);
+    if (p.drop_share !== undefined) lines.push(`drop share ${fmt(p.drop_share, 3)}`);
+    if ("rel" in p) lines.push(`rel ${fmt(p.rel, 2)}`);
+    return `<b>${esc(p.name)}</b><br>complex · ${esc(p.complex_id)}<br>${lines.join(" · ")}`;
+  },
+  mta: (p) => `<b>${esc(p.name)}</b><br>${esc(p.complex_id)}
+    <br>${esc(p.state)} · ${Math.round(p.age_min)} min`,
+  // `label` is a published, ready-made sentence (flood.js's floodnet writer) - render it
+  // verbatim, escaped, never a page-authored gloss.
+  fn: (p) => `<b>${esc(p.name)}</b><br>${esc(p.label)}<br>${Math.round(p.age_min)} min`,
+};
+
+/** One handler factory per layer id, reusing showTip's own positioning
+ *  (`e.point.x/y + 14`, clamped at the right edge) and the same `#tip` element. Wired for
+ *  mousemove AND click (click is the touch path - the cells tooltip's own pattern) in
+ *  app.js, the ONLY module allowed to call `map.on` (the ES-module-cycle rule). */
+export function pointTip(layerId) {
+  return (e) => {
+    const tip = $("tip");
+    tip.innerHTML = TIPS[layerId](e.features[0].properties);
+    tip.style.display = "block";
+    tip.style.left = Math.min(e.point.x + 14, window.innerWidth - 280) + "px";
+    tip.style.top = (e.point.y + 14) + "px";
+  };
+}
+
 // Zone name comes from the Cell's own exported property (04's centroid rule), never from a
 // hover-time hit test against the zones layer - a hit test is not the centroid rule.
 export function showTip(e) {

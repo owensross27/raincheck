@@ -38,7 +38,7 @@
 import { $, LAYERS, map, markStyled, on } from "./layers.js";
 import { load } from "./freshness.js";
 import { applyVisibility, renderLayers, toggle, toggleDet } from "./panel.js";
-import { applyRamp, closeCard, loadRecent, locateEvent, setHour, setScenario, setView,
+import { applyRamp, closeCard, loadRecent, locateEvent, pointTip, setHour, setScenario, setView,
          showCard, showTip } from "./insight.js";
 import { toggleLive } from "./live.js";
 
@@ -91,6 +91,18 @@ $("hours").addEventListener("click", e => {
 map.on("mousemove", "cells", showTip);
 map.on("click", "cells", showTip);          // touch
 map.on("mouseleave", "cells", () => { $("tip").style.display = "none"; });
+
+// frontend4 02: one hover mechanism (insight.pointTip), wired here for the four point
+// layers that answered only to click (hist) or not at all (subway, mta, fn). Click is the
+// touch path, the cells tooltip's own pattern above. Registered BEFORE hist's own
+// click -> showCard handler below, so on a hist tap the tip paints first and the card
+// handler's `#tip` hide runs after - a tap lands on the card, never a stale tip.
+for (const id of ["hist", "subway", "mta", "fn"]) {
+  const tip = pointTip(id);
+  map.on("mousemove", id, tip);
+  map.on("click", id, tip);
+  map.on("mouseleave", id, () => { $("tip").style.display = "none"; });
+}
 
 // frontend 07: the record card opens on CLICK, never hover (touch parity), and the Cell
 // tooltip is hidden so the two cannot stack on one marker. Close returns focus to the

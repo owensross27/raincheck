@@ -1219,3 +1219,69 @@ def test_the_page_ships_a_favicon_as_a_site_key():
     assert "favicon.svg" in publish.FAMILIES["site"].files
     assert (web() / "favicon.svg").is_file()
     assert '<link rel="icon" href="favicon.svg" type="image/svg+xml">' in page_html()
+
+
+# ============================== frontend4 02: hover labels on the point layers ============
+def test_the_four_point_layers_get_a_mousemove_click_and_mouseleave_tip_in_app_js_only():
+    """One mechanism (insight.pointTip), wired for `hist`, `subway`, `mta`, `fn` - the
+    layers that answered only to click (hist's own card) or not at all. Click is the touch
+    path, the cells tooltip's own pattern this ticket reuses. Wiring stays in app.js ONLY
+    (the ES-module-cycle rule test_only_the_boot_module_wires_the_dom_and_the_map already
+    enforces for insight.js as a whole); this test pins the four-layer COUNT so dropping one
+    layer from the loop cannot pass silently.
+    MUTATION KILLED: dropping one layer's mouseleave (or the whole loop) - three of the four
+    point layers would stay permanently mute or leave a stuck tip on the map."""
+    boot = module_js()["app.js"]
+    assert 'import { applyRamp, closeCard, loadRecent, locateEvent, pointTip,' in boot
+    loop = boot.split('for (const id of ["hist", "subway", "mta", "fn"]) {', 1)[1] \
+               .split("\n}", 1)[0]
+    assert 'map.on("mousemove", id, tip)' in loop
+    assert 'map.on("click", id, tip)' in loop
+    assert 'map.on("mouseleave", id,' in loop
+    # hist's own click -> showCard registration follows the loop, so a hist tap's final
+    # state is the card open and the tip hidden, never a stale tip stacked on the card
+    assert boot.index('for (const id of ["hist"') < boot.index('map.on("click", "hist"')
+    assert "export function pointTip(layerId)" not in boot, "pointTip is defined in insight.js"
+    assert "export function pointTip(layerId)" in module_js()["insight.js"]
+
+
+def test_the_hist_tip_falls_back_to_the_asset_id_and_the_id_always_prints():
+    """`name` is an ABSENT key (not null) on all 1,276 cell-kind features in
+    files/history/manifest.geojson, so a title of `p.name` alone renders the literal word
+    "undefined". The sub line prints the id unconditionally - names are not unique at any
+    grain ("86 St" names six complexes; two bus stops share one name metres apart).
+    MUTATION KILLED: `p.name` alone (renders "undefined" on every Cell-kind marker), or
+    dropping `p.asset_id` from the sub line."""
+    js = page_js()
+    entry = js.split("hist: (p) =>", 1)[1].split("subway:", 1)[0]
+    assert "p.name || p.asset_id" in entry, "the fallback is a source-shape assertion"
+    assert "p.asset_id" in entry.split("<br>", 1)[1], "the id prints beside the name"
+    assert "p.n_events" in entry
+
+
+def test_every_tips_entry_escapes_its_untrusted_strings():
+    """Every TIPS render routes a name or a published sentence through esc() - never a raw
+    innerHTML interpolation - because a GTFS-registry name or a FloodNet `label` sentence is
+    the one kind of string on this page that crosses a trust boundary (the showTip/showCard/
+    eventHTML pattern this ticket reuses, never introduces).
+    MUTATION KILLED: interpolating `p.name` or `p.label` directly (`${p.name}`) instead of
+    through esc(p.name) in any one TIPS entry."""
+    js = page_js()
+    tips = js.split("export const TIPS = {", 1)[1].split("\n};", 1)[0]
+    assert tips.count("esc(p.name") == 4, "hist/subway/mta/fn each escape a name"
+    assert "esc(p.asset_id)" in tips and "esc(p.kind)" in tips
+    assert "esc(p.complex_id)" in tips and "esc(p.state)" in tips
+    assert "esc(p.label)" in tips, "the published FloodNet sentence is escaped, not raw"
+    assert "${p.name}" not in tips and "${p.label}" not in tips, "no raw interpolation"
+
+
+def test_the_subway_tip_reads_rel_only_when_the_key_is_present():
+    """`rel` rides only when the payload carried it (absent below `min_planned`, not zero -
+    live.js's own feature rebuild already guards this the same way at `"rel" in c`), so the
+    tip's rel line must read the same guard rather than assume the key.
+    MUTATION KILLED: making the rel line unconditional (`lines.push(rel ...)` with no
+    guard) - a complex below min_planned would render a stray "rel undefined"."""
+    js = page_js()
+    entry = js.split("subway: (p) => {", 1)[1].split("\n  },", 1)[0]
+    assert '"rel" in p' in entry
+    assert "lines.push(`rel ${fmt(p.rel, 2)}`)" in entry
