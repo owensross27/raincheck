@@ -629,14 +629,24 @@ def test_block_volumes_attach_only_to_single_writer_workloads():
                 "two drivers hold one RWO checkpoint")
 
 
-def test_the_streaming_driver_is_on_the_stateful_pool_and_never_discards_its_checkpoint():
+def test_the_streaming_driver_is_on_the_stateful_pool_and_discards_loudly_not_silently():
     """Burst is spot-only and consolidates after 1 m; the one Spark workload that must not be
     interrupted needs a pool that will not roll it. That USED to mean the floor. Since
     2026-08-25 it means `stateful`: the driver holds a gp3-1f checkpoint, and the floor now
     spans three AZs, so a floor pin would land it in 1a with an unmountable volume. stateful
     is WhenEmpty + do-not-disrupt + an on-demand fallback, which is strictly stronger than
-    what the floor pin bought. FRESH=1 in a Deployment would discard the checkpoints on every
-    restart, silently skipping the hours between - past retention."""
+    what the floor pin bought.
+
+    The FRESH half was RE-DERIVED 2026-08-28 from a measured structural fact: the resume
+    rail (live/_progress.json) lives on the emptyDir and dies with the pod, so a
+    replacement pod can never date its checkpoint and the resume guard crash-loops it -
+    the wave-10 "structural" loop, decoded reviving the stream. The old assert (no FRESH)
+    therefore pinned an unreachable ideal whose real behavior was "parked at 0". What is
+    pinned now: FRESH is DECLARED in the manifest (never an out-of-band set-env), the
+    manifest carries the ceiling comment naming the removal condition, and the discard is
+    LOUD - stream.py prints it on every start, and the skipped hours are in Bronze, which
+    is the record. The upgrade path that retires this: the rail (or live/) on durable
+    storage, then FRESH comes out and the no-FRESH assert comes back."""
     dep = next(d for d in kind("Deployment") if d["metadata"]["name"] == "raincheck-stream")
     spec = dep["spec"]["template"]["spec"]
     assert spec["nodeSelector"] == {"raincheck.io/pool": "stateful"}
@@ -645,7 +655,13 @@ def test_the_streaming_driver_is_on_the_stateful_pool_and_never_discards_its_che
     c = spec["containers"][0]
     assert " ".join(c["command"]) == "python -m raincheck.stream"
     env = {e["name"]: e.get("value") for e in c["env"]}
-    assert "FRESH" not in env
+    assert env.get("FRESH") == "1", "FRESH is declared state, never a kubectl set-env"
+    yaml_text = (ROOT / "deploy" / "k8s" / "raincheck" / "streaming.yaml").read_text()
+    assert "ponytail: FRESH standing, remove when live/ moves to R2" in yaml_text, (
+        "the ceiling and its removal condition ride in the manifest beside the value")
+    stream_src = (Path(__file__).parent.parent / "src" / "raincheck" / "stream.py").read_text()
+    assert 'FRESH=1 - checkpoints discarded, starting at latest' in stream_src, (
+        "the discard must stay LOUD - a silent discard is the thing the old assert feared")
     assert env["RAINCHECK_KAFKA"] == "raincheck-kafka-bootstrap.kafka.svc:9092", (
         "the 9094 `box` listener is the capture box's alone - it advertises a name only "
         "the box's /etc/hosts resolves")
