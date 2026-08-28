@@ -81,6 +81,7 @@ TU_STOPS = [
 PRED_S = 180          # (EPOCH + 120) - (EPOCH - 60), against the snapshot clock
 WALL_CLOCK_PRED_S = 60    # what a now()-based mutation would report instead
 TRIP_DELAY_S = 420        # > the 300 s cut, so the gated delay state can open
+TRIP_DELAY_S_DECOY = 30   # the OLDER fetch's own delay - different, so wrong-fetch is killable
 
 
 def _con():
@@ -157,10 +158,13 @@ def seed_bronze(root: Path) -> None:
              ) t(vehicle_id, trip_id, fetched_at, ts, lon, lat, mm_1h)""")
 
     stops = ", ".join(f"({f}, {h}, {seq}, '{stop}', {arr})" for f, h, seq, stop, arr in TU_STOPS)
+    # the OLDER fetch (TU_STOPS[0]) carries a DIFFERENT trip_delay_s than the newest fetch's
+    # rows, so a "wrong fetch" mutation on the aggregate is killable rather than degenerate.
     _write(con, root / "archive" / "tu", f"""
         SELECT 'TRIP1' AS trip_id, 'B41' AS route_id, '20260301' AS start_date,
                0::BIGINT AS direction_id, 'V1' AS vehicle_id,
-               {TRIP_DELAY_S}::BIGINT AS trip_delay_s, fetched_at AS trip_ts,
+               CASE WHEN fetched_at = {TU_STOPS[0][0]} THEN {TRIP_DELAY_S_DECOY}
+                    ELSE {TRIP_DELAY_S} END::BIGINT AS trip_delay_s, fetched_at AS trip_ts,
                stop_id, stop_sequence, arrival_time, NULL::BIGINT AS departure_time,
                header_ts, fetched_at,
                strftime(to_timestamp(fetched_at), '%Y-%m-%d') AS date,
@@ -390,6 +394,27 @@ def test_bronze_reduces_stop_row_tu_in_two_steps(bronze):
     p = only(fc)["properties"]
     assert p["next_stop_id"] == _stop("S2")
     assert p["pred_next_s"] == PRED_S
+
+
+def test_the_strtree_seam_covers_confirms_not_just_a_bbox_hit(tmp_path):
+    """`enrich_bronze` reuses `flood_panel.cell_index`/`cell_of` rather than re-deriving the
+    STRtree seam; this pins that the reuse still covers-confirms. An L-shaped Cell polygon
+    has a bounding box bigger than its own footprint - a point sitting in the notch is an
+    STRtree bbox CANDIDATE but not actually covered, and must resolve to nothing, not to the
+    Cell whose bbox happened to contain it."""
+    from raincheck import flood_panel
+
+    notch = shapely.Polygon([(0, 0), (2, 0), (2, 1), (1, 1), (1, 2), (0, 2)])
+    root = tmp_path / "root"
+    out = root / "ref" / "cells"
+    out.mkdir(parents=True)
+    t = pa.table({"cell": pa.array([CELL], pa.int64()),
+                  "geometry": pa.array([shapely.to_wkb(notch)], pa.binary())})
+    pq.write_table(t, out / "part.parquet")
+
+    index = flood_panel.cell_index(root)
+    assert flood_panel.cell_of(index, {"in": (0.5, 0.5)}) == {"in": CELL}       # covered
+    assert flood_panel.cell_of(index, {"out": (1.5, 1.5)}) == {}                # bbox-only hit
 
 
 def test_bronze_carries_cell_rain_and_trip_delay(bronze):
