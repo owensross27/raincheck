@@ -140,9 +140,11 @@ def test_the_page_keeps_both_stale_thresholds_and_only_setdata_on_a_clean_tick()
     # `public, max-age=300` on files/ did nothing and ~500 KB re-downloaded per repeat load.
     assert "cache: \"no-cache\"" in js
     assert "STALE: the pipeline is not writing" in js
-    # the delay wording is gated and never says "late"
+    # the delay wording is gated and never says "late". Scoped to live.js: frontend4 04's
+    # fleet tip (insight.js) reuses the same "MTA-reported trip delay" phrase for its own
+    # per-vehicle line (MUST 3), so a page-wide split would grab the wrong occurrence.
     assert "over 5 min (agency-computed, unvalidated)" in js
-    body = js.split("MTA-reported trip delay")[1]
+    body = module_js()["live.js"].split("MTA-reported trip delay")[1]
     assert " late" not in body.lower().split("function liveTick")[0]
 
 
@@ -1222,17 +1224,19 @@ def test_the_page_ships_a_favicon_as_a_site_key():
 
 
 # ============================== frontend4 02: hover labels on the point layers ============
-def test_the_four_point_layers_get_a_mousemove_click_and_mouseleave_tip_in_app_js_only():
-    """One mechanism (insight.pointTip), wired for `hist`, `subway`, `mta`, `fn` - the
-    layers that answered only to click (hist's own card) or not at all. Click is the touch
-    path, the cells tooltip's own pattern this ticket reuses. Wiring stays in app.js ONLY
-    (the ES-module-cycle rule test_only_the_boot_module_wires_the_dom_and_the_map already
-    enforces for insight.js as a whole); this test pins the four-layer COUNT so dropping one
-    layer from the loop cannot pass silently.
-    MUTATION KILLED: dropping one layer's mouseleave (or the whole loop) - three of the four
+def test_the_five_point_layers_get_a_mousemove_click_and_mouseleave_tip_in_app_js_only():
+    """One mechanism (insight.pointTip), wired for `hist`, `subway`, `mta`, `fn` and
+    (frontend4 04) `live` - the layers that answered only to click (hist's own card), not at
+    all (subway/mta/fn), or with no hover mechanism at all (live, before this ticket). Click
+    is the touch path, the cells tooltip's own pattern this ticket reuses. Wiring stays in
+    app.js ONLY (the ES-module-cycle rule test_only_the_boot_module_wires_the_dom_and_the_map
+    already enforces for insight.js as a whole); this test pins the exact five-layer LIST so
+    dropping one from the loop cannot pass silently.
+    MUTATION KILLED: dropping one layer's mouseleave (or the whole loop) - four of the five
     point layers would stay permanently mute or leave a stuck tip on the map."""
     boot = module_js()["app.js"]
     assert 'import { applyRamp, closeCard, loadRecent, locateEvent, pointTip,' in boot
+    assert 'for (const id of ["hist", "subway", "mta", "fn", "live"]) {' in boot
     # the whole trio, UNCONDITIONAL and contiguous - a per-layer guard around any one call
     # (e.g. `if (id !== "fn") map.on("mouseleave", ...)`) breaks this exact block
     assert ('  const tip = pointTip(id);\n'
@@ -1287,3 +1291,141 @@ def test_the_subway_tip_reads_rel_only_when_the_key_is_present():
     entry = js.split("subway: (p) => {", 1)[1].split("\n  },", 1)[0]
     assert '"rel" in p' in entry
     assert "lines.push(`rel ${fmt(p.rel, 2)}`)" in entry
+
+
+# ==================== frontend4 04: fleet hover + rain-conditioned coloring ================
+def test_the_rain_threshold_is_mirrored_from_live_export_rain_mm():
+    """The page's rain flag for the fleet join is the SAME constant bronze exports are
+    computed against - mirrored, never re-typed as an independent guess, and the expected
+    literal is DERIVED here from the python side so the two cannot drift apart silently
+    (the repo's standing rule: a page constant that mirrors a src/ constant pins the mirror
+    to itself). live.js owns it; insight.js's fleet tip imports the SAME binding rather than
+    a second copy, so there is exactly one RAIN_MM in the whole page.
+    MUTATION KILLED: hand-typing a different threshold in JS, or insight.js re-declaring its
+    own RAIN_MM instead of importing live.js's."""
+    from raincheck import live_export
+    js = page_js()
+    assert f"export const RAIN_MM = {live_export.RAIN_MM};" in js
+    assert js.count("RAIN_MM = ") == 1, "exactly one definition - everything else imports it"
+    assert 'import { RAIN_MM } from "./live.js";' in module_js()["insight.js"]
+
+
+def test_the_live_layers_boot_paint_is_the_impact_fills_case_pattern_absent_to_live_fresh():
+    """MUST 2: the `live` style layer's `circle-color` becomes impact-fill's own case
+    pattern - absent `ratio` (no rain, no cell, or the Cell publishes no band) stays the
+    MARK's own neutral, LIVE_FRESH, never fill-GREY (frontend2 03: an absent-value colour is
+    a property of the mark). RATIO_STOPS itself is untouched (see
+    test_the_frozen_ramps_are_byte_untouched_and_the_new_hues_sit_beside_them, :603, still
+    green - this ticket adds a consumer of it, never edits it).
+    MUTATION KILLED: painting absent ratio as GREY (the Cell-fill's neutral, a different
+    mark) or LIVE_STALE; giving the live layer its own ramp stops instead of RATIO_STOPS."""
+    js = page_js()
+    assert ('export const LIVE_COLOR = ["case", ["!", ["has", "ratio"]], LIVE_FRESH,\n'
+            '  ["interpolate", ["linear"], ["get", "ratio"], ...RATIO_STOPS.flat()]];') in js
+    block = js.split('{ id: "live", type: "circle"', 1)[1].split('{ id: "hist"', 1)[0]
+    assert '"circle-color": LIVE_COLOR,' in block
+    assert "GREY" not in block, "the point mark's neutral is LIVE_FRESH, not the fill's GREY"
+
+
+def test_stale_overrides_the_ramp_and_paints_flat_live_stale():
+    """Staleness wins over everything (ticket 14's rule, carried forward): the stale branch
+    is flat LIVE_STALE regardless of any attached ratio, and the fresh branch restores the
+    CASE EXPRESSION rather than flat LIVE_FRESH, so a Cell's band recolours the fleet the
+    instant the feed is trusted again.
+    MUTATION KILLED: the fresh branch painting flat LIVE_FRESH (silently dropping the ramp
+    forever after the first stale tick), or the stale branch keeping LIVE_COLOR (a dead
+    fleet still showing a live-looking ramp)."""
+    js = page_js()
+    body = js.split("function renderLive(m) {", 1)[1].split("\n}", 1)[0]
+    assert ('map.setPaintProperty("live", "circle-color", stale ? LIVE_STALE : LIVE_COLOR);'
+            in body)
+
+
+def test_the_fleet_join_attaches_a_band_only_when_cell_rain_and_a_published_band_all_hold():
+    """MUST 1: a client-side dict lookup at tick time, three independently-anchored legs -
+    `p.cell` present, `p.mm_1h >= RAIN_MM`, and the Cell's own `cellBands()` map actually
+    carrying an entry for it - attached BEFORE `setData`, never after (a post-setData
+    mutation would not reach the paint expression's `["has", "ratio"]` read on this render).
+    w2 (2023) is preferred over w1 (2021), the same preference order the panel's own view
+    switching uses; a Cell with neither is not in the map at all.
+    MUTATION KILLED: dropping any one leg (cell / rain / band) from the condition, attaching
+    after setData, or preferring w1 over w2."""
+    js = page_js()
+    bands = js.split("function cellBands() {", 1)[1].split("\n}", 1)[0]
+    assert 'typeof p.w2_ratio === "number" ? "w2"' in bands
+    assert ': typeof p.w1_ratio === "number" ? "w1" : null;' in bands
+    assert 'm.set(p.cell, { ratio: p[win + "_ratio"], lo: p[win + "_lo"], ' \
+           'hi: p[win + "_hi"], win });' in bands
+    tick = js.split("async function liveTick() {", 1)[1].split("\n\n/* ====", 1)[0]
+    assert 'if (p.cell && typeof p.mm_1h === "number" && p.mm_1h >= RAIN_MM) {' in tick
+    assert "const band = bands.get(p.cell);" in tick
+    assert "if (band) { Object.assign(p, band); anyRatio = true; }" in tick
+    assert tick.index("const bands = cellBands();") < tick.index(
+        'map.getSource("live").setData(fc);'), "attached before setData"
+    assert tick.index("for (const f of fc.features)") < tick.index(
+        'map.getSource("live").setData(fc);')
+
+
+def test_the_fleet_join_never_fetches_cells_geojson_a_second_time():
+    """MUST 1: the join is a client-side dict lookup over the cells FeatureCollection
+    insight.js already fetched (one fetch, one parse, frontend 05's own rule) - a named
+    getter (`cellFeatures()`) in the owning module, never a second `fetch(` of
+    cells.geojson anywhere on the page.
+    MUTATION KILLED: live.js issuing its own `fetch("files/cells.geojson", ...)` instead of
+    reading insight.js's getter."""
+    js = page_js()
+    assert 'fetch("files/cells.geojson"' not in js, "cells.geojson is fetched once"
+    assert 'import { bandCaveats, cellFeatures } from "./insight.js";' in module_js()["live.js"]
+    assert "export function cellFeatures() {" in module_js()["insight.js"]
+    assert "return cellsData ? cellsData.features : [];" in module_js()["insight.js"]
+
+
+def test_the_fleet_tip_renders_the_band_never_the_bare_point_ratio():
+    """MUST 3: the conditions line is the BAND - `lo`-`hi` on the window label - never the
+    point `ratio` alone; raining with no published band says so in words rather than
+    silence, and a dry/no-cell vehicle gets no conditions line at all. `route_id`,
+    `vehicle_id` and `next_stop_id` are GTFS-RT feed strings, escaped like every other
+    untrusted string on this page (frontend4 02's own discipline).
+    MUTATION KILLED: rendering `${p.ratio}` anywhere in the TIPS.live template, or dropping
+    the no-cell/not-raining branch so a dry vehicle prints a stray conditions line."""
+    js = page_js()
+    tips = js.split("export const TIPS = {", 1)[1].split("\n};", 1)[0]
+    entry = tips.split("live: (p) => {", 1)[1]
+    assert "if (typeof p.ratio === \"number\")" in entry
+    assert "wet-hour speed ${fmt(p.lo)}&ndash;${fmt(p.hi)}x dry same-hour" in entry
+    assert '${p.ratio}' not in tips, "no tip path renders the bare point ratio"
+    assert 'lines.push("no published band for this Cell");' in entry
+    assert "p.cell && typeof p.mm_1h === \"number\" && p.mm_1h >= RAIN_MM" in entry
+    # route_id/vehicle_id/next_stop_id are GTFS-RT feed strings - each reaches the tip
+    # through esc(), never a raw interpolation
+    assert "esc(p.route_id ? `Route ${p.route_id}` : p.vehicle_id)" in entry
+    assert "esc(p.vehicle_id)" in entry and "esc(p.next_stop_id)" in entry
+    assert '"late because' not in js.lower() and "delayed by rain" not in js.lower()
+
+
+def test_the_fleet_legend_renders_headlines_estimand_and_preview_note_never_restated():
+    """MUST 4: while any vehicle carries a band, the live layer's legend renders
+    headline.json's own citywide `estimand` (the window the attach itself preferred, w2 else
+    w1) and its `preview_note`, verbatim, through this module's existing note()/esc() path -
+    cells.geojson carries no strings of its own, and no page-authored copy stands in.
+    MUTATION KILLED: writing a page-authored caveat string instead of reading headline's, or
+    setting the legend unconditionally instead of gating it on anyRatio."""
+    js = page_js()
+    assert "export function bandCaveats() {" in module_js()["insight.js"]
+    assert 'head.rows.find(r => r.layer === "w2") || head.rows.find(r => r.layer === "w1")' \
+        in module_js()["insight.js"]
+    tick = js.split("async function liveTick() {", 1)[1].split("\n\n/* ====", 1)[0]
+    assert "const c = anyRatio ? bandCaveats() : null;" in tick
+    assert 'L("live").legend = c ? note(c.estimand) + note(c.preview_note) : "";' in tick
+
+
+def test_the_fleet_hover_wiring_lives_in_app_js_and_pointtip_only():
+    """Same rule as frontend4 02's mechanism (test_the_five_point_layers_...): `live` gets
+    no bespoke handler, it joins the same trio through the same `pointTip("live"→id)` loop,
+    so there is exactly one place any point layer's hover is wired.
+    MUTATION KILLED: a second, live-specific map.on registration anywhere outside the
+    shared loop (a second source of truth for how the fleet's hover behaves)."""
+    boot = module_js()["app.js"]
+    assert boot.count('map.on("mousemove", "live"') == 0, "live joins the shared loop, not a bespoke one"
+    assert boot.count('map.on("mousemove", id, tip)') == 1
+    assert '"live"' in boot.split('for (const id of [', 1)[1].split(']', 1)[0]

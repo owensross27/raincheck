@@ -44,6 +44,15 @@ export const GREY = "#3a4049";
 // live dots: bright while the pipeline is writing, dimmed the moment it is not (ticket 14)
 export const LIVE_FRESH = "#b0bec5", LIVE_STALE = "#5d666f";
 
+// frontend4 04: the fleet joins the delay fill's frozen ramp - impact-fill's own case
+// pattern (below), one vocabulary on a second mark. `ratio` is attached client-side, per
+// vehicle, only when it is raining in that vehicle's Cell and the Cell publishes a band
+// (live.js's liveTick); absent -> LIVE_FRESH, the mark's OWN neutral, never fill-GREY (an
+// absent-value colour is a property of the mark, frontend2 03's lesson). Shared by the
+// boot declaration and renderLive's fresh branch so the expression is written once.
+export const LIVE_COLOR = ["case", ["!", ["has", "ratio"]], LIVE_FRESH,
+  ["interpolate", ["linear"], ["get", "ratio"], ...RATIO_STOPS.flat()]];
+
 // frontend 02 D2: four new hues, none on either arm of the diverging ramp above, which is
 // left byte-untouched. A dry/stale FloodNet sensor is a HOLLOW RING rather than a fifth
 // grey - at 2.6 px a dry sensor, a dimmed vehicle and the "no publishable value" Cell fill
@@ -337,7 +346,7 @@ export const map = new maplibregl.Map({
         paint: { "circle-radius": 13, "circle-color": "rgba(0,0,0,0)",
                  "circle-stroke-color": "#8ecbff", "circle-stroke-width": 2 } },
       { id: "live", type: "circle", source: "live", layout: { visibility: "none" },
-        paint: { "circle-radius": 2.6, "circle-color": LIVE_FRESH, "circle-opacity": 0.9 } },
+        paint: { "circle-radius": 2.6, "circle-color": LIVE_COLOR, "circle-opacity": 0.9 } },
       // the radius ramp is sized on the manifest's own measured tail: n_events max is 73
       // (cell:882a1062d5fffff), so the top stop is real data, not a guess
       { id: "hist", type: "circle", source: "hist", layout: { visibility: "none" },
