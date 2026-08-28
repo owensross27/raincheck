@@ -98,7 +98,10 @@ the wave-12 gate's STEP 3b (single-writer rule), not a ticket.
 - **Fonts:** `prepare()` must also rewrite the NESTED `text-font` overrides inside
   `text-field` `format` expressions (they name `Noto Sans Devanagari Regular v1` etc.
   and survive the current top-level-only collapse at `basemap.js:74-76`) — walk the
-  layout object and replace every array-valued `text-font` with `["notosans"]`.
+  layout object and replace every array-valued `text-font`. CORRECTED at ticket 01
+  (measured via real console errors): inside a `format` expression tree the
+  replacement must be `["literal", ["notosans"]]` — a bare `["notosans"]` there is
+  parsed as an expression call and throws; the top level keeps the plain array.
 - **One more glyph range:** vendor `Noto Sans Regular/256-511.pbf` (Latin Extended-A —
   Kościuszko is U+015B) as `web/vendor/notosans-256-511.pbf` through `make vendor`'s
   download-to-`.new`/sha-verify/mv shape, with its own `_SHA` pin recorded from the real
