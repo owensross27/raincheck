@@ -223,8 +223,10 @@ def test_the_basemap_goes_above_bg_and_below_every_one_of_the_twelve():
     assert f'export const LABELS_BEFORE = "{SPEC_ORDER[7]}";' in base
     assert "map.addLayer(l, FIRST_DATA_LAYER);" in base, "the non-symbol splice"
     assert "map.addLayer(l, LABELS_BEFORE);" in base, "the symbol (label) splice"
-    # the partition predicate is anchored on the code, not on prose describing it
-    assert "l.type === \"symbol\"" in base or "l.type !== \"symbol\"" in base
+    # the partition predicate is anchored on the code, not on prose describing it - and on the
+    # exact FIELD each predicate feeds, so swapping which field gets which predicate is caught
+    assert 'fill: out.filter(l => l.type !== "symbol")' in base
+    assert 'symbol: out.filter(l => l.type === "symbol")' in base
     for name, js in mods.items():
         if name == "basemap.js":
             continue
