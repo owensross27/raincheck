@@ -56,10 +56,15 @@ def test_the_page_is_one_module_entry_with_no_build_step():
     bundle a module (its global disappears and the map never constructs), or tagging one of
     the page's own modules instead of importing it."""
     html = page_html()
-    assert '<script type="module" src="app.js"></script>' in html
+    # frontend5 03: the entry tag carries the cache-version pin (?v=<sha>); the pin's own
+    # coverage rule is test_the_cache_version_pin_covers_every_page_module below
+    assert re.search(r'<script type="module" src="app\.js\?v=[0-9a-f]{7,40}"></script>', html)
     assert html.count('type="module"') == 1, "exactly one entry for the page's own code"
     tags = re.findall(r'<script(?: type="(\w+)")? src="([^"]+)"></script>', html)
-    assert html.count("<script") == len(tags), "no inline script: no build step, no shim"
+    # the ONE srcless script allowed is the import map: declarative JSON (the version pin
+    # for app.js's own imports, frontend5 03), not code - no build step, no shim
+    assert html.count("<script") == len(tags) + html.count('<script type="importmap">')
+    assert html.count('<script type="importmap">') == 1
     assert [src for kind, src in tags if kind != "module"] == \
         ["vendor/maplibre-gl.js", "vendor/pmtiles.js"]
     for kind, src in tags:
@@ -70,6 +75,25 @@ def test_the_page_is_one_module_entry_with_no_build_step():
             assert f'src="{mod}"' not in html, f"{mod} is imported, never tagged"
     for js in module_js().values():                     # no bundler, no loader shim
         assert "require(" not in js and "module.exports" not in js
+
+
+def test_the_cache_version_pin_covers_every_page_module():
+    """frontend5 03: the edge caches every asset for a day but serves index.html DYNAMIC,
+    so the page's own css/js ride ONE ?v=<sha> pin - a deploy heals the moment the HTML
+    lands, no purge, no purge-capable token. The entry tag and the stylesheet carry the
+    pin directly; the import map is what carries it into app.js's module imports (a
+    relative import resolves without the query). The map is DERIVED-CHECKED against the
+    site family: a module it misses would be fetched unpinned and heal a day late.
+    MUTATION KILLED: adding a page module without a map row; bumping the entry tag's v but
+    not the map's or the stylesheet's; a map row pointing at a different version."""
+    import json
+    html = page_html()
+    v = re.search(r'src="app\.js\?v=([0-9a-f]{7,40})"', html).group(1)
+    assert f'href="app.css?v={v}"' in html, "the stylesheet rides the same pin"
+    imap = json.loads(re.search(r'<script type="importmap">\s*(\{.*?\})\s*</script>',
+                                html, re.S).group(1))
+    mods = [m for m in page_files() if m != "app.js"]
+    assert imap["imports"] == {f"/{m}": f"/{m}?v={v}" for m in mods}
 
 
 def test_only_the_boot_module_wires_the_dom_and_the_map():

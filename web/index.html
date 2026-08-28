@@ -6,10 +6,27 @@
 <title>raincheck - does rain slow the NYC buses, and where</title>
 <!-- vendored by `make vendor` into web/vendor/ (gitignored): no CDN at demo time, no build step -->
 <link href="vendor/maplibre-gl.css" rel="stylesheet">
-<link href="app.css" rel="stylesheet">
+<link href="app.css?v=ea1a23d" rel="stylesheet">
 <!-- frontend3 02: a `site` key, so it publishes with the page; the link is what stops the
      automatic /favicon.ico probe (a 404 whose Cloudflare body cost ~6.8 KB per load). -->
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
+<!-- frontend5 03: VERSIONED SCRIPT URLS (the RUN-LOG candidate, landed). The edge caches
+     every asset for a day but serves THIS file DYNAMIC, so pinning the page's own css/js
+     behind ?v= makes a deploy take effect the moment index.html lands - no cache purge,
+     no purge-capable token. The import map is what carries the pin into app.js's own
+     module imports (a relative import resolves without the query). BUMP `v` (git short
+     sha) whenever any site css/js changes; vendor files are pinned by `make vendor` and
+     stay unversioned. -->
+<script type="importmap">
+{ "imports": {
+  "/layers.js": "/layers.js?v=ea1a23d",
+  "/freshness.js": "/freshness.js?v=ea1a23d",
+  "/panel.js": "/panel.js?v=ea1a23d",
+  "/insight.js": "/insight.js?v=ea1a23d",
+  "/live.js": "/live.js?v=ea1a23d",
+  "/basemap.js": "/basemap.js?v=ea1a23d"
+} }
+</script>
 </head>
 <body data-mode="storms">
 <a class="skip" href="#insight">Skip to controls</a>
@@ -230,6 +247,6 @@
      resolves without an import map - measured at frontend2 02, not assumed. -->
 <script src="vendor/maplibre-gl.js"></script>
 <script src="vendor/pmtiles.js"></script>
-<script type="module" src="app.js"></script>
+<script type="module" src="app.js?v=ea1a23d"></script>
 </body>
 </html>
