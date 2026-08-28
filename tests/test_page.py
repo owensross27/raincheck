@@ -320,6 +320,9 @@ def test_nested_text_font_overrides_are_collapsed_too():
     base = module_js()["basemap.js"]
     assert "function collapseFonts(node)" in base
     assert 'k === "text-font" && Array.isArray(v) ? ["literal", [FONT]] : collapseFonts(v)' in base
+    # anchor on the CALL SITE too - a call site that bypasses collapseFonts (a top-level-only
+    # inline check, the original shape) would leave the function itself untouched and unread
+    assert "layer.layout = collapseFonts(layer.layout);" in base
     for name in ("Noto Sans Devanagari", "Noto Sans Medium", "Noto Sans Italic"):
         assert name not in base, "this file must never spell an un-vendored fontstack"
 
