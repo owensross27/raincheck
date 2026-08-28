@@ -87,3 +87,60 @@ branch `frontend4-01-basemap-streets`, own-module tests only, no pin commits, no
 suite. `make vendor` in the worktree to materialize vendor/ (gitignored). Commit with
 explicit paths, push the branch, append your RUN-LOG entry + forward-context per the
 generic ticket prompt.
+
+## Close-out — 2026-08-27
+
+Landed on `frontend4-01-basemap-streets`, final sha `c75709d1478899ebce24559f35d82cee025f3f8d`
+(3 commits: `7f50b00` the ticket, `c148ba1` + `c75709d` two mutation-round test fixes).
+`tests/test_page.py` 54 -> 57 `def test_`; `PYTHONPATH=src .venv/bin/python -m pytest -q
+tests/test_page.py tests/test_publish.py` -> `96 passed in 0.56s` (no env skips in either
+file — neither reads `RAINCHECK_ARCHIVE_ROOT`).
+
+**One correction to this ticket's own MUST 4 text, made in the same commit as the code**:
+"a recursive walk replacing every array-valued `text-font` member with `["notosans"]`" is
+not quite right. Measured in a real tab (console errors, not assumed): a `text-font`
+override nested inside a `text-field` `format` expression sits INSIDE an expression tree,
+where a bare array is parsed as an expression CALL (`["notosans"]` throws `Unknown
+expression "notosans"`), not as the literal-array shorthand only the top-level `layout`
+property accepts. The shipped replacement is `["literal", ["notosans"]]` everywhere
+(top-level and nested), which is valid in both positions. Screenshot evidence: the
+`before-z13`/`after-z13` pair below shows real place and street labels painting under the
+fixed version and would have shown a silently blank basemap image under the plain-array
+one (MapLibre drops the whole layer's addLayer call on a style-validation error, one per
+label layer, caught by the outer try/catch — which is why this did NOT throw into the boot
+handler, and would NOT have been caught by a text-only test that never executes the JS).
+
+Mutation round (commit-first, `PYTHONDONTWRITEBYTECODE=1`, snapshot from git via
+`git checkout -- web/basemap.js`, pristine control run before and after):
+
+| # | Mutant | Result |
+|---|---|---|
+| 1 | Drop the symbol splice's `beforeId` (`map.addLayer(l, LABELS_BEFORE)` -> `map.addLayer(l)`) | KILLED by `test_the_basemap_goes_above_bg_and_below_every_one_of_the_twelve` |
+| 2 | Swap the partition predicate (fill gets `=== "symbol"`, symbol gets `!== "symbol"`) | Survived the FIRST version of the test (both literal predicates still appear in the file, just on the wrong field) — the test was strengthened in `c148ba1` to anchor on the exact `field: out.filter(...)` pairing; re-run KILLED |
+| 3 | Revert the `roads_labels_minor` minzoom override | KILLED by `test_roads_labels_minor_shows_at_the_extracts_own_maxzoom` |
+| 4 | Skip the nested-font walk (revert `prepare()`'s call site to the old top-level-only inline check) | Survived the FIRST version of the test (it only checked `collapseFonts`'s own definition text, never its call site) — strengthened in `c75709d` to also assert the call-site literal; re-run KILLED |
+
+Every mutant restored via `git checkout -- web/basemap.js`; `git status --porcelain` empty
+before and after each round; the two survivors are recorded above rather than silently
+re-run once — the failing-then-fixed test is part of the record, not erased.
+
+**Screenshots** (`research/frontend4-01-{before,after}-z{11,13}.png`, headless Chrome via
+the standing swiftshader/CDP recipe, cold `--user-data-dir` per capture,
+`Emulation.setDeviceMetricsOverride` 1280x900, real 3s settle wait after `load`, zoom
+driven by a temporary edit to `layers.js`'s hardcoded boot zoom rather than
+`Runtime.evaluate` on the map object — `map` is module-scoped and not exposed on
+`window`, and editing the one hardcoded literal is the smaller diff): `before` is
+master's `web/basemap.js` (single splice, top-level-only font collapse, no OVERRIDES),
+`after` is this ticket's. At z11 the outer-borough minor-street grid is visibly denser in
+`after` (roads_minor's hairline now starts at z10.5 instead of z11.5). At z13 `before` and
+`after` both show major-road and place labels (unaffected — D1's calibrated styling), but
+`before` was captured from the UNMUTATED master code, so it never hit the nested-font
+throw the ticket text's plain-array suggestion would have caused, which is why the
+correction above matters for ANY future edit to `collapseFonts`, not just this one.
+`web/tiles/nyc.pmtiles` copied from the main checkout for the capture (the OLD
+`c5b08d90…` build, per protocol — fine for a screenshot).
+
+**Forward-context**: none owed beyond the MUST 4 wording correction above (made in this
+same file, this same commit) — F1's spec.md paragraph on nested fonts carries the same
+"`["notosans"]`" phrasing and should get the same correction at the gate or by whoever
+next edits that file, since spec.md is not this ticket's to touch mid-flight per protocol.
