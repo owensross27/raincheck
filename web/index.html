@@ -100,6 +100,11 @@
         <p class="note">rain: MRMS RadarOnly QPE 01H, uncalibrated, hour-ending,
            <span id="rainstate">no live tick yet</span></p>
         <div id="src-live" class="srcs"></div>
+        <!-- frontend4 04: the fleet's ramp caveats (headline.json's estimand/preview_note,
+             rendered while any vehicle carries a band) - the same lyr.legend mechanism
+             every other layer's row emits inline, wired here because #live is the one
+             STATIC row (see the comment above) and renderLayers() fills it explicitly. -->
+        <div id="live-legend"></div>
       </div>
     </div>
   </div>

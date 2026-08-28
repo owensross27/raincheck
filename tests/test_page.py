@@ -1417,6 +1417,13 @@ def test_the_fleet_legend_renders_headlines_estimand_and_preview_note_never_rest
     tick = js.split("async function liveTick() {", 1)[1].split("\n\n/* ====", 1)[0]
     assert "const c = anyRatio ? bandCaveats() : null;" in tick
     assert 'L("live").legend = c ? note(c.estimand) + note(c.preview_note) : "";' in tick
+    # the live row is the ONE static row (panel.js's own documented exception) - setting
+    # `lyr.legend` alone would be inert without this render, unlike every other layer
+    # whose rowHTML() emits `lyr.legend` inline automatically
+    assert 'id="live-legend"' in page_html()
+    render = module_js()["panel.js"].split(
+        "export function renderLayers() {", 1)[1].split("\n}", 1)[0]
+    assert '$("live-legend").innerHTML = live.legend || "";' in render
 
 
 def test_the_fleet_hover_wiring_lives_in_app_js_and_pointtip_only():
