@@ -20,13 +20,15 @@
  *     and the page falls back to the flat `bg` rectangle it has always had. Nothing here
  *     may throw into the `load` handler: a basemap is the least important thing on this
  *     page and it must never be able to stop the delay Cells from painting.
- *  3. ITS LAYERS SIT ABOVE `bg` AND BELOW ALL TWELVE DATA LAYERS. Every one is inserted
- *     with `beforeId` = the first data layer, so the twelve keep their frozen relative
- *     order (frontend 02 D3) and the whole basemap lands in the one gap between the
- *     background and the ground. This is the single sanctioned use of addLayer() on this
- *     page - a lazily added layer with NO beforeId lands on top, which is what rule 1 of
- *     layers.js forbids, and the frozen-order test is re-derived to assert the invariant
- *     rather than a longer literal.
+ *  3. ITS LAYERS SIT ABOVE `bg` AND BELOW ALL TWELVE DATA LAYERS - IN TWO SPLICES (frontend4
+ *     01). Non-symbol layers (fills, lines) insert before the first data layer, so the
+ *     twelve keep their frozen relative order (frontend 02 D3) and the whole basemap lands
+ *     in the one gap between the background and the ground. Symbol layers (place and street
+ *     labels) insert before a SECOND, higher point: above every fill/line and below every
+ *     point layer, so a name is never painted over by a dot. Both insertion points are the
+ *     single sanctioned use of addLayer() on this page - a lazily added layer with NO
+ *     beforeId lands on top, which is what rule 1 of layers.js forbids - and the
+ *     frozen-order test is re-derived to assert the invariant rather than a longer literal.
  *  4. IT RECEDES. The vendored theme is the official Protomaps DARK flavour, taken
  *     unmodified except structurally: its own `background` is dropped (the page has `bg`),
  *     `pois` is dropped (its icons need a sprite, which would be a fourth vendored asset
@@ -56,25 +58,101 @@ export const STYLE = "vendor/basemap-dark.json";
 export const FONT = "notosans";
 
 const SRC = "basemap";
-// the first of the twelve. Everything here is inserted BEFORE it, so all of it is above
-// `bg` (the only layer below this one) and below every data layer.
+// the first of the twelve. Every non-symbol basemap layer is inserted BEFORE it, so all of
+// it is above `bg` (the only layer below this one) and below every data layer.
 const FIRST_DATA_LAYER = "zones-fill";
+// SPEC_ORDER[7]: the second splice point. Every symbol (label) basemap layer is inserted
+// BEFORE it instead, so labels sit above every fill/line (cells, impact, geography band,
+// zone lines) and below every point layer (locate, live, hist, fn, mta) - the dots keep
+// top billing over the ground they sit on.
+export const LABELS_BEFORE = "locate";
 // its icons need a sprite; the sprite would be a fourth vendored asset for POI dots that
 // would fight the tier points. Dropped, not disabled, so nothing requests the sprite.
 const DROP = new Set(["pois"]);
 
+// Density: interpolation-stop overrides for the minor/service/other/link road layers (+
+// their casings), keyed by style layer id. The width curve IS the zoom gate on this style -
+// most road layers have no minzoom of their own - so "denser sooner" means moving the curve's
+// own stops earlier, tuned against real screenshots rather than by eye-reading the vendored
+// JSON. Casing `line-gap-width` always mirrors its fill's `line-width`: that is what makes
+// the casing read as a border rather than a second, wider line. Untouched: highway/major/
+// rail curves, colors, and every layer this table does not name.
+const OVERRIDES = {
+  roads_minor: {
+    "line-width": ["interpolate", ["exponential", 1.6], ["zoom"], 10.5, 0, 12, 0.5, 15, 2, 18, 11],
+  },
+  roads_minor_casing: {
+    "line-width": ["interpolate", ["exponential", 1.6], ["zoom"], 10.5, 0, 12, 1],
+    "line-gap-width": ["interpolate", ["exponential", 1.6], ["zoom"], 10.5, 0, 12, 0.5, 15, 2, 18, 11],
+  },
+  roads_minor_service: {
+    minzoom: 12,
+    "line-width": ["interpolate", ["exponential", 1.6], ["zoom"], 12, 0, 18, 8],
+  },
+  roads_minor_service_casing: {
+    minzoom: 12,
+    "line-width": ["interpolate", ["exponential", 1.6], ["zoom"], 12, 0, 12.5, 0.8],
+    "line-gap-width": ["interpolate", ["exponential", 1.6], ["zoom"], 12, 0, 18, 8],
+  },
+  roads_other: {
+    "line-width": ["interpolate", ["exponential", 1.6], ["zoom"], 13, 0, 20, 7],
+  },
+  roads_link: {
+    "line-width": ["interpolate", ["exponential", 1.6], ["zoom"], 10.5, 0, 12, 1, 18, 11],
+  },
+  roads_link_casing: {
+    minzoom: 10.5,
+    "line-width": ["interpolate", ["exponential", 1.6], ["zoom"], 10.5, 0, 12, 1.5],
+    "line-gap-width": ["interpolate", ["exponential", 1.6], ["zoom"], 10.5, 0, 12, 1, 18, 11],
+  },
+};
+
 let added = [];
 
-/** Style layers -> our source, our one fontstack, the theme's own background dropped. */
+/** Recursively replace every array-valued `text-font` member with our one fontstack -
+ *  including the ones nested inside a `text-field` `format` expression's override objects,
+ *  which the top-level-only collapse this replaced could not see. Wrapped in `"literal"`
+ *  rather than the bare-array shorthand: a `format` override sits INSIDE an expression
+ *  tree, where a bare array is parsed as an expression call (`["notosans"]` throws
+ *  "Unknown expression \"notosans\""), and `["literal", [...]]` is the one form valid in
+ *  both that position and the plain layout property. */
+function collapseFonts(node) {
+  if (Array.isArray(node)) return node.map(collapseFonts);
+  if (node && typeof node === "object") {
+    const out = {};
+    for (const [k, v] of Object.entries(node))
+      out[k] = k === "text-font" && Array.isArray(v) ? ["literal", [FONT]] : collapseFonts(v);
+    return out;
+  }
+  return node;
+}
+
+/** Patch a layer's minzoom/paint per OVERRIDES, leaving every layer OVERRIDES does not name
+ *  byte-identical apart from the source/font rewrite every layer gets. */
+function applyOverride(l) {
+  const ov = OVERRIDES[l.id];
+  if (!ov) return l;
+  const out = { ...l, paint: { ...l.paint } };
+  if ("minzoom" in ov) out.minzoom = ov.minzoom;
+  if (ov["line-width"]) out.paint["line-width"] = ov["line-width"];
+  if (ov["line-gap-width"]) out.paint["line-gap-width"] = ov["line-gap-width"];
+  return out;
+}
+
+/** Style layers -> our source, our one fontstack (collapsed everywhere it is nested), the
+ *  density overrides, the minor-labels minzoom drop, the theme's own background dropped -
+ *  then partitioned into the two splices (symbol labels, everything else). */
 export function prepare(styleLayers) {
-  return styleLayers
+  const out = styleLayers
     .filter(l => l.type !== "background" && !DROP.has(l.id))
     .map(l => {
-      const out = { ...l, source: SRC };
-      if (out.layout && out.layout["text-font"])
-        out.layout = { ...out.layout, "text-font": [FONT] };
-      return out;
+      let layer = { ...l, source: SRC };
+      if (layer.layout) layer.layout = collapseFonts(layer.layout);
+      // the extract is maxzoom 13; 15 was overzoom-only, so minor street names never showed
+      if (layer.id === "roads_labels_minor") layer.minzoom = 13;
+      return applyOverride(layer);
     });
+  return { fill: out.filter(l => l.type !== "symbol"), symbol: out.filter(l => l.type === "symbol") };
 }
 
 /** Undo a partial insert, so a failure leaves the page on `bg` rather than half-painted. */
@@ -99,8 +177,13 @@ export async function drawBasemap(ok) {
     const style = await res.json();
     maplibregl.addProtocol("pmtiles", new pmtiles.Protocol().tile);
     map.addSource(SRC, { type: "vector", url: "pmtiles://" + TILES });
-    for (const l of prepare(style.layers)) {
+    const { fill, symbol } = prepare(style.layers);
+    for (const l of fill) {
       map.addLayer(l, FIRST_DATA_LAYER);
+      added.push(l.id);
+    }
+    for (const l of symbol) {
+      map.addLayer(l, LABELS_BEFORE);
       added.push(l.id);
     }
     lyr.map = [...added];

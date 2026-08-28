@@ -277,7 +277,10 @@ FAMILIES: dict[str, Family] = {
                # third script tag); `basemap-dark.json` is the STYLE, vendored so no third
                # host is in the demo path; the glyph range is what lets a label exist.
                "vendor/pmtiles.js", "vendor/basemap-dark.json",
-               "vendor/notosans-0-255.pbf"),
+               "vendor/notosans-0-255.pbf",
+               # frontend4 01: a second range for the same fontstack, for street names at
+               # street zooms. Additive under contract.PROMISE[1]: no bump.
+               "vendor/notosans-256-511.pbf"),
         cache=RARE_CACHE),
     "tiles": Family(
         # frontend2 02. The basemap is ONE object, served by RANGE REQUEST and by no

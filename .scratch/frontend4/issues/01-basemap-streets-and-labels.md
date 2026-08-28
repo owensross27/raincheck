@@ -1,6 +1,6 @@
 # frontend4 01 — basemap streets + labels: the two-splice, density overrides, one glyph range
 
-Status: ready-for-agent
+Status: done
 Spec: `.scratch/frontend4/spec.md` (F1). Charter: `.scratch/frontend4/charter.md`.
 Blocked by: none.
 Files: `web/basemap.js`, `Makefile`, `docs/read-api-contract.md`, `src/raincheck/publish.py`,

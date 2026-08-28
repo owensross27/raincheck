@@ -32,7 +32,7 @@ payload and republish a stale one.
 
 | family | keys | cadence | Cache-Control | notes |
 |---|---|---|---|---|
-| `site` | `index.html`, `favicon.svg`, `layers.js`, `freshness.js`, `panel.js`, `insight.js`, `live.js`, `basemap.js`, `app.js`, `app.css`, `vendor/maplibre-gl.js`, `vendor/maplibre-gl.css`, `vendor/pmtiles.js`, `vendor/basemap-dark.json`, `vendor/notosans-0-255.pbf` | deploy-time | `public, max-age=86400` | the page itself — seven ES modules, `app.js` the entry, no build step; every vendored asset is version- and sha256-pinned by `make vendor`; `favicon.svg` added by frontend3 02 (additive, no contract bump) |
+| `site` | `index.html`, `favicon.svg`, `layers.js`, `freshness.js`, `panel.js`, `insight.js`, `live.js`, `basemap.js`, `app.js`, `app.css`, `vendor/maplibre-gl.js`, `vendor/maplibre-gl.css`, `vendor/pmtiles.js`, `vendor/basemap-dark.json`, `vendor/notosans-0-255.pbf`, `vendor/notosans-256-511.pbf` | deploy-time | `public, max-age=86400` | the page itself — seven ES modules, `app.js` the entry, no build step; every vendored asset is version- and sha256-pinned by `make vendor`; `favicon.svg` added by frontend3 02 (additive, no contract bump); `vendor/notosans-256-511.pbf` added by frontend4 01, a second glyph range for street names (additive, no contract bump) |
 | `tiles` | `tiles/nyc.pmtiles` | deploy-time | `public, max-age=86400` | the basemap, ONE object read by range request — see below |
 | `insight` | `files/cells.geojson`, `files/headline.json`, `files/zones.geojson`, `files/index.json` | per build | `public, max-age=300` | all four or none |
 | `live` | `files/live.geojson`, `files/meta.json` | 30 s | `no-cache` | **GATED, dark** — see below |
