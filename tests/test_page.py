@@ -1233,11 +1233,13 @@ def test_the_four_point_layers_get_a_mousemove_click_and_mouseleave_tip_in_app_j
     point layers would stay permanently mute or leave a stuck tip on the map."""
     boot = module_js()["app.js"]
     assert 'import { applyRamp, closeCard, loadRecent, locateEvent, pointTip,' in boot
-    loop = boot.split('for (const id of ["hist", "subway", "mta", "fn"]) {', 1)[1] \
-               .split("\n}", 1)[0]
-    assert 'map.on("mousemove", id, tip)' in loop
-    assert 'map.on("click", id, tip)' in loop
-    assert 'map.on("mouseleave", id,' in loop
+    # the whole trio, UNCONDITIONAL and contiguous - a per-layer guard around any one call
+    # (e.g. `if (id !== "fn") map.on("mouseleave", ...)`) breaks this exact block
+    assert ('  const tip = pointTip(id);\n'
+            '  map.on("mousemove", id, tip);\n'
+            '  map.on("click", id, tip);\n'
+            '  map.on("mouseleave", id, () => { $("tip").style.display = "none"; });\n'
+            '}') in boot
     # hist's own click -> showCard registration follows the loop, so a hist tap's final
     # state is the card open and the tip hidden, never a stale tip stacked on the card
     assert boot.index('for (const id of ["hist"') < boot.index('map.on("click", "hist"')
