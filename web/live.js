@@ -316,8 +316,12 @@ export function drawImpactSub(d) {
     .filter(([, c]) => typeof c.lon === "number" && typeof c.lat === "number")
     .map(([id, c]) => ({
       type: "Feature", geometry: { type: "Point", coordinates: [c.lon, c.lat] },
+      // hour_end_utc rides on EVERY feature (frontend5 03): the tooltip renders from
+      // feature properties alone, and an impact mark whose hover does not date itself
+      // reads as "now" - which this payload, with no scheduled republish, rarely is.
       properties: { complex_id: id, name: c.name, cell: c.cell, planned: c.planned,
                     dropped: c.dropped, runs: c.runs, drop_share: c.drop_share,
+                    hour_end_utc: d.hour_end_utc,
                     ...("rel" in c ? { rel: c.rel } : {}) },
     }));
   map.getSource("subway").setData({ type: "FeatureCollection", features: feats });

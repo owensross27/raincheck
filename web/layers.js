@@ -249,9 +249,12 @@ export const LAYERS = [
   // in one legend would be lying about their grain). 4200 = flood_overlay.SUBWAY_BUDGET_S
   // (the hour + archiver.WINDOW), derived in the test like the bus budget above.
   { id: "subway", point: true, name: "Impact overlay: subway", gate: "mta-vehicles", fill: false,
-    sub: "This hour's dropped subway service - stations well above the citywide median " +
-         "stand out; normal service fades to a trace.",
-    open: true, map: ["subway"], owed: null,
+    sub: "Dropped subway service in the payload's newest hour - stations well above the " +
+         "citywide median stand out; normal service fades to a trace.",
+    // frontend5 03 (Ross, 2026-08-28, "turn off the impact overlay"): back to opt-in.
+    // Nothing republishes the impact family on a schedule, so its newest hour is
+    // routinely many hours stale - an overlay that is usually STALE cannot be a default.
+    open: false, map: ["subway"], owed: null,
     srcs: [{ k: "files/impact-subway.json", url: "files/impact-subway.json", budget: 4200 }],
     draw: ([d]) => drawImpactSub(d) },
 

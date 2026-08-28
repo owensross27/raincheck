@@ -620,14 +620,16 @@ def test_toggling_a_layer_restores_focus_the_way_the_hour_buttons_do():
 def test_the_map_opens_on_geography_alone_and_points_stay_off_small():
     """frontend4 05 (Ross's call, 2026-08-27) opened the map on the basemap ALONE - the
     taxi-zone boundaries gone from the default view, the Cell fill's radio OFF, everything
-    else opt-in. frontend5 01 (Ross live, 2026-08-27, "turn those things back on") re-opens
-    exactly two of that "everything else": `subway` and `mta` boot `open: true` again on
-    desktop, while `zones` and `cells` STAY closed (that earlier call stands, untouched).
-    The small-screen rule is the reason it can be exactly two and not four: it reads
-    `l.point` and both re-opened layers carry `point: true`, so `on[l.id]` still computes
-    to OFF on a phone with zero edits to the rule itself.
+    else opt-in. frontend5 01 (Ross live, 2026-08-27, "turn those things back on") re-opened
+    `subway` and `mta`; frontend5 03 (Ross, 2026-08-28, "turn off the impact overlay")
+    closed `subway` again - nothing republishes the impact family on a schedule, so its
+    newest hour is routinely many hours stale, and a usually-STALE overlay cannot be a
+    default. `mta` (the flood-alert tier, not an impact overlay) stays open, and `zones`
+    and `cells` STAY closed (the earlier calls stand, untouched). The small-screen rule
+    reads `l.point` and mta carries `point: true`, so `on.mta` still computes to OFF on a
+    phone with zero edits to the rule itself.
     MUTATION KILLED: a later slice defaulting a point layer, the zones, or a fill on;
-    dropping subway or mta from the reopened set; or opening zones/cells again."""
+    reopening subway; dropping mta; or opening zones/cells again."""
     js = page_js()
     assert 'window.matchMedia("(max-width: 900px)").matches' in js
     assert "LAYERS.forEach(l => { on[l.id] = l.open && !(SMALL && l.point); });" in js
@@ -635,11 +637,12 @@ def test_the_map_opens_on_geography_alone_and_points_stay_off_small():
     points = {lid for lid, e in entries.items() if "point: true" in e}
     assert points == {"live", "fn", "mta", "hist", "subway"}
     opens = {lid for lid, e in entries.items() if "open: true" in e}
-    assert opens == {"basemap", "subway", "mta"}, (
+    assert opens == {"basemap", "mta"}, (
         "frontend4 05 (2026-08-27) opened the ground alone; frontend5 01 (2026-08-27) "
-        "reopened subway and mta - zones and the fill stay opt-in, Ross's call both times")
-    assert opens & points == {"subway", "mta"}, (
-        "the two reopened layers are both point layers, so SMALL still forces them off")
+        "reopened subway and mta; frontend5 03 (2026-08-28) closed subway again - "
+        "Ross's call each time")
+    assert opens & points == {"mta"}, (
+        "the one reopened layer is a point layer, so SMALL still forces it off")
     assert "basemap" not in points, (
         "the basemap is GROUND, not a point layer: a phone that opens on a black rectangle "
         "is worse than one that opens on geography, and it costs no legibility to keep")
@@ -1378,7 +1381,13 @@ def test_the_subway_tip_reads_rel_only_when_the_key_is_present():
     js = page_js()
     entry = js.split("subway: (p) => {", 1)[1].split("\n  },", 1)[0]
     assert '"rel" in p' in entry
-    assert "lines.push(`rel ${fmt(p.rel, 2)}`)" in entry
+    # frontend5 03 reworded the tip into plain words; the guard is the rule, the wording
+    # is not - but the ABSENT side must still say something rather than silently skip
+    assert "the citywide median" in entry
+    assert "too little planned service" in entry
+    # and the no-attribution line is load-bearing: a mark on a rain map that does not
+    # name its cause as unknown implies the rain did it
+    assert "does not" in entry and "attribute" in entry
 
 
 # ==================== frontend4 04: fleet hover + rain-conditioned coloring ================

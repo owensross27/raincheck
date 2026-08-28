@@ -270,13 +270,21 @@ export const TIPS = {
     <br>${p.n_events} flood event(s)`,
   // `rel` rides only when the payload carried it (absent below min_planned, not zero) -
   // the same conditional live.js's own feature-rebuild uses (`"rel" in c`).
+  // frontend5 03: plain words, self-dated, cause stated as UNKNOWN. "8 dropped · 27
+  // planned · rel 3.2" answered none of a reader's questions - what happened, when, and
+  // was it the weather. The last line is load-bearing: this feed cannot attribute a
+  // dropped stop to weather, trackwork or an incident, and a mark on a rain map that
+  // does not say so IMPLIES the rain did it.
   subway: (p) => {
     const lines = [];
-    if (p.dropped !== undefined) lines.push(`${p.dropped} dropped`);
-    if (p.planned !== undefined) lines.push(`${p.planned} planned`);
-    if (p.drop_share !== undefined) lines.push(`drop share ${fmt(p.drop_share, 3)}`);
-    if ("rel" in p) lines.push(`rel ${fmt(p.rel, 2)}`);
-    return `<b>${esc(p.name)}</b><br>complex · ${esc(p.complex_id)}<br>${lines.join(" · ")}`;
+    if (p.dropped !== undefined && p.planned !== undefined)
+      lines.push(`${p.dropped} of ${p.planned} planned stops dropped`);
+    if ("rel" in p) lines.push(`${fmt(p.rel, 1)}&times; the citywide median that hour`);
+    else lines.push("too little planned service that hour to compare");
+    if (p.hour_end_utc !== undefined) lines.push(`hour ending ${esc(p.hour_end_utc)}`);
+    lines.push(`any cause &mdash; trackwork, incidents or weather; this page does not
+      attribute drops to rain`);
+    return `<b>${esc(p.name)}</b><br>complex · ${esc(p.complex_id)}<br>${lines.join("<br>")}`;
   },
   mta: (p) => `<b>${esc(p.name)}</b><br>${esc(p.complex_id)}
     <br>${esc(p.state)} · ${Math.round(p.age_min)} min`,
