@@ -1,6 +1,6 @@
 # frontend4 04 — fleet hover + rain-conditioned coloring on the frozen ramp
 
-Status: ready-for-agent
+Status: done
 Spec: `.scratch/frontend4/spec.md` (F3b). Charter: `.scratch/frontend4/charter.md`.
 Blocked by: 02 (the `TIPS` mechanism — BRANCH FROM `frontend4-02-hover-point-layers`),
 03 (the bronze contract — its completion entry must be in RUN-LOG before you claim
@@ -96,3 +96,65 @@ Worktree at `/Users/ross/raincheck-wt/frontend4-04`, branch
 gate lands 02 then 04, in order — your commits only on top). Own-module tests only,
 never the full suite, no pin commits. Commit explicit paths, push, RUN-LOG entry +
 forward-context.
+
+## Close-out (2026-08-28)
+
+Landed as specified: `insight.js` exposes `cellFeatures()` (a named getter over the
+FeatureCollection `drawCells()` already stored — no second fetch) and `bandCaveats()`
+(headline.json's citywide `estimand` for the preferred window plus `preview_note`).
+`live.js` owns `export const RAIN_MM = 1.0` (mirrored from `live_export.RAIN_MM`,
+derived in the test) and a `cellBands()` helper (`cell -> {ratio, lo, hi, win}`, w2
+preferred over w1). `liveTick` attaches `ratio`/`lo`/`hi`/`win` per feature BEFORE
+`setData` only when `p.cell` is present AND `p.mm_1h >= RAIN_MM` AND `cellBands()` has
+an entry for that cell; it also sets the legend (`anyRatio ? bandCaveats() : null`).
+`layers.js` gained `LIVE_COLOR` (the impact-fill case pattern, `RATIO_STOPS`/`GREY`/
+`LIVE_FRESH`/`LIVE_STALE` byte-untouched) shared by the boot declaration and
+`renderLive`'s fresh branch; the stale branch stays flat `LIVE_STALE`.
+`insight.js`'s `TIPS.live` renders `Route {route_id}` (vehicle_id fallback), the
+agency's own next-stop prediction, the agency-reported trip delay, and — only when
+`ratio` was attached — the BAND (`{lo}–{hi}x dry same-hour ({win})`), never the bare
+point ratio; raining with no band says so; dry/no-cell renders nothing. `app.js` adds
+`"live"` to 02's shared `pointTip` wiring loop — no bespoke handler.
+
+**DEVIATION, disclosed**: MUST 4 (the legend) required touching two files outside the
+ticket's named list — `web/index.html` (one new `<div id="live-legend">` beside
+`#src-live`) and `web/panel.js` (one new `$("live-legend").innerHTML = live.legend ||
+"";` in `renderLayers()`'s live-specific block). Reason: the `#live` row is the ONE
+STATIC row in `index.html` (panel.js's own documented exception — `rowHTML()`'s generic
+`(lyr.legend || "")` emission never runs for it), so setting `L("live").legend` alone
+was inert — computed every tick, never shown. Caught before commit by actually loading
+the page rather than trusting the source-level test alone.
+
+Mutation round (commit first, `PYTHONDONTWRITEBYTECODE=1`, pristine control before/after,
+`git status --porcelain` empty after every restore): drop the cell leg — KILLED; drop the
+rain leg — KILLED; drop the band leg (attach a fallback band when none published) —
+KILLED; flip w2-else-w1 to w1-else-w2 — KILLED; point-number the band line — KILLED;
+stale branch keeps the ramp — KILLED; a second `cells.geojson` fetch introduced in
+`live.js` — KILLED (by two tests); legend set unconditionally instead of gated on
+`anyRatio` — KILLED. All eight killed on the first pass; none needed a fixture/test fix.
+
+The one-ramp test (`test_page.py:660`, now `test_one_ramp_on_screen_is_a_paint_rule_and_not_a_promise`)
+pins the FILL-CHANNEL RULE (`LAYERS.some(l => l.fill && on[l.id])`), not a literal ramp
+count — the `live` layer's `fill: false` never contests it, and no re-derivation was
+needed.
+
+**Evidence, real headless browser** (Chrome 152, swiftshader flags, CDP capture, cold
+profile, `setDeviceMetricsOverride`, `--remote-allow-origins=*`): re-ran
+`live_export --source bronze --once` from the frontend4-03 branch against the real root
+into this worktree's `web/files` (`n_vehicles: 2221`, `n_in_rain_cells: 52`); served with
+`raincheck.webserve`; loaded the page and ticked the Live fleet toggle. Dynamic
+`import('/layers.js')` against the running page (no source edits) confirmed **51 of
+2221** live features carried an attached band (`ratio`/`lo`/`hi`/`win`, e.g.
+`{ratio: 1.138, lo: 0.995, hi: 1.281, win: "w1"}` on `MTA NYCT_1688`/SIM2), and that the
+CURRENT applied `circle-color` paint property was byte-identical to the exported
+`LIVE_COLOR` case expression (the fresh/ramp branch, not the flat stale override) —
+i.e. real colored dots, not neutral, on tonight's rain. Hovering that vehicle rendered:
+`Route SIM2 / MTA NYCT_1688 / next stop 250066 in 68 s (the agency's own prediction) /
+MTA-reported trip delay 134 s / wet-hour speed 0.99–1.28x dry same-hour (w1)` — the BAND,
+never a bare point ratio. Screenshot committed: `research/frontend4-04-fleet.png`
+(showing this tip open over the colored fleet). A separate earlier capture (taken with
+an older, since-restaled export) also showed the `#live-legend` caveats rendering
+verbatim (`bus-seconds-weighted citywide mean over wet Cell-hours...`), confirming MUST
+4's fix works, but was not committed (superseded by the fresh capture above).
+
+Forward-context: nothing else discovered that changes another ticket's contract.
