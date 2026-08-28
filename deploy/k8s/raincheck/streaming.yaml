@@ -115,6 +115,14 @@ spec:
               value: raincheck-kafka-bootstrap.kafka.svc:9092
             - name: RAINCHECK_ARCHIVE_ROOT
               value: /data
+            # ponytail: FRESH standing, remove when live/ moves to R2. The resume rail
+            # (live/_progress.json) lives on the emptyDir and dies with the pod, so a
+            # replacement pod can never date the checkpoint and the resume guard would
+            # crash-loop it (the wave-10 "structural" loop, decoded 2026-08-28). Every
+            # start therefore discards checkpoints and begins at latest; the gap's rows
+            # are in Bronze, which is the record.
+            - name: FRESH
+              value: "1"
             - name: RAINCHECK_SPARK_MASTER
               value: local[2]
             # MEASURED (cloud 03, 2026-08-24): pod RSS is driver heap + ~0.93 GiB, and a
