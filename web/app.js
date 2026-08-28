@@ -170,12 +170,15 @@ addEventListener("keydown", (e) => { if (e.key === "Escape") closeCard(); });
 // setPaintProperty / setLayoutProperty below still throws "Style is not done loading".
 map.on("load", async () => {
   markStyled();
-  for (const lyr of LAYERS) if (on[lyr.id] && lyr.draw) await load(lyr.id);
-  applyVisibility();
-  // frontend5 03: the page boots INTO the default mode - Storm replay lights the Cell
-  // fill, which is the page's whole answer; "nothing loads until you tick it" still
-  // governs every layer outside the mode's set.
+  // frontend5 03: the MODE runs FIRST - it settles which layers are on before anything
+  // fetches, so a layer that boots `open: true` but sits outside the default mode's set
+  // (subway, mta, on a host whose gate is open) is turned off BEFORE its payload is
+  // fetched and drawn - no wasted fetch, no flash of dots that then vanish. toggle()
+  // loads whatever the mode turns on; the loop below loads the rest (the basemap).
   await setMode(document.body.dataset.mode || "storms");
+  for (const lyr of LAYERS)
+    if (on[lyr.id] && lyr.draw && !MODE_MANAGED.includes(lyr.id)) await load(lyr.id);
+  applyVisibility();
   applyRamp();
   renderLayers();
 });

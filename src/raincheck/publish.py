@@ -357,7 +357,13 @@ def plan(name: str, src: Path | None = None) -> list[Item]:
                 f"refused: {p} is not a publishable web payload ({p.suffix or 'no suffix'}). "
                 "The public host serves the map and its derived files - no bulk download "
                 "and no protobuf endpoint (spec sec.9).")
-    return [Item(p, fam.prefix + str(p.relative_to(root)), fam.cache, content_type(p))
+    # An .html is an ENTRY DOCUMENT and always revalidates (frontend5 03): the site's
+    # css/js ride ?v= pins that only heal instantly if the HTML naming them is never
+    # browser-stale - a day-cached index.html serves yesterday's pins for a day, which is
+    # the browser-side twin of the edge-purge problem the pins retired. `no-cache` still
+    # permits conditional reuse: a 304 costs no body.
+    return [Item(p, fam.prefix + str(p.relative_to(root)),
+                 NO_CACHE if p.suffix == ".html" else fam.cache, content_type(p))
             for p in paths]
 
 

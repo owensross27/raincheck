@@ -193,9 +193,17 @@ def test_the_bucket_name_matches_the_serve_service_accounts_annotation():
 
 def test_the_live_pair_is_no_cache_and_the_vendored_page_is_not(web, gate_open):
     """A cached live.geojson is a frozen city served under a fresh-looking page - the T14
-    failure with a CDN in front of it. The page and its pinned MapLibre can sit for a day."""
+    failure with a CDN in front of it. The pinned css/js and MapLibre can sit for a day,
+    but the HTML naming their ?v= pins ALWAYS revalidates (frontend5 03): a day-cached
+    index.html serves yesterday's pins for a day, the browser-side twin of the edge-purge
+    problem the pins retired.
+    MUTATION KILLED: dropping the .html override (index.html publishes day-cached again);
+    widening it past .html (the pinned assets lose their day and every load refetches)."""
     assert {i.cache for i in publish.plan("live", web / "files")} == {"no-cache"}
-    assert {i.cache for i in publish.plan("site", web)} == {publish.RARE_CACHE}
+    site = {i.key: i.cache for i in publish.plan("site", web)}
+    assert site["index.html"] == publish.NO_CACHE
+    assert set(site.values()) == {publish.NO_CACHE, publish.RARE_CACHE}
+    assert [k for k, c in site.items() if c == publish.NO_CACHE] == ["index.html"]
     assert {i.cache for i in publish.plan("insight", web / "files")} == {publish.BUILD_CACHE}
 
 
