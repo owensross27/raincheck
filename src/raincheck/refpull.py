@@ -48,9 +48,14 @@ def tables(f, bucket: str) -> list[str]:
 
 
 def pull(root, bucket: str, want: list[str] | None = None) -> int:
-    """Mirror s3://<bucket>/ref/<table> into <root>/ref/<table>. Idempotent: a table
-    already present locally is left alone (a long-lived pod restarting its container must
-    not re-download), and what was skipped is printed rather than assumed."""
+    """Mirror s3://<bucket>/ref/<table> into <root>/ref/<table>, one object at a time.
+    Never a recursive directory get: fsspec versions disagree on what that copies IN
+    to (measured live - the image's version nests <table>/<table>/, the Mac's does
+    not), so this enumerates the table's objects and gets each by name instead. ref
+    tables are flat single-level; a nested key fails loudly rather than guessing a
+    layout. Idempotent: a table already present locally is left alone (a long-lived
+    pod restarting its container must not re-download), and what was skipped is
+    printed rather than assumed."""
     root = as_root(root)
     if remote(root):
         print(f"refpull: root is already object storage ({root}) - ref/ is at {root}/ref, "
@@ -66,7 +71,16 @@ def pull(root, bucket: str, want: list[str] | None = None) -> int:
         if out.is_dir() and any(out.iterdir()):
             had.append(name)
             continue
-        f.get(f"{bucket}/ref/{name}", f"{out}/", recursive=True)
+        out.mkdir(parents=True, exist_ok=True)
+        prefix = f"{bucket}/ref/{name}/"
+        for key in f.find(f"{bucket}/ref/{name}"):
+            rel = key[len(prefix):] if key.startswith(prefix) else key
+            if "/" in rel:
+                raise ValueError(
+                    f"refpull: {name!r} has a nested key {key!r} - ref tables are flat, "
+                    "refusing to guess a layout"
+                )
+            f.get(key, str(out / rel))
         got.append(name)
     print(f"refpull: {len(got)} table(s) pulled into {dest} ({', '.join(got) or '-'}); "
           f"{len(had)} already present ({', '.join(had) or '-'}); "
