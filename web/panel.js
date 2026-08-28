@@ -13,11 +13,21 @@
  * re-emits `hidden`/`aria-expanded` from it, and the delegated click in app.js (every
  * listener lives there) flips it through toggleDet(). The live row's chevron is STATIC
  * markup in index.html; renderLayers() syncs its detail from the same Set.
+ *
+ * frontend5 01 MUST 2: the ground diet. GROUND_IDS collapse behind ONE more native
+ * <details> (groundHTML() below) - a second use of the disclosure platform primitive the
+ * analyst summary already uses, never a second interaction pattern. Its open state rides
+ * the SAME openDet Set as the row chevrons, keyed "ground": a rebuild that reset it to
+ * closed would both surprise a reader who just opened it AND break the rebuild-restores-
+ * focus rule below for any control inside it (a closed <details> hides its content from
+ * focus). app.js syncs openDet from the native `toggle` event; this module only reads it.
  */
 import { $, L, LAYERS, map, on, shut, styled } from "./layers.js";
 import { fmtAge, forget, load, srcState, worst } from "./freshness.js";
 
 const chipHTML = (state) => `<span class="st st-${state}">${state}</span>`;
+
+export const GROUND_IDS = ["basemap", "zones", "stormwater", "routes"];
 
 // which rows' details are open, keyed by layer id - survives every innerHTML rebuild
 export const openDet = new Set();
@@ -80,6 +90,18 @@ export function rowHTML(lyr) {
     ${on[lyr.id] ? optsHTML(lyr) + (lyr.legend || "") : ""}</div>`;
 }
 
+/* frontend5 01 MUST 2: the four ground rows behind one native <details>, default CLOSED
+ * (openDet does not carry "ground" until the reader opens it). The summary states how many
+ * of the four are lit rather than naming them, so a reader can tell at a glance whether
+ * anything in the collapsed group is actually on. */
+function groundHTML() {
+  const lit = GROUND_IDS.filter(id => on[id]).length;
+  return `<details id="ground-layers" ${openDet.has("ground") ? "open" : ""}>
+    <summary>Ground layers (${lit}/${GROUND_IDS.length} on)</summary>
+    ${GROUND_IDS.map(id => rowHTML(L(id))).join("")}
+  </details>`;
+}
+
 /* Rebuilding the rows destroys the control the reader just activated and focus falls to
  * <body> - a keyboard user would tab through the map and every other row again on each
  * toggle. This is the same restore the hour buttons use in setHour() below, and it is the
@@ -88,8 +110,8 @@ export function renderLayers() {
   const a = document.activeElement;
   const keep = a && a.dataset ? a.dataset.l : undefined;
   $("layers-fill").innerHTML = LAYERS.filter(l => l.fill).map(rowHTML).join("") + noFillHTML();
-  $("layers-pts").innerHTML =
-    LAYERS.filter(l => !l.fill && !l.toggle).map(rowHTML).join("");
+  $("layers-pts").innerHTML = groundHTML() +
+    LAYERS.filter(l => !l.fill && !l.toggle && !GROUND_IDS.includes(l.id)).map(rowHTML).join("");
   // the live fleet's row is STATIC markup in index.html: it owns the 30 s interval, its
   // own readout and #livetoggle. Only its freshness rows, its chip, its ramp caveats
   // (frontend4 04's lyr.legend, set by live.js's liveTick) and its detail's open state

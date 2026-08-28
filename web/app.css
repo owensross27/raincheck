@@ -51,13 +51,29 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
 #card-h:focus { outline: none; }
 #card-id { overflow-wrap: anywhere; }
 
+/* frontend5 01 MUST 3: a card that opens off-screen or into a busy column is easy to miss
+   entirely, so a click that opens it gets a brief flash - background only, so nothing
+   reflows and no layout moves. insight.js's showCard() adds/removes the class per open (a
+   second click while the card is already open re-triggers it); h.focus() and
+   scrollIntoView() stay the mechanism that actually MOVES the reader's attention, this is
+   only the "look here" cue for a sighted reader whose focus is already elsewhere. */
+@keyframes card-flash { from { background: rgba(142, 203, 255, .3); } to { background: transparent; } }
+#card.flash { animation: card-flash 600ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  #card.flash { animation: none; }
+}
+
 /* frontend3 02: the credit strip - fixed at the viewport bottom at EVERY width (the OSMF
    map-adjacent credit on a phone), one line at 1280, wrapping below 900px. Never
    nowrap/ellipsis: clipping the ODbL sentence would collapse the credit the strip exists
-   to keep visible. Everything else the old slab held is in the #info dialog. */
+   to keep visible. Everything else the old slab held is in the #info dialog.
+   frontend5 01 MUST 5: tighter padding and a smaller font shrink it further - every pinned
+   licence string stays, in full, the same always-mounted element; only the chrome around
+   them shrinks. --prov is read off the strip's own MEASURED offsetHeight (app.js), so a
+   smaller strip narrows the columns' own clearance with no arithmetic to touch. */
 #provenance { position: fixed; z-index: 3; bottom: 0; left: 0; right: 0; margin: 0;
-  border-radius: 0; border-width: 1px 0 0; padding: 4px 12px; font-size: 12px;
-  display: flex; flex-wrap: wrap; align-items: center; gap: 2px 14px; }
+  border-radius: 0; border-width: 1px 0 0; padding: 2px 10px; font-size: 11px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 1px 12px; }
 #provenance p { margin: 0; }
 #geo-attribution:empty { display: none; }
 #info-btn { margin-left: auto; min-width: 44px; min-height: 44px; background: #171b21;
@@ -152,6 +168,17 @@ code { font-size: 12px; color: var(--dim); }
 .st-GATED { color: #d2a24c; }          /* dark, not absent - the one hue for a shut gate */
 .st-AGE   { color: #7f93ad; }          /* age known, no budget frozen -> no verdict */
 .lyr input:focus-visible { outline: 2px solid #8ecbff; outline-offset: 2px; }
+
+/* frontend5 01 MUST 2: the ground rows' own disclosure - the same native <details>/
+   <summary> treatment #analyst already uses below, a second use of the platform primitive
+   rather than a second interaction pattern. Default CLOSED (no `open` unless the reader's
+   own click put it there); the rows inside keep the ordinary .lyr styling untouched. */
+#ground-layers { border-top: 1px solid var(--line); padding-top: 4px; margin-bottom: 2px; }
+#ground-layers summary { cursor: pointer; color: var(--dim); font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .06em; min-height: 44px; display: flex;
+  align-items: center; }
+#ground-layers summary:hover { color: var(--ink); }
+#ground-layers summary:focus-visible { outline: 2px solid #8ecbff; outline-offset: 2px; }
 
 /* the NavigationControl's stated home: clear of the right card and the credit strip -
    the default bottom-right corner is covered twice at 1280 (spec sec. 2.1). */

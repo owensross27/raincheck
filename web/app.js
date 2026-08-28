@@ -37,7 +37,7 @@
  */
 import { $, LAYERS, map, markStyled, on } from "./layers.js";
 import { load } from "./freshness.js";
-import { applyVisibility, renderLayers, toggle, toggleDet } from "./panel.js";
+import { applyVisibility, openDet, renderLayers, toggle, toggleDet } from "./panel.js";
 import { applyRamp, closeCard, loadRecent, locateEvent, pointTip, setHour, setScenario, setView,
          showCard, showTip } from "./insight.js";
 import { toggleLive } from "./live.js";
@@ -73,6 +73,18 @@ $("layers").addEventListener("click", e => {
   const b = e.target.closest ? e.target.closest("#layers [data-det]") : null;
   if (b) toggleDet(b.dataset.det);
 });
+
+// frontend5 01 MUST 2: the ground group's own open state, remembered the same way the row
+// chevrons are - the browser toggles the native <details> itself (no click handler needed
+// for that half), this only SYNCS openDet so the next rebuild renders it the way the
+// reader left it. Capture, not bubble: the element is destroyed and recreated on every
+// renderLayers() call, so only delegation from a container that survives the rebuild can
+// ever see this event, and capture catches it on the way down regardless of whether
+// "toggle" bubbles in a given engine.
+$("layers").addEventListener("toggle", e => {
+  if (e.target.id !== "ground-layers") return;
+  if (e.target.open) openDet.add("ground"); else openDet.delete("ground");
+}, true);
 
 // the info dialog (frontend3 02): a native <dialog> - focus trap, Esc and ::backdrop come
 // from the platform - and NOT a second <details>: the analyst disclosure stays the page's
