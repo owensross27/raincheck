@@ -249,7 +249,8 @@ export const LAYERS = [
   // in one legend would be lying about their grain). 4200 = flood_overlay.SUBWAY_BUDGET_S
   // (the hour + archiver.WINDOW), derived in the test like the bus budget above.
   { id: "subway", point: true, name: "Impact overlay: subway", gate: "mta-vehicles", fill: false,
-    sub: "This hour's dropped subway service, by station complex.",
+    sub: "This hour's dropped subway service - stations well above the citywide median " +
+         "stand out; normal service fades to a trace.",
     open: true, map: ["subway"], owed: null,
     srcs: [{ k: "files/impact-subway.json", url: "files/impact-subway.json", budget: 4200 }],
     draw: ([d]) => drawImpactSub(d) },
@@ -391,7 +392,18 @@ export const map = new maplibregl.Map({
                  "circle-radius": ["case", ["has", "rel"],
                    ["interpolate", ["linear"], ["get", "rel"], 1, 3.5, REL_CLAMP, 9], 3],
                  "circle-stroke-color": SUBWAY, "circle-stroke-width": 1.2,
-                 "circle-opacity": 0.85 } },
+                 // frontend5 03: ONLY THE TAIL READS (the payload's own caveat, verbatim in
+                 // its strings). `rel` exists for every complex every hour - the citywide-
+                 // median complex is rel 1.0, i.e. NORMAL service - so a flat opacity lit
+                 // the whole system and read as "impact at literally every stop". The
+                 // opacity now follows rel: the median fades to a trace and only complexes
+                 // dropping service several times the citywide median stand out. A display
+                 // rule, not a filter - every dot is still there, still hoverable.
+                 "circle-opacity": ["case", ["has", "rel"],
+                   ["interpolate", ["linear"], ["get", "rel"], 1, 0.06, 2, 0.3, REL_CLAMP, 0.92], 0],
+                 "circle-stroke-opacity": ["case", ["has", "rel"],
+                   ["interpolate", ["linear"], ["get", "rel"], 1, 0.1, 2, 0.4, REL_CLAMP, 1],
+                   0.35] } },
       // an "affected station" is a dot on the COMPLEX (frontend 02 D4): the flood_truth chip
       // is per-incident and spans one or more complexes, so the chip is what the card shows
       // frontend5 01 MUST 4: bumped a step. Its own contrast stroke (1.5) already extends

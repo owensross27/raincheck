@@ -106,11 +106,14 @@ $("hours").addEventListener("input", e => {
  * toggle()/toggleLive() every checkbox uses, so gates, freshness rows and the one-ramp
  * rule all apply unchanged. The drawer keeps the full per-layer controls reachable. */
 // storms: the delay answer. history: everything flood-record (the MTA flood tier included).
-// live: the fleet and this hour's impact overlays. A gated member stays dark - toggle()
-// refuses shut layers - and its drawer row explains why, exactly as before.
+// live: the fleet ONLY. The impact overlays are deliberately NOT in the live set: nothing
+// republishes the impact family on a schedule yet, so their newest hour can be half a day
+// old - and a stale hour painted under a "Live now" button is exactly the lie "nothing can
+// look live when it is not" exists to prevent. They stay in the drawer, chips honest,
+// opt-in. Put them back here the day the impact tick publishes hourly.
 const MODE_SET = { storms: ["cells"],
                    history: ["hist", "fn", "stormwater", "mta"],
-                   live: ["impact", "subway"] };
+                   live: [] };
 const MODE_MANAGED = [...new Set(Object.values(MODE_SET).flat())];
 async function setMode(m) {
   document.body.dataset.mode = m;
