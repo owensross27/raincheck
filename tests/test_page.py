@@ -381,7 +381,8 @@ def test_two_cell_fills_can_never_be_held_at_once():
             "on[o.id] = false;") in body
     lit = [lid for lid, e in layer_entries(js).items()
            if "fill: true" in e and "open: true" in e]
-    assert lit == ["cells"], "exactly one fill option opens lit"
+    assert lit == [], (
+        "no fill opens lit - the radio boots OFF (Ross's call, frontend4 05, 2026-08-27)")
 
 
 # ------------------------------------------------------- the five states, and their order
@@ -592,12 +593,13 @@ def test_toggling_a_layer_restores_focus_the_way_the_hour_buttons_do():
     assert '$("layers").addEventListener("change"' in js
 
 
-def test_a_small_screen_opens_with_the_fill_on_and_every_point_layer_off():
-    """frontend 02 D7: the 60vh map strip carries about two layers legibly at 375 px. The
-    panel set itself does NOT collapse - it was measured at 375 px and nothing overlaps.
-    MUTATION KILLED: a later slice defaulting a point layer on (the rule reads `l.point`,
-    so a new point layer is covered without touching this code), or dropping the rule and
-    opening seven layers on a phone."""
+def test_the_map_opens_on_geography_alone_and_points_stay_off_small():
+    """frontend4 05 (Ross's call, 2026-08-27): the map boots on the basemap ALONE - the
+    taxi-zone boundaries are gone from the default view and the Cell fill's radio boots
+    OFF, on phones and desktop both; everything else is opt-in. The small-screen rule
+    stays: the 60vh map strip carries about two layers legibly at 375 px, and the rule
+    reads `l.point`, so a new point layer is covered without touching this code.
+    MUTATION KILLED: a later slice defaulting a point layer, the zones, or a fill on."""
     js = page_js()
     assert 'window.matchMedia("(max-width: 900px)").matches' in js
     assert "LAYERS.forEach(l => { on[l.id] = l.open && !(SMALL && l.point); });" in js
@@ -605,7 +607,7 @@ def test_a_small_screen_opens_with_the_fill_on_and_every_point_layer_off():
     points = {lid for lid, e in entries.items() if "point: true" in e}
     assert points == {"live", "fn", "mta", "hist", "subway"}
     opens = {lid for lid, e in entries.items() if "open: true" in e}
-    assert opens == {"basemap", "zones", "cells"}, "the ground, the basemap and the fill"
+    assert opens == {"basemap"}, "the ground alone: zones and the fill are opt-in now"
     assert "basemap" not in points, (
         "the basemap is GROUND, not a point layer: a phone that opens on a black rectangle "
         "is worse than one that opens on geography, and it costs no legibility to keep")
@@ -1378,6 +1380,24 @@ def test_the_fleet_join_never_fetches_cells_geojson_a_second_time():
     assert 'import { bandCaveats, cellFeatures } from "./insight.js";' in module_js()["live.js"]
     assert "export function cellFeatures() {" in module_js()["insight.js"]
     assert "return cellsData ? cellsData.features : [];" in module_js()["insight.js"]
+
+
+def test_turning_the_fleet_on_loads_the_cells_payload_without_lighting_the_fill():
+    """frontend4 05: with the Cell fill off by default (Ross's call) nothing else loads
+    cells.geojson, and the fleet's band join would silently depend on the reader lighting
+    the fill. So toggleLive's lit branch loads the cells payload DATA-ONLY through the
+    same load() path the fill's own tick uses (still one fetch mechanism, no second
+    `fetch(` site), guarded so it never runs when the fill is on or the data is already
+    here, and a failed load leaves the fleet neutral - visibility stays the radio's
+    (`load` never touches `on` or layout).
+    MUTATION KILLED: dropping the bridge (a default-off page whose fleet can never
+    color), dropping either guard, or promoting the load to a visibility change."""
+    live = module_js()["live.js"]
+    body = live.split("export function toggleLive(lit)", 1)[1].split("\n}", 1)[0]
+    assert ('if (!on.cells && cellFeatures().length === 0) '
+            'load("cells").then(liveTick, () => {});') in body, (
+        "the guarded data-only cells load, rejection swallowed to a neutral fleet")
+    assert 'import { ages, forget, grab, load, whys } from "./freshness.js";' in live
 
 
 def test_the_fleet_tip_renders_the_band_never_the_bare_point_ratio():
