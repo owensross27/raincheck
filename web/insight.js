@@ -582,7 +582,18 @@ export async function showCard(p) {
   h.textContent = p.name || p.asset_id;
   $("card-id").textContent = `${p.kind} · ${p.asset_id}`;
   $("card-body").innerHTML = `<p class="note">fetching this asset&rsquo;s record&hellip;</p>`;
-  $("card").hidden = false;
+  const card = $("card");
+  card.hidden = false;
+  // MUST 3: an opened card must be unmissable. The flash (app.css's @keyframes, guarded by
+  // prefers-reduced-motion there) is the "look here" cue; scrollIntoView is what actually
+  // brings it on screen in a short right column; h.focus() stays the a11y half - none of
+  // the three moves anything else in the layout. classList.remove + a forced reflow before
+  // re-adding the class is what lets a SECOND click, while the card is already open,
+  // re-trigger the same animation instead of a no-op class toggle.
+  card.classList.remove("flash");
+  void card.offsetWidth;
+  card.classList.add("flash");
+  card.scrollIntoView({ block: "nearest" });
   h.focus();
   // the id VERBATIM in the URL: flat tree, no shards, no encoding (charset measured over
   // the whole registry: [A-Za-z0-9:._-], every character legal in a path segment)

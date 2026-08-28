@@ -90,6 +90,15 @@ export const ROUTE_PLAIN = "#5b6572";     // a route line carrying geometry and 
 export const SUBWAY = "#e07ba0";   // a complex's dropped-service share vs the citywide median
 export const REL_CLAMP = 4;
 
+// frontend5 01 MUST 4, rung 2: hist is the one interactive point layer with NO
+// circle-stroke-width at all, so a transparent stroke this wide is a pure hit-target
+// affordance - MapLibre's CircleStyleLayer sums circle-radius + circle-stroke-width for
+// its click hit test (queryRadius AND queryIntersectsFeature both, read from the vendored
+// bundle), so this widens what a click can land on without moving a single visible pixel.
+// Measured before shipping, not assumed (a real CDP click past the visible disc, still on
+// the marker): see docs/adr or the ticket close-out for the number.
+export const HIST_HIT_STROKE = 4;
+
 // The category -> hue mapping, as ONE expression both the paint and the legend read, so a
 // swatch cannot show a colour the map does not use. An unrecognised category falls to the
 // mask neutral rather than to a depth tone: a tone would CLAIM a depth for something this
@@ -219,7 +228,7 @@ export const LAYERS = [
   // frozen anywhere in the repo (flood 15's budgets_s carries the six FEED budgets, none
   // for this file), so this row renders an AGE and judges nothing - the chip states inside
   // the payload carry their own per-incident verdicts. frontend 02 D6: never a guessed one.
-  { id: "mta", point: true, name: "Flood tier: MTA alerts", gate: "mta-alerts", fill: false, open: false,
+  { id: "mta", point: true, name: "Flood tier: MTA alerts", gate: "mta-alerts", fill: false, open: true,
     sub: "Stations where the MTA has reported water on the tracks.",
     map: ["mta"], owed: null,
     srcs: [{ k: "files/flood-mta.json", url: "files/flood-mta.json", budget: null }],
@@ -241,7 +250,7 @@ export const LAYERS = [
   // (the hour + archiver.WINDOW), derived in the test like the bus budget above.
   { id: "subway", point: true, name: "Impact overlay: subway", gate: "mta-vehicles", fill: false,
     sub: "This hour's dropped subway service, by station complex.",
-    open: false, map: ["subway"], owed: null,
+    open: true, map: ["subway"], owed: null,
     srcs: [{ k: "files/impact-subway.json", url: "files/impact-subway.json", budget: 4200 }],
     draw: ([d]) => drawImpactSub(d) },
 
@@ -348,16 +357,29 @@ export const map = new maplibregl.Map({
       { id: "live", type: "circle", source: "live", layout: { visibility: "none" },
         paint: { "circle-radius": 2.6, "circle-color": LIVE_COLOR, "circle-opacity": 0.9 } },
       // the radius ramp is sized on the manifest's own measured tail: n_events max is 73
-      // (cell:882a1062d5fffff), so the top stop is real data, not a guess
+      // (cell:882a1062d5fffff), so the top stop is real data, not a guess. frontend5 01
+      // MUST 4: the minimum stop was 1.6 - most of the 8,146 markers sit near it, and it
+      // is the only one of the four interactive point layers with NO circle-stroke-width
+      // at all, so it is also the one whose hit test the rung-1 bump alone cannot fix (see
+      // HIST_HIT_STROKE below). Bumped a step, measured against the other three below.
       { id: "hist", type: "circle", source: "hist", layout: { visibility: "none" },
         paint: { "circle-color": HIST, "circle-opacity": 0.5,
           "circle-radius": ["interpolate", ["linear"], ["get", "n_events"],
-                            1, 1.6, 12, 4.6, 73, 8] } },
+                            1, 2.6, 12, 4.6, 73, 8],
+          // MapLibre's CircleStyleLayer sums circle-radius + circle-stroke-width for BOTH
+          // its candidate query padding and its exact queryIntersectsFeature test (read
+          // from the vendored 5.9.0 bundle, and confirmed by a real CDP click test - a
+          // dispatched click that misses the visible disc still opens the card). Zero
+          // alpha, so no pixel changes: the affordance is a hit target only.
+          "circle-stroke-width": HIST_HIT_STROKE, "circle-stroke-color": "rgba(0,0,0,0)" } },
       // the hollow ring: a sensor reporting water is a filled aqua disc, a dry or stale one
-      // is a STROKE with no fill, so "sensor present, no water" reads as a different MARK
+      // is a STROKE with no fill, so "sensor present, no water" reads as a different MARK.
+      // frontend5 01 MUST 4: both radii bumped a step; the stroke it already carries for
+      // the dry-ring mark already extends its hit test (queryRadius sums radius+stroke),
+      // so fn needs no separate invisible affordance the way hist does.
       { id: "fn", type: "circle", source: "fn", layout: { visibility: "none" },
         paint: { "circle-color": ["case", ["get", "display"], WATER, "rgba(0,0,0,0)"],
-                 "circle-radius": ["case", ["get", "display"], 6, 3.4],
+                 "circle-radius": ["case", ["get", "display"], 7, 4.4],
                  "circle-stroke-color": ["case", ["get", "display"], "#0b0d10", WATER],
                  "circle-stroke-width": 1.2 } },
       // flood 17's subway overlay: `rel` drives the SIZE, clamped at REL_CLAMP (an
@@ -372,8 +394,10 @@ export const map = new maplibregl.Map({
                  "circle-opacity": 0.85 } },
       // an "affected station" is a dot on the COMPLEX (frontend 02 D4): the flood_truth chip
       // is per-incident and spans one or more complexes, so the chip is what the card shows
+      // frontend5 01 MUST 4: bumped a step. Its own contrast stroke (1.5) already extends
+      // the hit test the way fn's dry-ring stroke does, so no separate affordance needed.
       { id: "mta", type: "circle", source: "mta", layout: { visibility: "none" },
-        paint: { "circle-color": ALERT, "circle-radius": 7, "circle-opacity": 0.92,
+        paint: { "circle-color": ALERT, "circle-radius": 8, "circle-opacity": 0.92,
                  "circle-stroke-color": "#0b0d10", "circle-stroke-width": 1.5 } },
     ],
   },

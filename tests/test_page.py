@@ -594,12 +594,16 @@ def test_toggling_a_layer_restores_focus_the_way_the_hour_buttons_do():
 
 
 def test_the_map_opens_on_geography_alone_and_points_stay_off_small():
-    """frontend4 05 (Ross's call, 2026-08-27): the map boots on the basemap ALONE - the
-    taxi-zone boundaries are gone from the default view and the Cell fill's radio boots
-    OFF, on phones and desktop both; everything else is opt-in. The small-screen rule
-    stays: the 60vh map strip carries about two layers legibly at 375 px, and the rule
-    reads `l.point`, so a new point layer is covered without touching this code.
-    MUTATION KILLED: a later slice defaulting a point layer, the zones, or a fill on."""
+    """frontend4 05 (Ross's call, 2026-08-27) opened the map on the basemap ALONE - the
+    taxi-zone boundaries gone from the default view, the Cell fill's radio OFF, everything
+    else opt-in. frontend5 01 (Ross live, 2026-08-27, "turn those things back on") re-opens
+    exactly two of that "everything else": `subway` and `mta` boot `open: true` again on
+    desktop, while `zones` and `cells` STAY closed (that earlier call stands, untouched).
+    The small-screen rule is the reason it can be exactly two and not four: it reads
+    `l.point` and both re-opened layers carry `point: true`, so `on[l.id]` still computes
+    to OFF on a phone with zero edits to the rule itself.
+    MUTATION KILLED: a later slice defaulting a point layer, the zones, or a fill on;
+    dropping subway or mta from the reopened set; or opening zones/cells again."""
     js = page_js()
     assert 'window.matchMedia("(max-width: 900px)").matches' in js
     assert "LAYERS.forEach(l => { on[l.id] = l.open && !(SMALL && l.point); });" in js
@@ -607,7 +611,11 @@ def test_the_map_opens_on_geography_alone_and_points_stay_off_small():
     points = {lid for lid, e in entries.items() if "point: true" in e}
     assert points == {"live", "fn", "mta", "hist", "subway"}
     opens = {lid for lid, e in entries.items() if "open: true" in e}
-    assert opens == {"basemap"}, "the ground alone: zones and the fill are opt-in now"
+    assert opens == {"basemap", "subway", "mta"}, (
+        "frontend4 05 (2026-08-27) opened the ground alone; frontend5 01 (2026-08-27) "
+        "reopened subway and mta - zones and the fill stay opt-in, Ross's call both times")
+    assert opens & points == {"subway", "mta"}, (
+        "the two reopened layers are both point layers, so SMALL still forces them off")
     assert "basemap" not in points, (
         "the basemap is GROUND, not a point layer: a phone that opens on a black rectangle "
         "is worse than one that opens on geography, and it costs no legibility to keep")
@@ -717,7 +725,11 @@ def test_the_page_wires_the_layer_panel_ids():
             assert f'"{el}"' in js, el
     # the live fleet's row IS the Live panel: one control, never two for one layer
     assert 'toggle: "livetoggle"' in js
-    assert 'LAYERS.filter(l => !l.fill && !l.toggle).map(rowHTML)' in js
+    # frontend5 01: GROUND_IDS is now carved out of the flat non-fill list (groundHTML()
+    # renders them instead, see test_the_ground_rows_collapse... below) - the exclusion is
+    # part of the same rowHTML pass, not a second render mechanism
+    assert ('LAYERS.filter(l => !l.fill && !l.toggle && !GROUND_IDS.includes(l.id))'
+            '.map(rowHTML)') in js
 
 
 # ==================================== frontend2 03: the geography layers ==================
@@ -1042,12 +1054,23 @@ def test_everything_analyst_grade_sits_behind_one_closed_real_details_disclosure
     div-with-a-click-handler pretending. Everything inside kept its id, so no render call
     changed. The frozen honesty string is NOT in here: it renders in the fn layer's own
     row (flood 15's strings, read from the payload) and stays visible in both views.
+
+    frontend5 01 adds a SECOND native <details> (the ground-layers group, MUST 2) but it
+    changes nothing here: that one is built entirely by panel.js's groundHTML() template
+    string and never appears in index.html's own markup, so `html.count("<details")` still
+    counts the page's one STATIC disclosure - distinguished from the ground group by WHERE
+    it lives (static HTML vs. a JS render), not by an accident of string matching. The
+    explicit id checks below are what make that honest rather than incidental: this test
+    would still fail if the ground group's markup ever moved into index.html without also
+    picking a name other than "analyst".
     MUTATION KILLED: shipping the disclosure open (the analyst view becomes the default,
-    reversing D7); moving one of the seven surfaces back out; a second <details> (the
-    decision is ONE disclosure); or replacing <details> with a styled div, which loses
+    reversing D7); moving one of the seven surfaces back out; a second STATIC <details> (the
+    decision is ONE static disclosure); or replacing <details> with a styled div, which loses
     the platform's keyboard and screen-reader semantics."""
     html = page_html()
-    assert html.count("<details") == 1, "ONE disclosure for everything analyst-grade"
+    assert html.count("<details") == 1, "ONE disclosure in the page's own static markup"
+    assert 'id="ground-layers"' not in html, (
+        "the ground group is JS-rendered (panel.js), never part of index.html's own markup")
     m = re.search(r"<details([^>]*)>(.*?)</details>", html, re.S)
     attrs, block = m.group(1), m.group(2)
     assert 'id="analyst"' in attrs
@@ -1057,6 +1080,45 @@ def test_everything_analyst_grade_sits_behind_one_closed_real_details_disclosure
                'id="note-hidden"', 'id="note-gate"', 'id="legend-estimand"'):
         assert el in block, f"{el} is analyst prose and must sit inside the disclosure"
     assert 'id="answer"' in html.split("<details", 1)[0], "the rider's answer line stays out"
+
+
+def test_the_ground_rows_collapse_behind_one_more_native_details_default_closed():
+    """frontend5 01 MUST 2 (the left-panel diet, Ross live: "so much writing"). The four
+    GROUND rows - basemap, zones, stormwater, routes - collapse behind their OWN native
+    <details>, built by panel.js's groundHTML() (never index.html's static markup, see the
+    test above), default CLOSED: its `open` attribute is a live read of openDet.has("ground")
+    - absent unless the reader's own click put it there, never a hardcoded literal - and
+    app.js is the only place anything writes to that key, syncing FROM the native `toggle`
+    event rather than driving it (the browser opens/closes the element; JS only remembers).
+    GROUND_IDS is the one list naming the four - reused by both the summary's own count and
+    the render, so a fifth layer would have to be added to it by name to ever appear in the
+    group, and it would then also disappear from the rest of the panel.
+    MUTATION KILLED: hardcoding `open` on the template (the group ships open); adding a
+    fifth id to GROUND_IDS (a fifth row sneaks into the group); reading openDet.has("live")
+    or some other key for the group's own open state; or wiring the sync off a "click"
+    instead of the native "toggle" event, which would silently stop tracking a keyboard
+    (Space/Enter) or assistive-tech toggle that never dispatches a click on the <summary>."""
+    js = page_js()
+    panel = module_js()["panel.js"]
+    assert 'export const GROUND_IDS = ["basemap", "zones", "stormwater", "routes"];' in panel
+    ground = panel.split("function groundHTML()", 1)[1].split("\n}", 1)[0]
+    assert '<details id="ground-layers" ${openDet.has("ground") ? "open" : ""}>' in ground
+    assert "GROUND_IDS.filter(id => on[id]).length" in ground
+    assert "Ground layers (${lit}/${GROUND_IDS.length} on)" in ground
+    assert "GROUND_IDS.map(id => rowHTML(L(id)))" in ground, (
+        "the four rows are rendered off the id list, not a second hand-written block")
+    render = panel.split("export function renderLayers()", 1)[1].split("\n}", 1)[0]
+    assert '$("layers-pts").innerHTML = groundHTML() +' in render
+    # the group's own open state is never seeded at module load - only a reader's click
+    # (through app.js's toggle-event sync) can ever put "ground" into the Set
+    assert 'openDet.add("ground")' not in panel, "panel.js only READS openDet, never writes it"
+    app = module_js()["app.js"]
+    assert '$("layers").addEventListener("toggle"' in app
+    assert "e.target.id !== \"ground-layers\"" in app
+    assert "openDet.add(\"ground\")" in app and "openDet.delete(\"ground\")" in app
+    assert '}, true);' in app.split('addEventListener("toggle"', 1)[1][:400], (
+        "the toggle sync is delegated with capture, the only way a rebuilt element's own "
+        "native event can reach a listener on the container that survives the rebuild")
 
 
 def test_the_disclosure_state_is_remembered_with_both_localstorage_sides_guarded():
@@ -1456,3 +1518,106 @@ def test_the_fleet_hover_wiring_lives_in_app_js_and_pointtip_only():
     assert boot.count('map.on("mousemove", "live"') == 0, "live joins the shared loop, not a bespoke one"
     assert boot.count('map.on("mousemove", id, tip)') == 1
     assert '"live"' in boot.split('for (const id of [', 1)[1].split(']', 1)[0]
+
+
+# ==================================== frontend5 01: quiet the chrome ======================
+def test_the_record_card_flashes_on_open_and_respects_reduced_motion():
+    """MUST 3 (Ross live: "the tooltip for when you click on things is not very prevalent").
+    Opening the card sets a `flash` class insight.js clears-and-re-adds (so a SECOND click
+    while the card is already open re-triggers the animation rather than a no-op class
+    toggle) and calls scrollIntoView so the card is actually on screen in a short column;
+    h.focus() is unchanged, the a11y half this MUST keeps. The animation itself is
+    background-only (no width/height/position keyframe), so nothing else in the column can
+    move, and prefers-reduced-motion turns it off outright rather than shortening it - the
+    standing rule this page already uses nowhere else, established fresh here.
+    MUTATION KILLED: dropping the flash class or the reflow-forcing line (a second click on
+    an already-open card produces no visible cue); dropping scrollIntoView (the card can
+    open below the fold with only a caret-position focus ring to find it); animating a
+    layout property instead of background (the "no layout moves" refusal); or dropping the
+    reduced-motion guard."""
+    ins = module_js()["insight.js"]
+    body = ins.split("export async function showCard(p)", 1)[1].split("\n}", 1)[0]
+    assert "const card = $(\"card\");" in body and "card.hidden = false;" in body
+    assert 'card.classList.remove("flash");' in body
+    assert "void card.offsetWidth;" in body, "forces the reflow a second click needs"
+    assert 'card.classList.add("flash");' in body
+    assert 'card.scrollIntoView({ block: "nearest" });' in body
+    assert "h.focus();" in body
+    assert body.index('card.classList.add("flash")') < body.index("h.focus();"), (
+        "the flash and the scroll happen before focus lands, not after"
+    )
+    css = page_css()
+    assert "@keyframes card-flash" in css
+    assert "#card.flash { animation: card-flash 600ms ease-out; }" in css
+    kf = css.split("@keyframes card-flash", 1)[1].split("}\n", 1)[0]
+    assert "width" not in kf and "height" not in kf and "top" not in kf and "left" not in kf, (
+        "the flash may only paint background - a layout property here would move the column"
+    )
+    guard = css.split("@media (prefers-reduced-motion: reduce) {", 1)[1].split("\n}\n", 1)[0]
+    assert "#card.flash { animation: none; }" in guard
+
+
+def test_the_four_interactive_point_layers_get_honest_hit_radii():
+    """MUST 4 (Ross live: "some of the dots are so small it's hard to click them").
+    Rung 1 is a step raise on the small radii the ticket names: hist's minimum stop
+    (1.6 -> 2.6 px - most of the 8,146 markers sit near it) and the two flood-tier layers,
+    fn (6/3.4 -> 7/4.4) and mta (7 -> 8). `live` stays 2.6 BYTE-UNTOUCHED (the Refusals: fleet
+    density is the point) and subway is untouched (not named by MUST 4's rung-1 list).
+
+    Rung 2 is hist-only. It is the one of the four with NO circle-stroke-width at all (fn,
+    mta and subway each already carry a real, visibly-meaningful stroke that already widens
+    their own hit test the same way - MapLibre's CircleStyleLayer sums circle-radius +
+    circle-stroke-width for both its candidate query padding and its exact
+    queryIntersectsFeature test, read from the vendored 5.9.0 bundle), and it is by far the
+    most numerous small dot on the page. HIST_HIT_STROKE is zero-alpha (no pixel changes)
+    and was measured, not assumed: a real headless-Chrome CDP session (the standing
+    swiftshader recipe) dispatched Input.dispatchMouseEvent clicks at increasing offsets
+    from a real hist marker's projected screen position. Baseline (stroke 0, radius 2.6px):
+    the card opened through +3px and missed from +4px - matching the visible radius alone.
+    With HIST_HIT_STROKE=4 (radius+stroke=6.6px): the card opened through +7px and missed
+    from +8px - the same marker, the same page, only the stroke changed, and the hit
+    boundary moved with it. fn/mta/subway needed no separate affordance for the same
+    reason their strokes are visible marks already, not test artifacts.
+    MUTATION KILLED: reverting any one of the four radius numbers; giving hist a
+    circle-stroke-width of 0 (the affordance silently disabled); painting HIST_HIT_STROKE
+    with a non-zero alpha (a hit-target stroke must not be a visible ring); or touching
+    `live`'s radius or RATIO_STOPS/GREY/LIVE_* (the Refusals)."""
+    js = page_js()
+    assert 'export const HIST_HIT_STROKE = 4;' in js
+    hist = js.split('{ id: "hist", type: "circle"', 1)[1].split('{ id: "fn"', 1)[0]
+    assert '1, 2.6, 12, 4.6, 73, 8],' in hist, "the minimum stop is bumped; the other two stops are not"
+    assert '"circle-stroke-width": HIST_HIT_STROKE, "circle-stroke-color": "rgba(0,0,0,0)"' in hist
+    fn = js.split('{ id: "fn", type: "circle"', 1)[1].split('{ id: "mta"', 1)[0]
+    assert '"circle-radius": ["case", ["get", "display"], 7, 4.4],' in fn
+    mta = js.split('{ id: "mta", type: "circle"', 1)[1].split("\n    ],", 1)[0]
+    assert '"circle-radius": 8, "circle-opacity": 0.92,' in mta
+    assert '"circle-stroke-width": 1.5' in mta, "mta's own stroke already extends its hit test"
+    live = js.split('{ id: "live", type: "circle"', 1)[1].split('{ id: "hist"', 1)[0]
+    assert '"circle-radius": 2.6,' in live, "fleet density is the point - byte-untouched"
+    subway = js.split('{ id: "subway", type: "circle"', 1)[1].split('{ id: "mta"', 1)[0]
+    assert "1, 3.5, REL_CLAMP, 9], 3]," in subway, "not named by MUST 4's rung-1 list"
+
+
+def test_the_credit_strip_is_shrunk_and_every_pinned_literal_still_renders():
+    """MUST 5 (Ross live: "the thing at the bottom: you should be able to make that way
+    smaller") and MUST 6 (claim discipline unchanged). Tighter padding and a smaller font
+    on #provenance itself - the strip stays ALWAYS-MOUNTED, at every width, and every
+    licence/attribution string test_the_basemap_attribution_is_in_the_mode_invariant_strip
+    and test_the_geography_credits_are_read_off_the_payload_and_mounted_while_it_is_shown
+    already pin keeps passing unmodified (this test does not re-check those strings; it
+    only checks the chrome shrank around them). No pixel-literal clearance is added
+    anywhere - --prov is still read off the strip's own measured offsetHeight, so a smaller
+    strip needs no clearance arithmetic touched (test_nothing_is_positioned_against_a_
+    guessed_provenance_height stays the shape-only guard for that half).
+    MUTATION KILLED: reverting the padding or font-size back to the pre-ticket values (the
+    strip is not smaller); or shrinking it by DELETING a pinned string instead of the
+    surrounding chrome, which the two attribution tests above would already catch."""
+    css = page_css()
+    rule = css.split("#provenance { position: fixed;", 1)[1].split("}", 1)[0]
+    assert "padding: 2px 10px;" in rule
+    assert "font-size: 11px;" in rule
+    assert "padding: 4px 12px;" not in rule and "font-size: 12px;" not in rule, (
+        "the pre-ticket, larger chrome must actually be gone, not just supplemented")
+    # info-btn keeps its 44px touch target - MUST 5 shrinks the strip's chrome, not an
+    # accessibility floor this page already committed to everywhere else
+    assert "min-width: 44px; min-height: 44px;" in css.split("#info-btn {", 1)[1].split("}", 1)[0]
