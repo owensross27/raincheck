@@ -190,7 +190,10 @@ code { font-size: 12px; color: var(--dim); }
      so its key belongs directly under the map it explains */
   #left { display: flex; flex-direction: column; }
   #legend { order: -1; }
-  #right { display: block; }
+  #right { display: none; }
+  body.drawer-open #right { display: block; }
+  /* the dock joins the page flow under the map strip; the mode bar stays floating on it */
+  #hour-dock { position: static; transform: none; width: auto; margin: 12px; }
   #insight, #layers, #card, #legend { position: static; width: auto; max-height: none; margin: 12px; }
   #map { position: relative; height: 60vh; }
   body { overflow-y: auto; padding-bottom: var(--prov); }
@@ -241,3 +244,52 @@ code { font-size: 12px; color: var(--dim); }
 
 /* the one-sentence rider description under each layer row */
 .lyr .sub { margin: 2px 0 0; }
+
+/* ------------------------------------------------- frontend5 03: modes, slider, drawer */
+/* The mode bar: the only always-on controls. Three named questions; each is a layer SET
+   (app.js setMode), so the map never shows two stories at once. */
+#modes { top: 12px; left: 50%; transform: translateX(-50%); z-index: 3;
+  display: flex; gap: 4px; padding: 4px; border-radius: 12px; }
+#modes button { background: none; color: #cfd6df; border: 1px solid transparent;
+  border-radius: 9px; padding: 0 16px; min-height: 44px; cursor: pointer; font: inherit;
+  font-size: 13px; }
+#modes button:hover { border-color: #4a5464; }
+#modes button[aria-pressed="true"] { background: var(--accent); color: #fff; font-weight: 600; }
+#modes button:focus-visible { outline: 2px solid #8ecbff; outline-offset: 2px; }
+
+/* The layers drawer: the full per-layer controls, freshness chips and gate prose survive
+   whole in #right - hidden until asked for, never deleted. */
+#layers-btn { position: absolute; z-index: 3; top: 12px; right: 12px; min-height: 44px;
+  padding: 0 14px; background: var(--panel); color: #cfd6df; border: 1px solid var(--line);
+  border-radius: 10px; cursor: pointer; font: inherit; font-size: 13px;
+  backdrop-filter: blur(6px); }
+#layers-btn:hover { border-color: #4a5464; }
+#layers-btn:focus-visible { outline: 2px solid #8ecbff; outline-offset: 2px; }
+#layers-btn[aria-expanded="true"] { background: var(--accent); color: #fff; }
+#right { display: none; top: 64px; }
+body.drawer-open #right { display: flex; }
+
+/* The storm-hour slider, docked over the map: one storm night, hour by hour. Hidden with
+   the dock whenever the view has no hours (insight.js) and in any mode but storms. */
+#hour-dock { left: 50%; transform: translateX(-50%); bottom: calc(var(--prov) + 10px);
+  width: min(620px, calc(100% - 24px)); padding: 10px 18px; border-radius: 12px; }
+#hours input[type="range"] { width: 100%; margin: 4px 0 2px; accent-color: var(--accent); }
+#hours .hticks { display: flex; justify-content: space-between; color: var(--dim);
+  font-size: 11px; }
+#hours output { display: block; text-align: center; font-size: 12px; color: var(--ink);
+  margin-top: 2px; }
+body:not([data-mode="storms"]) #hour-dock { display: none; }
+/* the recent-flooding rows are the Flood history mode's list */
+body:not([data-mode="history"]) #recent { display: none; }
+/* the storm answer and its picker belong to Storm replay; the flood modes keep the title */
+body:not([data-mode="storms"]) #answer, body:not([data-mode="storms"]) #views,
+body:not([data-mode="storms"]) #views-h { display: none; }
+/* no Cell ramp is on screen in Flood history (cells off, routes off): the marker meanings
+   live on their drawer rows, so the ratio legend would only mislead here */
+body[data-mode="history"] #legend { display: none; }
+
+/* the storm/window picker: one native select in the answer card */
+#views select { width: 100%; min-height: 36px; background: #171b21; color: #cfd6df;
+  border: 1px solid #313845; border-radius: 7px; font: inherit; font-size: 12px;
+  padding: 0 8px; }
+#views select:focus-visible { outline: 2px solid #8ecbff; outline-offset: 2px; }

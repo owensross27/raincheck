@@ -35,11 +35,11 @@
  * For the same reason the two cross-module WRITES go through a function - an imported
  * binding is read-only in the importing module: layers.markStyled() and live.toggleLive().
  */
-import { $, LAYERS, map, markStyled, on } from "./layers.js";
+import { $, LAYERS, map, markStyled, on, styled } from "./layers.js";
 import { load } from "./freshness.js";
 import { applyVisibility, openDet, renderLayers, toggle, toggleDet } from "./panel.js";
-import { applyRamp, closeCard, loadRecent, locateEvent, pointTip, setHour, setScenario, setView,
-         showCard, showTip } from "./insight.js";
+import { applyRamp, closeCard, loadRecent, locateEvent, pointTip, setHourIndex, setScenario,
+         setView, showCard, showTip } from "./insight.js";
 import { toggleLive } from "./live.js";
 
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
@@ -95,10 +95,45 @@ $("info").addEventListener("click", e => { if (e.target === $("info")) $("info")
 
 // renderLayers() after a view or hour switch: frontend2 03's route row explains WHY its
 // lines are grey on the view that is showing, and that sentence changes with the view.
-$("views").addEventListener("click", e => {
-  if (e.target.dataset.v) { setView(e.target.dataset.v); renderLayers(); } });
-$("hours").addEventListener("click", e => {
-  if (e.target.dataset.h) { setHour(e.target.dataset.h); renderLayers(); } });
+// frontend5 03: the view picker is a <select> and the hours are a range input - both
+// delegated from their stable containers because insight.js rebuilds the controls.
+$("views").addEventListener("change", e => {
+  if (e.target.id === "views-sel") { setView(e.target.value); renderLayers(); } });
+$("hours").addEventListener("input", e => {
+  if (e.target.id === "hour-range") { setHourIndex(e.target.valueAsNumber); renderLayers(); } });
+
+/* frontend5 03: the MODE BAR - a mode is a named layer set, switched through the same
+ * toggle()/toggleLive() every checkbox uses, so gates, freshness rows and the one-ramp
+ * rule all apply unchanged. The drawer keeps the full per-layer controls reachable. */
+// storms: the delay answer. history: everything flood-record (the MTA flood tier included).
+// live: the fleet and this hour's impact overlays. A gated member stays dark - toggle()
+// refuses shut layers - and its drawer row explains why, exactly as before.
+const MODE_SET = { storms: ["cells"],
+                   history: ["hist", "fn", "stormwater", "mta"],
+                   live: ["impact", "subway"] };
+const MODE_MANAGED = [...new Set(Object.values(MODE_SET).flat())];
+async function setMode(m) {
+  document.body.dataset.mode = m;
+  for (const b of document.querySelectorAll("#modes button"))
+    b.setAttribute("aria-pressed", String(b.dataset.m === m));
+  if (!styled) return;         // boot re-applies the mode once the style is loaded
+  const want = MODE_SET[m];
+  for (const m_id of MODE_MANAGED)
+    if (Boolean(on[m_id]) !== want.includes(m_id)) await toggle(m_id, want.includes(m_id));
+  const liveOn = m === "live";
+  if (!$("livetoggle").disabled && $("livetoggle").checked !== liveOn) {
+    $("livetoggle").checked = liveOn;
+    toggleLive(liveOn);
+  }
+  applyRamp(); renderLayers();
+}
+$("modes").addEventListener("click", e => {
+  if (e.target.dataset.m) setMode(e.target.dataset.m);
+});
+$("layers-btn").addEventListener("click", () => {
+  const open = document.body.classList.toggle("drawer-open");
+  $("layers-btn").setAttribute("aria-expanded", String(open));
+});
 
 map.on("mousemove", "cells", showTip);
 map.on("click", "cells", showTip);          // touch
@@ -134,6 +169,10 @@ map.on("load", async () => {
   markStyled();
   for (const lyr of LAYERS) if (on[lyr.id] && lyr.draw) await load(lyr.id);
   applyVisibility();
+  // frontend5 03: the page boots INTO the default mode - Storm replay lights the Cell
+  // fill, which is the page's whole answer; "nothing loads until you tick it" still
+  // governs every layer outside the mode's set.
+  await setMode(document.body.dataset.mode || "storms");
   applyRamp();
   renderLayers();
 });

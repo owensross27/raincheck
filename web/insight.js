@@ -45,11 +45,14 @@ function paint() {
   const s = view.kind === "speed" ? SPEED_STOPS : RATIO_STOPS;
   map.setPaintProperty("cells", "fill-color", colorExpr(activeProp(), s));
   $("swatches").innerHTML = s.map(([, c]) => `<span style="background:${c}"></span>`).join("");
+  // plain words on the map face; the numeric stops stay in the analyst disclosure's
+  // estimand prose (frontend5 03, the FloodNet pattern: severity words, units demoted)
   $("legend-title").textContent = view.kind === "speed"
-    ? "Dry baseline Speed, m/s" : "Speed ratio, wet over dry";
-  $("tick-lo").textContent = s[0][0] + (view.kind === "speed" ? " m/s" : " slower");
-  $("tick-mid").textContent = view.kind === "speed" ? "" : "1.0 no change";
-  $("tick-hi").textContent = s[s.length - 1][0] + (view.kind === "speed" ? " m/s" : " faster");
+    ? "Dry baseline Speed, m/s" : "Bus speed in rain vs dry";
+  $("tick-lo").textContent = view.kind === "speed" ? s[0][0] + " m/s" : "slower in rain";
+  $("tick-mid").textContent = view.kind === "speed" ? "" : "no change";
+  $("tick-hi").textContent = view.kind === "speed"
+    ? s[s.length - 1][0] + " m/s" : "faster";
   const row = currentRow();
   $("legend-estimand").textContent = view.kind === "speed"
     ? "space-mean chord Speed over the window's dry Cell-hours (dry = mm_1h < 0.1, mm_1h_prev < 0.1, mm_6h < 0.5), rule set R2"
@@ -65,11 +68,17 @@ function renderHeadline() {
   const r = currentRow();
   if (!r) { $("headline").innerHTML = ""; $("answer").innerHTML = ""; return; }
   const bandLo = Math.min(r.band[0], r.band[1]), bandHi = Math.max(r.band[0], r.band[1]);
-  // frontend2 05: the rider's one-line answer - the published band value with a plain
-  // gloss, no interval and no estimand (both sit in the analyst disclosure, verbatim)
-  $("answer").innerHTML = `<div class="big">${fmt(bandLo)}&ndash;${fmt(bandHi)}</div>
-    <div class="band">bus speed in this rain vs dry weather &mdash; 1.00 = no change
-      (${view.label})</div>`;
+  // frontend2 05: the rider's one-line answer - the published band, now GLOSSED into
+  // percent (frontend5 03): 0.72-0.82 reads "18-28% slower". The raw band still prints
+  // beneath it, and the interval and estimand stay in the analyst disclosure, verbatim.
+  const pc = (x) => Math.round(Math.abs(1 - x) * 100);
+  const gloss = bandHi < 1 ? `${pc(bandHi)}&ndash;${pc(bandLo)}% slower`
+    : bandLo > 1 ? `${pc(bandLo)}&ndash;${pc(bandHi)}% faster`
+    : "no clear change";   // the band straddles 1.00: a slowdown is not separable
+  $("answer").innerHTML = `<div class="big">${gloss}</div>
+    <div class="band">than the same buses in dry weather (${view.label})</div>
+    <p class="note">measured Speed ratio ${fmt(bandLo)}&ndash;${fmt(bandHi)}, wet over dry
+      &mdash; 1.00 = no change</p>`;
   // spec L requires the panel to state that the 2023-09-29 band reaches ~1.0. That is a
   // property of the STORM, not of the selected Hour: band() collapses to a point whenever
   // both arms sit in one chord class, so an hour-local test would hide the statement on
@@ -168,34 +177,56 @@ function renderCurve() {
 
 // ---------------------------------------------------------------- view switching
 export function setHour(k) {
-  const hadFocus = document.activeElement && document.activeElement.dataset
-    && document.activeElement.dataset.h !== undefined;
+  const hadFocus = document.activeElement && document.activeElement.id === "hour-range";
   hourKey = k;
-  drawHourButtons();
-  // drawHourButtons() rebuilds #hours, so the button the user just activated is gone and
-  // focus falls to <body>; a keyboard user would tab through the map and every layer
-  // button again for each hour step. Put focus back where they left it.
+  drawHourSlider();
+  // drawHourSlider() rebuilds #hours, so the range the user is dragging is gone and focus
+  // falls to <body>; a keyboard user would tab through the map and every layer button
+  // again for each hour step. Put focus back where they left it.
   if (hadFocus) {
-    const b = document.querySelector(`#hours button[data-h="${k}"]`);
+    const b = $("hour-range");
     if (b) b.focus();
   }
   paint(); renderHeadline(); renderCurve();
 }
 
-function drawHourButtons() {
-  if (!view.hours) { $("hours").innerHTML = ""; return; }
-  $("hours").innerHTML = view.hourKeys.map(k => {
-    const row = head.rows.find(r => r.layer === view.layer && r.key === k);
-    return `<button type="button" data-h="${k}" aria-pressed="${k === hourKey}">${row.label.slice(-3)}</button>`;
-  }).join("");
+/** setHour by slider position - the range input's value is an index into the view's own
+ *  hourKeys, so the key strings never ride through an attribute. */
+export function setHourIndex(i) {
+  if (view && view.hours && view.hourKeys[i] !== undefined) setHour(view.hourKeys[i]);
+}
+
+/* frontend5 03: the hour chips became ONE native range input docked over the map. The tick
+ * labels are the storm's own hours rendered in the READER'S clock (toLocaleTimeString off
+ * the label's UTC hour) - "10 PM" for a New Yorker, not "02Z"; the readout keeps the
+ * published UTC label beside it so the analyst vocabulary is one glance away, never gone. */
+const localHour = (label) => {
+  const d = new Date(label.replace(" ", "T").replace(/Z$/, ":00:00Z"));
+  return isNaN(d) ? label.slice(-3)
+    : d.toLocaleTimeString([], { hour: "numeric" }).replace(/\s/g, " ");
+};
+
+function drawHourSlider() {
+  const dock = $("hour-dock");
+  if (!view.hours) { $("hours").innerHTML = ""; dock.hidden = true; return; }
+  dock.hidden = false;
+  const rowFor = (k) => head.rows.find(r => r.layer === view.layer && r.key === k);
+  const i = Math.max(0, view.hourKeys.indexOf(hourKey));
+  const cur = rowFor(hourKey);
+  $("hours").innerHTML = `
+    <input type="range" id="hour-range" min="0" max="${view.hourKeys.length - 1}" step="1"
+      value="${i}" aria-label="Storm hour" aria-valuetext="${cur ? cur.label : ""}">
+    <div class="hticks" aria-hidden="true">${view.hourKeys.map(k =>
+      `<span>${localHour(rowFor(k).label)}</span>`).join("")}</div>
+    <output for="hour-range">${cur ? `${localHour(cur.label)} &middot; ${cur.label}` : ""}</output>`;
 }
 
 export function setView(id) {
   view = views.find(v => v.id === id);
-  document.querySelectorAll("#views button").forEach(b =>
-    b.setAttribute("aria-pressed", String(b.dataset.v === id)));
+  const sel = $("views-sel");
+  if (sel) sel.value = id;
   hourKey = view.hours ? (view.hourKeys.includes(hourKey) ? hourKey : view.defaultHour) : null;
-  drawHourButtons(); paint(); renderHeadline(); renderCurve();
+  drawHourSlider(); paint(); renderHeadline(); renderCurve();
 }
 
 function buildViews() {
@@ -219,8 +250,10 @@ function buildViews() {
       views.push({ id: w + "d", layer: w, label: `${w.toUpperCase()} dry baseline`,
                    kind: "speed", hours: false, prop: `${w}_dry` });
   }
-  $("views").innerHTML = views.map(v =>
-    `<button type="button" data-v="${v.id}" aria-pressed="false">${v.label}</button>`).join("");
+  // frontend5 03: one native <select> instead of six buttons - the DEP-map pattern, a
+  // named-scenario picker. The view ids and labels are unchanged; only the control is.
+  $("views").innerHTML = `<select id="views-sel" aria-labelledby="views-h">` +
+    views.map(v => `<option value="${v.id}">${v.label}</option>`).join("") + `</select>`;
 }
 
 // ------------------------------------------------------------------------ tooltip

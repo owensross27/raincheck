@@ -11,10 +11,28 @@
      automatic /favicon.ico probe (a 404 whose Cloudflare body cost ~6.8 KB per load). -->
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 </head>
-<body>
+<body data-mode="storms">
 <a class="skip" href="#insight">Skip to controls</a>
 <main>
 <div id="map" role="application" aria-label="Map of NYC H3 Cells coloured by bus Speed ratio"></div>
+
+<!-- frontend5 03: the mode bar - three questions, not eleven checkboxes. A mode is a named
+     layer SET (app.js setMode); the full per-layer controls survive whole inside the
+     layers drawer behind #layers-btn. -->
+<nav id="modes" class="panel" aria-label="What the map shows">
+  <button type="button" data-m="storms" aria-pressed="true">Storm replay</button>
+  <button type="button" data-m="history" aria-pressed="false">Flood history</button>
+  <button type="button" data-m="live" aria-pressed="false">Live now</button>
+</nav>
+<button id="layers-btn" type="button" aria-expanded="false" aria-controls="right"
+  aria-label="All layers and data freshness">Layers</button>
+
+<!-- frontend5 03: the storm-hour slider, docked over the map. insight.js draws the range
+     input from the view's own hourKeys; hidden whenever the view has no hours and in any
+     mode but storms (app.css). -->
+<div id="hour-dock" class="panel" hidden>
+  <div id="hours" aria-label="Storm hour"></div>
+</div>
 
 <!-- ------------------------------------------------- panel 1: the insight view (ticket 13) -->
 <div id="left">
@@ -22,9 +40,8 @@
   <h1 id="insight-h">Does rain slow the NYC buses, and where?</h1>
   <div id="answer" aria-live="polite"><p class="note">loading&hellip;</p></div>
 
-  <h2 class="lbl" id="views-h">Layer</h2>
-  <div id="views" class="btns" role="group" aria-labelledby="views-h"></div>
-  <div id="hours" class="btns" role="group" aria-label="Storm hour (hour ending, UTC)"></div>
+  <h2 class="lbl" id="views-h">Storm or window</h2>
+  <div id="views" aria-labelledby="views-h"></div>
 
   <!-- frontend2 05: the rider's recent-flooding list, from files/summary/recent.json
        (frontend2 04's payload; its strings render verbatim, its window is the spine's
