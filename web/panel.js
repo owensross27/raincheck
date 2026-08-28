@@ -91,13 +91,15 @@ export function renderLayers() {
   $("layers-pts").innerHTML =
     LAYERS.filter(l => !l.fill && !l.toggle).map(rowHTML).join("");
   // the live fleet's row is STATIC markup in index.html: it owns the 30 s interval, its
-  // own readout and #livetoggle. Only its freshness rows, its chip and its detail's
-  // open state are rendered here - the detail follows the same openDet Set.
+  // own readout and #livetoggle. Only its freshness rows, its chip, its ramp caveats
+  // (frontend4 04's lyr.legend, set by live.js's liveTick) and its detail's open state
+  // are rendered here - the detail follows the same openDet Set.
   const live = L("live");
   $("src-live").innerHTML = srcRows(live) + (shut(live)
     ? `<p class="note">Dark: the vehicle gate side is shut, so the fleet is not published
        on this host. The toggle stays. (Locally, <code>make live-export</code> feeds it.)</p>` : "");
   $("live-chip").innerHTML = chipHTML(worst(live));
+  $("live-legend").innerHTML = live.legend || "";
   $("det-live").hidden = !openDet.has("live");
   const lchev = document.querySelector('#layers [data-det="live"]');
   if (lchev) lchev.setAttribute("aria-expanded", String(openDet.has("live")));
