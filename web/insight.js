@@ -15,8 +15,13 @@ import { $, fmt, GREY, L, LAYERS, map, on, RATIO_STOPS, ROUTE_PLAIN, ROUTE_W_RAM
          ROUTE_W_THIN, shut, SPEED_STOPS, styled, ZONE_FILL_OPACITY,
          ZONE_LEGEND } from "./layers.js";
 import { ages, fmtAge, grab, whys } from "./freshness.js";
+// RAIN_MM: live.js owns the mirrored raincheck.live_export.RAIN_MM constant (the attach
+// itself lives there); the fleet tip reads the SAME constant to tell "raining, no
+// published band" from "not raining" rather than re-typing the literal a third place.
+import { RAIN_MM } from "./live.js";
 
 let head = null;         // headline.json
+let cellsData = null;    // cells.geojson, the raw FeatureCollection (frontend4 04's getter)
 let cellKeys = new Set();  // property keys present in cells.geojson
 let views = [];
 let view = null;         // the active view object
@@ -245,6 +250,27 @@ export const TIPS = {
   // `label` is a published, ready-made sentence (flood.js's floodnet writer) - render it
   // verbatim, escaped, never a page-authored gloss.
   fn: (p) => `<b>${esc(p.name)}</b><br>${esc(p.label)}<br>${Math.round(p.age_min)} min`,
+  // frontend4 04: `route_id`/`vehicle_id`/`next_stop_id` are GTFS-RT feed strings -
+  // untrusted, escaped like every other name on this page. `ratio`/`lo`/`hi`/`win` are
+  // attached client-side by live.js's liveTick, before setData, only when the vehicle's
+  // Cell is raining and publishes a band - the conditions line renders the BAND, never
+  // the bare point ratio, and nothing here draws a causal line from the weather to the
+  // delay: descriptive vocabulary only, no grading, blaming or forecasting.
+  live: (p) => {
+    const lines = [];
+    if (p.next_stop_id !== undefined && typeof p.pred_next_s === "number")
+      lines.push(`next stop ${esc(p.next_stop_id)} in ${Math.round(p.pred_next_s)} s
+        (the agency's own prediction)`);
+    // the agency-reported wording live.js's own delaystate line uses (never "late")
+    if (typeof p.trip_delay_s === "number")
+      lines.push(`MTA-reported trip delay ${Math.round(p.trip_delay_s)} s`);
+    if (typeof p.ratio === "number")
+      lines.push(`wet-hour speed ${fmt(p.lo)}&ndash;${fmt(p.hi)}x dry same-hour (${esc(p.win)})`);
+    else if (p.cell && typeof p.mm_1h === "number" && p.mm_1h >= RAIN_MM)
+      lines.push("no published band for this Cell");
+    return `<b>${esc(p.route_id ? `Route ${p.route_id}` : p.vehicle_id)}</b><br>${esc(p.vehicle_id)}
+      <br>${lines.join("<br>")}`;
+  },
 };
 
 /** One handler factory per layer id, reusing showTip's own positioning
@@ -311,6 +337,7 @@ export function drawCells(cells, h) {
     return;
   }
   head = h;
+  cellsData = cells;
   map.getSource("cells").setData(cells);
   cells.features.forEach(f => Object.keys(f.properties).forEach(k => cellKeys.add(k)));
   $("preview-note").textContent = head.preview_note;
@@ -321,6 +348,25 @@ export function drawCells(cells, h) {
     ` ${cells.features.length} footprint Cells; publish gate: 95% interval width < ${head.gate_width}.`;
   buildViews();
   setView(views[0].id);
+}
+
+/* frontend4 04: two named getters over data this module already fetched, so live.js's
+ * client-side join never issues a second fetch of cells.geojson or headline.json - a
+ * cross-module read is a named function in the owning module, the app.js ES-module-cycle
+ * rule applied to reads instead of writes. */
+
+/** The cells FeatureCollection's own features, or [] before the boot draw has run. */
+export function cellFeatures() {
+  return cellsData ? cellsData.features : [];
+}
+
+/** headline.json's citywide estimand for the window the fleet's band attach prefers (w2,
+ *  else w1) and the preview-status note - the two strings the live layer's legend renders
+ *  verbatim while any vehicle carries a band. cells.geojson carries no strings of its own. */
+export function bandCaveats() {
+  if (!head) return { estimand: "", preview_note: "" };
+  const row = head.rows.find(r => r.layer === "w2") || head.rows.find(r => r.layer === "w1");
+  return { estimand: row ? row.estimand : "", preview_note: head.preview_note || "" };
 }
 
 

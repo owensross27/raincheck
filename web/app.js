@@ -92,12 +92,14 @@ map.on("mousemove", "cells", showTip);
 map.on("click", "cells", showTip);          // touch
 map.on("mouseleave", "cells", () => { $("tip").style.display = "none"; });
 
-// frontend4 02: one hover mechanism (insight.pointTip), wired here for the four point
-// layers that answered only to click (hist) or not at all (subway, mta, fn). Click is the
+// frontend4 02: one hover mechanism (insight.pointTip), wired here for the point layers
+// that answered only to click (hist) or not at all (subway, mta, fn). Click is the
 // touch path, the cells tooltip's own pattern above. Registered BEFORE hist's own
 // click -> showCard handler below, so on a hist tap the tip paints first and the card
 // handler's `#tip` hide runs after - a tap lands on the card, never a stale tip.
-for (const id of ["hist", "subway", "mta", "fn"]) {
+// frontend4 04 adds `live`, the same way: a layer-scoped handler never fires while the
+// fleet toggle is off, so no gate/toggle guard is needed here either.
+for (const id of ["hist", "subway", "mta", "fn", "live"]) {
   const tip = pointTip(id);
   map.on("mousemove", id, tip);
   map.on("click", id, tip);

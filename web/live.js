@@ -20,9 +20,17 @@
  * toggleLive() at the bottom of this file - `liveTimer` / `liveMeta` are this module's to
  * write, and an imported binding is read-only in the importing module.
  * -------------------------------------------------------------------------------- */
-import { $, DELAY_CUT_S, L, LIVE_FRESH, LIVE_STALE, map, on, STALE_AFTER_S } from "./layers.js";
+import { $, DELAY_CUT_S, L, LIVE_COLOR, LIVE_STALE, map, on, STALE_AFTER_S } from "./layers.js";
 import { ages, forget, grab, whys } from "./freshness.js";
 import { renderLayers } from "./panel.js";
+import { bandCaveats, cellFeatures } from "./insight.js";
+
+// mirrored from raincheck.live_export.RAIN_MM (spec L): the same rain flag bronze exports
+// against. tests/test_page.py derives the expected literal from the python constant, so
+// the two cannot drift apart silently - never re-typed a second time. Exported so
+// insight.js's fleet tip can tell "raining, no published band" from "not raining" off the
+// SAME constant rather than a second copy.
+export const RAIN_MM = 1.0;
 
 let liveTimer = null, liveFeatures = null;
 export let liveMeta = null;
@@ -57,7 +65,10 @@ function isStale(m) {
 
 function renderLive(m) {
   const stale = isStale(m);
-  map.setPaintProperty("live", "circle-color", stale ? LIVE_STALE : LIVE_FRESH);
+  // staleness wins over everything: the stale branch is flat LIVE_STALE regardless of any
+  // attached ratio; the fresh branch restores the CASE EXPRESSION, never flat LIVE_FRESH,
+  // so a Cell's band keeps colouring the fleet the moment the feed is trusted again.
+  map.setPaintProperty("live", "circle-color", stale ? LIVE_STALE : LIVE_COLOR);
   map.setPaintProperty("live", "circle-opacity", stale ? 0.35 : 0.9);
   $("live").classList.toggle("stale", stale);
   $("live").title = stale ? "STALE: the pipeline is not writing" : "";
@@ -100,6 +111,21 @@ function renderLive(m) {
     : "no live tick yet";
 }
 
+// cell -> {ratio, lo, hi, win} off the cells FeatureCollection insight.js already fetched
+// (cellFeatures(), one fetch, one parse - never a second cells.geojson request). w2 (the
+// 2023 window) preferred over w1 (2021) when both are published, matching the panel's own
+// view-switching preference order; a Cell with neither carries no band at all.
+function cellBands() {
+  const m = new Map();
+  for (const f of cellFeatures()) {
+    const p = f.properties;
+    const win = typeof p.w2_ratio === "number" ? "w2"
+      : typeof p.w1_ratio === "number" ? "w1" : null;
+    if (win) m.set(p.cell, { ratio: p[win + "_ratio"], lo: p[win + "_lo"], hi: p[win + "_hi"], win });
+  }
+  return m;
+}
+
 async function liveTick() {
   const live = L("live");
   const meta = await grab("live", live.srcs[1]);          // meta.json FIRST: the fleet is
@@ -107,8 +133,27 @@ async function liveTick() {
   if (meta && (meta.error === null || meta.error === undefined)) {
     const fc = await grab("live", live.srcs[0]);
     if (fc) {
+      // the join is a client-side dict lookup at tick time: attach ratio/lo/hi/win BEFORE
+      // setData, and ONLY when all three hold - a Cell present, raining there (the
+      // mirrored RAIN_MM), and that Cell publishing a band. Anything else attaches
+      // nothing, which is what leaves the mark on its own LIVE_COLOR neutral branch.
+      const bands = cellBands();
+      let anyRatio = false;
+      for (const f of fc.features) {
+        const p = f.properties;
+        if (p.cell && typeof p.mm_1h === "number" && p.mm_1h >= RAIN_MM) {
+          const band = bands.get(p.cell);
+          if (band) { Object.assign(p, band); anyRatio = true; }
+        }
+      }
       map.getSource("live").setData(fc);
       liveFeatures = fc.features;
+      // caveats RENDERED, never restated: while any vehicle carries a band, the legend
+      // renders headline.json's own citywide estimand (the window preferred above) and
+      // its preview-status note, verbatim, through this module's existing note()/esc()
+      // path - cells.geojson carries no strings of its own.
+      const c = anyRatio ? bandCaveats() : null;
+      L("live").legend = c ? note(c.estimand) + note(c.preview_note) : "";
     }
   }
   renderLive(meta);
