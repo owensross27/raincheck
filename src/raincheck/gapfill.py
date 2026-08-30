@@ -41,13 +41,18 @@ START = date(2026, 8, 15)  # capture began; ticket 20 scope
 KINDS = ("vp", "tu", "alerts", "subway_tu", "subway_alerts")
 CADENCE = {"vp": 30, "tu": 120, "alerts": 300, "subway_tu": 60, "subway_alerts": 300}
 # Hours gtfsrt.io itself never stored - zero snapshots at source, so no fill can ever
-# produce them and gapcheck must not fail forever on them. Add an entry ONLY after
-# probing the source and confirming it holds nothing for that hour; never to quiet a
-# fill that merely failed. gapcheck prints a stale note when a listed hour turns up.
+# produce them and gapcheck must not fail forever on them. "Zero snapshots" means zero
+# DISTINCT ones: every hour listed so far had all ~60 raw polls present but
+# header.timestamp frozen across them, so pick() - and an awake archiver, same dedup -
+# keeps nothing. Add an entry ONLY after probing the source and confirming that; never
+# to quiet a fill that merely failed. gapcheck prints a stale note when a listed hour
+# turns up.
 DEAD = {
     ("subway_alerts", "2026-08-15"): ("07", "12"),
     ("subway_alerts", "2026-08-16"): ("13",),
     ("subway_alerts", "2026-08-22"): ("18",),
+    ("subway_alerts", "2026-08-24"): ("08",),  # probed 2026-08-30: 60 polls, 1 header_ts
+    ("subway_alerts", "2026-08-29"): ("02",),  # probed 2026-08-30: 60 polls, 1 header_ts
     # Backfilled bus history has one known source-dead hour, vp 2026-04-27 h04 (probed
     # 2026-08-23; see ticket 20). It is deliberately NOT listed: check() iterates from
     # START, so a pre-START key would never match and would sit here looking like
