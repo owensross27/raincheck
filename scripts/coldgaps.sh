@@ -38,6 +38,11 @@ for kind in $KINDS; do
     cat "$errf" >&2
     exit 2
   fi
+  # An hour prefix holding ONLY gapfill's `_dead` marker (hour proven dead at source,
+  # synced up by coldpush) still lists as `PRE hour=NN/` and counts as held below.
+  # Tolerated on purpose: a dead-at-source hour is not a capture gap, which is what this
+  # check pages on - but know that this non-recursive listing cannot tell data from
+  # marker, so "24/24" here does not by itself mean 24 hours of rows.
   have=$(printf '%s\n' "$listing" | sed -n 's/.*hour=\([0-9][0-9]\).*/\1/p')
   missing=""
   for h in $(seq -w 0 23); do
