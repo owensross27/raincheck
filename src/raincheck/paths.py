@@ -158,6 +158,21 @@ def move(src, dst) -> None:
     _drop_cached_listings()
 
 
+def rm_file(p) -> None:
+    """Delete ONE file/object (gapfill retracting a `_dead` marker the hour outgrew).
+    Local: Path.unlink. Remote: the exact-key rm_file move() above already performs -
+    RemotePath itself keeps refusing unlink, because a Path-method delete invites the
+    half-converted-writer class; this seam is deliberate, like move/rmtree. Missing
+    RAISES on both kinds: a caller deleting a file it just proved present wants to hear
+    about the race, not skip it."""
+    r = remote(p)
+    if r is None:
+        Path(p).unlink()
+        return
+    _fs().rm_file(r)
+    _drop_cached_listings()
+
+
 def rmtree(p) -> None:
     """Delete a directory, or everything under a prefix (one_file's staging, prune's
     expired live hours). Missing is fine either way - an already-gone prefix IS the

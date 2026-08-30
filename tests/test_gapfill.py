@@ -479,6 +479,15 @@ def test_dead_hours_is_exactly_the_probe_criterion():
     assert probe(frozen[:-1], ["01"]) == []
     # no polls at all: absence, not proof
     assert probe(frozen[:1], ["01"]) == []
+    # a mid-hour blip pick's slots straddle: pick keeps nothing, yet real content
+    # existed and neither this fill nor the next hour's will ever carry it - refused
+    # (polls at the real 60 s / 300 s ratio, where 4 of 5 poll positions are slot-blind)
+    blip = [meta(3550, 99, "00")] + [
+        meta(3600 + k * 60, 777 if k in (31, 32) else 99, "01") for k in range(60)]
+    assert probe(blip, ["01"]) == []
+    # a tainted hour (a skipped poll could belong to it) is never proven
+    kept = gapfill.pick([(m[1], m[2]) for m in frozen], 300)
+    assert gapfill.dead_hours(frozen, kept, ["01"], 300, DAY, frozenset({"01"})) == []
 
 
 def test_a_freeze_recovering_in_the_final_sliver_still_proves_dead():
@@ -533,7 +542,9 @@ def test_a_sparse_frozen_hour_stays_red_for_a_hand_probe(tmp_path, fake_gcs):
 
 def test_a_dead_marker_needs_every_feed_of_the_kind_frozen(tmp_path, fake_gcs):
     """subway_tu is eight feeds: hour 01 frozen for ONE while seven kept snapshots is a
-    fillable hour, never a dead one."""
+    fillable hour, never a dead one. (The live feeds FILL the hour here, so this pins
+    the filled-hour path; the intersection rule itself is pinned by
+    test_absence_of_another_feeds_polls_is_not_proof.)"""
     root = tmp_path / "root"
     s = {"trip_id": "t", "route_id": "G", "stop_id": "G22N",
          "arrival_time": D0 + 100, "departure_time": D0 + 130}
@@ -565,6 +576,58 @@ def test_absence_of_another_feeds_polls_is_not_proof(tmp_path, fake_gcs):
     day_dir = root / "archive" / "subway_tu" / f"date={DAY}"
     assert not (day_dir / "hour=01").exists()
     assert "01" in gapfill.missing_hours(day_dir)
+
+
+def test_a_skipped_snapshot_taints_its_hours_no_marker(tmp_path, fake_gcs):
+    """A no-poll-clock snapshot inside a frozen hour leaves a sub-cadence hole the gap
+    check cannot see (60 s polls under a 300 s cadence: dropping one leaves a 120 s
+    gap) - and the skipped poll could have carried the distinct header, so the hour
+    must not claim 'fully polled' and stays red for a hand probe."""
+    root = tmp_path / "root"
+    freeze = [(D0 + 3600 + k * 60, D0 + 399, [ALERT]) for k in range(60)]
+    freeze[31] = (None, D0 + 399, [ALERT])  # poll present, clock NULL -> skipped
+    frozen_alerts_day(fake_gcs, freeze)
+    gapfill.fill_day(root, "subway_alerts", DAY)
+    day_dir = root / "archive" / "subway_alerts" / f"date={DAY}"
+    assert not (day_dir / "hour=01" / "_dead").exists()
+    assert "01" in gapfill.missing_hours(day_dir)
+
+
+def test_an_hour_captured_mid_run_is_not_retired(tmp_path, fake_gcs, monkeypatch):
+    """The scan-to-write recheck on the marker, pinned: a writer landing the hour
+    between the scan and the marker block must win - a _dead beside a real part would
+    read stale_dead until a human notices."""
+    root = tmp_path / "root"
+    frozen_alerts_day(fake_gcs, [(D0 + 3600 + k * 300, D0 + 399, [ALERT]) for k in range(12)])
+    day_dir = root / "archive" / "subway_alerts" / f"date={DAY}"
+    feed_type, [(feed_key, mapper)] = gapfill.SOURCES["subway_alerts"]
+
+    def racing(t):
+        d = day_dir / "hour=01"
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "part-00.parquet").touch()  # the archiver wins mid-run
+        return mapper(t)
+
+    monkeypatch.setitem(gapfill.SOURCES, "subway_alerts", (feed_type, [(feed_key, racing)]))
+    gapfill.fill_day(root, "subway_alerts", DAY)
+    assert not (day_dir / "hour=01" / "_dead").exists()
+    assert (day_dir / "hour=01" / "part-00.parquet").exists()
+
+
+def test_fill_retracts_a_dead_marker_the_hour_outgrew(tmp_path, fake_gcs):
+    """A marked hour that later FILLS (revised day file, refined criterion): the machine
+    wrote the marker, so the machine deletes it - left standing beside real parts it
+    would read stale_dead forever, the exact red this mechanism exists to remove."""
+    root = tmp_path / "root"
+    remote(fake_gcs, "service_alerts", gapfill.FEEDS["subway_alerts"], DAY,
+           [(D0 + 10, D0 + 9, [ALERT]), (D0 + 3660, D0 + 3659, [ALERT])])
+    day_dir = root / "archive" / "subway_alerts" / f"date={DAY}"
+    (day_dir / "hour=01").mkdir(parents=True)
+    (day_dir / "hour=01" / "_dead").touch()
+    gapfill.fill_day(root, "subway_alerts", DAY)
+    h1 = day_dir / "hour=01"
+    assert (h1 / "_gapfill").exists() and any(h1.glob("*.parquet"))
+    assert not (h1 / "_dead").exists()
 
 
 def test_check_reads_a_dead_marker_beside_the_hand_list(tmp_path, one_day, monkeypatch):

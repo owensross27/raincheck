@@ -36,7 +36,7 @@ import pyarrow.parquet as pq
 from raincheck import checks
 from raincheck.archiver import KEY, TYPES
 from raincheck.feeds import CAUSE, EFFECT, FEEDS, OCCUPANCY, SUBWAY_FEEDS, TRIP_REL
-from raincheck.paths import data_root
+from raincheck.paths import data_root, rm_file
 
 GCS = "https://storage.googleapis.com/parquet.gtfsrt.io"
 START = date(2026, 8, 15)  # capture began; ticket 20 scope
@@ -44,9 +44,10 @@ KINDS = ("vp", "tu", "alerts", "subway_tu", "subway_alerts")
 CADENCE = {"vp": 30, "tu": 120, "alerts": 300, "subway_tu": 60, "subway_alerts": 300}
 # Hours gtfsrt.io itself never stored - zero snapshots at source, so no fill can ever
 # produce them and gapcheck must not fail forever on them. "Zero snapshots" means zero
-# DISTINCT ones: every hour listed so far had all ~60 raw polls present but
-# header.timestamp frozen across them, so pick() - and an awake archiver, same dedup -
-# keeps nothing. Add an entry ONLY after probing the source and confirming that; never
+# KEPT ones: every hour listed so far had all ~60 raw polls present with
+# header.timestamp frozen at every cadence slot - four wall to wall, two (08-15 h12,
+# 08-22 h18) recovering only in the final sub-cadence sliver - so pick() - and an awake
+# archiver, same dedup - keeps nothing. Add an entry ONLY after probing that; never
 # to quiet a fill that merely failed. gapcheck prints a stale note when a listed hour
 # turns up.
 #
@@ -247,26 +248,31 @@ def pick(snaps: list[tuple[float, int]], cadence: int) -> list[int]:
 
 
 def dead_hours(metas: list[tuple], kept: list[int], hours: list[str],
-               cadence: int, day: str) -> list[str]:
+               cadence: int, day: str, tainted: frozenset = frozenset()) -> list[str]:
     """The missing hours this day file PROVES no fill can ever produce - DEAD's own
     probe (raw polls full, kept zero - the 2026-08-30 repair's exact criterion)
     measured instead of hand-run: polls cover the whole hour with no gap wider than the
-    archiver's cadence, yet pick() - the same dedup an awake archiver runs - keeps not
-    one of them, i.e. header.timestamp repeated the last kept value at every cadence
-    slot for a solid hour. The usual freeze is one stuck header wall to wall; a freeze
-    that recovers in the final sub-cadence sliver (2026-08-15 h12, 2026-08-22 h18)
-    proves the same way, its recovery snapshots riding into the NEXT hour's fill.
-    Sparse or absent polls prove NOTHING - a snapshot gtfsrt.io missed could exist -
-    and such an hour stays red for a hand probe."""
+    archiver's cadence, pick() - the same dedup an awake archiver runs - keeps not one
+    of them, AND any distinct header is confined to the hour's FINAL sub-cadence
+    sliver. The usual freeze is one stuck header wall to wall; a freeze that recovers
+    inside that last sliver (2026-08-15 h12, 2026-08-22 h18) proves the same way, its
+    recovery riding into the NEXT hour's fill. A distinct header EARLIER in the hour -
+    a mid-hour blip the cadence slots happened to straddle - is real content no fill
+    and no next hour will ever carry, so it DISQUALIFIES the proof even though pick
+    kept nothing. So do sparse or absent polls (a snapshot gtfsrt.io missed could
+    exist) and `tainted` hours (a poll the caller had to skip could belong to them);
+    all of those stay red for a hand probe."""
     day_start = datetime.fromisoformat(day).replace(tzinfo=timezone.utc).timestamp()
     kept_hours = {metas[i][3] for i in kept}
     out = []
     for hh in hours:
-        if hh in kept_hours:
+        if hh in kept_hours or hh in tainted:
             continue
-        fetches = [f for _, f, _, mh in metas if mh == hh]
+        polls = sorted((f, h) for _, f, h, mh in metas if mh == hh)
+        fetches = [f for f, _ in polls]
         lo = day_start + int(hh) * 3600
-        if (fetches and fetches[0] - lo <= cadence
+        if (fetches and len({h for f, h in polls if f <= lo + 3600 - cadence}) == 1
+                and fetches[0] - lo <= cadence
                 and lo + 3600 - fetches[-1] <= cadence
                 and max((b - a for a, b in zip(fetches, fetches[1:])), default=0) <= cadence):
             out.append(hh)
@@ -312,9 +318,11 @@ def fill_day(root: Path, kind: str, day: str) -> bool:
             names = pf.schema_arrow.names
             i_fetch, i_feed = names.index("fetch_timestamp"), names.index("feed_timestamp")
             md, metas, no_clock = pf.metadata, [], 0
-            for i in range(md.num_row_groups):
-                rg = md.row_group(i)
+            holes = []  # meta index a skipped snapshot (0-row / no poll clock) sits before:
+            for i in range(md.num_row_groups):     # its hour is unknowable, so the hours it
+                rg = md.row_group(i)               # could belong to must not claim full polls
                 if rg.num_rows == 0:
+                    holes.append(len(metas))
                     continue
                 sf, sh = rg.column(i_fetch).statistics, rg.column(i_feed).statistics
                 if sf and sf.has_min_max and sh and sh.has_min_max:
@@ -324,6 +332,7 @@ def fill_day(root: Path, kind: str, day: str) -> bool:
                     fc, hc = two.column("fetch_timestamp"), two.column("feed_timestamp")
                     if fc.null_count == len(fc):  # a snapshot with no poll clock: skip it,
                         no_clock += 1             # neighbours at their 20-30 s cadence cover it
+                        holes.append(len(metas))
                         continue
                     f_lo, f_hi = pc.min_max(fc)["min"].as_py(), pc.min_max(fc)["max"].as_py()
                     h_lo, h_hi = pc.min_max(hc)["min"].as_py(), pc.min_max(hc)["max"].as_py()
@@ -344,7 +353,12 @@ def fill_day(root: Path, kind: str, day: str) -> bool:
                 i, _, _, hh = metas[k]
                 if hh in hours:
                     by_hour.setdefault(hh, []).append(i)
-            for hh in dead_hours(metas, kept, hours, CADENCE[kind], day):
+            tainted = set()  # bracket each hole between its neighbouring placeable polls
+            for p in holes:
+                lo_h = int(metas[p - 1][3]) if p else 0
+                hi_h = int(metas[p][3]) if p < len(metas) else 23
+                tainted.update(f"{h:02d}" for h in range(lo_h, hi_h + 1))
+            for hh in dead_hours(metas, kept, hours, CADENCE[kind], day, frozenset(tainted)):
                 dead_proof[hh] = dead_proof.get(hh, 0) + 1
             for hh, idxs in sorted(by_hour.items()):
                 out = date_dir / f"hour={hh}" / f"part-gapfill-{feed_key}.parquet"
@@ -368,6 +382,11 @@ def fill_day(root: Path, kind: str, day: str) -> bool:
         # tests/test_object_store_writes.py.
         for hh in written:
             (date_dir / f"hour={hh}" / "_gapfill").touch()
+            if (date_dir / f"hour={hh}" / "_dead").exists():
+                # a marked hour that filled after all: the machine wrote the marker, so
+                # the machine retracts it - left standing it would read stale_dead
+                # forever, the exact red this mechanism exists to remove
+                rm_file(date_dir / f"hour={hh}" / "_dead")
         # A frozen hour retires itself, but only on FULL proof: every feed of the kind
         # proved it (a kind is dead only when nothing in it kept a snapshot), the whole
         # day was reachable (all_ok - a half-read day proves nothing), and the hour is
@@ -409,10 +428,15 @@ def check(root: Path) -> list[checks.Row]:
     for kind in KINDS:
         for day in days():
             date_dir = root / "archive" / kind / f"date={day}"
-            have = {d.name[5:] for d in date_dir.glob("hour=*") if any(d.glob("*.parquet"))}
+            have, marked = set(), set()
+            for d in date_dir.glob("hour=*"):  # ONE listing per hour dir, serving both
+                names = {p.name for p in d.glob("*")}  # questions - on an object store
+                if any(n.endswith(".parquet") for n in names):  # every extra pass is a
+                    have.add(d.name[5:])                        # store listing billed
+                if "_dead" in names:                            # per hour per day
+                    marked.add(d.name[5:])
             miss = {f"{h:02d}" for h in range(24)} - have
-            dead = set(DEAD.get((kind, day), ())) | {
-                d.name[5:] for d in date_dir.glob("hour=*") if (d / "_dead").exists()}
+            dead = set(DEAD.get((kind, day), ())) | marked
             fillable, covered, stale = sorted(miss - dead), sorted(dead & miss), sorted(dead - miss)
             note = f"  missing {','.join(fillable)}" if fillable else ""
             if covered:
