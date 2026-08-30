@@ -7,6 +7,8 @@ Source  storage.googleapis.com/parquet.gtfsrt.io/<feed_type>/date=<D>/base64url=
 Fill    only hour-dirs the archiver never wrote (our capture wins, hour granularity);
         snapshots thinned to the archiver's poll cadence and deduped on header.timestamp,
         written as part-gapfill-<feed>.parquet + an empty _gapfill marker per filled hour.
+        A missing hour the day file PROVES frozen at source (dead_hours below) retires
+        itself with an `_dead` marker instead - the DEAD criterion, measured in fill.
 NULLs   subway TU NYCT-extension columns (train_id, direction, is_assigned,
         scheduled_track, actual_track) are not archived by gtfsrt.io -> NULL; bus VP
         rows keep presence as gtfsrt.io stored it (proto3 absent-vs-default is theirs).
@@ -47,6 +49,16 @@ CADENCE = {"vp": 30, "tu": 120, "alerts": 300, "subway_tu": 60, "subway_alerts":
 # keeps nothing. Add an entry ONLY after probing the source and confirming that; never
 # to quiet a fill that merely failed. gapcheck prints a stale note when a listed hour
 # turns up.
+#
+# The frozen flavor now retires ITSELF: fill_day() runs that exact probe on the day file
+# it already holds (dead_hours below) and records a proven hour as an `hour=HH/_dead`
+# marker, which check() reads beside this list. Hand entries remain for what the proof
+# cannot reach - no polls at all, or a freeze already standing at the file's first poll
+# (the pre-hour header lives in yesterday's file). The marker is check()-only on purpose,
+# exactly like this list: missing_hours() ignores it, so the hour is re-proven every run
+# and a marked hour that turns up fails as stale_dead the day the source changes - delete
+# the marker then, the way a rotted entry here is pruned. (daily.unheld() reads DEAD
+# alone; a vp freeze has never occurred and would still take a hand entry.)
 DEAD = {
     ("subway_alerts", "2026-08-15"): ("07", "12"),
     ("subway_alerts", "2026-08-16"): ("13",),
@@ -234,6 +246,30 @@ def pick(snaps: list[tuple[float, int]], cadence: int) -> list[int]:
     return kept
 
 
+def dead_hours(metas: list[tuple], hours: list[str], cadence: int, day: str) -> list[str]:
+    """The missing hours this day file PROVES dead at source - DEAD's own criterion
+    measured instead of hand-probed: polls cover the whole hour with no gap wider than
+    the archiver's cadence, all carrying ONE header.timestamp that repeats the last one
+    polled before the hour. Zero DISTINCT snapshots, so pick() - and an awake archiver,
+    same dedup - keeps nothing, forever. Anything less is NOT proof and stays red for a
+    hand probe: sparse or absent polls could hide a snapshot gtfsrt.io missed, a second
+    header IS a snapshot (pick keeps it and the hour fills), and with no pre-hour poll
+    the frozen value cannot be shown to be yesterday's."""
+    day_start = datetime.fromisoformat(day).replace(tzinfo=timezone.utc).timestamp()
+    out = []
+    for hh in hours:
+        fetches = [f for _, f, _, mh in metas if mh == hh]
+        headers = {h for _, _, h, mh in metas if mh == hh}
+        prior = [h for _, _, h, mh in metas if mh < hh]
+        lo = day_start + int(hh) * 3600
+        if (fetches and prior and headers == {prior[-1]}
+                and fetches[0] - lo <= cadence
+                and lo + 3600 - fetches[-1] <= cadence
+                and max((b - a for a, b in zip(fetches, fetches[1:])), default=0) <= cadence):
+            out.append(hh)
+    return out
+
+
 def missing_hours(date_dir: Path) -> list[str]:
     """Hours the archiver never captured. An hour with any non-gapfill part is the
     archiver's (our capture wins); a _gapfill marker means already filled; gapfill
@@ -258,6 +294,7 @@ def fill_day(root: Path, kind: str, day: str) -> bool:
         print(f"gapfill {kind} {day}: no missing hours", flush=True)
         return True
     written: dict[str, int] = {}
+    dead_proof: dict[str, int] = {}  # missing hour -> feeds that proved it frozen at source
     all_ok = True
     for feed_key, mapper in feed_maps:
         url = f"{GCS}/{feed_type}/date={day}/base64url={b64(FEEDS[feed_key])}/data.parquet"
@@ -303,6 +340,8 @@ def fill_day(root: Path, kind: str, day: str) -> bool:
                 i, _, _, hh = metas[k]
                 if hh in hours:
                     by_hour.setdefault(hh, []).append(i)
+            for hh in dead_hours(metas, hours, CADENCE[kind], day):
+                dead_proof[hh] = dead_proof.get(hh, 0) + 1
             for hh, idxs in sorted(by_hour.items()):
                 out = date_dir / f"hour={hh}" / f"part-gapfill-{feed_key}.parquet"
                 if hh not in missing_hours(date_dir):  # scan-to-write race: archiver won
@@ -325,6 +364,20 @@ def fill_day(root: Path, kind: str, day: str) -> bool:
         # tests/test_object_store_writes.py.
         for hh in written:
             (date_dir / f"hour={hh}" / "_gapfill").touch()
+        # A frozen hour retires itself, but only on FULL proof: every feed of the kind
+        # proved it (a kind is dead only when nothing in it kept a snapshot), the whole
+        # day was reachable (all_ok - a half-read day proves nothing), and the hour is
+        # STILL missing at write time (the same scan-to-write recheck the parts get;
+        # our own fresh _gapfill markers also drop out here). Same slot as the marker
+        # above and for the same reason: nothing retires an hour before the run's data
+        # is all down. `_dead` is deliberately NOT `_gapfill`: verify() reads _gapfill
+        # as "has comparable rows" and would choke on a part-less hour.
+        for hh in sorted(dead_proof):
+            if dead_proof[hh] == len(feed_maps) and hh in missing_hours(date_dir):
+                (date_dir / f"hour={hh}").mkdir(parents=True, exist_ok=True)
+                (date_dir / f"hour={hh}" / "_dead").touch()
+                print(f"gapfill {kind} {day}: hour={hh} dead at source - header.timestamp "
+                      f"frozen across a fully-polled hour; _dead marker written", flush=True)
     print(f"gapfill {kind} {day}: filled {len(written)}/{len(hours)} missing hours"
           + ("" if all_ok else " (partial: unpublished feeds above, no markers written)"),
           flush=True)
@@ -342,7 +395,9 @@ def days(start: date | None = None, end: date | None = None):
 def check(root: Path) -> list[checks.Row]:
     """Hour completeness per kind x closed day, one row each. Fails on fillable gaps and on
     a stale DEAD entry (an hour listed dead at source that is actually here: the allowlist
-    is now protecting nothing and must be pruned, so it is a defect and not a note). DEAD
+    is now protecting nothing and must be pruned, so it is a defect and not a note). Dead
+    at source = the hand-probed DEAD list union the `_dead` markers fill_day proved and
+    wrote; a stale marker is the same defect as a stale entry (delete the marker). Dead
     hours that really are missing are reported but never fail - a scheduled run pages on
     real gaps instead of forever on holes gtfsrt.io never had."""
     rows = []
@@ -351,7 +406,8 @@ def check(root: Path) -> list[checks.Row]:
             date_dir = root / "archive" / kind / f"date={day}"
             have = {d.name[5:] for d in date_dir.glob("hour=*") if any(d.glob("*.parquet"))}
             miss = {f"{h:02d}" for h in range(24)} - have
-            dead = set(DEAD.get((kind, day), ()))
+            dead = set(DEAD.get((kind, day), ())) | {
+                d.name[5:] for d in date_dir.glob("hour=*") if (d / "_dead").exists()}
             fillable, covered, stale = sorted(miss - dead), sorted(dead & miss), sorted(dead - miss)
             note = f"  missing {','.join(fillable)}" if fillable else ""
             if covered:

@@ -441,3 +441,122 @@ def test_mapper_schema_matches_archiver(kind, feed_type, live_rows, tmp_path, mo
     mapper = dict(gapfill.SOURCES[kind][1])[
         "subway" if kind == "subway_tu" else kind]
     assert mapper(tables[0]).schema.equals(live_schema)
+
+
+# --- auto-retirement of frozen hours: the DEAD probe, measured in fill ------------------
+ALERT = {"entity_id": "alert:1", "cause": 6, "effect": 4, "active_period_start": D0,
+         "active_period_end": D0 + 3600, "header_text": "detour", "description_text": "",
+         "route_id": "B41", "agency_id": "MTA NYCT", "direction_id": 1}
+
+
+def meta(x: int, header: int, hh: str) -> tuple:
+    """One meta row as fill_day builds them: (row group, fetch epoch, header_ts, hour)."""
+    return (0, float(D0 + x), header, hh)
+
+
+def test_dead_hours_is_exactly_the_probe_criterion():
+    """Direct pins on the proof, one discrimination each. fill_day's other guards (a kept
+    snapshot fills the hour; the marker recheck) shadow some of these end to end, so only
+    a unit test can see the criterion itself move."""
+    frozen = [meta(400, 99, "00")] + [meta(3600 + k * 300, 99, "01") for k in range(12)]
+    assert gapfill.dead_hours(frozen, ["01"], 300, DAY) == ["01"]
+    # a header the pre-hour polls never carried IS a snapshot, not a freeze
+    fresh = frozen[:1] + [meta(3600 + k * 300, 100, "01") for k in range(12)]
+    assert gapfill.dead_hours(fresh, ["01"], 300, DAY) == []
+    # two headers: the feed moved mid-hour
+    assert gapfill.dead_hours(frozen[:-1] + [meta(6900, 100, "01")], ["01"], 300, DAY) == []
+    # one inter-poll gap wider than the cadence could hide a snapshot
+    gappy = [r if r[1] != D0 + 5100 else meta(5110, 99, "01") for r in frozen]
+    assert gapfill.dead_hours(gappy, ["01"], 300, DAY) == []
+    # first poll late / last poll early: the hour's edges are unproven
+    late = frozen[:1] + [meta(3901 + k * 300, 99, "01") for k in range(11)]
+    assert gapfill.dead_hours(late, ["01"], 300, DAY) == []
+    assert gapfill.dead_hours(frozen[:-1], ["01"], 300, DAY) == []
+    # no pre-hour poll: the frozen value cannot be shown to be yesterday's
+    start = [meta(k * 300, 99, "00") for k in range(12)]
+    assert gapfill.dead_hours(start, ["00"], 300, DAY) == []
+    # no polls at all: absence, not proof
+    assert gapfill.dead_hours(frozen[:1], ["01"], 300, DAY) == []
+
+
+def frozen_alerts_day(base: Path, freeze: list[tuple[int, int, list[dict]]]) -> None:
+    """subway_alerts snapshots: hour 00 live (two distinct headers), hour 01 as given,
+    hour 02 live again. The 2026-08-24 h08 freeze, in miniature."""
+    snaps = [(D0 + 10, D0 + 9, [ALERT]), (D0 + 400, D0 + 399, [ALERT])]
+    snaps += freeze
+    snaps += [(D0 + 7250, D0 + 7249, [ALERT])]
+    remote(base, "service_alerts", gapfill.FEEDS["subway_alerts"], DAY, snaps)
+
+
+def test_fill_retires_a_proven_frozen_hour_with_a_dead_marker(tmp_path, fake_gcs, capsys):
+    root = tmp_path / "root"
+    frozen_alerts_day(fake_gcs, [(D0 + 3600 + k * 300, D0 + 399, [ALERT]) for k in range(12)])
+    assert gapfill.fill_day(root, "subway_alerts", DAY) is True
+    day_dir = root / "archive" / "subway_alerts" / f"date={DAY}"
+    for hh in ("00", "02"):
+        assert (day_dir / f"hour={hh}" / "_gapfill").exists()
+    h1 = day_dir / "hour=01"
+    assert (h1 / "_dead").exists()
+    assert not list(h1.glob("*.parquet")) and not (h1 / "_gapfill").exists()
+    assert "hour=01 dead at source" in capsys.readouterr().out
+    # check()-only, exactly like a DEAD entry: the hour still reads missing, so every
+    # run re-proves it and a wrongly-marked hour can surface as stale the day the
+    # source changes
+    assert "01" in gapfill.missing_hours(day_dir)
+    gapfill.fill_day(root, "subway_alerts", DAY)  # re-probe is idempotent: no parts appear
+    assert sorted(p.name for p in h1.iterdir()) == ["_dead"]
+
+
+def test_a_sparse_frozen_hour_stays_red_for_a_hand_probe(tmp_path, fake_gcs):
+    """Polls that stop at half past cannot prove nothing was missed - no marker, and the
+    hour keeps failing gapcheck until someone probes by hand."""
+    root = tmp_path / "root"
+    frozen_alerts_day(fake_gcs, [(D0 + 3600 + k * 300, D0 + 399, [ALERT]) for k in range(6)])
+    gapfill.fill_day(root, "subway_alerts", DAY)
+    day_dir = root / "archive" / "subway_alerts" / f"date={DAY}"
+    assert not (day_dir / "hour=01").exists()
+    assert "01" in gapfill.missing_hours(day_dir)
+
+
+def test_a_dead_marker_needs_every_feed_of_the_kind_frozen(tmp_path, fake_gcs):
+    """subway_tu is eight feeds: hour 01 frozen for ONE while seven kept snapshots is a
+    fillable hour, never a dead one."""
+    root = tmp_path / "root"
+    s = {"trip_id": "t", "route_id": "G", "stop_id": "G22N",
+         "arrival_time": D0 + 100, "departure_time": D0 + 130}
+    for i, sfx in enumerate(gapfill.SUBWAY_FEEDS):
+        snaps = [(D0 + 5, D0 + 4, [s])]
+        snaps += ([(D0 + 3600 + k * 60, D0 + 4, [s]) for k in range(60)] if i == 0
+                  else [(D0 + 3660, D0 + 3659, [s])])
+        remote(fake_gcs, "trip_updates", gapfill.FEEDS[f"subway{sfx}"], DAY, snaps)
+    gapfill.fill_day(root, "subway_tu", DAY)
+    hour = root / "archive" / "subway_tu" / f"date={DAY}" / "hour=01"
+    assert not (hour / "_dead").exists()
+    assert (hour / "_gapfill").exists()  # the seven live feeds filled it
+
+
+def test_check_reads_a_dead_marker_beside_the_hand_list(tmp_path, one_day, monkeypatch):
+    monkeypatch.setattr(gapfill, "DEAD", {})
+    bronze_day(tmp_path, one_day, {"subway_alerts": ["05"]})
+    d = tmp_path / "archive" / "subway_alerts" / f"date={one_day}" / "hour=05"
+    d.mkdir()
+    (d / "_dead").touch()
+    rows = gapfill.check(tmp_path)
+    assert checks.rc(rows) == 0
+    (sa,) = [r for r in rows if r.measures["kind"] == "subway_alerts"]
+    assert (sa.outcome, sa.measures["dead"], sa.measures["hours_held"]) == (
+        checks.OK, "05", 23)
+    assert "[dead at source: 05]" in rendered(rows)
+
+
+def test_check_fails_a_stale_dead_marker(tmp_path, one_day, monkeypatch):
+    """A marked hour that is actually HERE is the same defect as a rotted DEAD entry -
+    the marker is protecting nothing and must be deleted, so it fails, never notes."""
+    monkeypatch.setattr(gapfill, "DEAD", {})
+    bronze_day(tmp_path, one_day, {})  # every hour present
+    (tmp_path / "archive" / "vp" / f"date={one_day}" / "hour=05" / "_dead").touch()
+    rows = gapfill.check(tmp_path)
+    assert checks.rc(rows) == 1
+    (vp,) = [r for r in rows if r.measures["kind"] == "vp"]
+    assert (vp.outcome, vp.measures["stale_dead"]) == (checks.FAIL, "05")
+    assert "stale DEAD entry" in rendered(rows)

@@ -12,7 +12,10 @@ the same day is a no-op.
   gapcheck   what is still missing, per kind x closed day. Strictly AFTER the fill (20):
              the newest day or two legitimately fail until gtfsrt.io publishes them, and
              that exit 1 is the actionable signal - never allowlist it (gapfill.DEAD is
-             hand-added, after probing the source shows zero snapshots)
+             hand-added, after probing the source shows zero snapshots; the ONE
+             machine-checkable flavor - header.timestamp frozen across a fully-polled
+             hour - retires itself via fill_day's `_dead` marker, the same criterion
+             measured from the day file rather than hand-probed)
   coldpush   push Bronze, including the hours just filled, to R2 (ticket 18)
   coldcheck  soft - see coldcheck() below
   events     every closed service day of the last 14 that has no Silver partition and
