@@ -51,14 +51,14 @@ CADENCE = {"vp": 30, "tu": 120, "alerts": 300, "subway_tu": 60, "subway_alerts":
 # turns up.
 #
 # The frozen flavor now retires ITSELF: fill_day() runs that exact probe on the day file
-# it already holds (dead_hours below) and records a proven hour as an `hour=HH/_dead`
-# marker, which check() reads beside this list. Hand entries remain for what the proof
-# cannot reach - no polls at all, or a freeze already standing at the file's first poll
-# (the pre-hour header lives in yesterday's file). The marker is check()-only on purpose,
-# exactly like this list: missing_hours() ignores it, so the hour is re-proven every run
-# and a marked hour that turns up fails as stale_dead the day the source changes - delete
-# the marker then, the way a rotted entry here is pruned. (daily.unheld() reads DEAD
-# alone; a vp freeze has never occurred and would still take a hand entry.)
+# it already holds (dead_hours below - full polls, pick keeps zero) and records a proven
+# hour as an `hour=HH/_dead` marker, which check() reads beside this list. Hand entries
+# remain for what the proof cannot reach: an hour gtfsrt.io did not poll wall to wall.
+# The marker is check()-only on purpose, exactly like this list: missing_hours() ignores
+# it, so the hour is re-proven every run and a marked hour that turns up fails as
+# stale_dead the day the source changes - delete the marker then, the way a rotted entry
+# here is pruned. (daily.unheld() reads DEAD alone; a vp freeze has never occurred and
+# would still take a hand entry.)
 DEAD = {
     ("subway_alerts", "2026-08-15"): ("07", "12"),
     ("subway_alerts", "2026-08-16"): ("13",),
@@ -246,24 +246,27 @@ def pick(snaps: list[tuple[float, int]], cadence: int) -> list[int]:
     return kept
 
 
-def dead_hours(metas: list[tuple], hours: list[str], cadence: int, day: str) -> list[str]:
-    """The missing hours this day file PROVES dead at source - DEAD's own criterion
-    measured instead of hand-probed: polls cover the whole hour with no gap wider than
-    the archiver's cadence, all carrying ONE header.timestamp that repeats the last one
-    polled before the hour. Zero DISTINCT snapshots, so pick() - and an awake archiver,
-    same dedup - keeps nothing, forever. Anything less is NOT proof and stays red for a
-    hand probe: sparse or absent polls could hide a snapshot gtfsrt.io missed, a second
-    header IS a snapshot (pick keeps it and the hour fills), and with no pre-hour poll
-    the frozen value cannot be shown to be yesterday's."""
+def dead_hours(metas: list[tuple], kept: list[int], hours: list[str],
+               cadence: int, day: str) -> list[str]:
+    """The missing hours this day file PROVES no fill can ever produce - DEAD's own
+    probe (raw polls full, kept zero - the 2026-08-30 repair's exact criterion)
+    measured instead of hand-run: polls cover the whole hour with no gap wider than the
+    archiver's cadence, yet pick() - the same dedup an awake archiver runs - keeps not
+    one of them, i.e. header.timestamp repeated the last kept value at every cadence
+    slot for a solid hour. The usual freeze is one stuck header wall to wall; a freeze
+    that recovers in the final sub-cadence sliver (2026-08-15 h12, 2026-08-22 h18)
+    proves the same way, its recovery snapshots riding into the NEXT hour's fill.
+    Sparse or absent polls prove NOTHING - a snapshot gtfsrt.io missed could exist -
+    and such an hour stays red for a hand probe."""
     day_start = datetime.fromisoformat(day).replace(tzinfo=timezone.utc).timestamp()
+    kept_hours = {metas[i][3] for i in kept}
     out = []
     for hh in hours:
+        if hh in kept_hours:
+            continue
         fetches = [f for _, f, _, mh in metas if mh == hh]
-        headers = {h for _, _, h, mh in metas if mh == hh}
-        prior = [h for _, _, h, mh in metas if mh < hh]
         lo = day_start + int(hh) * 3600
-        if (fetches and prior and headers == {prior[-1]}
-                and fetches[0] - lo <= cadence
+        if (fetches and fetches[0] - lo <= cadence
                 and lo + 3600 - fetches[-1] <= cadence
                 and max((b - a for a, b in zip(fetches, fetches[1:])), default=0) <= cadence):
             out.append(hh)
@@ -335,12 +338,13 @@ def fill_day(root: Path, kind: str, day: str) -> bool:
             if no_clock:
                 print(f"gapfill {kind} {day}: {feed_key} skipped {no_clock} snapshot(s) "
                       f"with no poll clock (fetch_timestamp all NULL)", flush=True)
+            kept = pick([(m[1], m[2]) for m in metas], CADENCE[kind])
             by_hour: dict[str, list[int]] = {}
-            for k in pick([(m[1], m[2]) for m in metas], CADENCE[kind]):
+            for k in kept:
                 i, _, _, hh = metas[k]
                 if hh in hours:
                     by_hour.setdefault(hh, []).append(i)
-            for hh in dead_hours(metas, hours, CADENCE[kind], day):
+            for hh in dead_hours(metas, kept, hours, CADENCE[kind], day):
                 dead_proof[hh] = dead_proof.get(hh, 0) + 1
             for hh, idxs in sorted(by_hour.items()):
                 out = date_dir / f"hour={hh}" / f"part-gapfill-{feed_key}.parquet"
@@ -376,8 +380,9 @@ def fill_day(root: Path, kind: str, day: str) -> bool:
             if dead_proof[hh] == len(feed_maps) and hh in missing_hours(date_dir):
                 (date_dir / f"hour={hh}").mkdir(parents=True, exist_ok=True)
                 (date_dir / f"hour={hh}" / "_dead").touch()
-                print(f"gapfill {kind} {day}: hour={hh} dead at source - header.timestamp "
-                      f"frozen across a fully-polled hour; _dead marker written", flush=True)
+                print(f"gapfill {kind} {day}: hour={hh} dead at source - fully polled, "
+                      f"zero keepable snapshots (header frozen at every cadence slot); "
+                      f"_dead marker written", flush=True)
     print(f"gapfill {kind} {day}: filled {len(written)}/{len(hours)} missing hours"
           + ("" if all_ok else " (partial: unpublished feeds above, no markers written)"),
           flush=True)

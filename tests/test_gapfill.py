@@ -454,29 +454,42 @@ def meta(x: int, header: int, hh: str) -> tuple:
     return (0, float(D0 + x), header, hh)
 
 
+def probe(metas, hours, cadence=300):
+    """dead_hours under the real pick(), exactly as fill_day drives it."""
+    kept = gapfill.pick([(m[1], m[2]) for m in metas], cadence)
+    return gapfill.dead_hours(metas, kept, hours, cadence, DAY)
+
+
 def test_dead_hours_is_exactly_the_probe_criterion():
     """Direct pins on the proof, one discrimination each. fill_day's other guards (a kept
     snapshot fills the hour; the marker recheck) shadow some of these end to end, so only
     a unit test can see the criterion itself move."""
     frozen = [meta(400, 99, "00")] + [meta(3600 + k * 300, 99, "01") for k in range(12)]
-    assert gapfill.dead_hours(frozen, ["01"], 300, DAY) == ["01"]
-    # a header the pre-hour polls never carried IS a snapshot, not a freeze
+    assert probe(frozen, ["01"]) == ["01"]
+    # a header pick keeps IS a snapshot - the hour fills, it is not dead
     fresh = frozen[:1] + [meta(3600 + k * 300, 100, "01") for k in range(12)]
-    assert gapfill.dead_hours(fresh, ["01"], 300, DAY) == []
-    # two headers: the feed moved mid-hour
-    assert gapfill.dead_hours(frozen[:-1] + [meta(6900, 100, "01")], ["01"], 300, DAY) == []
+    assert probe(fresh, ["01"]) == []
+    assert probe(frozen[:-1] + [meta(6900, 100, "01")], ["01"]) == []  # feed moved mid-hour
     # one inter-poll gap wider than the cadence could hide a snapshot
     gappy = [r if r[1] != D0 + 5100 else meta(5110, 99, "01") for r in frozen]
-    assert gapfill.dead_hours(gappy, ["01"], 300, DAY) == []
+    assert probe(gappy, ["01"]) == []
     # first poll late / last poll early: the hour's edges are unproven
     late = frozen[:1] + [meta(3901 + k * 300, 99, "01") for k in range(11)]
-    assert gapfill.dead_hours(late, ["01"], 300, DAY) == []
-    assert gapfill.dead_hours(frozen[:-1], ["01"], 300, DAY) == []
-    # no pre-hour poll: the frozen value cannot be shown to be yesterday's
-    start = [meta(k * 300, 99, "00") for k in range(12)]
-    assert gapfill.dead_hours(start, ["00"], 300, DAY) == []
+    assert probe(late, ["01"]) == []
+    assert probe(frozen[:-1], ["01"]) == []
     # no polls at all: absence, not proof
-    assert gapfill.dead_hours(frozen[:1], ["01"], 300, DAY) == []
+    assert probe(frozen[:1], ["01"]) == []
+
+
+def test_a_freeze_recovering_in_the_final_sliver_still_proves_dead():
+    """The 2026-08-15 h12 / 2026-08-22 h18 shape, measured at the real source: 57 minutes
+    frozen, fresh headers only in the last ~3 minutes - BETWEEN the hour's final cadence
+    slot and the boundary, where pick() can never look. Zero keepable snapshots, so the
+    hour is unfillable forever and proves dead; the recovery rides into the next hour."""
+    metas = [meta(3550, 99, "00")]  # phase puts the hour's cadence slots at :05:50..:55:50
+    metas += [meta(3600 + k * 60, 99 if k < 57 else 500 + k, "01") for k in range(60)]
+    metas += [meta(7260, 999, "02")]
+    assert probe(metas, ["01", "02"], cadence=300) == ["01"]
 
 
 def frozen_alerts_day(base: Path, freeze: list[tuple[int, int, list[dict]]]) -> None:
@@ -533,6 +546,25 @@ def test_a_dead_marker_needs_every_feed_of_the_kind_frozen(tmp_path, fake_gcs):
     hour = root / "archive" / "subway_tu" / f"date={DAY}" / "hour=01"
     assert not (hour / "_dead").exists()
     assert (hour / "_gapfill").exists()  # the seven live feeds filled it
+
+
+def test_absence_of_another_feeds_polls_is_not_proof(tmp_path, fake_gcs):
+    """One feed frozen while another feed's hour has NO polls at all: the absent feed
+    could have had a real snapshot gtfsrt.io lost, so the hour stays red - one feed's
+    proof must never speak for the kind. (The test above cannot see this rule move: its
+    live feeds FILL the hour, and the marker recheck then skips it anyway.)"""
+    root = tmp_path / "root"
+    s = {"trip_id": "t", "route_id": "G", "stop_id": "G22N",
+         "arrival_time": D0 + 100, "departure_time": D0 + 130}
+    for i, sfx in enumerate(gapfill.SUBWAY_FEEDS):
+        snaps = [(D0 + 5, D0 + 4, [s])]
+        if i == 0:  # frozen across hour 01; every other feed has hour 00 only
+            snaps += [(D0 + 3600 + k * 60, D0 + 4, [s]) for k in range(60)]
+        remote(fake_gcs, "trip_updates", gapfill.FEEDS[f"subway{sfx}"], DAY, snaps)
+    gapfill.fill_day(root, "subway_tu", DAY)
+    day_dir = root / "archive" / "subway_tu" / f"date={DAY}"
+    assert not (day_dir / "hour=01").exists()
+    assert "01" in gapfill.missing_hours(day_dir)
 
 
 def test_check_reads_a_dead_marker_beside_the_hand_list(tmp_path, one_day, monkeypatch):
