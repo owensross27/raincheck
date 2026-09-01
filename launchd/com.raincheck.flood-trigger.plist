@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Storm-triggered flood-record refresh: every 30 min, scripts/flood-rain-trigger.sh
+       reads live/precip_cell (maintained by com.raincheck.precip-live) and runs the
+       refresh chain only when an hour shows >= 2000 Cells at >= 10 mm/h - the measured
+       signature of the 2026-08-27 storm; quiet ticks exit in ~2 s. Judgment gates
+       (canary, p99 pins, destructive spine diffs) exit loudly into the log below and
+       are resolved by the daily raincheck-flood-refresh scheduled task at 9 AM.
+       install: cp launchd/com.raincheck.flood-trigger.plist ~/Library/LaunchAgents/ &&
+                launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.raincheck.flood-trigger.plist
+       stop:    launchctl bootout gui/$(id -u)/com.raincheck.flood-trigger
+       run now: FORCE=1 scripts/flood-rain-trigger.sh   (bypasses rain + cooldown)
+       log:     tail -f data/logs/flood-trigger.log -->
+  <key>Label</key><string>com.raincheck.flood-trigger</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>/Users/ross/raincheck/scripts/flood-rain-trigger.sh</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/ross/raincheck</string>
+  <!-- same PATH note as the daily plist: launchd's default has no /opt/homebrew/bin -->
+  <key>EnvironmentVariables</key>
+  <dict><key>PATH</key><string>/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string></dict>
+  <key>StartInterval</key><integer>1800</integer>
+  <key>StandardOutPath</key><string>/Users/ross/raincheck/data/logs/flood-trigger.log</string>
+  <key>StandardErrorPath</key><string>/Users/ross/raincheck/data/logs/flood-trigger.log</string>
+</dict>
+</plist>
