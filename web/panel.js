@@ -27,6 +27,16 @@ import { fmtAge, forget, load, srcState, worst } from "./freshness.js";
 
 const chipHTML = (state) => `<span class="st st-${state}">${state}</span>`;
 
+// rows whose payload fetch is in flight right now - a transient RENDER overlay on the
+// row chip, never a sixth srcState (that vocabulary is frozen and its branch order
+// pinned): srcState with no age yet honestly reads STALE, and a multi-MB toggle
+// repainted early would flash a red chip over a healthy fetch. The overlay says what is
+// actually true instead, then leaves; the per-source chips inside the detail keep the
+// frozen vocabulary untouched.
+const loading = new Set();
+const rowChip = (lyr) => loading.has(lyr.id)
+  ? `<span class="st st-LOADING">LOADING</span>` : chipHTML(worst(lyr));
+
 export const GROUND_IDS = ["basemap", "zones", "stormwater", "routes"];
 
 // which rows' details are open, keyed by layer id - survives every innerHTML rebuild
@@ -81,7 +91,7 @@ export function rowHTML(lyr) {
   return `<div class="lyr${dark ? " gated" : ""}">
     <div class="lrow"><label><input type="${kind}" ${lyr.fill ? 'name="cellfill"' : ""} data-l="${lyr.id}"
       ${on[lyr.id] ? "checked" : ""} ${dark || !styled ? "disabled" : ""}>
-      <span class="nm">${lyr.name}</span></label>${chipHTML(worst(lyr))}
+      <span class="nm">${lyr.name}</span></label>${rowChip(lyr)}
     <button type="button" class="chev" data-det="${lyr.id}" aria-expanded="${open}"
       aria-label="${lyr.name} detail">&rsaquo;</button></div>
     ${lyr.sub ? `<p class="note sub">${lyr.sub}</p>` : ""}
@@ -154,7 +164,15 @@ export async function toggle(id, want) {
   // the exclusive fill channel, enforced in the state and not only in the radio group's
   // markup: a second fill can never be HELD on, however the toggle was reached
   if (want && lyr.fill) for (const o of LAYERS) if (o.fill && o.id !== id) on[o.id] = false;
-  if (want) await load(id); else forget(id);
+  if (want) {
+    // paint the row BEFORE the fetch: routes.geojson is 7.8 MB and history mode loads
+    // four layers at once - a silent await here reads as a dead click. The repaint rides
+    // the finally WITH the delete: a load() that throws would otherwise skip the tail of
+    // this function and leave a cleared Set under a chip still painted LOADING (measured
+    // in a hidden-pane tab, where draw throws pre-style).
+    loading.add(id); renderLayers();
+    try { await load(id); } finally { loading.delete(id); renderLayers(); }
+  } else forget(id);
   applyVisibility();
   renderLayers();
 }

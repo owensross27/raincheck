@@ -426,6 +426,27 @@ def test_the_freshness_vocabulary_is_five_states_in_a_fixed_precedence():
     assert "if (age === null || age === undefined)" in body
     assert "if (s.budget === null)" in body
     assert "age <= s.budget" in body
+
+
+def test_a_toggled_row_paints_loading_before_the_fetch_and_never_a_stale_flash():
+    """toggle() renders the row BEFORE awaiting the payload (routes.geojson is 7.8 MB and
+    history mode loads four layers at once - a silent await reads as a dead click), and
+    the in-flight chip is a RENDER overlay on the row chip only, never a sixth srcState:
+    with no age yet the frozen vocabulary above honestly reads STALE, which painted over
+    a healthy fetch would be a lie in red. The per-source chips in the detail keep the
+    five-state vocabulary untouched.
+    MUTATION KILLED: awaiting load() before the interim render; dropping the finally (an
+    aborted fetch would pin LOADING on the row forever); the row chip reading
+    chipHTML(worst()) straight while the fetch is in flight; srcState growing a LOADING
+    branch (the precedence pin above also guards that)."""
+    pan = module_js()["panel.js"]
+    body = pan.split("export async function toggle(", 1)[1].split("\n}", 1)[0]
+    assert body.index("loading.add(id); renderLayers();") < body.index("await load(id)")
+    # the repaint rides the finally WITH the delete: a load() that throws skips the tail
+    # of toggle(), and a cleared Set under an unrepainted chip still reads LOADING
+    assert "finally { loading.delete(id); renderLayers(); }" in body
+    assert 'st-LOADING">LOADING' in pan and "${rowChip(lyr)}" in pan
+    assert "LOADING" not in page_js().split("function srcState(lyr, s)", 1)[1].split("\n}", 1)[0]
     # a layer is only as fresh as its worst source, and the worst-first order matches
     worst = page_js().split("const worst = (lyr)", 1)[1].split("};", 1)[0]
     assert '["GATED", "STALE", "OFF", "AGE", "FRESH"]' in worst
