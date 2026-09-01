@@ -38,8 +38,8 @@
 import { $, LAYERS, map, markStyled, on, styled } from "./layers.js";
 import { load } from "./freshness.js";
 import { applyVisibility, openDet, renderLayers, toggle, toggleDet } from "./panel.js";
-import { applyRamp, closeCard, loadRecent, locateEvent, pointTip, setHourIndex, setScenario,
-         setView, showCard, showTip } from "./insight.js";
+import { applyRamp, closeCard, loadRecent, locateEvent, pointTip, setHourIndex,
+         setRecentBorough, setScenario, setView, showCard, showTip } from "./insight.js";
 import { toggleLive } from "./live.js";
 
 // NO NavigationControl either (Ross, 2026-09-01): scroll/pinch/double-tap zoom cover it,
@@ -238,6 +238,11 @@ $("recent").addEventListener("mouseleave", () => locateEvent(null));
 $("recent").addEventListener("focusin", e => {
   const r = recRow(e.target); if (r) locateEvent(Number(r.dataset.ev)); });
 $("recent").addEventListener("focusout", () => locateEvent(null));
+// the borough chips, same delegation (the chip row is rebuilt with the rows)
+$("recent").addEventListener("click", e => {
+  const b = e.target.closest ? e.target.closest("#rec-chips [data-b]") : null;
+  if (b) setRecentBorough(b.dataset.b);
+});
 
 // the list itself needs no map, so it is not gated on `load`; 32,924 B raw, dated
 // through grab() like every other payload

@@ -235,8 +235,18 @@ code { font-size: 12px; color: var(--dim); }
    own purpose), and the REAL payload's label + caveat strings are ~45px taller than the
    prototype's - measured at 1280x800, 40vh left the summary ~80px below the card fold. */
 #recent { margin-top: 12px; max-height: 18vh; overflow-y: auto; }
-.rec { display: flex; justify-content: space-between; gap: 8px; align-items: baseline;
+/* Flood history's column is the title and this list, so the record gets the room the
+   storm answer would have used - the full window scrolls without fighting the chips */
+body[data-mode="history"] #recent { max-height: 52vh; }
+#rec-chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+#rec-chips button { font: inherit; font-size: 11px; background: #171b21; color: #cfd6df;
+  border: 1px solid #313845; border-radius: 999px; padding: 1px 8px; cursor: pointer; }
+#rec-chips button[aria-pressed="true"] { background: #24405e; border-color: #8ecbff; }
+#rec-chips button:focus-visible { outline: 2px solid #8ecbff; outline-offset: 1px; }
+.rec { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 8px;
+  align-items: baseline;
   font-size: 12px; color: var(--dim); border-top: 1px solid var(--line); padding: 4px 0; }
+.rec .zl { flex-basis: 100%; font-style: normal; font-size: 11px; opacity: 0.75; }
 .rec b { color: #b9c3d0; font-weight: 500; white-space: nowrap; }
 .rec span { text-align: right; }
 .rec:hover { color: var(--ink); background: rgba(142, 203, 255, .06); }

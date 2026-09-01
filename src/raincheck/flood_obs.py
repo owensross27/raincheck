@@ -33,7 +33,7 @@ NY = ZoneInfo("America/New_York")
 SODA_NYC = "https://data.cityofnewyork.us/resource"
 SODA_NY = "https://data.ny.gov/resource"
 PAGE = 50_000  # SODA truncates silently at $limit: the page loop stops only on a short page
-ASOF = date(2026, 8, 23)  # the as-of stamp every snapshot name carries
+ASOF = date(2026, 9, 1)  # the as-of stamp every snapshot name carries
 
 # ---- frozen 311 pins -------------------------------------------------------------
 # FOUR exact literals, never LIKE '%FLOOD%' (which catches ~8,700 "Flood Light Lamp"

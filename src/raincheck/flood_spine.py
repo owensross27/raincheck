@@ -50,8 +50,8 @@ TS = pa.timestamp("us", tz="UTC")
 # 2023-09-28-onward overlap era where both spellings run, and they are concentrated on the
 # big days — 2023-09-29 included. 76ig is unchanged at 97 because the renamed literals
 # never appear before 2020.
-P99_311 = {"76ig-c548": 97, "erm2-nwe9": 85}
-P99_MEASURED_ON = date(2026, 8, 23)
+P99_311 = {"76ig-c548": 97, "erm2-nwe9": 93}
+P99_MEASURED_ON = date(2026, 9, 1)
 
 # ---- frozen Storm Events triggers -------------------------------------------------
 NCEI_CSV = "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/"

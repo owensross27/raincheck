@@ -157,12 +157,14 @@ def test_p99_is_nearest_rank():
 
 def test_the_frozen_p99_pins_reproduce_on_the_measured_series():
     """The pins ARE the event universe: every boundary, label and fold downstream moves if
-    they move. Re-measured here on the real daily series (5,485 days), so a rebuild years
-    later reproduces the same spine — or fails this test first."""
+    they move. Re-measured here on the real daily series (5,494 days), so a rebuild years
+    later reproduces the same spine — or fails this test first. Re-frozen 2026-09-01 with
+    the ASOF bump (erm2 85 -> 93: the late-August 2026 storm added p99-moving days);
+    the fixture is the same bump's snapshot, cut by fo.daily_311 over fo.rows_311."""
     series = json.loads((FIXTURES / "flood_311_daily.json").read_text())
     measured = {ds: fs.p99({date.fromisoformat(d): n for d, n in days.items()})
                 for ds, days in series.items()}
-    assert measured == fs.P99_311 == {"76ig-c548": 97, "erm2-nwe9": 85}
+    assert measured == fs.P99_311 == {"76ig-c548": 97, "erm2-nwe9": 93}
 
 
 def test_the_four_literal_union_is_what_puts_the_reference_day_in_the_spine():

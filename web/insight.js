@@ -386,6 +386,7 @@ export function drawCells(cells, h) {
   cellsData = cells;
   map.getSource("cells").setData(cells);
   cells.features.forEach(f => Object.keys(f.properties).forEach(k => cellKeys.add(k)));
+  if (recentDoc) loadRecent();  // the flood record's zone join can render now
   $("preview-note").textContent = head.preview_note;
   $("note-chord").textContent = head.chord_note;
   $("note-hidden").textContent = head.hidden_note;
@@ -695,19 +696,56 @@ export function closeCard() {
  * wiring on this page.
  */
 let recentEvents = [];   // the fetched events, indexed by the rows' data-ev attribute
+let recentDoc = null;    // the payload, cached so a filter click re-renders, never refetches
+let recentBorough = "";  // "" = every borough; the chip row sets it (wired in app.js)
 
-const REC_CAP = 5;   // a glance, not an archive; the rest is named, not hidden
+// cell -> {zone, borough} off the map's OWN cells.geojson (one fetch, locateEvent's rule);
+// null until that payload lands, and the cells loader re-runs loadRecent when it does
+let zoneByCell = null;
+function zoneIndex() {
+  if (!zoneByCell) {
+    const feats = cellFeatures();
+    if (!feats.length) return null;
+    zoneByCell = new Map(feats.map(f =>
+      [f.properties.cell, { zone: f.properties.zone_name, borough: f.properties.borough }]));
+  }
+  return zoneByCell;
+}
+
+export function setRecentBorough(b) { recentBorough = b; loadRecent(); }
 
 export async function loadRecent() {
   const src = { k: "files/summary/recent.json", url: "files/summary/recent.json",
                 budget: null };
-  const doc = await grab("recent", src);
+  const doc = recentDoc || await grab("recent", src);
+  recentDoc = doc;
   const box = $("recent");
   recentEvents = doc && Array.isArray(doc.events) ? doc.events : [];
   if (!doc) { box.innerHTML = ""; return; }   // not published: no section, no claim
   const s = doc.strings || {};
   const w = doc.window || {};
-  const rows = recentEvents.slice(0, REC_CAP).map((ev, i) => {
+  // the neighborhood breakdown per event - a client join over the cell list, so the
+  // payloads stay as they are; without cells.geojson the rows render zone-less, chip-less
+  const zx = zoneIndex();
+  const per = recentEvents.map(ev => {
+    const zones = new Map(), boros = new Set();
+    for (const c of ev.cells || []) {
+      const z = zx && zx.get(c);   // a cell outside zone coverage has neither name
+      if (z && z.zone) zones.set(z.zone, (zones.get(z.zone) || 0) + 1);
+      if (z && z.borough) boros.add(z.borough);
+    }
+    return { zones: [...zones.entries()].sort((a, b) => b[1] - a[1]), boros };
+  });
+  const boroughs = [...new Set(per.flatMap(p => [...p.boros]))].filter(Boolean).sort();
+  const chips = boroughs.length < 2 ? "" :
+    `<div id="rec-chips" role="group" aria-label="Filter the flood record by borough">` +
+    ["", ...boroughs].map(b =>
+      `<button type="button" data-b="${esc(b)}" aria-pressed="${String(b === recentBorough)}">` +
+      `${b ? esc(b) : "All"}</button>`).join("") + `</div>`;
+  // every event renders (the section scrolls inside its cap); data-ev stays the ORIGINAL
+  // index even under a filter, because locateEvent indexes recentEvents by it
+  const rows = recentEvents.map((ev, i) => {
+    if (recentBorough && !per[i].boros.has(recentBorough)) return "";
     const span = ev.day_start === ev.day_end ? esc(ev.day_start)
       : `${esc(ev.day_start)} &rarr; ${esc(ev.day_end)}`;
     const n = ev.n_assets || {};
@@ -715,16 +753,17 @@ export async function loadRecent() {
       typeof n.bus_stop === "number" ? `${n.bus_stop.toLocaleString()} bus stops` : "",
       typeof n.complex === "number" ? `${n.complex.toLocaleString()} station complexes` : "",
     ].filter(Boolean).join(" · ");
-    return `<div class="rec" tabindex="0" data-ev="${i}"><b>${span}</b><span>${bits}</span></div>`;
+    const top = per[i].zones.slice(0, 3).map(([z]) => esc(z)).join(", ");
+    const more = per[i].zones.length - 3;
+    const zl = top ? `<i class="zl">${top}${more > 0 ? ` +${more} more areas` : ""}</i>` : "";
+    return `<div class="rec" tabindex="0" data-ev="${i}"><b>${span}</b><span>${bits}</span>${zl}</div>`;
   }).join("");
   // rows FIRST under the header: the section is capped (app.css #recent), so the pixels
   // inside the cap go to the rider's rows; the label and caveat sentences still render
   // verbatim below them, beside each other, and scroll into view with the tail
   box.innerHTML =
     `<h2 class="lbl">Flooding on record, ${esc(w.since || "")} to ${esc(w.until || "")}</h2>` +
-    rows +
-    (recentEvents.length > REC_CAP
-      ? `<p class="note">&hellip;and ${recentEvents.length - REC_CAP} earlier events.</p>` : "") +
+    chips + rows +
     `<p class="note">Point at a row to see it on the map.</p>` +
     `<p class="note">${esc(s.label || "")}</p>` +
     (Array.isArray(s.caveats) ? s.caveats.map(c => `<p class="note">${esc(c)}</p>`).join("") : "");
