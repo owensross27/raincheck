@@ -447,6 +447,23 @@ def test_a_toggled_row_paints_loading_before_the_fetch_and_never_a_stale_flash()
     assert "finally { loading.delete(id); renderLayers(); }" in body
     assert 'st-LOADING">LOADING' in pan and "${rowChip(lyr)}" in pan
     assert "LOADING" not in page_js().split("function srcState(lyr, s)", 1)[1].split("\n}", 1)[0]
+
+
+def test_the_h1_answers_the_mode_on_screen_and_boots_in_agreement():
+    """Each mode's heading asks what that mode actually answers (#answer is hidden outside
+    storms, so the storm question over the flood record read as a broken promise). The
+    write sits in setMode()'s UNCONDITIONAL prefix - before the `styled` early-return -
+    so the heading follows a mode click even while the style is still loading; and the
+    storms string equals index.html's static h1, so the pre-JS paint and the default mode
+    agree. MUTATION KILLED: moving the write behind the styled gate; a MODE_H1 missing a
+    mode (an undefined heading); drifting the storms copy from the static h1."""
+    boot = module_js()["app.js"]
+    body = boot.split("async function setMode(m)", 1)[1].split("\n}", 1)[0]
+    assert body.index('$("insight-h").textContent = MODE_H1[m];') < body.index("if (!styled) return;")
+    h1 = re.search(r'<h1 id="insight-h">([^<]+)</h1>', page_html()).group(1)
+    assert f'storms: "{h1}"' in boot
+    for m in ("storms", "history", "live"):
+        assert re.search(rf'{m}: "[^"]+"', boot.split("const MODE_H1", 1)[1].split(";", 1)[0])
     # a layer is only as fresh as its worst source, and the worst-first order matches
     worst = page_js().split("const worst = (lyr)", 1)[1].split("};", 1)[0]
     assert '["GATED", "STALE", "OFF", "AGE", "FRESH"]' in worst

@@ -116,8 +116,16 @@ const MODE_SET = { storms: ["cells"],
                    history: ["hist", "fn", "stormwater", "mta"],
                    live: [] };
 const MODE_MANAGED = [...new Set(Object.values(MODE_SET).flat())];
+// the h1 answers per mode (UI round item 8, Ross 2026-09-01): the storm question is the
+// page's thesis, but #answer is hidden outside storms (app.css) and a heading that asks
+// what the mode below it never answers reads as a broken promise. The storms string is
+// also index.html's static h1, so a pre-JS paint and the storms mode agree.
+const MODE_H1 = { storms: "Does rain slow the NYC buses, and where?",
+                  history: "Where has flooding hit buses and subways?",
+                  live: "How are the buses doing right now?" };
 async function setMode(m) {
   document.body.dataset.mode = m;
+  $("insight-h").textContent = MODE_H1[m];
   for (const b of document.querySelectorAll("#modes button"))
     b.setAttribute("aria-pressed", String(b.dataset.m === m));
   if (!styled) return;         // boot re-applies the mode once the style is loaded
