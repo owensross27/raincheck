@@ -42,7 +42,8 @@ import { applyRamp, closeCard, loadRecent, locateEvent, pointTip, setHourIndex, 
          setView, showCard, showTip } from "./insight.js";
 import { toggleLive } from "./live.js";
 
-map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
+// NO NavigationControl either (Ross, 2026-09-01): scroll/pinch/double-tap zoom cover it,
+// and the buttons were the only chrome floating over the map face.
 // NO AttributionControl (frontend3 02): at 375 the compact control rendered EXPANDED over
 // the map strip, duplicating the credit strip below - and the strip is now fixed at the
 // viewport bottom at every width, so the OSMF adjacency requirement is met without it.
