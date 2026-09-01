@@ -136,11 +136,17 @@ $("modes").addEventListener("click", e => {
 $("layers-btn").addEventListener("click", () => {
   const open = document.body.classList.toggle("drawer-open");
   $("layers-btn").setAttribute("aria-expanded", String(open));
+  // under 900px the columns are position:static, so the drawer opens BELOW the whole
+  // insight column - off-screen. Scroll to it or the button appears to do nothing.
+  if (open) $("right").scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
 map.on("mousemove", "cells", showTip);
 map.on("click", "cells", showTip);          // touch
-map.on("mouseleave", "cells", () => { $("tip").style.display = "none"; });
+map.on("mouseenter", "cells", () => { map.getCanvas().style.cursor = "pointer"; });
+map.on("mouseleave", "cells", () => {
+  $("tip").style.display = "none"; map.getCanvas().style.cursor = "";
+});
 
 // frontend4 02: one hover mechanism (insight.pointTip), wired here for the point layers
 // that answered only to click (hist) or not at all (subway, mta, fn). Click is the
@@ -153,7 +159,10 @@ for (const id of ["hist", "subway", "mta", "fn", "live"]) {
   const tip = pointTip(id);
   map.on("mousemove", id, tip);
   map.on("click", id, tip);
-  map.on("mouseleave", id, () => { $("tip").style.display = "none"; });
+  map.on("mouseenter", id, () => { map.getCanvas().style.cursor = "pointer"; });
+  map.on("mouseleave", id, () => {
+    $("tip").style.display = "none"; map.getCanvas().style.cursor = "";
+  });
 }
 
 // frontend 07: the record card opens on CLICK, never hover (touch parity), and the Cell

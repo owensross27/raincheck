@@ -119,7 +119,7 @@ export function renderLayers() {
   const live = L("live");
   $("src-live").innerHTML = srcRows(live) + (shut(live)
     ? `<p class="note">Dark: the vehicle gate side is shut, so the fleet is not published
-       on this host. The toggle stays. (Locally, <code>make live-export</code> feeds it.)</p>` : "");
+       on this host. The toggle stays.</p>` : "");
   $("live-chip").innerHTML = chipHTML(worst(live));
   $("live-legend").innerHTML = live.legend || "";
   $("det-live").hidden = !openDet.has("live");

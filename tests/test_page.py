@@ -1212,6 +1212,21 @@ def test_the_rider_list_renders_recent_json_strings_verbatim_and_never_says_toda
     assert "loadRecent();" in app
 
 
+def test_the_window_picker_names_the_windows_in_plain_years():
+    """W1/W2 are codenames the page never defines, so the picker labels carry the window's
+    own year instead - DERIVED from ref.WINDOWS here, never a date span hardcoded in JS (a
+    page constant that mirrors a Python constant will drift [KNOWN TRAPS]). A third window
+    lands with a red test instead of a stale label.
+    MUTATION KILLED: reverting a label to `${w.toUpperCase()} ...`; a WINDOW_NAME year that
+    ref.WINDOWS does not contain."""
+    from raincheck import ref
+
+    ins = module_js()["insight.js"]
+    for (start, _end), w in zip(ref.WINDOWS, ("w1", "w2")):
+        assert f'{w}: "Autumn {start.year}"' in ins, f"{w} picker label names {start.year}"
+    assert "toUpperCase()} wet vs dry" not in ins, "the codename label came back"
+
+
 def test_every_layer_row_carries_one_plain_rider_sentence():
     """D7's rider surface: ONE sentence per source, visible in both views, under the
     layer's name in its own row. The live fleet is the one exception - its row IS the
@@ -1328,12 +1343,17 @@ def test_the_five_point_layers_get_a_mousemove_click_and_mouseleave_tip_in_app_j
     boot = module_js()["app.js"]
     assert 'import { applyRamp, closeCard, loadRecent, locateEvent, pointTip,' in boot
     assert 'for (const id of ["hist", "subway", "mta", "fn", "live"]) {' in boot
-    # the whole trio, UNCONDITIONAL and contiguous - a per-layer guard around any one call
-    # (e.g. `if (id !== "fn") map.on("mouseleave", ...)`) breaks this exact block
+    # the whole set, UNCONDITIONAL and contiguous - a per-layer guard around any one call
+    # (e.g. `if (id !== "fn") map.on("mouseleave", ...)`) breaks this exact block. The
+    # mouseenter/cursor pair is the click affordance; its reset rides the same mouseleave
+    # so a dropped reset cannot pass either.
     assert ('  const tip = pointTip(id);\n'
             '  map.on("mousemove", id, tip);\n'
             '  map.on("click", id, tip);\n'
-            '  map.on("mouseleave", id, () => { $("tip").style.display = "none"; });\n'
+            '  map.on("mouseenter", id, () => { map.getCanvas().style.cursor = "pointer"; });\n'
+            '  map.on("mouseleave", id, () => {\n'
+            '    $("tip").style.display = "none"; map.getCanvas().style.cursor = "";\n'
+            '  });\n'
             '}') in boot
     # hist's own click -> showCard registration follows the loop, so a hist tap's final
     # state is the card open and the tip hidden, never a stale tip stacked on the card

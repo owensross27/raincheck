@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "raincheck-web",
+      "runtimeExecutable": "/usr/bin/make",
+      "runtimeArgs": ["web", "PORT=8000"],
+      "port": 8000
+    }
+  ]
+}

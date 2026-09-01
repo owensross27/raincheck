@@ -57,7 +57,15 @@
   <h1 id="insight-h">Does rain slow the NYC buses, and where?</h1>
   <div id="answer" aria-live="polite"><p class="note">loading&hellip;</p></div>
 
-  <h2 class="lbl" id="views-h">Storm or window</h2>
+  <!-- the live fleet's status line, IN the visible column: in Live now the answer card,
+       picker and recent list are all hidden (app.css) and #right is opt-in at every
+       width, so this used to be a mode whose only explanation sat behind two clicks.
+       live.js writes it by id and does not care where it lives; shown only in live mode
+       (app.css), and the id is pinned by test_page.py - move it, never rename it. -->
+  <p id="livemeta" class="note">off &mdash; tick to fetch every 30 s; nothing can look
+     live when it is not.</p>
+
+  <h2 class="lbl" id="views-h">Storm or time period</h2>
   <div id="views" aria-labelledby="views-h"></div>
 
   <!-- frontend2 05: the rider's recent-flooding list, from files/summary/recent.json
@@ -71,7 +79,7 @@
        disclosure element, so the keyboard and screen-reader semantics come from the
        platform. Default CLOSED; app.js remembers the reader's choice in localStorage. -->
   <details id="analyst">
-    <summary>Analyst details &mdash; estimands, intervals, gates</summary>
+    <summary>Analyst details (advanced)</summary>
     <p class="note" id="preview-note">loading&hellip;</p>
 
     <div id="headline"></div>
@@ -99,7 +107,7 @@
   <div class="swatches" id="swatches" aria-hidden="true"></div>
   <div class="ticks"><span id="tick-lo"></span><span id="tick-mid"></span><span id="tick-hi"></span></div>
   <div class="swatches one" aria-hidden="true"><span class="grey"></span></div>
-  <div class="note" id="grey-note">grey &mdash; no publishable value</div>
+  <div class="note" id="grey-note">grey &mdash; not enough data</div>
 </div>
 </div>
 
@@ -127,10 +135,8 @@
       <button type="button" class="chev" data-det="live" aria-expanded="false"
         aria-controls="det-live" aria-label="Live fleet detail">&rsaquo;</button></div>
       <p class="note sub">show vehicles (30 s refresh)</p>
-      <p id="livemeta" class="note">off &mdash; tick to fetch every 30 s; nothing can look
-         live when it is not.</p>
       <div id="det-live" class="det" hidden>
-        <p class="note">MTA-reported trip delay: <span id="delaystate">unavailable (decoder build item)</span></p>
+        <p class="note">MTA-reported trip delay: <span id="delaystate">not available yet</span></p>
         <p class="note">rain: MRMS RadarOnly QPE 01H, uncalibrated, hour-ending,
            <span id="rainstate">no live tick yet</span></p>
         <div id="src-live" class="srcs"></div>

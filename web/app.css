@@ -284,9 +284,16 @@ body:not([data-mode="history"]) #recent { display: none; }
 /* the storm answer and its picker belong to Storm replay; the flood modes keep the title */
 body:not([data-mode="storms"]) #answer, body:not([data-mode="storms"]) #views,
 body:not([data-mode="storms"]) #views-h { display: none; }
+/* the fleet status line is Live now's answer card; the other modes explain themselves */
+body:not([data-mode="live"]) #livemeta { display: none; }
 /* no Cell ramp is on screen in Flood history (cells off, routes off): the marker meanings
    live on their drawer rows, so the ratio legend would only mislead here */
 body[data-mode="history"] #legend { display: none; }
+/* same lie in Live now: MODE_SET.live turns every fill off but applyRamp()'s `ramped`
+   stays true (view is never reset - byte-pinned, test_page.py), so the stale ratio
+   legend would sit beside a fleet that isn't coloured by it. Ceiling: a reader who left
+   the routes layer on loses its legend here too - the trade history mode already made. */
+body[data-mode="live"] #legend { display: none; }
 
 /* the storm/window picker: one native select in the answer card */
 #views select { width: 100%; min-height: 36px; background: #171b21; color: #cfd6df;

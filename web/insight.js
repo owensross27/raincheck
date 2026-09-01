@@ -48,7 +48,7 @@ function paint() {
   // plain words on the map face; the numeric stops stay in the analyst disclosure's
   // estimand prose (frontend5 03, the FloodNet pattern: severity words, units demoted)
   $("legend-title").textContent = view.kind === "speed"
-    ? "Dry baseline Speed, m/s" : "Bus speed in rain vs dry";
+    ? "Typical dry-day speed (m/s)" : "Bus speed in rain vs dry";
   $("tick-lo").textContent = view.kind === "speed" ? s[0][0] + " m/s" : "slower in rain";
   $("tick-mid").textContent = view.kind === "speed" ? "" : "no change";
   $("tick-hi").textContent = view.kind === "speed"
@@ -240,14 +240,19 @@ function buildViews() {
     views.push({ id: layer, layer, label, kind: "ratio", hours: true,
                  hourKeys: keys, defaultHour: worst });
   }
+  // plain window names on the picker - W1/W2 are codenames the page never defines for a
+  // reader. Years only, never the full date spans (a page constant that mirrors a Python
+  // constant will drift [KNOWN TRAPS]); tests/test_page.py derives these years from
+  // ref.WINDOWS, so a new window arrives with a red test instead of a stale label.
+  const WINDOW_NAME = { w1: "Autumn 2021", w2: "Autumn 2023" };
   for (const w of ["w1", "w2"]) {
     if (head.rows.some(r => r.layer === w))
-      views.push({ id: w, layer: w, label: `${w.toUpperCase()} wet vs dry`, kind: "ratio",
+      views.push({ id: w, layer: w, label: `${WINDOW_NAME[w]} — wet vs dry`, kind: "ratio",
                    hours: false, prop: `${w}_ratio` });
     // the dry baseline is a Speed LEVEL straight off cells.geojson, so it is offered
     // whenever the property exists - it does not depend on the wet aggregation producing a row
     if (cellKeys.has(`${w}_dry`))
-      views.push({ id: w + "d", layer: w, label: `${w.toUpperCase()} dry baseline`,
+      views.push({ id: w + "d", layer: w, label: `${WINDOW_NAME[w]} — typical dry-day speed`,
                    kind: "speed", hours: false, prop: `${w}_dry` });
   }
   // frontend5 03: one native <select> instead of six buttons - the DEP-map pattern, a
