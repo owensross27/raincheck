@@ -474,4 +474,6 @@ inboundaudit:  ## cluster security groups vs deploy/cloud/inbound-allowlist.yaml
 # that has to tell "gated" from "broken" calls the module, never this target.
 .PHONY: publish
 publish:  ## publish one payload family to the public static host (make publish FAMILY=site|insight|live|docs|history|showcase [DRY=1])
+	@AWS_ACCESS_KEY_ID="$(RAINCHECK_SERVE_KEY_ID)" AWS_SECRET_ACCESS_KEY="$(RAINCHECK_SERVE_SECRET)" \
+	AWS_ENDPOINT_URL="$(RAINCHECK_SERVE_ENDPOINT)" AWS_DEFAULT_REGION=auto \
 	$(PY) -m raincheck.publish --family $(FAMILY) $(if $(DRY),--dry-run)

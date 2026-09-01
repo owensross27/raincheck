@@ -32,7 +32,7 @@ metadata:
     # just wrote, and gapverify reads those same filled hours back. gxcheck reads the
     # check-result JSONL those stages wrote and renders HTML - the same tiny shape
     # [orch 08].
-    raincheck.io/stages: "gapfill, gapverify, gapcheck, coldpush, coldcheck, prune, gxcheck"
+    raincheck.io/stages: "gapfill, gapverify, gapcheck, coldpush, coldcheck, export (DuckDB, no JVM), summary, publish (s3fs puts), prune, gxcheck"
 template:
   metadata:
     # MEASURED 2026-08-25 (orch 11's first shadow run): without this, Karpenter CONSOLIDATES

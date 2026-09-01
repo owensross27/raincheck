@@ -297,6 +297,37 @@ def test_the_declaration_pins_gapfill_before_gapcheck():
     assert order.index("gapfill") < order.index("gapcheck")
 
 
+def test_the_declaration_pins_the_static_surface_behind_its_inputs():
+    """Export reads what gold and precip just rolled, summary projects route_flood, and
+    publish uploads what both just wrote - each stands behind everything it reads, or the
+    surface publishes yesterday under today's date."""
+    order = [s.name for s in daily.STAGES]
+    assert order.index("gold") < order.index("export")
+    assert order.index("precip") < order.index("export")
+    assert order.index("export") < order.index("publish")
+    assert order.index("summary") < order.index("publish")
+
+
+def test_publish_static_puts_exactly_the_build_families(monkeypatch):
+    """The three ungated families the build itself wrote, through `make publish` (where
+    the serve-credential mapping lives), and never the gated or deploy-time ones."""
+    calls = []
+    monkeypatch.setattr(daily, "run", lambda target, **var: calls.append((target, var)) or 0)
+    assert daily.publish_static() == 0
+    assert calls == [("publish", {"FAMILY": f}) for f in ("insight", "history", "summary")]
+
+
+def test_publish_static_fails_when_any_family_fails_but_attempts_them_all(monkeypatch):
+    """make's rc collapses to 1: a transport either landed or it did not. And the first
+    failure withholds nothing - the families behind it still publish."""
+    calls = []
+    monkeypatch.setattr(daily, "run",
+                        lambda target, **var: calls.append(var["FAMILY"])
+                        or (2 if var["FAMILY"] == "insight" else 0))
+    assert daily.publish_static() == 1
+    assert calls == ["insight", "history", "summary"]
+
+
 def test_the_driver_names_its_steps_from_the_declaration(seeded):
     """main()'s printed lines, in order: every declared stage once, in declared order,
     expanded ONLY over the axes this runtime supplies items for - here just precip's

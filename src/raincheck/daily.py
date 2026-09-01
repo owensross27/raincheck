@@ -121,6 +121,14 @@ STAGES = (
     Stage("gold", "py:raincheck.daily:gold", "transport", argv=("daily", "gold"),
           reduces="service_date"),
     Stage("precip", "py:raincheck.daily:precip", "transport", fanout="month", argv=("daily", "precip")),
+    # The static surface tracks the build instead of going stale behind it: export reads
+    # the gold/baselines/precip the stages above just rolled (and writes files/history in
+    # the same run), summary projects route_flood, and publish puts exactly those three
+    # ungated families on the public host - the "per build" cadence FAMILIES declares,
+    # finally run by the build.
+    Stage("export", "make:export", "transport"),
+    Stage("summary", "make:summary", "transport"),
+    Stage("publish", "py:raincheck.daily:publish_static", "transport", argv=("daily", "publish")),
     Stage("prune", "py:raincheck.daily:prune_live", "transport", argv=("daily", "prune")),
     # ticket 01 left this out of the declaration because its PLACE was ticket 09's call.
     # It is here, second to last: it reads Bronze, so it stands behind every stage that
@@ -317,6 +325,22 @@ def prune_live(root: Path) -> None:
     from raincheck import stream  # spec J's 48 h horizon, one implementation of it
 
     stream.prune(root)
+
+
+# The three families the build itself just wrote: export's two outputs and summary's.
+# Never the gated or deploy-time families - live/flood-mta/impact have their own loop
+# and gate, site/tiles land with a deploy.
+BUILD_FAMILIES = ("insight", "history", "summary")
+
+
+def publish_static() -> int:
+    """The build's own families onto the public host, through `make publish` so the
+    serve-credential mapping lives in the one Makefile recipe. rc is make's, collapsed
+    to 1 - this is a transport, and "gated vs broken" only matters for families with a
+    gate, which BUILD_FAMILIES excludes by construction. Every family is attempted -
+    the list, not a short-circuiting any - for the same reason every daily stage runs:
+    one family's failure must not withhold the other two."""
+    return 1 if any([run("publish", FAMILY=f) for f in BUILD_FAMILIES]) else 0
 
 
 def stage(name: str, fn) -> int:
