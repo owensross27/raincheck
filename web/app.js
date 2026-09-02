@@ -38,8 +38,9 @@
 import { $, LAYERS, map, markStyled, on, styled } from "./layers.js";
 import { load } from "./freshness.js";
 import { applyVisibility, openDet, renderLayers, toggle, toggleDet } from "./panel.js";
-import { applyRamp, closeCard, loadRecent, locateEvent, pointTip, setHourIndex,
-         setRecentBorough, setScenario, setView, showCard, showTip } from "./insight.js";
+import { applyRamp, closeCard, loadRecent, locateEvent, pinEvent, pinnedEvent, pointTip,
+         setHourIndex, setRecentBorough, setRecentZone, setScenario, setView, showCard,
+         showTip } from "./insight.js";
 import { toggleLive } from "./live.js";
 
 // NO NavigationControl either (Ross, 2026-09-01): scroll/pinch/double-tap zoom cover it,
@@ -241,15 +242,28 @@ $("recent").addEventListener("mouseover", e => {
   const r = recRow(e.target); if (r) locateEvent(Number(r.dataset.ev)); });
 // mouseleave, NOT mouseout: mouseout bubbles from every child-to-child move inside the
 // list, so each row-to-row hover cleared and re-set the locate ring (frontend2 05's
-// filed nit); mouseleave fires only when the pointer leaves the list itself.
-$("recent").addEventListener("mouseleave", () => locateEvent(null));
+// filed nit); mouseleave fires only when the pointer leaves the list itself. The clear
+// falls back to the PINNED event: a hover is a preview laid over a choice, never its end.
+$("recent").addEventListener("mouseleave", () => locateEvent(pinnedEvent()));
 $("recent").addEventListener("focusin", e => {
   const r = recRow(e.target); if (r) locateEvent(Number(r.dataset.ev)); });
-$("recent").addEventListener("focusout", () => locateEvent(null));
-// the borough chips, same delegation (the chip row is rebuilt with the rows)
+$("recent").addEventListener("focusout", () => locateEvent(pinnedEvent()));
+// clicks, one delegation: a row pins its ring (click again to unpin), a borough chip
+// filters and zooms, a neighborhood chip drills in (the rows rebuild under all three)
 $("recent").addEventListener("click", e => {
   const b = e.target.closest ? e.target.closest("#rec-chips [data-b]") : null;
-  if (b) setRecentBorough(b.dataset.b);
+  if (b) return setRecentBorough(b.dataset.b);
+  const z = e.target.closest ? e.target.closest("#rec-zones [data-z]") : null;
+  if (z) return setRecentZone(z.dataset.z);
+  const r = recRow(e.target);
+  if (r) pinEvent(Number(r.dataset.ev));
+});
+// the event timeline: each slider stop pins that event (input, so a drag scrubs live)
+$("recent").addEventListener("input", e => {
+  if (e.target.id !== "rec-slider") return;
+  const order = e.target.dataset.order.split(",").map(Number);
+  const i = order[Number(e.target.value)];
+  if (i !== pinnedEvent()) pinEvent(i);
 });
 
 // the list itself needs no map, so it is not gated on `load`; 32,924 B raw, dated

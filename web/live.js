@@ -322,7 +322,11 @@ export function drawImpactSub(d) {
       properties: { complex_id: id, name: c.name, cell: c.cell, planned: c.planned,
                     dropped: c.dropped, runs: c.runs, drop_share: c.drop_share,
                     hour_end_utc: d.hour_end_utc,
-                    ...("rel" in c ? { rel: c.rel } : {}) },
+                    ...("rel" in c ? { rel: c.rel } : {}),
+                    // rain context rides only when the payload proved it (a cell with a
+                    // row in the hour's precip partition) - absent is UNKNOWN, and the
+                    // paint fades only proven-dry, never unknown
+                    ...("mm_1h" in c ? { mm_1h: c.mm_1h } : {}) },
     }));
   map.getSource("subway").setData({ type: "FeatureCollection", features: feats });
   const s = d.strings || {};

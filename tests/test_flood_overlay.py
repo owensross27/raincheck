@@ -307,6 +307,90 @@ def test_subway_gives_rel_once_the_floor_is_cleared(con, tmp_path):
     assert "rel" in got["complexes"]["1"]
 
 
+# ---- rain context ----------------------------------------------------------------------
+
+CELL_C = 613229524043170000  # a Cell that never gets a precip row in these fixtures
+
+
+def precip_table(root: Path, rows: list[dict], valid_ts: str = "2026-08-26T02") -> None:
+    """`live/precip_cell` as `precip_live.append_hour` writes it, not the batch table."""
+    _write(root / fo.PRECIP_TABLE / f"valid_ts={valid_ts}" / "part-0.parquet", rows, pa.schema([
+        ("cell", pa.int64()), ("mm_1h", pa.float64()),
+        ("fetched_at", pa.timestamp("us", tz="UTC"))]))
+
+
+def test_subway_complex_carries_rain_from_its_own_cell_and_the_latest_fetch_wins(con, tmp_path):
+    assets(tmp_path)
+    tu_table(tmp_path, _run("1", "A01N", T0 + 900, [T0, T0 + 60]))
+    # two rows for the SAME cell: the earlier fetch (9.0) must lose to the later one (2.567)
+    precip_table(tmp_path, [
+        {"cell": CELL_A, "mm_1h": 9.0, "fetched_at": datetime(2026, 8, 26, 2, 5, tzinfo=timezone.utc)},
+        {"cell": CELL_A, "mm_1h": 2.567, "fetched_at": datetime(2026, 8, 26, 2, 35, tzinfo=timezone.utc)},
+    ])
+    got = fo.subway(con, tmp_path, datetime(2026, 8, 26, 4, 0, tzinfo=timezone.utc))
+    assert got["complexes"]["1"]["mm_1h"] == 2.57              # rounded to 2, latest wins
+    assert got["rain"] == {"valid_ts": "2026-08-26T02", "n_wet": 1, "n_with_mm": 1}
+
+
+def test_subway_rain_is_no_partition_when_the_hour_was_never_captured(con, tmp_path):
+    """The table holds ~7 days and only while `precip-live` runs - an absent partition must
+    say so, never silently omit rain from a payload that otherwise looks complete."""
+    assets(tmp_path)
+    tu_table(tmp_path, _run("1", "A01N", T0 + 900, [T0, T0 + 60]))
+    got = fo.subway(con, tmp_path, datetime(2026, 8, 26, 4, 0, tzinfo=timezone.utc))
+    assert got["rain"] == {"state": "no_partition", "valid_ts": "2026-08-26T02",
+                           "reason": f"no {fo.PRECIP_TABLE}/valid_ts=2026-08-26T02 "
+                                     f"partition under {tmp_path}"}
+    assert "mm_1h" not in got["complexes"]["1"]
+
+
+def test_subway_n_wet_counts_only_complexes_at_or_above_rain_mm(con, tmp_path):
+    """n_wet is a >= RAIN_MM count among complexes that CARRY mm_1h, never the raw complex
+    count - and a complex with no cell, or a cell absent from the precip table, is simply
+    not counted either way (ABSENT, never null)."""
+    rows = [{"asset_id": f"sta:A0{n}", "kind": "station", "name": "s", "complex_id": str(n),
+             "lon": None, "lat": None, "cell": None, "gtfs_stop_id": [f"A0{n}"]}
+            for n in (1, 2, 3, 4)]
+    rows += [
+        {"asset_id": "stn:1", "kind": "complex", "name": "c1", "complex_id": "1",
+         "lon": -73.9, "lat": 40.7, "cell": CELL_A, "gtfs_stop_id": None},
+        {"asset_id": "stn:2", "kind": "complex", "name": "c2", "complex_id": "2",
+         "lon": -73.9, "lat": 40.7, "cell": CELL_B, "gtfs_stop_id": None},
+        {"asset_id": "stn:3", "kind": "complex", "name": "c3", "complex_id": "3",
+         "lon": -73.9, "lat": 40.7, "cell": None, "gtfs_stop_id": None},
+        {"asset_id": "stn:4", "kind": "complex", "name": "c4", "complex_id": "4",
+         "lon": -73.9, "lat": 40.7, "cell": CELL_C, "gtfs_stop_id": None},
+    ]
+    _write(tmp_path / "ref" / "assets" / "part-0.parquet", rows, pa.schema([
+        ("asset_id", pa.string()), ("kind", pa.string()), ("name", pa.string()),
+        ("complex_id", pa.string()), ("lon", pa.float64()), ("lat", pa.float64()),
+        ("cell", pa.int64()), ("gtfs_stop_id", pa.list_(pa.string()))]))
+    tu_table(tmp_path,
+             _run("1", "A01N", T0 + 900, [T0, T0 + 60])
+             + _run("2", "A02N", T0 + 900, [T0, T0 + 60])
+             + _run("3", "A03N", T0 + 900, [T0, T0 + 60])
+             + _run("4", "A04N", T0 + 900, [T0, T0 + 60]))
+    precip_table(tmp_path, [
+        {"cell": CELL_A, "mm_1h": 1.0,
+         "fetched_at": datetime(2026, 8, 26, 2, 30, tzinfo=timezone.utc)},
+        {"cell": CELL_B, "mm_1h": 0.99,
+         "fetched_at": datetime(2026, 8, 26, 2, 30, tzinfo=timezone.utc)},
+    ])
+    got = fo.subway(con, tmp_path, datetime(2026, 8, 26, 4, 0, tzinfo=timezone.utc))
+    assert got["complexes"]["1"]["mm_1h"] == 1.0        # AT the flag: still wet
+    assert got["complexes"]["2"]["mm_1h"] == 0.99        # just under: not wet
+    assert "mm_1h" not in got["complexes"]["3"]          # no cell at all
+    assert "mm_1h" not in got["complexes"]["4"]          # a cell, but no row this hour
+    assert got["rain"] == {"valid_ts": "2026-08-26T02", "n_wet": 1, "n_with_mm": 2}
+
+
+def test_the_rain_caveat_is_in_the_subway_caveats_and_reaches_the_payload_strings():
+    text = " ".join(fo.CAVEATS_SUBWAY).lower()
+    assert "not attribution" in text and "mm_1h" in text
+    doc = fo.docs(None, NOW)[fo.SUBWAY_FILE]
+    assert any("not attribution" in c.lower() for c in doc["strings"]["caveats"])
+
+
 def test_subway_reads_only_a_closed_hour(con, tmp_path):
     assets(tmp_path)
     tu_table(tmp_path, _run("1", "A01N", T0 + 900, [T0, T0 + 60]))
@@ -412,7 +496,7 @@ def test_every_read_keeps_its_projection_and_predicate_in_one_statement():
              if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)]
     assert not {"table", "filter", "project"} & set(calls), calls
     for sql in (fo.BUS_HOURS_SQL, fo.BUS_CELLS_SQL, fo.BUS_BASE_SQL, fo.SUBWAY_SQL,
-                fo.COMPLEX_SQL):
+                fo.COMPLEX_SQL, fo.PRECIP_SQL):
         assert "{read}" in sql and "WHERE" in sql.upper()
 
 

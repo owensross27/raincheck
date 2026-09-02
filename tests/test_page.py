@@ -1062,6 +1062,14 @@ def test_the_subway_overlay_is_points_beside_the_alert_dots_with_a_clamped_rel_r
     body = js.split("export function drawImpactSub(d)", 1)[1].split("\n}", 1)[0]
     assert '..."rel" in c ? { rel: c.rel } : {}' in body.replace("(", "").replace(")", ""), \
         "rel rides only when the payload carries it - absent, never zero"
+    # the rain-context fade (2026-09-01): a PROVEN-dry complex (mm_1h present, under
+    # RAIN_MM - the imported flag, never a retyped 1.0) drops to a faint floor on BOTH
+    # opacity channels, before the rel ramp; unknown rain keeps the ramp, claiming
+    # nothing. mm rides the feature only when the payload proved it.
+    assert block.count('["all", ["has", "mm_1h"], ["<", ["get", "mm_1h"], RAIN_MM]]') == 2, \
+        "both opacity channels fade proven-dry"
+    assert '..."mm_1h" in c ? { mm_1h: c.mm_1h } : {}' in body.replace("(", "").replace(")", ""), \
+        "rain context rides only when the payload proved it - absent is unknown"
 
 
 def test_the_impact_rows_graduate_with_a_reader_dated_data_age_composite():
@@ -1128,23 +1136,40 @@ def test_everything_analyst_grade_sits_behind_one_closed_real_details_disclosure
     explicit id checks below are what make that honest rather than incidental: this test
     would still fail if the ground group's markup ever moved into index.html without also
     picking a name other than "analyst".
+    2026-09-01 (Ross: "so much text and I don't read any of it"): the prose INSIDE the
+    disclosure folds one more level - nested class="why" <details> around the note blocks,
+    every sentence verbatim. The one-TOP-LEVEL-static-disclosure decision stands: any other
+    static <details> must be a why-fold nested inside the analyst block, never a sibling.
+
     MUTATION KILLED: shipping the disclosure open (the analyst view becomes the default,
-    reversing D7); moving one of the seven surfaces back out; a second STATIC <details> (the
-    decision is ONE static disclosure); or replacing <details> with a styled div, which loses
-    the platform's keyboard and screen-reader semantics."""
+    reversing D7); moving one of the seven surfaces back out; a second TOP-LEVEL static
+    <details> (the decision is ONE); a nested fold that is not class="why"; or replacing
+    <details> with a styled div, which loses the platform's keyboard and screen-reader
+    semantics."""
     html = page_html()
-    assert html.count("<details") == 1, "ONE disclosure in the page's own static markup"
     assert 'id="ground-layers"' not in html, (
         "the ground group is JS-rendered (panel.js), never part of index.html's own markup")
-    m = re.search(r"<details([^>]*)>(.*?)</details>", html, re.S)
-    attrs, block = m.group(1), m.group(2)
-    assert 'id="analyst"' in attrs
+    head, rest = html.split('<details id="analyst"', 1)
+    assert head.count("<details") == 0, "nothing discloses before the analyst block"
+    assert 'id="answer"' in head, "the rider's answer line stays out"
+    attrs, after = rest.split(">", 1)
     assert "open" not in attrs, "default CLOSED: the rider view is the default (D7)"
+    # the why-folds NEST inside the analyst element, so its own closer is found by depth,
+    # not by the first </details> a regex meets
+    depth, block = 1, None
+    for m in re.finditer(r"</?details", after):
+        depth += 1 if m.group(0) == "<details" else -1
+        if depth == 0:
+            block = after[:m.start()]
+            break
+    assert block is not None, "the analyst <details> never closes"
     assert "<summary>" in block, "a real disclosure element, not a styled div"
     for el in ('id="preview-note"', 'id="headline"', 'id="curve"', 'id="note-chord"',
                'id="note-hidden"', 'id="note-gate"', 'id="legend-estimand"'):
         assert el in block, f"{el} is analyst prose and must sit inside the disclosure"
-    assert 'id="answer"' in html.split("<details", 1)[0], "the rider's answer line stays out"
+    assert after[len(block):].count("<details") == 0, "no static disclosure after the analyst one"
+    for m in re.finditer(r"<details([^>]*)>", block):
+        assert 'class="why"' in m.group(1), "an inner static fold must be a why-fold"
 
 
 def test_the_ground_rows_collapse_behind_one_more_native_details_default_closed():
@@ -1238,14 +1263,16 @@ def test_the_rider_list_renders_recent_json_strings_verbatim_and_never_says_toda
     app = module_js()["app.js"]
     # mouseleave, NOT mouseout (frontend3 02): mouseout bubbles from every child-to-child
     # move inside the list, so each row-to-row hover cleared and re-set the locate ring.
-    # The PAIR is the contract - set on enter (mouseover/focusin), cleared on leave.
+    # The PAIR is the contract - set on enter (mouseover/focusin), and on leave the ring
+    # FALLS BACK TO THE PIN (null when nothing is pinned): a hover is a preview laid over
+    # a clicked choice, never its end.
     for wire in ('$("recent").addEventListener("mouseover"',
                  '$("recent").addEventListener("mouseleave"',
                  '$("recent").addEventListener("focusin"',
                  '$("recent").addEventListener("focusout"'):
         assert wire in app, wire
     leave = app.split('$("recent").addEventListener("mouseleave"', 1)[1].split("\n", 1)[0]
-    assert "locateEvent(null)" in leave, "leaving the list clears the ring"
+    assert "locateEvent(pinnedEvent())" in leave, "leaving the list falls back to the pin"
     assert '"mouseout"' not in app, "mouseout churns the ring on every row-to-row move"
     assert "loadRecent();" in app
 
@@ -1379,7 +1406,7 @@ def test_the_five_point_layers_get_a_mousemove_click_and_mouseleave_tip_in_app_j
     MUTATION KILLED: dropping one layer's mouseleave (or the whole loop) - four of the five
     point layers would stay permanently mute or leave a stuck tip on the map."""
     boot = module_js()["app.js"]
-    assert 'import { applyRamp, closeCard, loadRecent, locateEvent, pointTip,' in boot
+    assert 'import { applyRamp, closeCard, loadRecent, locateEvent, pinEvent, pinnedEvent, pointTip,' in boot
     assert 'for (const id of ["hist", "subway", "mta", "fn", "live"]) {' in boot
     # the whole set, UNCONDITIONAL and contiguous - a per-layer guard around any one call
     # (e.g. `if (id !== "fn") map.on("mouseleave", ...)`) breaks this exact block. The

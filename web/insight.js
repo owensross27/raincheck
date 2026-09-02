@@ -90,11 +90,17 @@ function renderHeadline() {
   const bandNear1 = layerHi >= 0.98 && r.value < 1.0;
   const parts = [];
 
+  // the estimand prose is VERBATIM (D7's contract) but folded one platform disclosure
+  // deep per number - the analyst panel leads with the numbers, and the sentences are
+  // one tap away instead of a wall (Ross, 2026-09-01). Warnings stay unfolded: a caveat
+  // behind a click is a caveat unread.
+  const why = (inner) => `<details class="why"><summary>what this number means</summary>
+    ${inner}</details>`;
   parts.push(`<div class="row">
     <div class="big">${fmt(bandLo)}&ndash;${fmt(bandHi)}</div>
     <div class="band">citywide Speed ratio (chord band), 95% CI [${fmt(r.lo, 3)}, ${fmt(r.hi, 3)}]
       &middot; ${r.n_legs.toLocaleString()} Legs</div>
-    <p class="note">${r.estimand}</p>
+    ${why(`<p class="note">${r.estimand}</p>`)}
     ${bandNear1 ? `<p class="note warn">Across this layer the chord-corrected band reaches
        ${fmt(layerHi)}: this storm's slowdown is not separable from chord bias.</p>` : ""}</div>`);
 
@@ -102,17 +108,17 @@ function renderHeadline() {
     <div class="big">${fmt(r.median_cell)}</div>
     <div class="band">median Cell &middot; ${r.n_cells} Cells shown,
       <b>${r.n_cells_hidden} hidden</b></div>
-    <p class="note">${r.median_cell_estimand}</p></div>`);
+    ${why(`<p class="note">${r.median_cell_estimand}</p>`)}</div>`);
 
   if (r.value_ex_preschool !== undefined && r.value_ex_preschool !== null) {
     parts.push(`<div class="row">
       <div class="band">${fmt(r.value_ex_preschool, 3)}
         [${fmt(r.lo_ex_preschool, 3)}, ${fmt(r.hi_ex_preschool, 3)}] excluding the pre-school weeks
         &middot; ${r.n_events} wet events, ${r.n_cell_hours.toLocaleString()} wet Cell-hours</div>
-      <p class="note">${r.estimand_ex_preschool}</p>
+      ${why(`<p class="note">${r.estimand_ex_preschool}</p>
       <p class="note">sensitivity, clustered by service day instead of wet event:
         [${fmt(r.sensitivity_day.lo, 3)}, ${fmt(r.sensitivity_day.hi, 3)}]
-        over ${r.sensitivity_day.n_days} days.</p></div>`);
+        over ${r.sensitivity_day.n_days} days.</p>`)}</div>`);
   }
   if (r.mm_1h_citywide_mean !== undefined && r.mm_1h_citywide_mean !== null) {
     parts.push(`<div class="row"><div class="band">${fmt(r.mm_1h_citywide_mean)} mm
@@ -286,6 +292,11 @@ export const TIPS = {
       lines.push(`${p.dropped} of ${p.planned} planned stops dropped`);
     if ("rel" in p) lines.push(`${fmt(p.rel, 1)}&times; the citywide median that hour`);
     else lines.push("too little planned service that hour to compare");
+    // the rain context the fade reads: measured mm, "dry", or nothing (unknown makes
+    // no claim). RAIN_MM is live.js's one flag, imported above, never retyped.
+    if ("mm_1h" in p) lines.push(p.mm_1h >= RAIN_MM
+      ? `${fmt(p.mm_1h, 1)} mm rain in this station's Cell that hour`
+      : "no rain in this station's Cell that hour (faded on the map)");
     if (p.hour_end_utc !== undefined) lines.push(`hour ending ${esc(p.hour_end_utc)}`);
     lines.push(`any cause &mdash; trackwork, incidents or weather; this page does not
       attribute drops to rain`);
@@ -698,21 +709,64 @@ export function closeCard() {
 let recentEvents = [];   // the fetched events, indexed by the rows' data-ev attribute
 let recentDoc = null;    // the payload, cached so a filter click re-renders, never refetches
 let recentBorough = "";  // "" = every borough; the chip row sets it (wired in app.js)
+let recentZone = "";     // one neighborhood inside that borough, or "" = all of it
+let pinnedEv = null;     // a clicked row's ORIGINAL index: its ring stays until unpinned
 
 // cell -> {zone, borough} off the map's OWN cells.geojson (one fetch, locateEvent's rule);
-// null until that payload lands, and the cells loader re-runs loadRecent when it does
+// null until that payload lands, and the cells loader re-runs loadRecent when it does.
+// zoneBorough (zone_name -> borough) rides the same pass: the drill-down needs to know
+// which borough a neighborhood belongs to without a second walk.
 let zoneByCell = null;
+const zoneBorough = new Map();
 function zoneIndex() {
   if (!zoneByCell) {
     const feats = cellFeatures();
     if (!feats.length) return null;
     zoneByCell = new Map(feats.map(f =>
       [f.properties.cell, { zone: f.properties.zone_name, borough: f.properties.borough }]));
+    for (const f of feats)
+      if (f.properties.zone_name && f.properties.borough)
+        zoneBorough.set(f.properties.zone_name, f.properties.borough);
   }
   return zoneByCell;
 }
 
-export function setRecentBorough(b) { recentBorough = b; loadRecent(); }
+// zoom the map to the cells a predicate keeps - the chips' spatial half. Geometry comes
+// from cellFeatures() (the one fetch), so an unloaded payload degrades to no move.
+function fitCells(pred) {
+  let w = 180, s = 90, e = -180, n = -90, any = false;
+  for (const f of cellFeatures()) {
+    if (!pred(f.properties) || !f.geometry || f.geometry.type !== "Polygon") continue;
+    any = true;
+    for (const [x, y] of f.geometry.coordinates[0]) {
+      if (x < w) w = x; if (x > e) e = x; if (y < s) s = y; if (y > n) n = y;
+    }
+  }
+  if (any) map.fitBounds([[w, s], [e, n]], { padding: 48, duration: 600 });
+}
+
+export function setRecentBorough(b) {
+  recentBorough = b; recentZone = "";
+  loadRecent();
+  const zx = zoneIndex();
+  if (b && zx) fitCells(p => zoneBorough.get(p.zone_name) === b || (p.borough === b));
+}
+
+export function setRecentZone(z) {
+  recentZone = recentZone === z ? "" : z;   // a second click clears the neighborhood
+  loadRecent();
+  if (recentZone) fitCells(p => p.zone_name === recentZone);
+}
+
+// click-to-pin: the hover ring is a preview, the pinned ring is a choice that survives
+// the pointer leaving (Ross: "when you highlight each flood event it should stay").
+// Same index unpins; the wiring in app.js falls back to this on mouseleave/focusout.
+export const pinnedEvent = () => pinnedEv;
+export function pinEvent(i) {
+  pinnedEv = i === pinnedEv ? null : i;
+  locateEvent(pinnedEv);
+  loadRecent();
+}
 
 export async function loadRecent() {
   const src = { k: "files/summary/recent.json", url: "files/summary/recent.json",
@@ -738,14 +792,34 @@ export async function loadRecent() {
   });
   const boroughs = [...new Set(per.flatMap(p => [...p.boros]))].filter(Boolean).sort();
   const chips = boroughs.length < 2 ? "" :
-    `<div id="rec-chips" role="group" aria-label="Filter the flood record by borough">` +
+    `<div id="rec-chips" class="chips" role="group" aria-label="Filter the flood record by borough">` +
     ["", ...boroughs].map(b =>
       `<button type="button" data-b="${esc(b)}" aria-pressed="${String(b === recentBorough)}">` +
       `${b ? esc(b) : "All"}</button>`).join("") + `</div>`;
+  // the drill-down: with a borough picked, its neighborhoods rank by how many of the
+  // filtered events touched them - the "break it down by neighborhood" half of the chips
+  let zoneChips = "";
+  if (recentBorough && zx) {
+    const zc = new Map();
+    for (const p of per) {
+      if (!p.boros.has(recentBorough)) continue;
+      for (const [z] of p.zones)
+        if (zoneBorough.get(z) === recentBorough) zc.set(z, (zc.get(z) || 0) + 1);
+    }
+    const ranked = [...zc.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
+    zoneChips = !ranked.length ? "" :
+      `<div id="rec-zones" class="chips" role="group" aria-label="Neighborhoods in ${esc(recentBorough)}">` +
+      ranked.map(([z, n]) =>
+        `<button type="button" data-z="${esc(z)}" aria-pressed="${String(z === recentZone)}">` +
+        `${esc(z)} <b>${n}</b></button>`).join("") + `</div>`;
+  }
+  const visible = [];   // ORIGINAL indices of the rows the filters keep, list order
   // every event renders (the section scrolls inside its cap); data-ev stays the ORIGINAL
   // index even under a filter, because locateEvent indexes recentEvents by it
   const rows = recentEvents.map((ev, i) => {
     if (recentBorough && !per[i].boros.has(recentBorough)) return "";
+    if (recentZone && !per[i].zones.some(([z]) => z === recentZone)) return "";
+    visible.push(i);
     const span = ev.day_start === ev.day_end ? esc(ev.day_start)
       : `${esc(ev.day_start)} &rarr; ${esc(ev.day_end)}`;
     const n = ev.n_assets || {};
@@ -756,15 +830,28 @@ export async function loadRecent() {
     const top = per[i].zones.slice(0, 3).map(([z]) => esc(z)).join(", ");
     const more = per[i].zones.length - 3;
     const zl = top ? `<i class="zl">${top}${more > 0 ? ` +${more} more areas` : ""}</i>` : "";
-    return `<div class="rec" tabindex="0" data-ev="${i}"><b>${span}</b><span>${bits}</span>${zl}</div>`;
+    return `<div class="rec${i === pinnedEv ? " pinned" : ""}" tabindex="0" data-ev="${i}">` +
+      `<b>${span}</b><span>${bits}</span>${zl}</div>`;
   }).join("");
+  // a pin the filters just hid is a ring nothing on the list explains - drop it
+  if (pinnedEv !== null && !visible.includes(pinnedEv)) { pinnedEv = null; locateEvent(null); }
+  // the timeline: one slider over the visible events, oldest on the left - scrubbing it
+  // pins each event in turn, the storm-hour slider's pattern applied to the record.
+  // data-order carries the ORIGINAL indices so the wiring needs no second lookup.
+  const order = [...visible].reverse();
+  const slider = order.length < 2 ? "" :
+    `<div id="rec-time"><input id="rec-slider" type="range" min="0" max="${order.length - 1}"
+       step="1" value="${pinnedEv !== null ? order.indexOf(pinnedEv) : order.length - 1}"
+       data-order="${order.join(",")}" aria-label="Step through flood events in time">
+     <span class="note" id="rec-time-lbl">${pinnedEv !== null
+       ? esc(recentEvents[pinnedEv].day_start) : "slide to step through events"}</span></div>`;
   // rows FIRST under the header: the section is capped (app.css #recent), so the pixels
   // inside the cap go to the rider's rows; the label and caveat sentences still render
   // verbatim below them, beside each other, and scroll into view with the tail
   box.innerHTML =
     `<h2 class="lbl">Flooding on record, ${esc(w.since || "")} to ${esc(w.until || "")}</h2>` +
-    chips + rows +
-    `<p class="note">Point at a row to see it on the map.</p>` +
+    chips + zoneChips + slider + rows +
+    `<p class="note">Point at a row to preview it; click to keep it on the map.</p>` +
     `<p class="note">${esc(s.label || "")}</p>` +
     (Array.isArray(s.caveats) ? s.caveats.map(c => `<p class="note">${esc(c)}</p>`).join("") : "");
 }

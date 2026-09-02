@@ -51,7 +51,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from raincheck import daily, duck, flood_detect as fd
+from raincheck import daily, duck, flood_detect as fd, live_export
 from raincheck.paths import as_root, data_root
 from raincheck.query import pack
 
@@ -149,7 +149,19 @@ CAVEATS_SUBWAY = (
     "clear of any clean day; nothing in the middle of the distribution does.",
     "The counts behind those three statements are LOCAL ONLY: subwaydata.nyc publishes no "
     "data licence, so they never leave the host.",
+    "RAIN HERE IS CONTEXT, NOT ATTRIBUTION: `mm_1h` is MRMS RadarOnly, uncalibrated, "
+    "hour-ending precipitation for the complex's own Cell, offered beside the drop - "
+    "coincidence is not attribution, and a complex with no rain in its Cell can still "
+    "carry a real drop.",
 )
+
+# The rain-context read (site feedback: a dropped-service colour renders identically for a
+# rain-coincident drop and a mechanical or police one, so the closed hour's own Cell rain
+# rides beside it - context, never a filter and never a second detector). `live/precip_cell`
+# is the LIVE table `precip_live.tick` appends every 300 s and keeps ~7 days of (spec H/K);
+# `valid_ts=<hour>` is the hour START and files are hour-ending, the same grain as this
+# overlay's own closed hour, so the two `day`/`hour` strings name the SAME partition here.
+PRECIP_TABLE = "live/precip_cell"
 
 # ---- the reads ------------------------------------------------------------------------
 
@@ -302,6 +314,14 @@ WITH s AS (SELECT complex_id, unnest(gtfs_stop_id) AS stop
 SELECT s.stop, s.complex_id, c.name, c.lon, c.lat, c.cell
   FROM s JOIN c USING (complex_id)
 """
+# One `valid_ts=` partition, already bounded by path. `cell IS NOT NULL` is the predicate
+# this statement owes the house rule; the dedup is the QUALIFY, ranking every row (a NULL
+# `mm_1h` included) so the LATEST `fetched_at` wins per cell even when that latest row is
+# the one with no usable weight sum - the null is dropped after, not before, the ranking.
+PRECIP_SQL = """
+SELECT cell, mm_1h FROM {read} WHERE cell IS NOT NULL
+QUALIFY row_number() OVER (PARTITION BY cell ORDER BY fetched_at DESC) = 1
+"""
 
 
 def _median(xs: list[float]) -> float | None:
@@ -363,6 +383,17 @@ def subway(con, root, now: datetime) -> dict:
     stops = _rows(con, SUBWAY_SQL, f"{root_}/{SUBWAY_TABLE}/**/*.parquet", day, hour)
     assets = f"{root_}/ref/assets/**/*.parquet"
     where = {r["stop"]: r for r in _rows(con, COMPLEX_SQL, assets, assets)}
+    # the SAME hour, named by the SAME day/hour strings: `valid_ts=<hour START>` and this
+    # overlay's own closed hour are both hour-ending, so no shift is owed between them. The
+    # table holds ~7 days and only while `precip-live` runs - an absent partition says so
+    # rather than shipping a payload silently missing rain, per the partition-by-name rule
+    # every read in this module already follows.
+    vts = f"{day}T{hour}"
+    rain_by_cell: dict[int, float] = {}
+    have_precip = f"valid_ts={vts}" in _partitions(root, PRECIP_TABLE, "valid_ts")
+    if have_precip:
+        prows = _rows(con, PRECIP_SQL, f"{root_}/{PRECIP_TABLE}/valid_ts={vts}/**/*.parquet")
+        rain_by_cell = {r["cell"]: round(r["mm_1h"], 2) for r in prows if r["mm_1h"] is not None}
     by_complex: dict[str, dict] = {}
     unresolved = 0
     for r in stops:
@@ -391,8 +422,18 @@ def subway(con, root, now: datetime) -> dict:
             # the complex is under MIN_PLANNED - absent, so the complex renders grey
             # rather than carrying a rate built on a handful of rows.
             rel=round(c["share"] / med, 3)
-            if med and c["share"] is not None and c["planned"] >= MIN_PLANNED else None)
+            if med and c["share"] is not None and c["planned"] >= MIN_PLANNED else None,
+            # ABSENT, never null: no cell, or no row for that cell this hour, and the key
+            # is simply not there - context, never a second detector.
+            mm_1h=rain_by_cell.get(w["cell"]) if w["cell"] is not None else None)
     total = sum(c["planned"] for c in by_complex.values())
+    rain = ({"valid_ts": vts,
+             "n_wet": sum(1 for c in out.values()
+                          if c.get("mm_1h", -1) >= live_export.RAIN_MM),
+             "n_with_mm": sum(1 for c in out.values() if "mm_1h" in c)}
+            if have_precip else
+            {"state": "no_partition", "valid_ts": vts,
+             "reason": f"no {PRECIP_TABLE}/valid_ts={vts} partition under {root}"})
     return {
         "state": "ok", "hour_end_utc": datetime.fromisoformat(
             f"{day}T{hour}:00:00+00:00") + timedelta(hours=1),
@@ -401,7 +442,7 @@ def subway(con, root, now: datetime) -> dict:
         "dropped": sum(c["dropped"] for c in by_complex.values()),
         "median_drop_share": round(med, 4) if med is not None else None,
         "unresolved_stops": unresolved, "stops_read": len(stops),
-        "level": level_check(root), "complexes": out,
+        "level": level_check(root), "rain": rain, "complexes": out,
     }
 
 

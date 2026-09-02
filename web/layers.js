@@ -33,7 +33,7 @@
  */
 import { drawCells, drawRoutes, drawZones } from "./insight.js";
 import { drawBasemap } from "./basemap.js";
-import { drawFn, drawImpact, drawImpactSub, drawMta } from "./live.js";
+import { RAIN_MM, drawFn, drawImpact, drawImpactSub, drawMta } from "./live.js";
 
 // Fixed ramps. Ratio: diverging around 1.0 (red slower, blue faster), 0.5 .. 1.2 always.
 export const RATIO_STOPS = [[0.5, "#7f0000"], [0.65, "#d7301f"], [0.8, "#fc8d59"], [0.9, "#fdd49e"],
@@ -402,9 +402,19 @@ export const map = new maplibregl.Map({
                  // opacity now follows rel: the median fades to a trace and only complexes
                  // dropping service several times the citywide median stand out. A display
                  // rule, not a filter - every dot is still there, still hoverable.
-                 "circle-opacity": ["case", ["has", "rel"],
+                 // ...and the RAIN-CONTEXT FADE on top (Ross, 2026-09-01: the overlay
+                 // over-shows non-rain impacts): a complex whose OWN Cell measured dry
+                 // that hour drops to a faint floor - a display rule, not a filter, and
+                 // only on PROVEN dry (mm_1h present and under RAIN_MM, live.js's one
+                 // flag, never retyped). Rain unknown makes no claim and keeps the ramp;
+                 // the tooltip carries the mm either way.
+                 "circle-opacity": ["case",
+                   ["all", ["has", "mm_1h"], ["<", ["get", "mm_1h"], RAIN_MM]], 0.1,
+                   ["has", "rel"],
                    ["interpolate", ["linear"], ["get", "rel"], 1, 0.06, 2, 0.3, REL_CLAMP, 0.92], 0],
-                 "circle-stroke-opacity": ["case", ["has", "rel"],
+                 "circle-stroke-opacity": ["case",
+                   ["all", ["has", "mm_1h"], ["<", ["get", "mm_1h"], RAIN_MM]], 0.15,
+                   ["has", "rel"],
                    ["interpolate", ["linear"], ["get", "rel"], 1, 0.1, 2, 0.4, REL_CLAMP, 1],
                    0.35] } },
       // an "affected station" is a dot on the COMPLEX (frontend 02 D4): the flood_truth chip
