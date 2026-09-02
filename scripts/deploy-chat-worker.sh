@@ -3,18 +3,21 @@
 # Worker `raincheck-chat` with DEEPSEEK_API_KEY bound as a secret, routes it on
 # rainchecknyc.com/api/chat*, and smoke-checks the live health probe.
 #
-# Needs in .env: CLOUDFLARE_API_TOKEN with "Account > Workers Scripts > Edit" AND
-# "Zone > Workers Routes > Edit" (on rainchecknyc.com), plus DEEPSEEK_API_KEY.
+# Needs in .env: a token with "Account > Workers Scripts > Edit" AND "Zone > Workers
+# Routes > Edit" (on rainchecknyc.com) - CLOUDFLARE_WORKERS_TOKEN if present, else
+# CLOUDFLARE_API_TOKEN (measured 2026-09-01: the standing API token is R2/DNS-scoped
+# and the dashboard edit landed on a different token, so the deploy token gets its own
+# name rather than guessing which value someone updated). Plus DEEPSEEK_API_KEY.
 # Idempotent: re-running re-uploads the script and leaves the existing route in place.
 set -eu
 cd "$(dirname "$0")/.."
 set -a; . ./.env; set +a
-: "${CLOUDFLARE_API_TOKEN:?add CLOUDFLARE_API_TOKEN to .env}"
+TOKEN="${CLOUDFLARE_WORKERS_TOKEN:-${CLOUDFLARE_API_TOKEN:?add CLOUDFLARE_WORKERS_TOKEN to .env}}"
 : "${DEEPSEEK_API_KEY:?add DEEPSEEK_API_KEY to .env}"
 ACC=3428af005305b65f4c49147db2eb8e63           # cloudflare account (holds the R2 buckets)
 ZONE=2562e8f8beb3518884fce080f7f354e3          # rainchecknyc.com
 API=https://api.cloudflare.com/client/v4
-AUTH="Authorization: Bearer $CLOUDFLARE_API_TOKEN"
+AUTH="Authorization: Bearer $TOKEN"
 
 # metadata carries the secret as a binding, so upload and secret are ONE atomic call -
 # a worker can never be live without its key. Written to a temp file so the key rides
@@ -28,7 +31,7 @@ cat > "$META" << EOF
 EOF
 
 echo "uploading worker raincheck-chat..."
-curl -sf -X PUT "$API/accounts/$ACC/workers/scripts/raincheck-chat" \
+curl -s -X PUT "$API/accounts/$ACC/workers/scripts/raincheck-chat" \
   -H "$AUTH" \
   -F "metadata=@$META;type=application/json" \
   -F "chat-worker.js=@deploy/cloudflare/chat-worker.js;type=application/javascript+module" \
@@ -36,10 +39,10 @@ curl -sf -X PUT "$API/accounts/$ACC/workers/scripts/raincheck-chat" \
       print('upload ok' if d['success'] else d['errors']); exit(0 if d['success'] else 1)"
 
 # the route, added once: list first so a re-deploy does not stack duplicates
-if ! curl -sf -H "$AUTH" "$API/zones/$ZONE/workers/routes" \
+if ! curl -s -H "$AUTH" "$API/zones/$ZONE/workers/routes" \
     | grep -q '"pattern": *"rainchecknyc.com/api/chat\*"'; then
   echo "adding route rainchecknyc.com/api/chat* ..."
-  curl -sf -X POST "$API/zones/$ZONE/workers/routes" -H "$AUTH" \
+  curl -s -X POST "$API/zones/$ZONE/workers/routes" -H "$AUTH" \
     -H "Content-Type: application/json" \
     -d '{"pattern": "rainchecknyc.com/api/chat*", "script": "raincheck-chat"}' \
     | .venv/bin/python -c "import json,sys; d=json.load(sys.stdin); \
