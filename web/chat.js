@@ -277,13 +277,14 @@ async function runLoop() {
       try { args = JSON.parse(call.function.arguments || "{}"); }
       catch { /* malformed tool-call JSON from the model: run with no args rather than die */ }
       const outcome = await executeTool(call.function.name, args);
-      if (!outcome.ok) {
-        // a failed step stops the whole turn rather than looping on a state the model
-        // never saw - "Network failure mid-loop": the step flips to fail, then this.
-        appendMsg("chat-msg-error", `${call.function.name} failed: ${outcome.summary}`);
-        return;
-      }
-      messages.push({ role: "tool", tool_call_id: call.id, content: outcome.content });
+      // a failed TOOL is a result, not the end: the error goes back as the tool message
+      // and the model decides what to try instead (MEASURED: the first real session died
+      // twice on recoverable mistakes - a directory path, a blocked docs/ path - with
+      // the answer three fields away). The step row already shows the fail; only the
+      // transport (callChat above) can end the turn.
+      messages.push({ role: "tool", tool_call_id: call.id,
+                      content: outcome.ok ? outcome.content
+                        : JSON.stringify({ error: outcome.summary }) });
     }
   }
   appendMsg("chat-msg-error", "stopped after 8 tool round-trips without a final answer.");

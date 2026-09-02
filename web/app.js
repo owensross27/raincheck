@@ -288,7 +288,21 @@ async function queryData(path) {
     throw new Error('query_data: path must start with "files/"');
   const res = await fetch(path, { cache: "no-cache" });
   if (!res.ok) throw new Error(`query_data: HTTP ${res.status} for ${path}`);
-  return res.json();
+  // a directory path gets the stdlib server's HTML listing - name the mistake instead
+  // of letting JSON.parse throw "Unexpected token '<'" (measured: the model's first
+  // instinct on a truncated payload was to query "files/history/", a directory)
+  if (!/json|geo/.test(res.headers.get("content-type") || ""))
+    throw new Error(`query_data: ${path} is not a JSON file - one FILE per call, `
+      + `never a directory (files/index.json lists what exists)`);
+  // the chat's VIEW of the payload, never the page's: long arrays (an event's ~100
+  // member cells, a geojson's features) would eat the whole 4000-char tool budget and
+  // truncate away the scalar fields the model actually reasons over. Collapsed to
+  // their count; every scalar and short array survives.
+  const prune = (v) => Array.isArray(v)
+    ? (v.length > 24 ? `[${v.length} items, collapsed for chat]` : v.map(prune))
+    : (v && typeof v === "object"
+       ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, prune(x)])) : v);
+  return prune(await res.json());
 }
 
 const chatRegistry = {
@@ -316,10 +330,10 @@ const chatRegistry = {
     run: async ({ id, on: want }) => { await toggle(id, want); applyRamp(); return { id, on: want }; },
   },
   query_data: {
-    description: "Fetch one file from the site's static read API - a path under files/ " +
-      "(see docs/read-api-contract.md). Start from files/index.json to discover what's " +
-      "published, or files/summary/recent.json for the recent-flooding list. Results can " +
-      "be large; long ones are truncated before you see them.",
+    description: "Fetch one JSON file from the site's static read API - a FILE path under " +
+      "files/, never a directory. Start from files/index.json to discover what's " +
+      "published, or files/summary/recent.json for the recent-flooding list. Arrays " +
+      "longer than 24 come back collapsed to their count; scalar fields all survive.",
     parameters: { type: "object", properties: { path: { type: "string" } },
       required: ["path"] },
     run: async ({ path }) => queryData(path),
