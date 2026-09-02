@@ -187,7 +187,7 @@ def _span(header: str, size: int) -> tuple[int, int] | None:
     return (start, min(end, size - 1)) if start <= end else None
 
 
-def serve(port: int = 8000, directory: str = ".", bind: str = "") -> None:
+def serve(port: int = 8000, directory: str = ".", bind: str = "127.0.0.1") -> None:
     """Blocking, until Ctrl-C. HTTP/1.1 so Content-Length is honoured per response and the
     client may keep the connection - a PMTiles read is many small requests in a row."""
     handler = partial(RangeHandler, directory=directory)
@@ -209,7 +209,16 @@ def main(argv: list[str] | None = None) -> int:
         i = argv.index("--directory")
         directory = argv[i + 1]
         del argv[i:i + 2]
-    serve(int(argv[0]) if argv else 8000, directory)
+    # LOOPBACK BY DEFAULT since /api/chat exists: the proxy spends a real API key per
+    # request, the Origin check only binds browsers (curl sends no Origin), and the old
+    # "" bind put both on every interface - the whole LAN could spend the key. A phone
+    # preview on the local network is an explicit choice now: --bind 0.0.0.0.
+    bind = "127.0.0.1"
+    if "--bind" in argv:
+        i = argv.index("--bind")
+        bind = argv[i + 1]
+        del argv[i:i + 2]
+    serve(int(argv[0]) if argv else 8000, directory, bind)
     return 0
 
 

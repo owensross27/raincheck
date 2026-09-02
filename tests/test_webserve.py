@@ -176,6 +176,16 @@ class FakeResponse:
         return False
 
 
+def test_the_server_binds_loopback_by_default():
+    """/api/chat spends a real API key per request and the Origin check only binds
+    browsers (curl sends no Origin) - so the default bind is 127.0.0.1, and putting the
+    proxy on the LAN is an explicit `--bind 0.0.0.0`, never an accident of the old ""
+    default."""
+    import inspect
+
+    assert inspect.signature(webserve.serve).parameters["bind"].default == "127.0.0.1"
+
+
 def test_the_health_get_answers_locally_and_never_touches_the_network(host, monkeypatch, tmp_path):
     """GET /api/chat is the launcher's FREE probe: {"proxy": true, "key": bool}, answered
     by this server alone - upstream must never be dialled, or every page load with a
