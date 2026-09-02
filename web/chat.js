@@ -24,7 +24,11 @@ invent a number, a count or a date. When a tool can put something on the map, ca
 than only describing what the reader could click. Keep answers short; the map is the answer.`;
 
 const MAX_ROUNDS = 8;          // total /api/chat round trips for one user message
-const TOOL_RESULT_CAP = 4000;  // chars of JSON.stringify(result) sent back to the model
+// chars of JSON.stringify(result) sent back to the model. MEASURED: 4000 cut the tail
+// off even the PRUNED recent.json (6,095 chars) and the model confidently answered from
+// the events it could see - 205 stops - while the window's true max (647, 2025-10-30)
+// sat in the truncated tail. ~3k tokens is nothing to the model; a wrong answer is not.
+const TOOL_RESULT_CAP = 12000;
 
 let registry = {};
 let messages = [];             // the running conversation, sans the system prompt
