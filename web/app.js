@@ -39,9 +39,9 @@ import { $, LAYERS, map, markStyled, on, shut, styled } from "./layers.js";
 import { initChat } from "./chat.js";
 import { load } from "./freshness.js";
 import { applyVisibility, openDet, renderLayers, toggle, toggleDet } from "./panel.js";
-import { applyRamp, closeCard, loadRecent, locateEvent, pinEvent, pinnedEvent, pointTip,
-         recentFilterState, setHourIndex, setRecentBorough, setRecentZone, setScenario,
-         setView, showCard, showTip } from "./insight.js";
+import { applyRamp, cellFeatures, closeCard, loadRecent, locateEvent, pinEvent,
+         pinnedEvent, pointTip, recentFilterState, setHourIndex, setRecentBorough,
+         setRecentZone, setScenario, setView, showCard, showTip } from "./insight.js";
 import { toggleLive } from "./live.js";
 
 // NO NavigationControl either (Ross, 2026-09-01): scroll/pinch/double-tap zoom cover it,
@@ -360,6 +360,11 @@ const chatRegistry = {
       required: ["borough"] },
     run: async ({ borough, neighborhood }) => {
       if (document.body.dataset.mode !== "history") await setMode("history");
+      // the borough/zone join reads cells.geojson; without it the filters are inert
+      // (MEASURED: the tool filtered to zero before the payload landed). The fetch is
+      // what matters - on a map that cannot draw yet, the draw may throw after the
+      // data is in, which is fine here.
+      if (!cellFeatures().length) { try { await load("cells"); } catch { /* data landed */ } }
       await setRecentBorough(borough || "");
       if (neighborhood) await setRecentZone(neighborhood);
       return recentFilterState();

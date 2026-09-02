@@ -767,6 +767,9 @@ export function setRecentZone(z) {
 // neighborhoods ranked exactly as the drill-down chips rank them.
 export const recentFilterState = () => ({
   borough: recentBorough, neighborhood: recentZone,
+  // false = cells.geojson has not landed, the join is empty and the filters are INERT
+  // (every event listed regardless) - a consumer must not read `events` as filtered
+  neighborhood_join_ready: Boolean(zoneIndex()),
   events: lastVisible.map(i => {
     const e = recentEvents[i];
     return { index: i, event_id: e.event_id,
@@ -836,8 +839,10 @@ export async function loadRecent() {
   // every event renders (the section scrolls inside its cap); data-ev stays the ORIGINAL
   // index even under a filter, because locateEvent indexes recentEvents by it
   const rows = recentEvents.map((ev, i) => {
-    if (recentBorough && !per[i].boros.has(recentBorough)) return "";
-    if (recentZone && !per[i].zones.some(([z]) => z === recentZone)) return "";
+    // filters are INERT until the zone join exists (zx null: cells.geojson not landed) -
+    // an empty join must read as "cannot filter yet", never as "nothing matches"
+    if (zx && recentBorough && !per[i].boros.has(recentBorough)) return "";
+    if (zx && recentZone && !per[i].zones.some(([z]) => z === recentZone)) return "";
     visible.push(i);
     const span = ev.day_start === ev.day_end ? esc(ev.day_start)
       : `${esc(ev.day_start)} &rarr; ${esc(ev.day_end)}`;

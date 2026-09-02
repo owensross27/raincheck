@@ -1421,7 +1421,7 @@ def test_the_five_point_layers_get_a_mousemove_click_and_mouseleave_tip_in_app_j
     MUTATION KILLED: dropping one layer's mouseleave (or the whole loop) - four of the five
     point layers would stay permanently mute or leave a stuck tip on the map."""
     boot = module_js()["app.js"]
-    assert 'import { applyRamp, closeCard, loadRecent, locateEvent, pinEvent, pinnedEvent, pointTip,' in boot
+    assert 'import { applyRamp, cellFeatures, closeCard, loadRecent, locateEvent, pinEvent,' in boot
     assert 'for (const id of ["hist", "subway", "mta", "fn", "live"]) {' in boot
     # the whole set, UNCONDITIONAL and contiguous - a per-layer guard around any one call
     # (e.g. `if (id !== "fn") map.on("mouseleave", ...)`) breaks this exact block. The
