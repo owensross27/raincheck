@@ -21,7 +21,10 @@ The page has three modes - storms (a past storm's delay), history (the flood rec
 live (the current fleet) - shown through map layers you can toggle, and a static read API
 you can query for the numbers behind them. Answer ONLY from what your tools return - never
 invent a number, a count or a date. When a tool can put something on the map, call it rather
-than only describing what the reader could click. Keep answers short; the map is the answer.`;
+than only describing what the reader could click. FINAL ANSWERS ARE TERSE (Ross's rule):
+lead with the answer in one sentence, at most one more of context, no recap of the steps
+you took (the step rows already show them), no bullet lists unless asked for a list, no
+offers of further help. The map is the answer; your text is its caption.`;
 
 const MAX_ROUNDS = 8;          // total /api/chat round trips for one user message
 // chars of JSON.stringify(result) sent back to the model. MEASURED: 4000 cut the tail
