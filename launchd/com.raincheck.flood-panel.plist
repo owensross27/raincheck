@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- The flood tick, locally: nothing on this Mac ran flood_panel, so the whole flood
+       and impact surface froze at whatever the last manual run wrote (measured: Aug 27,
+       five days stale under a "Live" label). Cloud 05's 30 s Deployment owns this in the
+       cluster; that platform is parked, so this LaunchAgent is the laptop stand-in at a
+       gentler 120 s. scripts/flood-panel-tick.sh maps the serve creds from .env.
+       install: cp launchd/com.raincheck.flood-panel.plist ~/Library/LaunchAgents/ &&
+                launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.raincheck.flood-panel.plist
+       stop:    launchctl bootout gui/$(id -u)/com.raincheck.flood-panel
+       log:     tail -f data/logs/flood-panel.log -->
+  <key>Label</key><string>com.raincheck.flood-panel</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>/Users/ross/raincheck/scripts/flood-panel-tick.sh</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/ross/raincheck</string>
+  <key>EnvironmentVariables</key>
+  <dict><key>PATH</key><string>/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string></dict>
+  <key>StartInterval</key><integer>120</integer>
+  <key>StandardOutPath</key><string>/Users/ross/raincheck/data/logs/flood-panel.log</string>
+  <key>StandardErrorPath</key><string>/Users/ross/raincheck/data/logs/flood-panel.log</string>
+</dict>
+</plist>
