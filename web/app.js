@@ -40,8 +40,8 @@ import { initChat } from "./chat.js";
 import { load } from "./freshness.js";
 import { applyVisibility, openDet, renderLayers, toggle, toggleDet } from "./panel.js";
 import { applyRamp, closeCard, loadRecent, locateEvent, pinEvent, pinnedEvent, pointTip,
-         setHourIndex, setRecentBorough, setRecentZone, setScenario, setView, showCard,
-         showTip } from "./insight.js";
+         recentFilterState, setHourIndex, setRecentBorough, setRecentZone, setScenario,
+         setView, showCard, showTip } from "./insight.js";
 import { toggleLive } from "./live.js";
 
 // NO NavigationControl either (Ross, 2026-09-01): scroll/pinch/double-tap zoom cover it,
@@ -345,6 +345,25 @@ const chatRegistry = {
     parameters: { type: "object", properties: { index: { type: "number" } },
       required: ["index"] },
     run: async ({ index }) => { locateEvent(index >= 0 ? index : null); return { located: index }; },
+  },
+  filter_flood_record: {
+    description: "Filter the flood-record list by borough, and optionally one " +
+      "neighborhood inside it (exact TLC zone name). Empty strings clear the filter. " +
+      "Switches the map to history mode, applies the page's own chips, zooms to the " +
+      "area, and RETURNS the matching events plus the borough's neighborhoods ranked " +
+      "by how many events touched them - filter by borough first and use the returned " +
+      "neighborhood names for a tighter follow-up call.",
+    parameters: { type: "object", properties: {
+      borough: { type: "string",
+        enum: ["", "Bronx", "Brooklyn", "Manhattan", "Queens", "Staten Island"] },
+      neighborhood: { type: "string" } },
+      required: ["borough"] },
+    run: async ({ borough, neighborhood }) => {
+      if (document.body.dataset.mode !== "history") await setMode("history");
+      await setRecentBorough(borough || "");
+      if (neighborhood) await setRecentZone(neighborhood);
+      return recentFilterState();
+    },
   },
   set_view: {
     description: "Select which storm or time-period view the Cell fill and curve show - " +

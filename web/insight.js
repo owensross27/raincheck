@@ -707,6 +707,8 @@ export function closeCard() {
  * wiring on this page.
  */
 let recentEvents = [];   // the fetched events, indexed by the rows' data-ev attribute
+let lastVisible = [];    // the indices the current filters keep, in list order
+let lastZones = [];      // the active borough's ranked neighborhoods, [{zone, events}]
 let recentDoc = null;    // the payload, cached so a filter click re-renders, never refetches
 let recentBorough = "";  // "" = every borough; the chip row sets it (wired in app.js)
 let recentZone = "";     // one neighborhood inside that borough, or "" = all of it
@@ -747,16 +749,31 @@ function fitCells(pred) {
 
 export function setRecentBorough(b) {
   recentBorough = b; recentZone = "";
-  loadRecent();
+  const done = loadRecent();   // returned so a caller (the chat registry) can await it
   const zx = zoneIndex();
   if (b && zx) fitCells(p => zoneBorough.get(p.zone_name) === b || (p.borough === b));
+  return done;
 }
 
 export function setRecentZone(z) {
   recentZone = recentZone === z ? "" : z;   // a second click clears the neighborhood
-  loadRecent();
+  const done = loadRecent();
   if (recentZone) fitCells(p => p.zone_name === recentZone);
+  return done;
 }
+
+// the filter's state AS DATA - what the chat's filter tool hands back to the model, so
+// filtering and answering are one call: the visible events, and the active borough's
+// neighborhoods ranked exactly as the drill-down chips rank them.
+export const recentFilterState = () => ({
+  borough: recentBorough, neighborhood: recentZone,
+  events: lastVisible.map(i => {
+    const e = recentEvents[i];
+    return { index: i, event_id: e.event_id,
+             bus_stops: e.n_assets ? e.n_assets.bus_stop : undefined };
+  }),
+  neighborhoods: lastZones,
+});
 
 // click-to-pin: the hover ring is a preview, the pinned ring is a choice that survives
 // the pointer leaving (Ross: "when you highlight each flood event it should stay").
@@ -799,6 +816,7 @@ export async function loadRecent() {
   // the drill-down: with a borough picked, its neighborhoods rank by how many of the
   // filtered events touched them - the "break it down by neighborhood" half of the chips
   let zoneChips = "";
+  lastZones = [];
   if (recentBorough && zx) {
     const zc = new Map();
     for (const p of per) {
@@ -807,6 +825,7 @@ export async function loadRecent() {
         if (zoneBorough.get(z) === recentBorough) zc.set(z, (zc.get(z) || 0) + 1);
     }
     const ranked = [...zc.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
+    lastZones = ranked.map(([z, n]) => ({ zone: z, events: n }));
     zoneChips = !ranked.length ? "" :
       `<div id="rec-zones" class="chips" role="group" aria-label="Neighborhoods in ${esc(recentBorough)}">` +
       ranked.map(([z, n]) =>
@@ -835,6 +854,7 @@ export async function loadRecent() {
   }).join("");
   // a pin the filters just hid is a ring nothing on the list explains - drop it
   if (pinnedEv !== null && !visible.includes(pinnedEv)) { pinnedEv = null; locateEvent(null); }
+  lastVisible = visible;
   // the timeline: one slider over the visible events, oldest on the left - scrubbing it
   // pins each event in turn, the storm-hour slider's pattern applied to the record.
   // data-order carries the ORIGINAL indices so the wiring needs no second lookup.
