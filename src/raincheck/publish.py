@@ -270,8 +270,12 @@ FAMILIES: dict[str, Family] = {
                # position - the <head> link fetches it before any module runs.
                "favicon.svg",
                "layers.js", "freshness.js", "panel.js", "insight.js", "live.js",
-               "basemap.js", "app.js",
-               "app.css", "vendor/maplibre-gl.js", "vendor/maplibre-gl.css",
+               "basemap.js",
+               # the "Ask the map" chat: a self-contained widget module behind app.js's
+               # registry seam. Before app.js in LOAD order because app.js imports it.
+               # Additive under contract.PROMISE[1]: no bump.
+               "chat.js", "app.js",
+               "app.css", "chat.css", "vendor/maplibre-gl.js", "vendor/maplibre-gl.css",
                # frontend2 02: the basemap's three vendored assets. `pmtiles.js` is the
                # protocol as a self-contained ES module (imported by basemap.js, NOT a
                # third script tag); `basemap-dark.json` is the STYLE, vendored so no third

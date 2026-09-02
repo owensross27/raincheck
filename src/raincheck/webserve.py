@@ -20,13 +20,114 @@ BEFORE it is published, on a laptop, with no bucket.
 """
 import http.server
 import io
+import json
 import os
 import socketserver
 import sys
+import urllib.error
+import urllib.parse
+import urllib.request
 from functools import partial
+
+from raincheck.paths import REPO
+
+# "Ask the map" chat proxy (chat-integration ticket). The browser cannot hold the
+# DeepSeek key - anything shipped to the page is public - so this ONE endpoint holds it
+# server-side and forwards the page's own {model, messages, tools, tool_choice} body
+# verbatim. Everything else about the request (system prompt, the tool loop, replay) is
+# chat.js's problem; this is purely "hide the key and relay the bytes".
+DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
+MAX_CHAT_BODY = 256 * 1024   # 256 KB; a runaway tool-result loop should 413, not hang
+
+
+def _deepseek_key() -> str | None:
+    """`DEEPSEEK_API_KEY`, or the same name parsed out of the repo `.env` (KEY=value
+    lines, `make web`'s own dev convenience - nothing here writes or rotates it)."""
+    key = os.environ.get("DEEPSEEK_API_KEY")
+    if key:
+        return key
+    try:
+        for line in (REPO / ".env").read_text().splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, _, v = line.partition("=")
+            if k.strip() == "DEEPSEEK_API_KEY":
+                return v.strip() or None
+    except OSError:
+        pass
+    return None
 
 
 class RangeHandler(http.server.SimpleHTTPRequestHandler):
+    def do_GET(self):
+        # the chat launcher's FREE health probe: "is a proxy here at all, and does it hold
+        # a key" - answered locally, never forwarded, so a page load costs no upstream
+        # call. The public static host has no handler at this path (a plain 404), which is
+        # exactly how chat.js tells "local preview" from "deployed page" and disables its
+        # launcher instead of letting the first question die on a mystery error.
+        if self.path == "/api/chat":
+            return self._chat_json(200, {"proxy": True, "key": _deepseek_key() is not None})
+        return super().do_GET()
+
+    def do_POST(self):
+        # every early return below fires BEFORE the body is read off the socket - and this
+        # handler is served over HTTP/1.1 keep-alive (RangeHandler.protocol_version), so an
+        # unread body left sitting in the stream is not discarded, it is the START OF THE
+        # NEXT REQUEST on the same connection. Measured while writing the tests: a 403
+        # response followed by the client's next request came back "400 Bad request
+        # version", because the previous POST's body bytes were still queued and got parsed
+        # as a request line. `close_connection = True` on every early exit forces the socket
+        # closed instead, which is the only cheap way to discard a body of unknown or
+        # over-cap length without adding a second content-length-aware read path.
+        if self.path != "/api/chat":
+            self.close_connection = True
+            self.send_error(404)
+            return
+        # strict same-origin: a POST with a JSON content-type is cross-origin-blocked by
+        # the browser's own preflight already, but a non-preflighted client (curl, a
+        # second local process) is not - this is the second, independent gate on the one
+        # endpoint that can spend the user's API key.
+        origin = self.headers.get("Origin")
+        if origin and urllib.parse.urlsplit(origin).netloc != self.headers.get("Host", ""):
+            self.close_connection = True
+            self._chat_json(403, {"error": "cross_origin"})
+            return
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = MAX_CHAT_BODY + 1   # an unparsable Content-Length is refused, not guessed
+        if length > MAX_CHAT_BODY:
+            self.close_connection = True
+            self._chat_json(413, {"error": "too_large"})
+            return
+        body = self.rfile.read(length)
+        key = _deepseek_key()
+        if not key:
+            self._chat_json(503, {"error": "no_key"})
+            return
+        req = urllib.request.Request(DEEPSEEK_URL, data=body, method="POST",
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}"})
+        try:
+            with urllib.request.urlopen(req, timeout=120) as res:
+                self._chat_bytes(res.status, res.read())
+        except urllib.error.HTTPError as e:
+            # DeepSeek's own 4xx/5xx body (a bad key, a rate limit) - pass it through
+            # verbatim so the page can show DeepSeek's own error message.
+            self._chat_bytes(e.code, e.read())
+        except (urllib.error.URLError, TimeoutError, OSError):
+            self._chat_json(502, {"error": "upstream_unreachable"})
+
+    def _chat_json(self, status: int, obj: dict) -> None:
+        self._chat_bytes(status, json.dumps(obj).encode())
+
+    def _chat_bytes(self, status: int, body: bytes) -> None:
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def send_head(self):
         rng = self.headers.get("Range")
         path = self.translate_path(self.path)

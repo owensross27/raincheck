@@ -111,6 +111,18 @@ def test_only_the_boot_module_wires_the_dom_and_the_map():
     for name, js in module_js().items():
         if name == "app.js":
             continue
+        if name == "chat.js":
+            # the ONE earned exemption (chat-integration, 2026-09-01): the rule above
+            # exists because a cycle is only safe while no module BODY reads another's
+            # binding - and chat.js imports NOTHING, so no cycle can reach it. It builds
+            # and wires ITS OWN widget DOM and touches the page solely through the
+            # registry app.js hands initChat(). The import-free property IS the
+            # exemption, so it is pinned here: the day chat.js imports a page module,
+            # its wiring moves to app.js like everyone else's.
+            assert 'from "./' not in js, "chat.js imports a page module - exemption void"
+            assert "map.on(" not in js and "map.once(" not in js, (
+                "chat.js touches the map directly - the registry is the seam")
+            continue
         for w in wiring:
             assert w not in js, f"{name} wires {w} - it must move to app.js (see its header)"
     boot = module_js()["app.js"]
@@ -132,7 +144,8 @@ def test_splitting_the_page_added_keys_and_did_not_move_the_contract_integer():
     promised = {k for _, k, _ in contract.PROMISE[1]}
     added = set(page_files()) - promised
     assert added == {"layers.js", "freshness.js", "panel.js", "insight.js", "live.js",
-                     "basemap.js"}          # frontend2 02 added the seventh, additively
+                     "basemap.js",          # frontend2 02 added the seventh, additively
+                     "chat.js"}             # chat-integration added the eighth, additively
     assert "app.js" in promised, "app.js was promised at contract 1 and must keep its name"
     assert contract.CONTRACT == 1, "an additive change may not bump the contract integer"
     assert not (contract.PROMISE[contract.CONTRACT] - contract.surface())
@@ -551,7 +564,9 @@ def test_every_page_fetch_revalidates_and_none_bypasses_the_browser_cache():
     would serve a stored response with a frozen Date - the frozen-age trap.
     MUTATION KILLED: reverting either site to no-store, or 'fixing' one to default."""
     js = page_js()
-    assert js.count('cache: "no-cache"') == 2, "grab() and the basemap style fetch"
+    assert js.count('cache: "no-cache"') == 3, (
+        "grab(), the basemap style fetch, and query_data (the chat registry's read of the "
+        "same files/ surface - revalidate, never bypass, the same rule)")
     assert '"no-store"' not in js
 
 

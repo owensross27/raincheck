@@ -35,7 +35,8 @@
  * For the same reason the two cross-module WRITES go through a function - an imported
  * binding is read-only in the importing module: layers.markStyled() and live.toggleLive().
  */
-import { $, LAYERS, map, markStyled, on, styled } from "./layers.js";
+import { $, LAYERS, map, markStyled, on, shut, styled } from "./layers.js";
+import { initChat } from "./chat.js";
 import { load } from "./freshness.js";
 import { applyVisibility, openDet, renderLayers, toggle, toggleDet } from "./panel.js";
 import { applyRamp, closeCard, loadRecent, locateEvent, pinEvent, pinnedEvent, pointTip,
@@ -273,3 +274,74 @@ loadRecent();
 // first paint of the panel itself: the rows exist before the map is loaded, with
 // every control disabled, so the reader sees the layer set rather than a blank column.
 renderLayers();
+
+/* "Ask the map" (chat-integration ticket): the registry chat.js drives. Every entry is a
+ * thin wrapper over a function this file already imports or defines - chat.js never
+ * touches layers.js, insight.js or panel.js directly, which is the whole point of the
+ * registry seam (it can be unit-tested / swapped without chat.js knowing anything changed).
+ */
+async function queryData(path) {
+  // the ONE safety rule the read-API contract requires of any consumer: this is a read
+  // of the PUBLIC static surface (docs/read-api-contract.md) and nothing else - never
+  // app.js's own source, never a path outside the served tree.
+  if (typeof path !== "string" || !path.startsWith("files/"))
+    throw new Error('query_data: path must start with "files/"');
+  const res = await fetch(path, { cache: "no-cache" });
+  if (!res.ok) throw new Error(`query_data: HTTP ${res.status} for ${path}`);
+  return res.json();
+}
+
+const chatRegistry = {
+  set_mode: {
+    description: "Switch the map's mode: storms (a past storm's bus slowdown), history " +
+      "(the flood record) or live (the current fleet).",
+    parameters: { type: "object",
+      properties: { mode: { type: "string", enum: ["storms", "history", "live"] } },
+      required: ["mode"] },
+    run: async ({ mode }) => { await setMode(mode); return { mode }; },
+  },
+  list_layers: {
+    description: "List every map layer: id, display name, whether it is currently on, " +
+      "and whether it is gated (dark - needs the MTA terms verified, cannot be turned on).",
+    parameters: { type: "object", properties: {} },
+    run: async () => LAYERS.map(l => ({ id: l.id, name: l.name, on: Boolean(on[l.id]),
+                                        gated: shut(l) })),
+  },
+  set_layer: {
+    description: "Turn one map layer on or off by its id (call list_layers first for the " +
+      "id list). A gated layer refuses silently - check `gated` before calling this.",
+    parameters: { type: "object",
+      properties: { id: { type: "string" }, on: { type: "boolean" } },
+      required: ["id", "on"] },
+    run: async ({ id, on: want }) => { await toggle(id, want); applyRamp(); return { id, on: want }; },
+  },
+  query_data: {
+    description: "Fetch one file from the site's static read API - a path under files/ " +
+      "(see docs/read-api-contract.md). Start from files/index.json to discover what's " +
+      "published, or files/summary/recent.json for the recent-flooding list. Results can " +
+      "be large; long ones are truncated before you see them.",
+    parameters: { type: "object", properties: { path: { type: "string" } },
+      required: ["path"] },
+    run: async ({ path }) => queryData(path),
+  },
+  locate_event: {
+    description: "Ring one recent flood event's Cells on the map by its index in " +
+      "files/summary/recent.json's events array (0 = newest). Call with a negative " +
+      "number or omit to clear the ring.",
+    parameters: { type: "object", properties: { index: { type: "number" } },
+      required: ["index"] },
+    run: async ({ index }) => { locateEvent(index >= 0 ? index : null); return { located: index }; },
+  },
+  set_view: {
+    description: "Select which storm or time-period view the Cell fill and curve show - " +
+      "one of the options in the page's own view picker (#views-sel): typically \"ida\" " +
+      "(Ida 2021), \"f23\" (the 2023-09-29 flood), \"w1\"/\"w1d\" or \"w2\"/\"w2d\" (the " +
+      "two wet-vs-dry windows and their dry-speed baselines) - not all are published on " +
+      "every host, and only the cells layer's own data determines which exist. Only " +
+      "meaningful in storms mode; call set_mode first if the map is in another mode.",
+    parameters: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
+    run: async ({ id }) => { setView(id); renderLayers(); return { view: id }; },
+  },
+};
+
+initChat(chatRegistry);
